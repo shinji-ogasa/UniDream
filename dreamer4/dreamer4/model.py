@@ -19,6 +19,7 @@ class Modality(IntEnum):
     SHORTCUT_SIGNAL = 5
     SHORTCUT_STEP = 6
     AGENT = 7
+    LANGUAGE = 8
 
 
 @dataclass(frozen=True)
