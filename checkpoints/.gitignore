@@ -1,0 +1,5 @@
+# Checkpoint files are not committed to the repo.
+# Download with: python scripts/download_checkpoints.py
+*.pt
+*.pth
+*.ckpt
