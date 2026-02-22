@@ -1,46 +1,51 @@
 # UniDream
 
-Language-conditioned world model for Minecraft, built on Dreamer 4 + MineDojo.
+World-model-based reinforcement learning for trading.
 
 ## Project Goal
 
-Extend Dreamer 4's world model with language conditioning so it can follow natural language instructions in Minecraft (e.g., "find diamonds", "build a house").
-Core idea borrowed from Dynalang: multi-modal tokens (image + language) are fed into the same RSSM dynamics.
+Oracle trajectory から Transformer 世界モデルを学習し、Imagination 上で Actor-Critic を訓練することで、トレーディング方策を獲得する。
+Dreamer の imagination-based RL パイプラインを金融時系列に適用する。
 
 ---
 
 ## Architecture Decisions
 
 ### DL Framework: PyTorch
-- Dreamer 4 (`nicklashansen/dreamer4`) is PyTorch (torch 2.8) — we build on top of it directly
-- Dynalang is JAX; we borrow the concept but re-implement in PyTorch
-- VPT IDM is also PyTorch → consistent stack
+- Dreamer 4 (`nicklashansen/dreamer4`) が PyTorch (torch 2.8) — ベースとして利用
+- 世界モデル・Actor・Critic すべて PyTorch で統一
 
-### Minecraft Environment: MineDojo (not MineRL)
-- MineRL: outdated, painful Java dependencies, stagnant maintenance
-- MineDojo: ships MineCLIP, clean API, rich task suite (programmatic + creative)
-- JARVIS-VLA uses MineStudio (MineDojo family) → direct comparison possible
+### 世界モデル: Transformer（IRIS / TWM 系）
+- 状態トークン列 → 次状態 + 報酬予測
+- RSSM ではなく Transformer ベースのシーケンスモデルを採用
+- 損失: next state prediction + reward prediction + termination の 3 ヘッド
 
-### Language Encoder: MineCLIP text encoder (Phase 1)
-Three candidates evaluated:
+### 行動空間（未確定）
+二つの候補:
 
 | Option | Pros | Cons |
 |--------|------|------|
-| MineCLIP text encoder | Minecraft-specific, STEVE-1 proven, lightweight | Low generality |
-| T5-small/base (frozen) | Dynalang's choice, general-purpose, pretrained | More params |
-| SentenceTransformer (all-MiniLM) | Lightweight, easy embeddings | Zero Minecraft specificity |
+| 離散（buy / hold / sell） | DP で oracle 計算が容易、実装シンプル | ポジションサイジング不可 |
+| 連続（ポジション比率 -1〜+1） | 柔軟なポジション管理 | oracle 計算が複雑、方策学習が難しい |
 
-**Decision: MineCLIP for Phase 1, swap to T5 in Phase 2.**
+**未決定: 離散から始めるのが安全。TradeRL との差分で判断。**
 
-Rationale:
-- Fair comparison with STEVE-1 baseline in Phase 1
-- Dreamer 4's Modality abstraction makes encoder swap straightforward
-- MineCLIP text embedding = 512-dim → Linear → Dreamer 4 `d_model` (768)
+### Actor アーキテクチャ
+- MLP or 小さめ Transformer
+- 入力は過去〜現在の状態のみ（未来情報なし）
 
-### Action Inference: VPT IDM
-- OpenAI's Inverse Dynamics Model from pretrained VPT
-- Estimates actions from frame pairs; pretrained weights available
-- Used to generate pseudo-action labels from YouTube videos
+### Oracle Trajectory 生成
+- 未来価格既知の状態で DP または貪欲法により最適行動列を算出
+- 世界モデルの学習データおよび Actor BC の教師ラベルとして使用
+
+---
+
+## Data Pipeline
+
+- **入力**: OHLCV + テクニカル指標（MA, RSI, ボリンジャーバンド等）数十次元
+- **行動空間**: 離散（buy / hold / sell）または連続（ポジション比率 -1〜+1）
+- **学習データ混合**: ランダム方策・ε-greedy・ヒューリスティック・oracle を混合
+  - 初期比率: ランダム:oracle = 6:4（要チューニング）
 
 ---
 
@@ -48,61 +53,85 @@ Rationale:
 
 ```
 unidream/
-├── dreamer4/                  # Fork of nicklashansen/dreamer4 (tokenizer, dynamics, model)
-├── unidream/
-│   ├── language_encoder.py    # MineCLIP text encoder wrapper: str → (B,T,1,512) → (B,T,1,d_model)
-│   ├── language_modality.py   # Adds Modality.LANGUAGE=8, patches Dynamics.forward
-│   ├── minecraft_data.py      # MineDojo / YouTube video data loader
-│   ├── vpt_idm.py             # VPT IDM wrapper for pseudo-action labeling
-│   └── train_language.py      # Language-conditioned dynamics training entry point
+├── data/
+│   ├── oracle.py              # Oracle trajectory 生成（DP / 貪欲法）
+│   ├── features.py            # OHLCV + テクニカル指標の特徴量計算
+│   └── dataset.py             # データローダー（混合方策データ）
+├── world_model/
+│   ├── transformer.py         # Transformer 世界モデル（IRIS/TWM 系）
+│   └── train_wm.py            # 世界モデル事前学習エントリポイント
+├── actor_critic/
+│   ├── actor.py               # Actor（MLP / Transformer）
+│   ├── critic.py              # Critic（value function）
+│   ├── bc_pretrain.py         # Phase 2: Actor BC 事前学習
+│   └── imagination_ac.py      # Phase 3: Imagination AC 学習
+├── online/
+│   └── finetune.py            # Phase 4: オンライン fine-tune
 ├── configs/
-│   └── minecraft.yaml
+│   └── trading.yaml
 └── eval/
-    └── minedojo_eval.py       # Language task evaluation on MineDojo
+    └── backtest.py            # バックテスト評価
 ```
 
 ---
 
 ## Dependencies
 
-Core additions on top of Dreamer 4's environment:
-
 ```yaml
-# environment.yaml extras
-- minedojo
-- mineclip        # or: git+https://github.com/MineDojo/MineCLIP
-- sentence-transformers  # optional, for T5/MiniLM swap in Phase 2
+# Core
+- torch >= 2.0
+- numpy
+- pandas
+
+# テクニカル指標
+- ta-lib          # or: pandas-ta
+- scikit-learn    # 特徴量正規化等
+
+# データ取得
+- yfinance        # or: ccxt for crypto
+
+# 評価
+- matplotlib
+- seaborn
 ```
 
 ---
 
 ## Implementation Phases
 
-### Phase 1 — Language skeleton (current)
-1. Add `LANGUAGE = 8` to `dreamer4/model.py` `Modality` enum
-2. Write MineCLIP text encoder wrapper (`language_encoder.py`)
-   - Input: `str` (or list of strings)
-   - Output: `(B, T, 1, 512)` → Linear → `(B, T, 1, d_model)`
-3. Patch `Dynamics.forward` to concat language tokens into the token sequence
-4. Smoke-test: language tokens flow through the world model
+### Phase 1 — 世界モデル事前学習
+- Transformer 世界モデルの実装（状態トークン列 → 次状態 + 報酬 + termination）
+- データ収集: ランダム・ε-greedy・ヒューリスティック・oracle の混合データ生成
+- 3 ヘッド損失で学習
 
-Goal: language token enters the world model. No data, no RL yet — just the skeleton.
+### Phase 2 — Actor BC 事前学習
+- Oracle 行動を教師ラベルにして教師あり学習（Behavioral Cloning）
+- 入力は過去〜現在の状態のみ（未来情報なし）
 
-### Phase 2 — Data pipeline
-- VPT IDM pseudo-labeling on YouTube videos
-- MineDojo programmatic task data loader
+### Phase 3 — Imagination 上で Critic warmup → AC 学習
+- 世界モデルで imagination rollout（horizon 15〜50 ステップ）
+- Critic をまず数エポック warmup（actor 凍結）
+- その後 actor 解放、KL 制約付きで BC 方策から徐々に離れる
+- λ-return で value target 計算（Dreamer 方式）
 
-### Phase 3 — Training & evaluation
-- Language-conditioned world model pretraining
-- MBRL fine-tuning on MineDojo tasks
-- Comparison vs. STEVE-1 / JARVIS-VLA baselines
+### Phase 4 — オンライン fine-tune
+- 実環境データで世界モデルを逐次更新
+- Imagination AC も継続学習
+- Replay buffer に実データを蓄積、世界モデルのカバレッジを拡大
+
+---
+
+## Open Questions
+
+- **行動空間**: 離散 vs 連続（oracle の DP 計算と方策設計の両方に影響）
+- **時間足**: 日足から始めるのが安全（分足はノイズが多い）
+- **対象銘柄**: まず 1 銘柄で検証
 
 ---
 
 ## Key References
 
 - [Dreamer 4](https://github.com/nicklashansen/dreamer4)
-- [Dynalang](https://arxiv.org/abs/2308.01399)
-- [MineDojo](https://minedojo.org/) / [MineCLIP](https://github.com/MineDojo/MineCLIP)
-- [VPT (OpenAI)](https://github.com/openai/Video-PreTraining)
-- [STEVE-1](https://arxiv.org/abs/2306.00937)
+- [IRIS](https://arxiv.org/abs/2209.00588) — Transformer world model for Atari
+- [TWM](https://arxiv.org/abs/2209.14855) — Transformer-based World Models
+- [Dynalang](https://arxiv.org/abs/2308.01399) — multi-modal world model（コンセプト参考）
