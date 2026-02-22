@@ -1,8 +1,21 @@
 # UniDream
 
+![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red?logo=pytorch)
+![License](https://img.shields.io/badge/License-Non--Commercial-orange)
+
 Imagination-based reinforcement learning for crypto trading.
 
 Oracle trajectory から Transformer 世界モデルを学習し、Imagination 上で Actor-Critic を訓練してトレーディング方策を獲得する。
+
+---
+
+## Overview
+
+UniDream は、暗号資産トレード向けに **World Model + Imagination RL** を適用するプロジェクトです。
+まずはテクニカル指標中心の MVP で検証し、alpha を確認した後に LoRe（LLM Embed / Risk Gate）を段階導入します。
+
+---
 
 ## Pipeline
 
@@ -32,6 +45,54 @@ Oracle trajectory から Transformer 世界モデルを学習し、Imagination �
 │     手数料・スリッページ込み、Sharpe / MDD / PnL 評価                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Key Specifications
+
+| Item | Value |
+|------|-------|
+| 対象 | BTCUSDT (Binance Futures) |
+| 時間足 | 15 分足 |
+| 行動空間 | **離散（buy / hold / sell）** |
+| 世界モデル | Transformer (IRIS/TWM 系) |
+| Actor | MLP or 小さめ Transformer |
+| DL Framework | PyTorch (>= 2.0) |
+
+> 現段階は離散行動空間を採用。15m 足で取引頻度が高くなりやすいため、oracle 側で手数料・スリッページ込み最適化を前提とします。
+
+---
+
+## Implementation Phases
+
+### Phase 1 — MVP（テクニカルのみ）
+
+パイプラインをテクニカル指標のみで一気通貫させ、backtest まで回す。
+
+| Step | Module | 内容 |
+|------|--------|------|
+| 1 | `data/download.py` | Binance Vision BTCUSDT 15m klines + funding rate + OI 取得 |
+| 2 | `data/features.py` | OHLCV → MA, RSI, BB, MACD 等のテクニカル特徴量 |
+| 3 | `data/oracle.py` | DP で oracle trajectory 生成（手数料込み） |
+| 4 | `world_model/` | Transformer 世界モデル学習（3ヘッド: next state + reward + termination） |
+| 5 | `actor_critic/` | Actor BC → Critic warmup → Imagination AC |
+| 6 | `eval/backtest.py` | Sharpe, MDD, PnL 評価 |
+
+### Phase 2 — LoRe 統合
+
+Phase 1 で alpha が確認できたら追加。変数分離のため段階的に導入。
+
+- **LLM Embed**: ニュース・イベント・市場センチメントを LLM で embed → 世界モデルの入力に結合
+- **Risk Gate**: FOMC 発表、ハック事件等の重大イベント検知 → uncertainty 高い時に actor のポジションサイズを強制縮小 / フラット化
+
+### Phase 3 — オンライン fine-tune
+
+Backtest 結果を見てから検討。
+
+- 実環境データで世界モデルを逐次更新
+- Replay buffer に実データ蓄積
+
+---
 
 ## Repository Structure
 
@@ -64,45 +125,7 @@ UniDream/
     └── trading.yaml
 ```
 
-## Implementation Phases
-
-### Phase 1 — MVP（テクニカルのみ）
-
-パイプラインをテクニカル指標のみで一気通貫させ、backtest まで回す。
-
-| Step | Module | 内容 |
-|------|--------|------|
-| 1 | `data/download.py` | Binance Vision BTCUSDT 15m klines + funding rate + OI 取得 |
-| 2 | `data/features.py` | OHLCV → MA, RSI, BB, MACD 等のテクニカル特徴量 |
-| 3 | `data/oracle.py` | DP で oracle trajectory 生成（手数料込み） |
-| 4 | `world_model/` | Transformer 世界モデル学習（3ヘッド: next state + reward + termination） |
-| 5 | `actor_critic/` | Actor BC → Critic warmup → Imagination AC |
-| 6 | `eval/backtest.py` | Sharpe, MDD, PnL 評価 |
-
-### Phase 2 — LoRe 統合
-
-Phase 1 で alpha が確認できたら追加。変数分離のため段階的に導入。
-
-- **LLM Embed**: ニュース・イベント・市場センチメントを LLM で embed → 世界モデルの入力に結合
-- **Risk Gate**: FOMC 発表、ハック事件等の重大イベント検知 → uncertainty 高い時に actor のポジションサイズを強制縮小 / フラット化
-
-### Phase 3 — オンライン fine-tune
-
-Backtest 結果を見てから検討。
-
-- 実環境データで世界モデルを逐次更新
-- Replay buffer に実データ蓄積
-
-## Key Specifications
-
-| Item | Value |
-|------|-------|
-| 対象 | BTCUSDT (Binance Futures) |
-| 時間足 | 15 分足 |
-| 行動空間 | 離散 (buy / hold / sell) — 未確定、連続も検討 |
-| 世界モデル | Transformer (IRIS/TWM 系) |
-| Actor | MLP or 小さめ Transformer |
-| DL Framework | PyTorch (>= 2.0) |
+---
 
 ## Dependencies
 
