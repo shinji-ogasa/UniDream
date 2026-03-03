@@ -2,6 +2,9 @@
 
 OHLCV → 対数リターン + RSI + MACD + ATR + rolling z-score 正規化。
 未来情報リークを防ぐため、すべての特徴量に shift(1) を適用する。
+
+zscore_window は **日数** で統一する（config: zscore_window_days: 60）。
+バー数への変換は BARS_PER_DAY[interval] を使って自動計算する。
 """
 from __future__ import annotations
 
@@ -13,6 +16,22 @@ try:
     HAS_PANDAS_TA = True
 except ImportError:
     HAS_PANDAS_TA = False
+
+# 足種別の 1 日あたりバー数
+BARS_PER_DAY: dict[str, int] = {
+    "1m": 1440,
+    "5m": 288,
+    "15m": 96,
+    "30m": 48,
+    "1h": 24,
+    "4h": 6,
+    "1d": 1,
+}
+
+
+def days_to_bars(days: int, interval: str = "15m") -> int:
+    """日数をバー数に変換する."""
+    return days * BARS_PER_DAY.get(interval, 96)
 
 
 # --- 個別指標計算 ---
@@ -75,15 +94,15 @@ def compute_atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int =
 
 # --- 正規化 ---
 
-def rolling_zscore(series: pd.Series, window: int = 60 * 96) -> pd.Series:
+def rolling_zscore(series: pd.Series, window_bars: int) -> pd.Series:
     """rolling z-score 正規化.
 
     Args:
         series: 正規化対象の時系列
-        window: ウィンドウサイズ（バー数）。デフォルト 60日×96バー(15分足)
+        window_bars: ウィンドウサイズ（バー数）。days_to_bars() で変換済みの値を渡す。
     """
-    mean = series.rolling(window, min_periods=window // 4).mean()
-    std = series.rolling(window, min_periods=window // 4).std()
+    mean = series.rolling(window_bars, min_periods=window_bars // 4).mean()
+    std = series.rolling(window_bars, min_periods=window_bars // 4).std()
     return (series - mean) / (std + 1e-8)
 
 
@@ -92,16 +111,17 @@ def atr_normalize_returns(returns: pd.Series, atr: pd.Series) -> pd.Series:
     return returns / (atr + 1e-8)
 
 
-def rolling_zscore_df(df: pd.DataFrame, window: int = 60 * 96) -> pd.DataFrame:
+def rolling_zscore_df(df: pd.DataFrame, window_bars: int) -> pd.DataFrame:
     """DataFrame 全カラムに rolling z-score を適用する."""
-    return df.apply(lambda col: rolling_zscore(col, window))
+    return df.apply(lambda col: rolling_zscore(col, window_bars))
 
 
 # --- メインの特徴量生成 ---
 
 def compute_features(
     df: pd.DataFrame,
-    zscore_window: int = 60 * 96,
+    zscore_window_days: int = 60,
+    interval: str = "15m",
     rsi_period: int = 14,
     macd_fast: int = 12,
     macd_slow: int = 26,
@@ -115,12 +135,17 @@ def compute_features(
 
     Args:
         df: columns=[open, high, low, close, volume]
+        zscore_window_days: rolling z-score の窓サイズ（**日数**）
+        interval: 足種（バー数変換に使用）
 
     Returns:
         特徴量 DataFrame（NaN 行は dropna で除去済み）:
         [open_ret, high_ret, low_ret, close_ret, vol_ret,
-         rsi, macd, macd_signal, atr_norm_ret]
+         rsi, macd, macd_signal, atr_norm_ret, atr]
     """
+    # 日数 → バー数変換（単位を明確化）
+    window_bars = days_to_bars(zscore_window_days, interval)
+
     # --- 対数リターン（shift(1) 込み）---
     open_ret = log_returns(df["open"]).rename("open_ret")
     high_ret = log_returns(df["high"]).rename("high_ret")
@@ -134,7 +159,6 @@ def compute_features(
     atr = compute_atr(df["high"], df["low"], df["close"], period=atr_period)
 
     # ATR 正規化リターン（close_ret / ATR）
-    # atr は shift(1) 済みなので close_ret との整合性あり
     close_ret_raw = np.log(df["close"] / df["close"].shift(1)).shift(1)
     atr_norm_ret = atr_normalize_returns(close_ret_raw, atr / df["close"].shift(1)).rename("atr_norm_ret")
 
@@ -143,13 +167,11 @@ def compute_features(
         open_ret, high_ret, low_ret, close_ret, vol_ret,
         rsi, macd_df["macd"], macd_df["macd_signal"],
         atr_norm_ret,
-        atr.rename("atr"),  # ATR 自体も特徴量として含める（ボラ参照用）
+        atr.rename("atr"),
     ], axis=1)
 
-    # --- rolling z-score 正規化 ---
-    # atr は正規化不要（後で使う）→ atr カラムは後から除外するか別保持
-    feat_normalized = rolling_zscore_df(feat, window=zscore_window)
-
+    # --- rolling z-score 正規化（バー数で統一）---
+    feat_normalized = rolling_zscore_df(feat, window_bars=window_bars)
     feat_normalized = feat_normalized.dropna()
     return feat_normalized
 

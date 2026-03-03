@@ -14,6 +14,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from unidream.data.dataset import SequenceDataset
+from unidream.data.oracle import ACTIONS as ORACLE_ACTIONS
 from unidream.world_model.ensemble import EnsembleWorldModel
 
 
@@ -76,6 +77,14 @@ class WorldModelTrainer:
         self.reward_scale = wm_cfg.get("reward_scale", 1.0)
         self.done_scale = wm_cfg.get("done_scale", 1.0)
 
+        # コストパラメータ（net_return 計算に使用）
+        costs_cfg = cfg.get("costs", {})
+        self.cost_rate = (
+            (costs_cfg.get("spread_bps", 5.0) / 10000) / 2
+            + costs_cfg.get("fee_rate", 0.0004)
+            + (costs_cfg.get("slippage_bps", 2.0) / 10000)
+        )
+
         self.optimizer = torch.optim.Adam(
             self.ensemble.parameters(),
             lr=self.lr,
@@ -83,6 +92,40 @@ class WorldModelTrainer:
 
         self.global_step = 0
         self.loss_history: list[dict] = []
+
+    def _compute_net_returns(
+        self,
+        actions: torch.Tensor,
+        raw_returns: torch.Tensor,
+    ) -> torch.Tensor:
+        """行動インデックスと生リターンからネットリターン（コスト控除後）を計算する.
+
+        net_return[t] = ACTIONS[actions[t]] * raw_returns[t]
+                        - cost_rate * |ACTIONS[actions[t]] - ACTIONS[actions[t-1]]|
+
+        初期ポジション = 0.0（フラット）。
+
+        Args:
+            actions: (B, T) 行動インデックス
+            raw_returns: (B, T) 生の対数リターン
+
+        Returns:
+            net_returns: (B, T) コスト控除後リターン
+        """
+        action_vals = torch.tensor(
+            ORACLE_ACTIONS, dtype=raw_returns.dtype, device=raw_returns.device
+        )
+        positions = action_vals[actions]                             # (B, T)
+
+        # 前ステップポジション（初期 = 0.0 = フラット）
+        prev_positions = torch.cat([
+            torch.zeros_like(positions[:, :1]),
+            positions[:, :-1],
+        ], dim=1)                                                    # (B, T)
+
+        delta_pos = (positions - prev_positions).abs()
+        costs = self.cost_rate * delta_pos                           # (B, T)
+        return positions * raw_returns - costs                       # (B, T)
 
     def train_on_dataset(
         self,
@@ -120,20 +163,21 @@ class WorldModelTrainer:
                     break
 
                 obs = batch["obs"].to(self.device)            # (B, T, obs_dim)
-                rewards = batch.get("returns")
-                dones_raw = None
-
-                # rewards がない場合はゼロ埋め
-                if rewards is None:
-                    rewards = torch.zeros(obs.shape[:2], device=self.device)
-                else:
-                    rewards = rewards.to(self.device)
 
                 # actions がない場合はゼロ埋め（WM 事前学習時はランダムポリシーで収集した軌跡を想定）
                 if "actions" in batch:
                     actions = batch["actions"].to(self.device)  # (B, T)
                 else:
                     actions = torch.zeros(obs.shape[:2], dtype=torch.long, device=self.device)
+
+                # SPEC 準拠: WM の reward head は net_return（コスト控除後）を学習する
+                # raw return がある場合のみ net_return を計算、なければゼロ埋め
+                raw_returns = batch.get("returns")
+                if raw_returns is not None:
+                    raw_returns = raw_returns.to(self.device)   # (B, T)
+                    rewards = self._compute_net_returns(actions, raw_returns)
+                else:
+                    rewards = torch.zeros(obs.shape[:2], device=self.device)
 
                 # dones はゼロ埋め（継続的トレーディングでは done=False が多い）
                 dones = torch.zeros_like(rewards)
