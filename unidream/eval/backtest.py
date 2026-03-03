@@ -12,15 +12,28 @@ import numpy as np
 import pandas as pd
 
 
-ANNUALIZATION = {
+# 暗号資産は 24h/365d 取引可能 → 365 日で年換算
+# 株式は 252 営業日
+ANNUALIZATION_CRYPTO = {
+    "1m": 365 * 1440,
+    "5m": 365 * 288,
+    "15m": 365 * 96,
+    "30m": 365 * 48,
+    "1h": 365 * 24,
+    "4h": 365 * 6,
+    "1d": 365,
+}
+ANNUALIZATION_EQUITY = {
     "1m": 252 * 390,
     "5m": 252 * 78,
-    "15m": 252 * 96,
-    "30m": 252 * 48,
-    "1h": 252 * 24,
-    "4h": 252 * 6,
+    "15m": 252 * 26,
+    "30m": 252 * 13,
+    "1h": 252 * 6.5,
+    "4h": 252 * 1.625,
     "1d": 252,
 }
+# デフォルトは暗号資産（BTCUSDT 対象のため）
+ANNUALIZATION = ANNUALIZATION_CRYPTO
 
 
 @dataclass

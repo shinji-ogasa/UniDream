@@ -183,7 +183,7 @@ def run_fold(
     encoded_list = [{"z": z_train, "h": h_train}]
     ac_trainer.train(
         encoded_sequences=encoded_list,
-        batch_size=ac_cfg.get("batch_size", 32) if "batch_size" in ac_cfg else 32,
+        batch_size=ac_cfg.get("batch_size", 32),
     )
     ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
     ac_trainer.save(ac_path)

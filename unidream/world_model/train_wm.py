@@ -284,13 +284,27 @@ class WorldModelTrainer:
         """
         self.ensemble.eval()
         T, obs_dim = features.shape
-        all_z, all_h = [], []
+        z_dim = self.ensemble.get_z_dim()
+        d_model = self.ensemble.get_d_model()
 
-        for start in range(0, T - seq_len + 1, seq_len // 2):
+        if T == 0:
+            return {"z": np.zeros((0, z_dim)), "h": np.zeros((0, d_model))}
+
+        z_arr = np.zeros((T, z_dim), dtype=np.float32)
+        h_arr = np.zeros((T, d_model), dtype=np.float32)
+        covered = 0
+
+        # 重複なしストライドでエンコード
+        for start in range(0, T, seq_len):
             end = min(start + seq_len, T)
+            # 最後のチャンクが短い場合、末尾揃えにする
+            if end - start < seq_len and T >= seq_len:
+                start = T - seq_len
+                end = T
+
             obs_t = torch.tensor(
                 features[start:end], dtype=torch.float32, device=self.device
-            ).unsqueeze(0)  # (1, t, obs_dim)
+            ).unsqueeze(0)
 
             if actions is not None:
                 act_t = torch.tensor(
@@ -301,17 +315,20 @@ class WorldModelTrainer:
 
             z, _ = self.ensemble.encode(obs_t)
             out = self.ensemble.forward(z, act_t)
-            h = out["h"]
 
-            all_z.append(z.squeeze(0).cpu().numpy())
-            all_h.append(h.squeeze(0).cpu().numpy())
+            z_np = z.squeeze(0).cpu().numpy()
+            h_np = out["h"].squeeze(0).cpu().numpy()
 
-        if not all_z:
-            return {"z": np.zeros((0, self.ensemble.get_z_dim())),
-                    "h": np.zeros((0, self.ensemble.get_d_model()))}
+            # 重複区間は後のウィンドウの後半のみ書き込む
+            write_start = max(start, covered)
+            offset = write_start - start
+            z_arr[write_start:end] = z_np[offset:]
+            h_arr[write_start:end] = h_np[offset:]
+            covered = end
 
-        z_arr = np.concatenate(all_z, axis=0)[:T]
-        h_arr = np.concatenate(all_h, axis=0)[:T]
+            if end == T:
+                break
+
         return {"z": z_arr, "h": h_arr}
 
     def save(self, path: str) -> None:
@@ -326,7 +343,7 @@ class WorldModelTrainer:
 
     def load(self, path: str) -> None:
         """チェックポイントをロードする."""
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.ensemble.load_state_dict(ckpt["ensemble"])
         self.optimizer.load_state_dict(ckpt["optimizer"])
         self.global_step = ckpt.get("global_step", 0)

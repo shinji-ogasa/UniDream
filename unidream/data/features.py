@@ -1,7 +1,12 @@
 """特徴量エンジニアリングモジュール.
 
 OHLCV → 対数リターン + RSI + MACD + ATR + rolling z-score 正規化。
-未来情報リークを防ぐため、すべての特徴量に shift(1) を適用する。
+
+リーク防止方針:
+  特徴量は「バー t の開始時に既知の情報のみ」で構成する。
+  - 対数リターン: log(P_{t-1}/P_{t-2}) — バー t-1 の確定済みリターン（shift(1)）
+  - TA 指標: バー t-1 までの close を使って計算（shift(1)）
+  - get_raw_returns: バー t のリターン log(P_t/P_{t-1}) — エージェントが獲得する報酬（shift 無し）
 
 zscore_window は **日数** で統一する（config: zscore_window_days: 60）。
 バー数への変換は BARS_PER_DAY[interval] を使って自動計算する。
@@ -37,7 +42,11 @@ def days_to_bars(days: int, interval: str = "15m") -> int:
 # --- 個別指標計算 ---
 
 def log_returns(series: pd.Series) -> pd.Series:
-    """対数リターンを計算する. shift(1) 済み."""
+    """対数リターンを計算する（shift(1) 済み）.
+
+    特徴量としてバー t に格納される値は log(P_{t-1}/P_{t-2})。
+    バー t 開始時点で既知の情報のみを使う。
+    """
     return np.log(series / series.shift(1)).shift(1)
 
 
@@ -177,8 +186,11 @@ def compute_features(
 
 
 def get_raw_returns(df: pd.DataFrame) -> pd.Series:
-    """close の対数リターン（shift(1) 済み、正規化なし）を返す.
+    """close の対数リターン（正規化なし）を返す.
 
-    Oracle / バックテストで使う実際のリターン。
+    Oracle / バックテストで使う「バー t で獲得するリターン」。
+    returns[t] = log(close_t / close_{t-1})。
+    特徴量は shift(1) されているため、features[t] は t-1 までの情報のみ。
+    returns[t] は t の実現リターン → ルックアヘッドにならない。
     """
-    return np.log(df["close"] / df["close"].shift(1)).shift(1).dropna()
+    return np.log(df["close"] / df["close"].shift(1)).dropna()

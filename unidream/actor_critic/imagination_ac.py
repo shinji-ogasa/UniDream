@@ -303,7 +303,8 @@ class ImagACTrainer:
 
         # Advantage = λ-return（symlog）- value（symlog）
         # values は原スケールなので symlog 変換してから引く
-        advantage = (returns - symlog(values + 1e-8)).detach()     # symlog 空間
+        # symlog(0)=0 なので ε 加算は不要（バイアスを避ける）
+        advantage = (returns - symlog(values)).detach()            # symlog 空間
         norm_q = self.td3bc_alpha / (advantage.abs().mean() + 1e-8)
 
         ac_loss = -(norm_q * advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
@@ -374,7 +375,7 @@ class ImagACTrainer:
         }, path)
 
     def load(self, path: str) -> None:
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.actor.load_state_dict(ckpt["actor"])
         self.critic.load_state_dict(ckpt["critic"])
         self.actor_optimizer.load_state_dict(ckpt["actor_optimizer"])
