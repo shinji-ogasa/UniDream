@@ -1,0 +1,10 @@
+torch>=2.0
+numpy
+pandas
+pandas-ta
+scikit-learn
+hmmlearn
+matplotlib
+requests
+scipy
+pyyaml

@@ -1,0 +1,162 @@
+"""特徴量エンジニアリングモジュール.
+
+OHLCV → 対数リターン + RSI + MACD + ATR + rolling z-score 正規化。
+未来情報リークを防ぐため、すべての特徴量に shift(1) を適用する。
+"""
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+try:
+    import pandas_ta as ta
+    HAS_PANDAS_TA = True
+except ImportError:
+    HAS_PANDAS_TA = False
+
+
+# --- 個別指標計算 ---
+
+def log_returns(series: pd.Series) -> pd.Series:
+    """対数リターンを計算する. shift(1) 済み."""
+    return np.log(series / series.shift(1)).shift(1)
+
+
+def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
+    """RSI を計算する. shift(1) 済み."""
+    if HAS_PANDAS_TA:
+        rsi = ta.rsi(close, length=period)
+    else:
+        delta = close.diff()
+        gain = delta.clip(lower=0).rolling(period).mean()
+        loss = (-delta.clip(upper=0)).rolling(period).mean()
+        rs = gain / (loss + 1e-8)
+        rsi = 100 - (100 / (1 + rs))
+    return rsi.shift(1)
+
+
+def compute_macd(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
+    """MACD と MACD シグナルを計算する. shift(1) 済み.
+
+    Returns:
+        DataFrame with columns ['macd', 'macd_signal']
+    """
+    if HAS_PANDAS_TA:
+        result = ta.macd(close, fast=fast, slow=slow, signal=signal)
+        macd_col = f"MACD_{fast}_{slow}_{signal}"
+        signal_col = f"MACDs_{fast}_{slow}_{signal}"
+        df = pd.DataFrame({
+            "macd": result[macd_col],
+            "macd_signal": result[signal_col],
+        })
+    else:
+        ema_fast = close.ewm(span=fast, adjust=False).mean()
+        ema_slow = close.ewm(span=slow, adjust=False).mean()
+        macd_line = ema_fast - ema_slow
+        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+        df = pd.DataFrame({"macd": macd_line, "macd_signal": signal_line})
+    return df.shift(1)
+
+
+def compute_atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
+    """ATR（平均真値域）を計算する. shift(1) 済み."""
+    if HAS_PANDAS_TA:
+        atr = ta.atr(high, low, close, length=period)
+    else:
+        prev_close = close.shift(1)
+        tr = pd.concat([
+            high - low,
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(period).mean()
+    return atr.shift(1)
+
+
+# --- 正規化 ---
+
+def rolling_zscore(series: pd.Series, window: int = 60 * 96) -> pd.Series:
+    """rolling z-score 正規化.
+
+    Args:
+        series: 正規化対象の時系列
+        window: ウィンドウサイズ（バー数）。デフォルト 60日×96バー(15分足)
+    """
+    mean = series.rolling(window, min_periods=window // 4).mean()
+    std = series.rolling(window, min_periods=window // 4).std()
+    return (series - mean) / (std + 1e-8)
+
+
+def atr_normalize_returns(returns: pd.Series, atr: pd.Series) -> pd.Series:
+    """リターンを ATR で割ってボラ正規化する."""
+    return returns / (atr + 1e-8)
+
+
+def rolling_zscore_df(df: pd.DataFrame, window: int = 60 * 96) -> pd.DataFrame:
+    """DataFrame 全カラムに rolling z-score を適用する."""
+    return df.apply(lambda col: rolling_zscore(col, window))
+
+
+# --- メインの特徴量生成 ---
+
+def compute_features(
+    df: pd.DataFrame,
+    zscore_window: int = 60 * 96,
+    rsi_period: int = 14,
+    macd_fast: int = 12,
+    macd_slow: int = 26,
+    macd_signal: int = 9,
+    atr_period: int = 14,
+) -> pd.DataFrame:
+    """OHLCV DataFrame から特徴量を計算して結合する.
+
+    すべての特徴量は shift(1) 済み（未来情報リーク防止）。
+    その後 rolling z-score 正規化を適用する。
+
+    Args:
+        df: columns=[open, high, low, close, volume]
+
+    Returns:
+        特徴量 DataFrame（NaN 行は dropna で除去済み）:
+        [open_ret, high_ret, low_ret, close_ret, vol_ret,
+         rsi, macd, macd_signal, atr_norm_ret]
+    """
+    # --- 対数リターン（shift(1) 込み）---
+    open_ret = log_returns(df["open"]).rename("open_ret")
+    high_ret = log_returns(df["high"]).rename("high_ret")
+    low_ret = log_returns(df["low"]).rename("low_ret")
+    close_ret = log_returns(df["close"]).rename("close_ret")
+    vol_ret = log_returns(df["volume"]).rename("vol_ret")
+
+    # --- テクニカル指標（shift(1) 込み）---
+    rsi = compute_rsi(df["close"], period=rsi_period)
+    macd_df = compute_macd(df["close"], fast=macd_fast, slow=macd_slow, signal=macd_signal)
+    atr = compute_atr(df["high"], df["low"], df["close"], period=atr_period)
+
+    # ATR 正規化リターン（close_ret / ATR）
+    # atr は shift(1) 済みなので close_ret との整合性あり
+    close_ret_raw = np.log(df["close"] / df["close"].shift(1)).shift(1)
+    atr_norm_ret = atr_normalize_returns(close_ret_raw, atr / df["close"].shift(1)).rename("atr_norm_ret")
+
+    # --- 結合 ---
+    feat = pd.concat([
+        open_ret, high_ret, low_ret, close_ret, vol_ret,
+        rsi, macd_df["macd"], macd_df["macd_signal"],
+        atr_norm_ret,
+        atr.rename("atr"),  # ATR 自体も特徴量として含める（ボラ参照用）
+    ], axis=1)
+
+    # --- rolling z-score 正規化 ---
+    # atr は正規化不要（後で使う）→ atr カラムは後から除外するか別保持
+    feat_normalized = rolling_zscore_df(feat, window=zscore_window)
+
+    feat_normalized = feat_normalized.dropna()
+    return feat_normalized
+
+
+def get_raw_returns(df: pd.DataFrame) -> pd.Series:
+    """close の対数リターン（shift(1) 済み、正規化なし）を返す.
+
+    Oracle / バックテストで使う実際のリターン。
+    """
+    return np.log(df["close"] / df["close"].shift(1)).shift(1).dropna()
