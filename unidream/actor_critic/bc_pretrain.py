@@ -199,7 +199,7 @@ class BCPretrainer:
         torch.save(payload, path)
 
     def load(self, path: str) -> None:
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.actor.load_state_dict(ckpt["actor"])
         if self.use_sirl and "weight_net" in ckpt:
             self.weight_net.load_state_dict(ckpt["weight_net"])

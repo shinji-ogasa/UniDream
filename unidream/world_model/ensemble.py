@@ -77,8 +77,10 @@ class EnsembleWorldModel(nn.Module):
         prior_probs = F.softmax(stacked_priors, dim=-1)
         disagreement = prior_probs.var(dim=0).mean()  # scalar
 
+        # disagreement は学習時の loss には加算しない（アンサンブル多様性を保つ）
+        # imagination 時の reward ペナルティとしてのみ使用する（imagine_step 参照）
         return {
-            "loss": total_loss + self.disagree_scale * disagreement,
+            "loss": total_loss,
             "base_loss": total_loss,
             "disagreement": disagreement,
             "model_losses": [l.item() for l in all_losses],

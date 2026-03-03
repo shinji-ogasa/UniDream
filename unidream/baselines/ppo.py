@@ -112,11 +112,13 @@ class DSRReward:
         self.mu = (1 - self.eta) * self.mu + self.eta * net_return
         self.sigma2 = (1 - self.eta) * self.sigma2 + self.eta * (net_return - self.mu) ** 2
 
-        # ドローダウン計算
+        # ドローダウン増分計算
+        # ΔDD = max(0, DD_t - DD_{t-1})  where DD_t = peak_t - cumulative_t
+        prev_dd = max(0.0, self.peak - self.cumulative)
         self.cumulative += net_return
-        prev_peak = self.peak
         self.peak = max(self.peak, self.cumulative)
-        delta_dd = max(0.0, self.peak - prev_peak - (self.cumulative - prev_peak))
+        current_dd = max(0.0, self.peak - self.cumulative)
+        delta_dd = max(0.0, current_dd - prev_dd)
 
         reward = dsr - self.beta * delta_dd
         return float(reward)
@@ -427,7 +429,7 @@ class PPOTrainer:
         }, path)
 
     def load(self, path: str) -> None:
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.actor.load_state_dict(ckpt["actor"])
         self.critic.load_state_dict(ckpt["critic"])
         self.optimizer.load_state_dict(ckpt["optimizer"])
