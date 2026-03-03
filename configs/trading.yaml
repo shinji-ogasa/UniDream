@@ -9,12 +9,11 @@ data:
   val_months: 3
   test_months: 3
   seq_len: 64               # コンテキスト窓（タイムステップ数）
-  feature_dim: 12           # OHLCV(5) + log_return(1) + RSI(1) + MACD(2) + ATR(1) + vol_norm(1) + spread(1)
-  zscore_window: 60         # rolling z-score 窓（日数）
+  feature_dim: 10           # open/high/low/close/vol log-return(5) + RSI(1) + MACD(2) + atr_norm_ret(1) + ATR(1)
 
 # --- 正規化 ---
 normalization:
-  zscore_window: 60
+  zscore_window_days: 60    # rolling z-score 窓（日数）← バー数への変換は interval から自動計算
   atr_norm: true            # ATR割りリターン正規化
 
 # --- 行動空間 ---

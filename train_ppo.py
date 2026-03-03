@@ -61,7 +61,11 @@ def main():
     df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
 
     print("[Data] Computing features...")
-    features_df = compute_features(df)
+    features_df = compute_features(
+        df,
+        zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
+        interval=interval,
+    )
     raw_returns = get_raw_returns(df)
     common_idx = features_df.index.intersection(raw_returns.index)
     features_df = features_df.loc[common_idx]
