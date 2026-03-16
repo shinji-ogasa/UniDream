@@ -23,6 +23,7 @@ import os
 import random
 
 import numpy as np
+import pandas as pd
 import torch
 import yaml
 
@@ -39,6 +40,18 @@ from unidream.eval.backtest import Backtest
 from unidream.eval.wfo import aggregate_wfo_results
 from unidream.eval.pbo import compute_pbo, deflated_sharpe
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
+
+
+_CACHE_STALE_DAYS = 7  # キャッシュがこの日数以上古ければ再取得
+
+
+def _cache_is_fresh(path: str, stale_days: int = _CACHE_STALE_DAYS) -> bool:
+    """キャッシュファイルが存在し、stale_days 以内に更新されていれば True."""
+    if not os.path.exists(path):
+        return False
+    import time
+    age_days = (time.time() - os.path.getmtime(path)) / 86400
+    return age_days < stale_days
 
 
 def set_seed(seed: int) -> None:
@@ -294,24 +307,39 @@ def main():
     print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")
     print(f"Device: {args.device} | Seed: {args.seed} | Resume: {args.resume}")
 
-    # --------- データ取得 ---------
-    print("\n[Data] Fetching OHLCV...")
-    df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
-    print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
+    # --------- データ取得・特徴量計算（キャッシュ対応）---------
+    cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
+    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}"
+    features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
+    returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
 
-    # --------- 特徴量計算 ---------
-    print("[Data] Computing features...")
-    features_df = compute_features(
-        df,
-        zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
-        interval=interval,
-    )
-    raw_returns = get_raw_returns(df)
-    # features と returns のインデックスを揃える
-    common_idx = features_df.index.intersection(raw_returns.index)
-    features_df = features_df.loc[common_idx]
-    raw_returns = raw_returns.loc[common_idx]
-    print(f"  Features: {features_df.shape} | obs_dim={features_df.shape[1]}")
+    if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
+        print("\n[Data] Loading cached features...")
+        features_df = pd.read_parquet(features_cache)
+        raw_returns = pd.read_parquet(returns_cache).squeeze()
+        print(f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]}")
+    else:
+        print("\n[Data] Fetching OHLCV...")
+        df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
+        print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
+
+        print("[Data] Computing features...")
+        features_df = compute_features(
+            df,
+            zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
+            interval=interval,
+        )
+        raw_returns = get_raw_returns(df)
+        common_idx = features_df.index.intersection(raw_returns.index)
+        features_df = features_df.loc[common_idx]
+        raw_returns = raw_returns.loc[common_idx]
+        print(f"  Features: {features_df.shape} | obs_dim={features_df.shape[1]}")
+
+        # キャッシュ保存
+        os.makedirs(cache_dir, exist_ok=True)
+        features_df.to_parquet(features_cache)
+        raw_returns.to_frame().to_parquet(returns_cache)
+        print(f"  Cached to {cache_dir}")
 
     # --------- WFO 分割 ---------
     print("[Data] WFO splits...")
