@@ -15,4 +15,5 @@ dependencies = [
     "requests",
     "scipy",
     "pyyaml",
+    "pyarrow",
 ]
