@@ -19,17 +19,21 @@ def compute_pbo(
     returns_matrix: list[np.ndarray] | np.ndarray,
     n_combinations: Optional[int] = None,
 ) -> float:
-    """Probability of Backtest Overfitting を計算する.
+    """Probability of Backtest Overfitting（簡略版）を計算する.
 
-    全 fold のリターン列を入力とし、
-    in-sample で最良のモデルが out-of-sample でも最良である確率を推定する。
+    全 fold のリターン列を入力とし、IS/OOS 分割でパフォーマンス劣化を検出する。
+
+    NOTE: 標準的な CSCV-PBO（Bailey & Lopez de Prado 2014）は複数の戦略候補に対して
+    IS 最良戦略の OOS ランクを検定するが、本実装は WFO fold を候補として扱い、
+    IS 最良 Sharpe > OOS 最良 Sharpe の頻度で過学習を推定する簡略版である。
+    複数のモデル構成を比較する場合は CSCV 版に差し替えること。
 
     Args:
         returns_matrix: fold ごとのリターン列のリスト
         n_combinations: 評価する組み合わせ数（None = 全組み合わせ）
 
     Returns:
-        PBO スコア（0〜1、0.5 以下で過学習の疑い）
+        PBO スコア（0〜1、高いほど過学習の疑いが強い）
     """
     # 各 fold のリターンを均一長に揃える
     n_folds = len(returns_matrix)

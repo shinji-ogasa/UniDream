@@ -169,7 +169,8 @@ class Backtest:
         pnl = compute_pnl(self.returns, self.positions, self.spread_bps, self.fee_rate, self.slippage_bps)
         equity = np.exp(np.cumsum(pnl))  # 累積 PnL → equity curve
 
-        total_return = float(np.sum(pnl))
+        # equity[-1] = exp(sum(log_returns)) なので、実リターン = equity[-1] - 1.0
+        total_return = float(equity[-1] - 1.0)
         sharpe = compute_sharpe(pnl, self.ann_factor)
         sortino = compute_sortino(pnl, self.ann_factor)
         max_dd = compute_max_drawdown(equity)
