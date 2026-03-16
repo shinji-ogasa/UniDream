@@ -80,9 +80,10 @@ class ImagACTrainer:
         self.grad_clip = ac_cfg.get("grad_clip", 100.0)
         self.log_interval = cfg.get("logging", {}).get("log_interval", 1000)
 
-        # SPEC: R_t = DSR(r_t - costs_t) - β·ΔDD_t
+        # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
         # WM は net_return（コスト控除済み）を予測するため、
-        # imagination reward には EMA 正規化のみ適用（DSR の近似）
+        # imagination reward には EMA 正規化のみ適用（DSR の近似）。
+        # DD_t は rollout 内 running peak からの累積ドローダウンレベル。
         self.beta = reward_cfg.get("beta", 0.1)
 
         self.actor_optimizer = torch.optim.Adam(
@@ -207,22 +208,22 @@ class ImagACTrainer:
 
         return returns  # symlog 空間
 
-    def _compute_delta_dd(self, net_returns: torch.Tensor) -> torch.Tensor:
-        """imagination 軌跡の ΔDD（ドローダウン増分）を計算する.
+    def _compute_drawdown(self, net_returns: torch.Tensor) -> torch.Tensor:
+        """imagination 軌跡の累積ドローダウンレベルを計算する.
+
+        ΔDD（増分）ではなく、rollout 内の peak からの累積下落幅を返す。
+        短い horizon でも意味のあるペナルティを与えるため、
+        ドローダウン「状態」にいること自体をペナルティ対象とする。
 
         Args:
             net_returns: (B, H) 原スケールの net_returns
 
         Returns:
-            delta_dd: (B, H) ≥ 0
+            drawdown: (B, H) ≥ 0  rollout 内の running peak からの下落幅
         """
         cum_rets = net_returns.cumsum(dim=1)                       # (B, H)
-        peak = cum_rets.cummax(dim=1).values                       # (B, H)
-        drawdown = (peak - cum_rets).clamp(min=0.0)               # (B, H)
-        prev_dd = torch.cat([
-            torch.zeros_like(drawdown[:, :1]), drawdown[:, :-1]
-        ], dim=1)
-        return (drawdown - prev_dd).clamp(min=0.0)                 # ΔDD ≥ 0
+        peak = cum_rets.cummax(dim=1).values                       # running max
+        return (peak - cum_rets).clamp(min=0.0)                    # DD レベル ≥ 0
 
     def _bc_loss_batch(self, batch_size: int = 128) -> torch.Tensor:
         """Oracle データからランダムサンプルして BC 損失を計算する."""
@@ -256,11 +257,11 @@ class ImagACTrainer:
         last_z = rollout["last_z"]
         last_h = rollout["last_h"]
 
-        # --- SPEC 準拠の報酬: R_t ≈ net_return / EMA_scale - β·ΔDD_t ---
+        # --- SPEC 準拠の報酬: R_t ≈ net_return / EMA_scale - β·DD_t ---
         self.reward_ema.update(net_returns)
         rewards_norm = net_returns / self.reward_ema.scale          # EMA 正規化（DSR の近似）
-        delta_dd = self._compute_delta_dd(net_returns)
-        rewards_for_ac = rewards_norm - self.beta * delta_dd        # (B, H) 原スケール
+        drawdown = self._compute_drawdown(net_returns)
+        rewards_for_ac = rewards_norm - self.beta * drawdown        # (B, H) 原スケール
 
         # --- Slow Critic の value 推定（原スケール）---
         zs_flat = zs.reshape(B * self.horizon, -1)

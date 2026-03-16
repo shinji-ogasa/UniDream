@@ -83,8 +83,8 @@ ac:
   actor_hidden: 256
   critic_hidden: 256
   ac_layers: 2
-  # Imagination
-  horizon: 3
+  # Imagination（DreamerV3 推奨 H=15、金融15分足では H=10 が現実的）
+  horizon: 10
   # λ-return
   lam: 0.95
   gamma: 0.99
