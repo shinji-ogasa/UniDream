@@ -211,6 +211,20 @@ def run_fold(
         bc_trainer.save(bc_path)
 
     # --------- Step 4: Imagination AC Fine-tune ---------
+    # BC 学習済み actor の予測 action で re-encode し、AC 学習用 h を推論時分布に合わせる。
+    # oracle action で作った h_train は将来情報を含むため分布シフトが起きる。
+    bc_positions = actor.predict_positions(z_train, h_train, device=device)
+    bc_action_indices = np.array([
+        int(np.argmin(np.abs(_ACTIONS - p))) for p in bc_positions
+    ])
+    encoded_ac = wm_trainer.encode_sequence(
+        wfo_dataset.train_features,
+        actions=bc_action_indices,
+        seq_len=seq_len,
+    )
+    z_train_ac = encoded_ac["z"]
+    h_train_ac = encoded_ac["h"]
+
     critic = Critic(
         z_dim=ensemble.get_z_dim(),
         h_dim=ensemble.get_d_model(),
@@ -230,6 +244,7 @@ def run_fold(
         ac_trainer.load(ac_path)
 
     # oracle データは resume 時も必要（BC 損失計算用）
+    # z/h は oracle エンコード（z は obs のみなので同一、h は BC エンコードとは別途保持）
     T_enc = min(len(z_train), len(oracle_actions))
     ac_trainer.set_oracle_data(
         z=z_train[:T_enc],
@@ -245,7 +260,7 @@ def run_fold(
             print(f"\n[{_ts()}] [Step 4] AC — resuming from step {ac_trainer.global_step}/{ac_max_steps}")
         else:
             print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
-        encoded_list = [{"z": z_train, "h": h_train}]
+        encoded_list = [{"z": z_train_ac, "h": h_train_ac}]
         ac_trainer.train(
             encoded_sequences=encoded_list,
             batch_size=ac_cfg.get("batch_size", 32),
@@ -320,7 +335,8 @@ def main():
 
     # --------- データ取得・特徴量計算（キャッシュ対応）---------
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}"
+    zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
+    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
 
@@ -387,14 +403,19 @@ def main():
         fold_results[split.fold_idx] = result
 
     # --------- PBO / Deflated Sharpe ---------
-    print("\n[Eval] PBO & Deflated Sharpe...")
+    # 注意: PBO は「fold を戦略候補扱いした IS/OOS 分割の簡略版」。
+    #       標準 CSCV-PBO（Bailey & Lopez de Prado 2014）ではない。
+    #       複数モデル構成を比較する際は CSCV 版に差し替えること。
+    # 注意: DSR は n_trials=1（ハイパーパラメータ探索なし）のため、
+    #       多重比較補正なしの「best fold Sharpe の t 統計量」として機能する。
+    print("\n[Eval] Overfitting Diagnostics (simplified)...")
     pnl_list = [r["metrics"].pnl_series for r in fold_results.values()]
     eval_cfg = cfg.get("eval", {})
     pbo = compute_pbo(
         pnl_list,
         n_combinations=eval_cfg.get("pbo_n_trials"),
     )
-    print(f"  PBO: {pbo:.4f} (< 0.5 が望ましい)")
+    print(f"  PBO (simplified): {pbo:.4f} (< 0.5 が望ましい; fold IS/OOS split 版)")
 
     all_sharpes = [r["metrics"].sharpe for r in fold_results.values()]
     best_sharpe = max(all_sharpes)
@@ -403,7 +424,7 @@ def main():
     T_avg = int(np.mean([len(r["metrics"].pnl_series) for r in fold_results.values()]))
     dsr = deflated_sharpe(best_sharpe, n_trials=n_trials, T=T_avg)
     dsr_str = f"{dsr:.4f}" if np.isfinite(dsr) else f"N/A ({dsr}, fold 数不足)"
-    print(f"  Deflated Sharpe: {dsr_str} (> 0 が望ましい)")
+    print(f"  Sharpe t-stat (DSR, n_trials=1): {dsr_str} (> 0 が望ましい)")
 
     # --------- レジーム別メトリクス ---------
     print("\n[Eval] Regime Analysis...")
@@ -437,7 +458,7 @@ def main():
               f"Calmar={m.calmar:.3f}, TotalRet={m.total_return:.4f}")
     print(f"  Mean Sharpe: {np.mean(all_sharpes):.3f}")
     dsr_summary = f"{dsr:.4f}" if np.isfinite(dsr) else "N/A"
-    print(f"  PBO: {pbo:.4f} | DSR: {dsr_summary}")
+    print(f"  PBO (simplified): {pbo:.4f} | Sharpe t-stat: {dsr_summary}")
 
 
 if __name__ == "__main__":

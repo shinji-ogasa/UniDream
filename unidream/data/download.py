@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-import pandas as pd
+import pandas as pd  # pd.Timestamp を _parse_timestamp で使用
 import requests
 
 BINANCE_BASE_URL = "https://api.binance.com"
@@ -17,10 +17,12 @@ MAX_LIMIT = 1000  # Binance の 1 リクエスト上限
 
 
 def _parse_timestamp(ts: str | datetime) -> int:
-    """日時文字列または datetime を Unix ミリ秒に変換する."""
-    if isinstance(ts, datetime):
-        return int(ts.timestamp() * 1000)
-    return int(datetime.fromisoformat(ts).timestamp() * 1000)
+    """日時文字列または datetime を Unix ミリ秒に変換する（UTC 基準）.
+
+    naive datetime/文字列は UTC として解釈する。
+    ローカルタイムゾーン依存を避けるため pd.Timestamp を使用。
+    """
+    return int(pd.Timestamp(ts, tz="UTC").timestamp() * 1000)
 
 
 def _klines_to_df(raw: list) -> pd.DataFrame:

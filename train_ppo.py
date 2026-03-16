@@ -74,7 +74,8 @@ def main():
 
     # データ取得・特徴量計算（キャッシュ対応）
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}"
+    zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
+    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
 
