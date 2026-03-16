@@ -1,0 +1,18 @@
+[project]
+name = "unidream"
+version = "0.1.0"
+description = "Imagination-based reinforcement learning for crypto trading"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.0",
+    "numpy",
+    "pandas",
+    "pandas-ta; python_version >= '3.12'",
+    "scikit-learn",
+    "hmmlearn",
+    "matplotlib",
+    "requests",
+    "scipy",
+    "pyyaml",
+]
