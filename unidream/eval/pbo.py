@@ -116,10 +116,14 @@ def deflated_sharpe(
     if n_trials <= 0:
         n_trials = 1
 
-    # Haircut Sharpe の期待値（Bonferroni 補正近似）
-    # E[max SR | H0] ≈ (1 - γ) * Z^{-1}(1 - 1/n) + γ * Z^{-1}(1 - 1/(n*e))
-    # 簡略化: Bonferroni
-    expected_max_sr = stats.norm.ppf(1 - 1.0 / n_trials)
+    # n_trials=1 のとき ppf(0) = -inf になるため多重比較補正なし扱い
+    if n_trials == 1:
+        expected_max_sr = 0.0
+    else:
+        # Haircut Sharpe の期待値（Bonferroni 補正近似）
+        # E[max SR | H0] ≈ (1 - γ) * Z^{-1}(1 - 1/n) + γ * Z^{-1}(1 - 1/(n*e))
+        # 簡略化: Bonferroni
+        expected_max_sr = stats.norm.ppf(1 - 1.0 / n_trials)
 
     # 非正規性補正
     # Var[SR] = (1 - skew * SR + (kurt - 1) / 4 * SR^2) / T

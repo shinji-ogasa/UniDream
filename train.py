@@ -395,7 +395,8 @@ def main():
     n_trials = len(splits)
     T_avg = int(np.mean([len(r["metrics"].pnl_series) for r in fold_results.values()]))
     dsr = deflated_sharpe(best_sharpe, n_trials=n_trials, T=T_avg)
-    print(f"  Deflated Sharpe: {dsr:.4f} (> 0 が望ましい)")
+    dsr_str = f"{dsr:.4f}" if np.isfinite(dsr) else f"N/A ({dsr}, fold 数不足)"
+    print(f"  Deflated Sharpe: {dsr_str} (> 0 が望ましい)")
 
     # --------- レジーム別メトリクス ---------
     print("\n[Eval] Regime Analysis...")
@@ -428,7 +429,8 @@ def main():
         print(f"  Fold {fold_idx}: Sharpe={m.sharpe:.3f}, MaxDD={m.max_drawdown:.3f}, "
               f"Calmar={m.calmar:.3f}, TotalRet={m.total_return:.4f}")
     print(f"  Mean Sharpe: {np.mean(all_sharpes):.3f}")
-    print(f"  PBO: {pbo:.4f} | DSR: {dsr:.4f}")
+    dsr_summary = f"{dsr:.4f}" if np.isfinite(dsr) else "N/A"
+    print(f"  PBO: {pbo:.4f} | DSR: {dsr_summary}")
 
 
 if __name__ == "__main__":
