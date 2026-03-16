@@ -272,7 +272,10 @@ class WorldModelTrainer:
 
     @torch.no_grad()
     def _eval_loss(self, dataset: SequenceDataset, n_batches: int = 10) -> float:
-        """Validation loss を計算する（n_batches 分のミニバッチ平均）."""
+        """Validation loss を計算する（n_batches 分のミニバッチ平均）.
+
+        学習時と同じ net_return（コスト控除後）を reward として使用する。
+        """
         self.ensemble.eval()
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
         total = 0.0
@@ -283,8 +286,15 @@ class WorldModelTrainer:
             obs = batch["obs"].to(self.device)
             actions = batch.get("actions", torch.zeros(obs.shape[:2], dtype=torch.long))
             actions = actions.to(self.device)
-            rewards = batch.get("returns", torch.zeros(obs.shape[:2]))
-            rewards = rewards.to(self.device)
+
+            # 学習時と同じ: raw_returns → net_returns を reward として使用
+            raw_returns = batch.get("returns")
+            if raw_returns is not None:
+                raw_returns = raw_returns.to(self.device)
+                rewards = self._compute_net_returns(actions, raw_returns)
+            else:
+                rewards = torch.zeros(obs.shape[:2], device=self.device)
+
             dones = torch.zeros_like(rewards)
 
             loss_dict = self.ensemble.compute_losses(

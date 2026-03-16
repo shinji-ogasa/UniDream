@@ -88,6 +88,7 @@ def run_fold(
         spread_bps=costs_cfg.get("spread_bps", 5.0),
         fee_rate=costs_cfg.get("fee_rate", 0.0004),
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+        discount=cfg.get("oracle", {}).get("discount", 1.0),
     )
     print(f"  Oracle computed: {len(oracle_actions)} steps, "
           f"mean value={oracle_values.mean():.4f}")
@@ -192,10 +193,24 @@ def run_fold(
     print("\n[Step 5] Test Backtest...")
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
+    seq_len = cfg.get("data", {}).get("seq_len", 64)
 
+    # Two-pass encoding: 学習時は oracle action 付きで h を計算しているため、
+    # テスト時もactor の予測 action を渡して h を整合させる。
+    # Pass 1: action=0 でエンコード → z（obs依存のみ）は正確、h は近似
+    enc_pass1 = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
+    # Actor の greedy action を予測
+    predicted_actions = actor.predict_positions(
+        enc_pass1["z"], enc_pass1["h"], device=device,
+    )
+    # positions → action indices に変換
+    from unidream.data.oracle import ACTIONS as _ACTIONS
+    action_indices = np.array([
+        int(np.argmin(np.abs(_ACTIONS - p))) for p in predicted_actions
+    ])
+    # Pass 2: 予測 action でエンコードし直して h を整合させる
     enc_test = wm_trainer.encode_sequence(
-        test_features,
-        seq_len=cfg.get("data", {}).get("seq_len", 64),
+        test_features, actions=action_indices, seq_len=seq_len,
     )
     positions = actor.predict_positions(enc_test["z"], enc_test["h"], device=device)
 
@@ -298,7 +313,11 @@ def main():
     # --------- PBO / Deflated Sharpe ---------
     print("\n[Eval] PBO & Deflated Sharpe...")
     pnl_list = [r["metrics"].pnl_series for r in fold_results.values()]
-    pbo = compute_pbo(pnl_list)
+    eval_cfg = cfg.get("eval", {})
+    pbo = compute_pbo(
+        pnl_list,
+        n_combinations=eval_cfg.get("pbo_n_trials"),
+    )
     print(f"  PBO: {pbo:.4f} (< 0.5 が望ましい)")
 
     all_sharpes = [r["metrics"].sharpe for r in fold_results.values()]
