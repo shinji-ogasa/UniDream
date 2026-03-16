@@ -118,15 +118,19 @@ uv run python train.py
 |--------|-----------|------|
 | `--config` | `configs/trading.yaml` | 設定ファイルパス |
 | `--symbol` | config の値 (`BTCUSDT`) | Binance シンボル |
-| `--start` | `2020-01-01` | データ取得開始日 |
+| `--start` | `2018-01-01` | データ取得開始日 |
 | `--end` | `2024-01-01` | データ取得終了日 |
-| `--device` | `cpu` | `cpu` or `cuda` |
+| `--device` | auto (`cuda` / `cpu`) | CUDA 自動検出、フォールバック CPU |
 | `--seed` | `42` | 乱数シード |
 | `--checkpoint_dir` | `checkpoints` | チェックポイント保存先 |
+| `--resume` | off | チェックポイントから再開 |
 
 ```bash
-# GPU で期間指定して実行する例
-uv run python train.py --device cuda --start 2021-01-01 --end 2024-06-01
+# 途中で落ちた場合の再開
+uv run python train.py --resume
+
+# Smoke test（パイプライン動作確認、数分で完了）
+uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
 ```
 
 ### PPO ベースライン
@@ -140,13 +144,16 @@ uv run python train_ppo.py
 オプションは `train.py` と同じ（`--checkpoint_dir` のデフォルトは `checkpoints/ppo`）。
 
 ```bash
-uv run python train_ppo.py --device cuda --seed 123
+uv run python train_ppo.py --seed 123
+
+# 途中から再開
+uv run python train_ppo.py --resume
 ```
 
 ### 出力
 
 - チェックポイント: `checkpoints/fold_{idx}/` 以下に `world_model.pt`, `bc_actor.pt`, `ac.pt`
-- PPO チェックポイント: `checkpoints/ppo/fold_{idx}/`
+- PPO チェックポイント: `checkpoints/ppo/ppo_fold_{idx}.pt`
 - 評価指標（stdout）: Fold 別 Sharpe / MaxDD / Calmar / Total Return、PBO、Deflated Sharpe、レジーム別メトリクス
 
 ### テスト

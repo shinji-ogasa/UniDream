@@ -13,8 +13,8 @@ SPEC.md の実装順序に従って以下を実行する:
 
 Usage:
     python train.py [--config configs/trading.yaml] [--symbol BTCUSDT]
-                    [--start 2020-01-01] [--end 2024-01-01]
-                    [--device cuda] [--seed 42]
+                    [--start 2018-01-01] [--end 2024-01-01]
+                    [--device cuda] [--seed 42] [--resume]
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ import yaml
 
 from unidream.data.download import fetch_binance_ohlcv
 from unidream.data.features import compute_features, get_raw_returns
-from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset
+from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset, ACTIONS as _ACTIONS
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 from unidream.actor_critic.actor import Actor
@@ -60,8 +60,14 @@ def run_fold(
     cfg: dict,
     device: str,
     checkpoint_dir: str,
+    resume: bool = False,
 ) -> dict:
     """1 WFO fold の学習・評価を実行する.
+
+    resume=True の場合、保存済みチェックポイントから再開する:
+      - ac.pt が存在 → fold 全体をスキップ（バックテストのみ再実行）
+      - bc_actor.pt が存在 → WM・BC をロードして AC から再開
+      - world_model.pt が存在 → WM をロードして BC から再開
 
     Returns:
         {"fold": fold_idx, "metrics": BacktestMetrics, "positions": np.ndarray}
@@ -79,6 +85,18 @@ def run_fold(
     costs_cfg = cfg.get("costs", {})
 
     obs_dim = wfo_dataset.obs_dim
+    seq_len = cfg.get("data", {}).get("seq_len", 64)
+
+    fold_ckpt_dir = os.path.join(checkpoint_dir, f"fold_{fold_idx}")
+    os.makedirs(fold_ckpt_dir, exist_ok=True)
+    wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
+    bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
+    ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
+
+    # resume 時のスキップ判定
+    has_wm = resume and os.path.exists(wm_path)
+    has_bc = resume and os.path.exists(bc_path)
+    has_ac = resume and os.path.exists(ac_path)
 
     # --------- Step 1: Hindsight Oracle ---------
     print("\n[Step 1] Hindsight Oracle DP...")
@@ -94,42 +112,37 @@ def run_fold(
           f"mean value={oracle_values.mean():.4f}")
 
     # --------- Step 2: 世界モデル学習 ---------
-    print("\n[Step 2] World Model Training...")
     ensemble = build_ensemble(obs_dim, cfg)
     wm_trainer = WorldModelTrainer(ensemble, cfg, device=device)
 
-    train_ds = wfo_dataset.train_dataset()
-    val_ds = wfo_dataset.val_dataset()
-
-    # train_ds に oracle_actions を付与して再作成
-    train_ds_with_actions = SequenceDataset(
-        wfo_dataset.train_features,
-        seq_len=cfg.get("data", {}).get("seq_len", 64),
-        actions=oracle_actions[:len(wfo_dataset.train_features)],
-        returns=train_returns,
-    )
-
-    fold_ckpt_dir = os.path.join(checkpoint_dir, f"fold_{fold_idx}")
-    os.makedirs(fold_ckpt_dir, exist_ok=True)
-    wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
-
-    wm_trainer.train_on_dataset(
-        train_ds_with_actions,
-        val_dataset=val_ds,
-        checkpoint_path=wm_path,
-    )
+    if has_wm:
+        print(f"\n[Step 2] World Model — loading checkpoint: {wm_path}")
+        wm_trainer.load(wm_path)
+    else:
+        print("\n[Step 2] World Model Training...")
+        train_ds_with_actions = SequenceDataset(
+            wfo_dataset.train_features,
+            seq_len=seq_len,
+            actions=oracle_actions[:len(wfo_dataset.train_features)],
+            returns=train_returns,
+        )
+        val_ds = wfo_dataset.val_dataset()
+        wm_trainer.train_on_dataset(
+            train_ds_with_actions,
+            val_dataset=val_ds,
+            checkpoint_path=wm_path,
+        )
 
     # train 期間の全シーケンスをエンコード（AC の初期状態として使用）
     encoded = wm_trainer.encode_sequence(
         wfo_dataset.train_features,
         actions=oracle_actions[:len(wfo_dataset.train_features)],
-        seq_len=cfg.get("data", {}).get("seq_len", 64),
+        seq_len=seq_len,
     )
     z_train = encoded["z"]
     h_train = encoded["h"]
 
     # --------- Step 3: BC 初期化 ---------
-    print("\n[Step 3] BC Pre-training...")
     actor = Actor(
         z_dim=ensemble.get_z_dim(),
         h_dim=ensemble.get_d_model(),
@@ -137,78 +150,99 @@ def run_fold(
         hidden_dim=ac_cfg.get("actor_hidden", 256),
         n_layers=ac_cfg.get("ac_layers", 2),
     )
-    bc_trainer = BCPretrainer(
-        actor=actor,
-        z_dim=ensemble.get_z_dim(),
-        h_dim=ensemble.get_d_model(),
-        lr=bc_cfg.get("lr", 3e-4),
-        batch_size=bc_cfg.get("batch_size", 256),
-        n_epochs=bc_cfg.get("n_epochs", 5),
-        sirl_hidden=bc_cfg.get("sirl_hidden", 128),
-        device=device,
-    )
 
-    T_enc = min(len(z_train), len(oracle_actions))
-    bc_trainer.train(
-        z=z_train[:T_enc],
-        h=h_train[:T_enc],
-        oracle_actions=oracle_actions[:T_enc],
-    )
-    bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
-    bc_trainer.save(bc_path)
+    if has_bc:
+        print(f"\n[Step 3] BC — loading checkpoint: {bc_path}")
+        bc_trainer = BCPretrainer(
+            actor=actor,
+            z_dim=ensemble.get_z_dim(),
+            h_dim=ensemble.get_d_model(),
+            device=device,
+        )
+        bc_trainer.load(bc_path)
+    else:
+        print("\n[Step 3] BC Pre-training...")
+        bc_trainer = BCPretrainer(
+            actor=actor,
+            z_dim=ensemble.get_z_dim(),
+            h_dim=ensemble.get_d_model(),
+            lr=bc_cfg.get("lr", 3e-4),
+            batch_size=bc_cfg.get("batch_size", 256),
+            n_epochs=bc_cfg.get("n_epochs", 5),
+            sirl_hidden=bc_cfg.get("sirl_hidden", 128),
+            device=device,
+        )
+        T_enc = min(len(z_train), len(oracle_actions))
+        bc_trainer.train(
+            z=z_train[:T_enc],
+            h=h_train[:T_enc],
+            oracle_actions=oracle_actions[:T_enc],
+        )
+        bc_trainer.save(bc_path)
 
     # --------- Step 4: Imagination AC Fine-tune ---------
-    print("\n[Step 4] Imagination AC Fine-tuning...")
-    critic = Critic(
-        z_dim=ensemble.get_z_dim(),
-        h_dim=ensemble.get_d_model(),
-        hidden_dim=ac_cfg.get("critic_hidden", 256),
-        n_layers=ac_cfg.get("ac_layers", 2),
-        n_bins=wm_cfg.get("n_bins", 255),
-        ema_decay=ac_cfg.get("ema_decay", 0.98),
-    )
-
-    ac_trainer = ImagACTrainer(
-        actor=actor,
-        critic=critic,
-        ensemble=ensemble,
-        cfg=cfg,
-        device=device,
-    )
-    ac_trainer.set_oracle_data(
-        z=z_train[:T_enc],
-        h=h_train[:T_enc],
-        oracle_actions=oracle_actions[:T_enc],
-    )
-
-    encoded_list = [{"z": z_train, "h": h_train}]
-    ac_trainer.train(
-        encoded_sequences=encoded_list,
-        batch_size=ac_cfg.get("batch_size", 32),
-    )
-    ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
-    ac_trainer.save(ac_path)
+    if has_ac:
+        print(f"\n[Step 4] AC — loading checkpoint: {ac_path}")
+        critic = Critic(
+            z_dim=ensemble.get_z_dim(),
+            h_dim=ensemble.get_d_model(),
+            hidden_dim=ac_cfg.get("critic_hidden", 256),
+            n_layers=ac_cfg.get("ac_layers", 2),
+            n_bins=wm_cfg.get("n_bins", 255),
+            ema_decay=ac_cfg.get("ema_decay", 0.98),
+        )
+        ac_trainer = ImagACTrainer(
+            actor=actor,
+            critic=critic,
+            ensemble=ensemble,
+            cfg=cfg,
+            device=device,
+        )
+        ac_trainer.load(ac_path)
+    else:
+        print("\n[Step 4] Imagination AC Fine-tuning...")
+        critic = Critic(
+            z_dim=ensemble.get_z_dim(),
+            h_dim=ensemble.get_d_model(),
+            hidden_dim=ac_cfg.get("critic_hidden", 256),
+            n_layers=ac_cfg.get("ac_layers", 2),
+            n_bins=wm_cfg.get("n_bins", 255),
+            ema_decay=ac_cfg.get("ema_decay", 0.98),
+        )
+        ac_trainer = ImagACTrainer(
+            actor=actor,
+            critic=critic,
+            ensemble=ensemble,
+            cfg=cfg,
+            device=device,
+        )
+        T_enc = min(len(z_train), len(oracle_actions))
+        ac_trainer.set_oracle_data(
+            z=z_train[:T_enc],
+            h=h_train[:T_enc],
+            oracle_actions=oracle_actions[:T_enc],
+        )
+        encoded_list = [{"z": z_train, "h": h_train}]
+        ac_trainer.train(
+            encoded_sequences=encoded_list,
+            batch_size=ac_cfg.get("batch_size", 32),
+        )
+        ac_trainer.save(ac_path)
 
     # --------- Step 5: Test バックテスト ---------
     print("\n[Step 5] Test Backtest...")
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
-    seq_len = cfg.get("data", {}).get("seq_len", 64)
 
     # Two-pass encoding: 学習時は oracle action 付きで h を計算しているため、
     # テスト時もactor の予測 action を渡して h を整合させる。
-    # Pass 1: action=0 でエンコード → z（obs依存のみ）は正確、h は近似
     enc_pass1 = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
-    # Actor の greedy action を予測
     predicted_actions = actor.predict_positions(
         enc_pass1["z"], enc_pass1["h"], device=device,
     )
-    # positions → action indices に変換
-    from unidream.data.oracle import ACTIONS as _ACTIONS
     action_indices = np.array([
         int(np.argmin(np.abs(_ACTIONS - p))) for p in predicted_actions
     ])
-    # Pass 2: 予測 action でエンコードし直して h を整合させる
     enc_test = wm_trainer.encode_sequence(
         test_features, actions=action_indices, seq_len=seq_len,
     )
@@ -242,11 +276,13 @@ def main():
     parser = argparse.ArgumentParser(description="UniDream Training Script")
     parser.add_argument("--config", default="configs/trading.yaml")
     parser.add_argument("--symbol", default=None, help="Binance symbol (overrides config)")
-    parser.add_argument("--start", default="2020-01-01")
+    parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints")
+    parser.add_argument("--resume", action="store_true",
+                        help="保存済みチェックポイントから再開する")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -256,7 +292,7 @@ def main():
     interval = cfg.get("data", {}).get("interval", "15m")
 
     print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")
-    print(f"Device: {args.device} | Seed: {args.seed}")
+    print(f"Device: {args.device} | Seed: {args.seed} | Resume: {args.resume}")
 
     # --------- データ取得 ---------
     print("\n[Data] Fetching OHLCV...")
@@ -307,6 +343,7 @@ def main():
             cfg=cfg,
             device=args.device,
             checkpoint_dir=args.checkpoint_dir,
+            resume=args.resume,
         )
         fold_results[split.fold_idx] = result
 

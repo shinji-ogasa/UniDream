@@ -5,8 +5,8 @@ UniDream（世界モデル + AC）との比較対象として使用する。
 
 Usage:
     python train_ppo.py [--config configs/trading.yaml]
-                        [--symbol BTCUSDT] [--start 2020-01-01] [--end 2024-01-01]
-                        [--device cpu] [--seed 42]
+                        [--symbol BTCUSDT] [--start 2018-01-01] [--end 2024-01-01]
+                        [--device cpu] [--seed 42] [--resume]
 """
 from __future__ import annotations
 
@@ -36,11 +36,13 @@ def main():
     parser = argparse.ArgumentParser(description="PPO Baseline Training")
     parser.add_argument("--config", default="configs/trading.yaml")
     parser.add_argument("--symbol", default=None)
-    parser.add_argument("--start", default="2020-01-01")
+    parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/ppo")
+    parser.add_argument("--resume", action="store_true",
+                        help="保存済みチェックポイントから再開する")
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -55,6 +57,7 @@ def main():
     data_cfg = cfg.get("data", {})
 
     print(f"PPO Baseline | {symbol} {interval} | {args.start} → {args.end}")
+    print(f"Device: {args.device} | Resume: {args.resume}")
 
     # データ取得
     print("\n[Data] Fetching OHLCV...")
@@ -84,10 +87,10 @@ def main():
     fold_results = {}
     for split in splits:
         print(f"\n--- Fold {split.fold_idx} ---")
+        ckpt_path = os.path.join(args.checkpoint_dir, f"ppo_fold_{split.fold_idx}.pt")
         wfo_ds = WFODataset(features_df, raw_returns, split,
                             seq_len=data_cfg.get("seq_len", 64))
 
-        # PPO 学習
         trainer = PPOTrainer(
             obs_dim=obs_dim,
             act_dim=cfg.get("actions", {}).get("n", 5),
@@ -104,21 +107,22 @@ def main():
             device=args.device,
         )
 
-        env = TradingEnv(
-            wfo_ds.train_returns,
-            wfo_ds.train_features,
-            spread_bps=costs_cfg.get("spread_bps", 5.0),
-            fee_rate=costs_cfg.get("fee_rate", 0.0004),
-            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-            dsr_eta=cfg.get("reward", {}).get("dsr_eta", 0.01),
-            beta=cfg.get("reward", {}).get("beta", 0.1),
-        )
-
-        trainer.train(env, max_steps=ppo_cfg.get("max_steps", 500_000))
-
-        # チェックポイント保存
-        os.makedirs(args.checkpoint_dir, exist_ok=True)
-        trainer.save(os.path.join(args.checkpoint_dir, f"ppo_fold_{split.fold_idx}.pt"))
+        if args.resume and os.path.exists(ckpt_path):
+            print(f"  Loading checkpoint: {ckpt_path}")
+            trainer.load(ckpt_path)
+        else:
+            env = TradingEnv(
+                wfo_ds.train_returns,
+                wfo_ds.train_features,
+                spread_bps=costs_cfg.get("spread_bps", 5.0),
+                fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                dsr_eta=cfg.get("reward", {}).get("dsr_eta", 0.01),
+                beta=cfg.get("reward", {}).get("beta", 0.1),
+            )
+            trainer.train(env, max_steps=ppo_cfg.get("max_steps", 500_000))
+            os.makedirs(args.checkpoint_dir, exist_ok=True)
+            trainer.save(ckpt_path)
 
         # テスト推論
         positions = trainer.predict(wfo_ds.test_dataset().features.numpy())
