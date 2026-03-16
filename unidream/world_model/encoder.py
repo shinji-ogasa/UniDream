@@ -50,9 +50,9 @@ class OneHotDist(torchd.one_hot_categorical.OneHotCategorical):
             probs = F.softmax(logits, dim=-1)
             probs = probs * (1.0 - unimix_ratio) + unimix_ratio / probs.shape[-1]
             logits = torch.log(probs)
-            super().__init__(logits=logits, probs=None)
+            super().__init__(logits=logits, probs=None, validate_args=False)
         else:
-            super().__init__(logits=logits, probs=probs)
+            super().__init__(logits=logits, probs=probs, validate_args=False)
 
     def mode(self) -> torch.Tensor:
         """最頻値を straight-through で返す."""

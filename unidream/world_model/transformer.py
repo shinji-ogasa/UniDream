@@ -165,10 +165,8 @@ class CausalTransformerBlock(nn.Module):
             (B, T, d_model)
         """
         # Self-attention with causal mask
-        # PyTorch 2.0+ では is_causal=True が内部で causal mask を生成するため、
-        # attn_mask との併用は不要。is_causal のみ使用する。
         h = self.ln1(x)
-        attn_out, _ = self.attn(h, h, h, is_causal=True)
+        attn_out, _ = self.attn(h, h, h, attn_mask=attn_mask)
         x = x + attn_out
 
         # FFN

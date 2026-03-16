@@ -173,6 +173,7 @@ class WorldModelTrainer:
                     break
 
                 obs = batch["obs"].to(self.device)            # (B, T, obs_dim)
+                obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)
 
                 # actions がない場合はゼロ埋め（WM 事前学習時はランダムポリシーで収集した軌跡を想定）
                 if "actions" in batch:
