@@ -133,14 +133,19 @@ class WorldModelTrainer:
         val_dataset: Optional[SequenceDataset] = None,
         max_steps: Optional[int] = None,
         checkpoint_path: Optional[str] = None,
+        patience: int = 10,
     ) -> list[dict]:
         """データセット上で世界モデルを学習する.
 
+        val_dataset がある場合、log_interval ごとに val loss を計算し、
+        best model を保持する。patience 回連続で改善しなければ early stop する。
+
         Args:
             dataset: 学習用 SequenceDataset
-            val_dataset: 検証用 SequenceDataset（省略可）
+            val_dataset: 検証用 SequenceDataset（省略可、あれば early stopping に使用）
             max_steps: 最大ステップ数（None の場合は self.max_steps）
             checkpoint_path: チェックポイント保存先（省略可）
+            patience: early stopping の忍耐回数（val 評価回数単位）
 
         Returns:
             各ステップのロスログリスト
@@ -156,6 +161,11 @@ class WorldModelTrainer:
         self.ensemble.train()
         step = 0
         logs = []
+
+        # Early stopping 用の状態
+        best_val_loss = float("inf")
+        best_state_dict = None
+        no_improve_count = 0
 
         while step < max_steps:
             for batch in loader:
@@ -223,12 +233,38 @@ class WorldModelTrainer:
                         f"Disagree: {log['disagreement']:.4f}"
                     )
 
-                    # Validation loss
+                    # Validation loss + early stopping
                     if val_dataset is not None:
                         val_loss = self._eval_loss(val_dataset)
-                        print(f"       Val Loss: {val_loss:.4f}")
+                        print(f"       Val Loss: {val_loss:.4f}", end="")
+
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
+                            best_state_dict = {
+                                k: v.cpu().clone()
+                                for k, v in self.ensemble.state_dict().items()
+                            }
+                            no_improve_count = 0
+                            print(" ★ best")
+                        else:
+                            no_improve_count += 1
+                            print(f" (no improve {no_improve_count}/{patience})")
+
+                        if no_improve_count >= patience:
+                            print(f"[WM] Early stopping at step {self.global_step} "
+                                  f"(best val loss: {best_val_loss:.4f})")
+                            step = max_steps  # ループ脱出
+                            break
 
             # エポック終了後にチェックポイント保存
+            if checkpoint_path is not None:
+                self.save(checkpoint_path)
+
+        # Best model を復元（val_dataset があり、改善があった場合）
+        if best_state_dict is not None:
+            self.ensemble.load_state_dict(best_state_dict)
+            self.ensemble.to(self.device)
+            print(f"[WM] Restored best model (val loss: {best_val_loss:.4f})")
             if checkpoint_path is not None:
                 self.save(checkpoint_path)
 
