@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--symbol", default=None)
     parser.add_argument("--start", default="2020-01-01")
     parser.add_argument("--end", default="2024-01-01")
-    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/ppo")
     args = parser.parse_args()
