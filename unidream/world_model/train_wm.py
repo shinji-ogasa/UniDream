@@ -153,11 +153,18 @@ class WorldModelTrainer:
             各ステップのロスログリスト
         """
         max_steps = max_steps or self.max_steps
+
+        if len(dataset) == 0:
+            print("[WM] WARNING: dataset is empty, skipping training")
+            return []
+
+        # dataset が batch_size 未満の場合 drop_last=True で loader が空になり無限ループする
+        drop_last = len(dataset) >= self.batch_size
         loader = DataLoader(
             dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            drop_last=True,
+            drop_last=drop_last,
             num_workers=0,
         )
         self.ensemble.train()
@@ -306,6 +313,12 @@ class WorldModelTrainer:
                 actions=actions,
                 rewards=rewards,
                 dones=dones,
+                free_bits=self.free_bits,
+                dyn_scale=self.dyn_scale,
+                rep_scale=self.rep_scale,
+                recon_scale=self.recon_scale,
+                reward_scale=self.reward_scale,
+                done_scale=self.done_scale,
             )
             total += loss_dict["loss"].item()
             count += 1
@@ -344,7 +357,9 @@ class WorldModelTrainer:
         h_arr = np.zeros((T, d_model), dtype=np.float32)
         covered = 0
 
-        # 重複なしストライドでエンコード
+        # 各チャンクの直前 seq_len ステップをウォームアップ文脈として追加する。
+        # これにより Transformer がブロック境界でコンテキストをリセットする問題を防ぐ。
+        # 合計シーケンス長は最大 2*seq_len <= max_seq_len（configs で保証）。
         for start in range(0, T, seq_len):
             end = min(start + seq_len, T)
             # 最後のチャンクが短い場合、末尾揃えにする
@@ -352,25 +367,29 @@ class WorldModelTrainer:
                 start = T - seq_len
                 end = T
 
+            # ウォームアップ文脈: start の直前 seq_len ステップ
+            ctx_start = max(0, start - seq_len)
+
             obs_t = torch.tensor(
-                features[start:end], dtype=torch.float32, device=self.device
+                features[ctx_start:end], dtype=torch.float32, device=self.device
             ).unsqueeze(0)
             obs_t = torch.nan_to_num(obs_t, nan=0.0, posinf=0.0, neginf=0.0)
 
             if actions is not None:
                 act_t = torch.tensor(
-                    actions[start:end], dtype=torch.long, device=self.device
+                    actions[ctx_start:end], dtype=torch.long, device=self.device
                 ).unsqueeze(0)
             else:
-                act_t = torch.zeros(1, end - start, dtype=torch.long, device=self.device)
+                act_t = torch.zeros(1, end - ctx_start, dtype=torch.long, device=self.device)
 
             z, _ = self.ensemble.encode(obs_t)
             out = self.ensemble.forward(z, act_t)
 
-            z_np = z.squeeze(0).cpu().numpy()
-            h_np = out["h"].squeeze(0).cpu().numpy()
+            # ウォームアップ部分を除いた本体のみを書き込む
+            prefix_len = start - ctx_start
+            z_np = z.squeeze(0)[prefix_len:].cpu().numpy()
+            h_np = out["h"].squeeze(0)[prefix_len:].cpu().numpy()
 
-            # 重複区間は後のウィンドウの後半のみ書き込む
             write_start = max(start, covered)
             offset = write_start - start
             z_arr[write_start:end] = z_np[offset:]

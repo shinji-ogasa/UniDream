@@ -112,7 +112,7 @@ class SequenceDataset(Dataset):
         self.T = len(features)
 
     def __len__(self) -> int:
-        return max(0, self.T - self.seq_len)
+        return max(0, self.T - self.seq_len + 1)
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         s = idx

@@ -401,13 +401,13 @@ class TransformerWorldModel(nn.Module):
             kl_rep = kl_loss
 
         # --- Reward loss (twohot) ---
-        # h[t] が r[t] を予測する
-        reward_loss = twohot_loss(reward_logits[:, :-1], rewards[:, 1:], self.bins)
+        # h[t] が r[t] を予測する（同一ステップ: position[t] * return[t]）
+        reward_loss = twohot_loss(reward_logits, rewards, self.bins)
 
         # --- Done loss ---
         done_loss = F.binary_cross_entropy_with_logits(
-            done_logits[:, :-1].squeeze(-1),
-            dones[:, 1:].float(),
+            done_logits.squeeze(-1),
+            dones.float(),
         )
 
         total_loss = (
