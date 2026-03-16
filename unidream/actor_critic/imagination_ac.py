@@ -70,6 +70,7 @@ class ImagACTrainer:
         reward_cfg = cfg.get("reward", {})
 
         self.horizon = ac_cfg.get("horizon", 3)
+        self.context_len = cfg.get("data", {}).get("seq_len", 64)
         self.lam = ac_cfg.get("lam", 0.95)
         self.gamma = ac_cfg.get("gamma", 0.99)
         self.entropy_scale = ac_cfg.get("entropy_scale", 3e-4)
@@ -308,7 +309,7 @@ class ImagACTrainer:
         # values は原スケールなので symlog 変換してから引く
         # symlog(0)=0 なので ε 加算は不要（バイアスを避ける）
         advantage = (returns - symlog(values)).detach()            # symlog 空間
-        norm_q = self.td3bc_alpha / (advantage.abs().mean() + 1e-8)
+        norm_q = self.td3bc_alpha / advantage.abs().mean().clamp(min=0.1)
 
         ac_loss = -(norm_q * advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
         bc_loss = self._bc_loss_batch()
@@ -346,13 +347,38 @@ class ImagACTrainer:
         all_z = np.concatenate([s["z"] for s in encoded_sequences], axis=0)
         all_h = np.concatenate([s["h"] for s in encoded_sequences], axis=0)
         T_total = len(all_z)
+        z_dim = all_z.shape[1]
+        L = self.context_len
+
+        # oracle actions as numpy for context building
+        oracle_np = (
+            self._oracle_actions.cpu().numpy()
+            if self._oracle_actions is not None
+            else None
+        )
+        flat_action = 2  # action index for position=0.0 (flat)
 
         while self.global_step < max_steps:
             idx = np.random.randint(0, T_total, size=batch_size)
             z0 = torch.tensor(all_z[idx], dtype=torch.float32, device=self.device)
             h0 = torch.tensor(all_h[idx], dtype=torch.float32, device=self.device)
 
-            step_log = self.train_step(z0, h0)
+            # 各サンプルの直前 L ステップを context として取得（左端はゼロパディング）
+            past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
+            past_as_np = np.full((batch_size, L), flat_action, dtype=np.int64)
+            for b, i in enumerate(idx):
+                start = max(0, i - L)
+                length = i - start
+                if length > 0:
+                    past_zs_np[b, L - length:] = all_z[start:i]
+                    if oracle_np is not None:
+                        act_end = min(i, len(oracle_np))
+                        act_start = max(0, act_end - length)
+                        past_as_np[b, L - (act_end - act_start):] = oracle_np[act_start:act_end]
+            past_zs = torch.tensor(past_zs_np, device=self.device)
+            past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
+
+            step_log = self.train_step(z0, h0, past_zs=past_zs, past_as=past_as)
             logs.append({"step": self.global_step, **step_log})
             self.loss_history.append(logs[-1])
 

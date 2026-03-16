@@ -144,7 +144,19 @@ def run_fold(
             actions=oracle_actions[:len(wfo_dataset.train_features)],
             returns=train_returns,
         )
-        val_ds = wfo_dataset.val_dataset()
+        val_oracle_actions, _ = hindsight_oracle_dp(
+            wfo_dataset.val_returns,
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+            discount=cfg.get("oracle", {}).get("discount", 1.0),
+        )
+        val_ds = SequenceDataset(
+            wfo_dataset.val_features,
+            seq_len=seq_len,
+            actions=val_oracle_actions[:len(wfo_dataset.val_features)],
+            returns=wfo_dataset.val_returns,
+        )
         wm_trainer.train_on_dataset(
             train_ds_with_actions,
             val_dataset=val_ds,
@@ -386,7 +398,8 @@ def main():
 
     all_sharpes = [r["metrics"].sharpe for r in fold_results.values()]
     best_sharpe = max(all_sharpes)
-    n_trials = len(splits)
+    # n_trials=1: ハイパーパラメータ探索を行っていないため多重比較補正なし
+    n_trials = 1
     T_avg = int(np.mean([len(r["metrics"].pnl_series) for r in fold_results.values()]))
     dsr = deflated_sharpe(best_sharpe, n_trials=n_trials, T=T_avg)
     dsr_str = f"{dsr:.4f}" if np.isfinite(dsr) else f"N/A ({dsr}, fold 数不足)"

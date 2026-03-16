@@ -220,6 +220,7 @@ class TransformerWorldModel(nn.Module):
         bin_high: float = 20.0,
         unimix_ratio: float = 0.01,
         encoder_hidden: int = 256,
+        encoder_layers: int = 2,
     ):
         super().__init__()
         self.n_categoricals = n_categoricals
@@ -227,10 +228,11 @@ class TransformerWorldModel(nn.Module):
         self.z_dim = n_categoricals * n_classes
         self.act_dim = act_dim
         self.d_model = d_model
+        self.max_seq_len = max_seq_len
 
         # --- Encoder/Decoder ---
         self.encoder = ObsEncoder(
-            obs_dim, n_categoricals, n_classes, encoder_hidden, unimix_ratio
+            obs_dim, n_categoricals, n_classes, encoder_hidden, unimix_ratio, n_layers=encoder_layers
         )
         self.decoder = ObsDecoder(self.z_dim, d_model, obs_dim, encoder_hidden)
 
@@ -456,6 +458,11 @@ class TransformerWorldModel(nn.Module):
         else:
             past_zs = torch.cat([past_zs, z.unsqueeze(1)], dim=1)
             past_as = torch.cat([past_as, action.unsqueeze(1)], dim=1)
+
+        # max_seq_len を超えたら古い方を切り捨てる（直近コンテキストを優先）
+        if past_zs.shape[1] > self.max_seq_len:
+            past_zs = past_zs[:, -self.max_seq_len:]
+            past_as = past_as[:, -self.max_seq_len:]
 
         out = self.forward(past_zs, past_as)
         h_new = out["h"][:, -1]          # (B, d_model) 最後のタイムステップ

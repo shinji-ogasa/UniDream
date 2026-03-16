@@ -94,6 +94,7 @@ class ObsEncoder(nn.Module):
         n_classes: int = 32,
         hidden_dim: int = 256,
         unimix_ratio: float = 0.01,
+        n_layers: int = 2,
     ):
         super().__init__()
         self.n_categoricals = n_categoricals
@@ -101,13 +102,11 @@ class ObsEncoder(nn.Module):
         self.z_dim = n_categoricals * n_classes  # 1024
         self.unimix_ratio = unimix_ratio
 
-        self.net = nn.Sequential(
-            nn.Linear(obs_dim, hidden_dim),
-            nn.ELU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ELU(),
-            nn.Linear(hidden_dim, n_categoricals * n_classes),
-        )
+        layers: list[nn.Module] = [nn.Linear(obs_dim, hidden_dim), nn.ELU()]
+        for _ in range(n_layers - 1):
+            layers += [nn.Linear(hidden_dim, hidden_dim), nn.ELU()]
+        layers.append(nn.Linear(hidden_dim, n_categoricals * n_classes))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """

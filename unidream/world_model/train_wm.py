@@ -40,6 +40,7 @@ def build_ensemble(obs_dim: int, cfg: dict) -> EnsembleWorldModel:
         bin_high=wm_cfg.get("bin_range", [-20.0, 20.0])[1],
         unimix_ratio=wm_cfg.get("unimix_ratio", 0.01),
         encoder_hidden=wm_cfg.get("encoder_hidden", 256),
+        encoder_layers=wm_cfg.get("encoder_layers", 2),
     )
 
 
