@@ -6,6 +6,7 @@ EnsembleWorldModel を WFO データ上で学習する。
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -227,8 +228,9 @@ class WorldModelTrainer:
                 self.loss_history.append(log)
 
                 if step % self.log_interval == 0:
+                    ts = datetime.now().strftime("%H:%M:%S")
                     print(
-                        f"[WM] Step {self.global_step}/{max_steps} | "
+                        f"[{ts}] [WM] Step {self.global_step}/{max_steps} | "
                         f"Loss: {log['loss']:.4f} | "
                         f"BaseLoss: {log['base_loss']:.4f} | "
                         f"Disagree: {log['disagreement']:.4f}"
@@ -352,6 +354,7 @@ class WorldModelTrainer:
             obs_t = torch.tensor(
                 features[start:end], dtype=torch.float32, device=self.device
             ).unsqueeze(0)
+            obs_t = torch.nan_to_num(obs_t, nan=0.0, posinf=0.0, neginf=0.0)
 
             if actions is not None:
                 act_t = torch.tensor(

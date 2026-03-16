@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import os
 import random
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -43,6 +44,10 @@ from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_re
 
 
 _CACHE_STALE_DAYS = 7  # キャッシュがこの日数以上古ければ再取得
+
+
+def _ts() -> str:
+    return datetime.now().strftime("%H:%M:%S")
 
 
 def _cache_is_fresh(path: str, stale_days: int = _CACHE_STALE_DAYS) -> bool:
@@ -112,7 +117,7 @@ def run_fold(
     has_ac = resume and os.path.exists(ac_path)
 
     # --------- Step 1: Hindsight Oracle ---------
-    print("\n[Step 1] Hindsight Oracle DP...")
+    print(f"\n[{_ts()}] [Step 1] Hindsight Oracle DP...")
     train_returns = wfo_dataset.train_returns
     oracle_actions, oracle_values = hindsight_oracle_dp(
         train_returns,
@@ -129,10 +134,10 @@ def run_fold(
     wm_trainer = WorldModelTrainer(ensemble, cfg, device=device)
 
     if has_wm:
-        print(f"\n[Step 2] World Model — loading checkpoint: {wm_path}")
+        print(f"\n[{_ts()}] [Step 2] World Model — loading checkpoint: {wm_path}")
         wm_trainer.load(wm_path)
     else:
-        print("\n[Step 2] World Model Training...")
+        print(f"\n[{_ts()}] [Step 2] World Model Training...")
         train_ds_with_actions = SequenceDataset(
             wfo_dataset.train_features,
             seq_len=seq_len,
@@ -165,7 +170,7 @@ def run_fold(
     )
 
     if has_bc:
-        print(f"\n[Step 3] BC — loading checkpoint: {bc_path}")
+        print(f"\n[{_ts()}] [Step 3] BC — loading checkpoint: {bc_path}")
         bc_trainer = BCPretrainer(
             actor=actor,
             z_dim=ensemble.get_z_dim(),
@@ -174,7 +179,7 @@ def run_fold(
         )
         bc_trainer.load(bc_path)
     else:
-        print("\n[Step 3] BC Pre-training...")
+        print(f"\n[{_ts()}] [Step 3] BC Pre-training...")
         bc_trainer = BCPretrainer(
             actor=actor,
             z_dim=ensemble.get_z_dim(),
@@ -195,7 +200,7 @@ def run_fold(
 
     # --------- Step 4: Imagination AC Fine-tune ---------
     if has_ac:
-        print(f"\n[Step 4] AC — loading checkpoint: {ac_path}")
+        print(f"\n[{_ts()}] [Step 4] AC — loading checkpoint: {ac_path}")
         critic = Critic(
             z_dim=ensemble.get_z_dim(),
             h_dim=ensemble.get_d_model(),
@@ -213,7 +218,7 @@ def run_fold(
         )
         ac_trainer.load(ac_path)
     else:
-        print("\n[Step 4] Imagination AC Fine-tuning...")
+        print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
         critic = Critic(
             z_dim=ensemble.get_z_dim(),
             h_dim=ensemble.get_d_model(),
@@ -243,7 +248,7 @@ def run_fold(
         ac_trainer.save(ac_path)
 
     # --------- Step 5: Test バックテスト ---------
-    print("\n[Step 5] Test Backtest...")
+    print(f"\n[{_ts()}] [Step 5] Test Backtest...")
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
 
