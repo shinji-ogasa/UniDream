@@ -22,6 +22,7 @@ References:
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -97,6 +98,7 @@ class ImagACTrainer:
         self.reward_ema = RewardEMANorm()
         self.global_step = 0
         self.loss_history: list[dict] = []
+        self.checkpoint_interval = ac_cfg.get("checkpoint_interval", 10_000)
 
         # BC 損失用の oracle データ（bc_pretrain 後に set_oracle_data で設定）
         self._oracle_z: Optional[torch.Tensor] = None
@@ -335,6 +337,7 @@ class ImagACTrainer:
         encoded_sequences: list[dict],
         max_steps: Optional[int] = None,
         batch_size: int = 32,
+        checkpoint_path: Optional[str] = None,
     ) -> list[dict]:
         """学習ループを実行する."""
         max_steps = max_steps or self.max_steps
@@ -354,14 +357,23 @@ class ImagACTrainer:
             self.loss_history.append(logs[-1])
 
             if self.global_step % self.log_interval == 0:
+                ts = datetime.now().strftime("%H:%M:%S")
                 print(
-                    f"[AC] Step {self.global_step}/{max_steps} | "
+                    f"[{ts}] [AC] Step {self.global_step}/{max_steps} | "
                     f"Actor: {step_log['actor_loss']:.4f} | "
                     f"AC: {step_log['ac_loss']:.4f} | "
                     f"BC: {step_log['bc_loss']:.4f} | "
                     f"Critic: {step_log['critic_loss']:.4f} | "
                     f"α={step_log['alpha']:.3f}"
                 )
+
+            if (
+                checkpoint_path is not None
+                and self.checkpoint_interval > 0
+                and self.global_step % self.checkpoint_interval == 0
+            ):
+                self.save(checkpoint_path)
+                print(f"[AC] Checkpoint saved: {checkpoint_path} (step={self.global_step})")
 
         return logs
 

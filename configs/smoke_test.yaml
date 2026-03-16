@@ -78,6 +78,7 @@ ac:
   actor_lr: 3.0e-5
   critic_lr: 3.0e-4
   max_steps: 1000           # 本番の 1/200
+  checkpoint_interval: 200  # 本番の 1/50
   grad_clip: 100.0
 
 ppo:

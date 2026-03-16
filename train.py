@@ -199,51 +199,45 @@ def run_fold(
         bc_trainer.save(bc_path)
 
     # --------- Step 4: Imagination AC Fine-tune ---------
+    critic = Critic(
+        z_dim=ensemble.get_z_dim(),
+        h_dim=ensemble.get_d_model(),
+        hidden_dim=ac_cfg.get("critic_hidden", 256),
+        n_layers=ac_cfg.get("ac_layers", 2),
+        n_bins=wm_cfg.get("n_bins", 255),
+        ema_decay=ac_cfg.get("ema_decay", 0.98),
+    )
+    ac_trainer = ImagACTrainer(
+        actor=actor,
+        critic=critic,
+        ensemble=ensemble,
+        cfg=cfg,
+        device=device,
+    )
     if has_ac:
-        print(f"\n[{_ts()}] [Step 4] AC — loading checkpoint: {ac_path}")
-        critic = Critic(
-            z_dim=ensemble.get_z_dim(),
-            h_dim=ensemble.get_d_model(),
-            hidden_dim=ac_cfg.get("critic_hidden", 256),
-            n_layers=ac_cfg.get("ac_layers", 2),
-            n_bins=wm_cfg.get("n_bins", 255),
-            ema_decay=ac_cfg.get("ema_decay", 0.98),
-        )
-        ac_trainer = ImagACTrainer(
-            actor=actor,
-            critic=critic,
-            ensemble=ensemble,
-            cfg=cfg,
-            device=device,
-        )
         ac_trainer.load(ac_path)
+
+    # oracle データは resume 時も必要（BC 損失計算用）
+    T_enc = min(len(z_train), len(oracle_actions))
+    ac_trainer.set_oracle_data(
+        z=z_train[:T_enc],
+        h=h_train[:T_enc],
+        oracle_actions=oracle_actions[:T_enc],
+    )
+
+    ac_max_steps = ac_cfg.get("max_steps", 200_000)
+    if ac_trainer.global_step >= ac_max_steps:
+        print(f"\n[{_ts()}] [Step 4] AC — already complete (step={ac_trainer.global_step})")
     else:
-        print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
-        critic = Critic(
-            z_dim=ensemble.get_z_dim(),
-            h_dim=ensemble.get_d_model(),
-            hidden_dim=ac_cfg.get("critic_hidden", 256),
-            n_layers=ac_cfg.get("ac_layers", 2),
-            n_bins=wm_cfg.get("n_bins", 255),
-            ema_decay=ac_cfg.get("ema_decay", 0.98),
-        )
-        ac_trainer = ImagACTrainer(
-            actor=actor,
-            critic=critic,
-            ensemble=ensemble,
-            cfg=cfg,
-            device=device,
-        )
-        T_enc = min(len(z_train), len(oracle_actions))
-        ac_trainer.set_oracle_data(
-            z=z_train[:T_enc],
-            h=h_train[:T_enc],
-            oracle_actions=oracle_actions[:T_enc],
-        )
+        if has_ac:
+            print(f"\n[{_ts()}] [Step 4] AC — resuming from step {ac_trainer.global_step}/{ac_max_steps}")
+        else:
+            print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
         encoded_list = [{"z": z_train, "h": h_train}]
         ac_trainer.train(
             encoded_sequences=encoded_list,
             batch_size=ac_cfg.get("batch_size", 32),
+            checkpoint_path=ac_path,
         )
         ac_trainer.save(ac_path)
 
