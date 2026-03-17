@@ -239,7 +239,7 @@ def main():
         wfo_ds = WFODataset(features_df, raw_returns, split, seq_len=seq_len)
         ckpt_path = os.path.join(args.checkpoint_dir, f"qdt_fold_{split.fold_idx}.pt")
 
-        oracle_actions, oracle_values = hindsight_oracle_dp(
+        oracle_actions, oracle_values, _ = hindsight_oracle_dp(
             wfo_ds.train_returns,
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),

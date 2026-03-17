@@ -38,6 +38,7 @@ class Actor(nn.Module):
         n_layers: int = 2,
         unimix_ratio: float = 0.01,
         regime_dim: int = 0,
+        dropout_p: float = 0.0,
     ):
         super().__init__()
         self.act_dim = act_dim
@@ -45,9 +46,13 @@ class Actor(nn.Module):
         self.regime_dim = regime_dim
 
         in_dim = z_dim + h_dim + regime_dim
-        layers = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
+        layers: list[nn.Module] = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
+        if dropout_p > 0.0:
+            layers.append(nn.Dropout(dropout_p))
         for _ in range(n_layers - 1):
             layers += [nn.Linear(hidden_dim, hidden_dim), nn.ELU()]
+            if dropout_p > 0.0:
+                layers.append(nn.Dropout(dropout_p))
         layers.append(nn.Linear(hidden_dim, act_dim))
         self.net = nn.Sequential(*layers)
 
@@ -56,6 +61,7 @@ class Actor(nn.Module):
         z: torch.Tensor,
         h: torch.Tensor,
         regime: "torch.Tensor | None" = None,
+        temperature: float = 1.0,
     ) -> Categorical:
         """潜在表現から行動分布を返す.
 
@@ -63,6 +69,7 @@ class Actor(nn.Module):
             z: (..., z_dim)
             h: (..., h_dim)
             regime: (..., regime_dim) レジーム確率ベクトル（省略可）
+            temperature: softmax 温度（> 1 で分布を平滑化、OOS 過信防止）
 
         Returns:
             Categorical 分布（unimix 済み）
@@ -74,6 +81,9 @@ class Actor(nn.Module):
         else:
             x = torch.cat([z, h], dim=-1)
         logits = self.net(x)
+
+        if temperature != 1.0:
+            logits = logits / temperature
 
         if self.unimix_ratio > 0.0:
             probs = F.softmax(logits, dim=-1)
@@ -105,9 +115,10 @@ class Actor(nn.Module):
         z: torch.Tensor,
         h: torch.Tensor,
         regime: "torch.Tensor | None" = None,
+        temperature: float = 1.0,
     ) -> torch.Tensor:
         """最頻値行動を返す（推論時 greedy）."""
-        dist = self.forward(z, h, regime=regime)
+        dist = self.forward(z, h, regime=regime, temperature=temperature)
         return dist.probs.argmax(dim=-1)
 
     @torch.no_grad()
@@ -117,6 +128,7 @@ class Actor(nn.Module):
         h_np: "np.ndarray",
         regime_np: "np.ndarray | None" = None,
         device: str = "cpu",
+        temperature: "float | None" = None,
     ) -> "np.ndarray":
         """numpy 配列から ポジション比率列を返す.
 
@@ -124,16 +136,22 @@ class Actor(nn.Module):
             z_np: (T, z_dim)
             h_np: (T, h_dim)
             regime_np: (T, regime_dim) レジーム確率ベクトル（省略可）
+            temperature: softmax 温度（None のとき self.infer_temperature を使用）
 
         Returns:
             positions: (T,) ∈ {-1, -0.5, 0, 0.5, 1}
         """
         import numpy as np
+        t = temperature if temperature is not None else getattr(self, "infer_temperature", 1.0)
+        was_training = self.training
+        self.eval()
         dev = torch.device(device)
         z = torch.tensor(z_np, dtype=torch.float32, device=dev)
         h = torch.tensor(h_np, dtype=torch.float32, device=dev)
         regime = None
         if regime_np is not None and self.regime_dim > 0:
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
-        action_indices = self.act_greedy(z, h, regime=regime).cpu().numpy()
+        action_indices = self.act_greedy(z, h, regime=regime, temperature=t).cpu().numpy()
+        if was_training:
+            self.train()
         return ACTIONS[action_indices]

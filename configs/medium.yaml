@@ -32,6 +32,7 @@ costs:
 # --- Oracle ---
 oracle:
   discount: 1.0
+  soft_label_temp: 0.5      # Boltzmann 温度（正規化 advantage ベース。0.5≈45%entropy、1.0≈76%）
 
 # --- 報酬 ---
 reward:
@@ -73,12 +74,16 @@ bc:
   lr: 3.0e-4
   batch_size: 256
   sirl_hidden: 128
+  label_smoothing: 0.10     # Soft labels（ε=0.10）→ argmax saturation 防止
+  entropy_coef: 0.01        # Entropy bonus → OOS 分布崩壊防止
 
 # --- Actor-Critic ---
 ac:
   actor_hidden: 256
   critic_hidden: 256
   ac_layers: 2
+  actor_dropout: 0.20       # Dropout（過学習防止・OOS 汎化）
+  infer_temperature: 1.5    # 推論時 softmax 温度（T>1 で分布平滑化→constant output 防止）
   horizon: 5                # 本番 10 → 5（smoke test 3 より長く、本番より保守的）
   lam: 0.95
   gamma: 0.99

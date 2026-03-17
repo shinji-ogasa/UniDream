@@ -119,12 +119,17 @@ def run_fold(
     # --------- Step 1: Hindsight Oracle ---------
     print(f"\n[{_ts()}] [Step 1] Hindsight Oracle DP...")
     train_returns = wfo_dataset.train_returns
-    oracle_actions, oracle_values = hindsight_oracle_dp(
+    oracle_cfg = cfg.get("oracle", {})
+    oracle_min_hold = oracle_cfg.get("min_hold", 0)
+    oracle_soft_temp = oracle_cfg.get("soft_label_temp", 0.0)
+    oracle_actions, oracle_values, oracle_soft_labels = hindsight_oracle_dp(
         train_returns,
         spread_bps=costs_cfg.get("spread_bps", 5.0),
         fee_rate=costs_cfg.get("fee_rate", 0.0004),
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-        discount=cfg.get("oracle", {}).get("discount", 1.0),
+        discount=oracle_cfg.get("discount", 1.0),
+        min_hold=oracle_min_hold,
+        soft_label_temp=oracle_soft_temp,
     )
     print(f"  Oracle computed: {len(oracle_actions)} steps, "
           f"mean value={oracle_values.mean():.4f}")
@@ -133,12 +138,13 @@ def run_fold(
     print(f"  Oracle dist: {_fmt_action_stats(_oracle_s)}")
 
     # Val oracle actions（分布比較・WM 学習に使用）
-    val_oracle_actions, _ = hindsight_oracle_dp(
+    val_oracle_actions, _, _ = hindsight_oracle_dp(
         wfo_dataset.val_returns,
         spread_bps=costs_cfg.get("spread_bps", 5.0),
         fee_rate=costs_cfg.get("fee_rate", 0.0004),
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-        discount=cfg.get("oracle", {}).get("discount", 1.0),
+        discount=oracle_cfg.get("discount", 1.0),
+        min_hold=oracle_min_hold,
     )
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
@@ -205,7 +211,9 @@ def run_fold(
         hidden_dim=ac_cfg.get("actor_hidden", 256),
         n_layers=ac_cfg.get("ac_layers", 2),
         regime_dim=regime_dim,
+        dropout_p=ac_cfg.get("actor_dropout", 0.0),
     )
+    actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC — loading checkpoint: {bc_path}")
@@ -226,6 +234,8 @@ def run_fold(
             batch_size=bc_cfg.get("batch_size", 256),
             n_epochs=bc_cfg.get("n_epochs", 5),
             sirl_hidden=bc_cfg.get("sirl_hidden", 128),
+            label_smoothing=bc_cfg.get("label_smoothing", 0.0),
+            entropy_coef=bc_cfg.get("entropy_coef", 0.0),
             device=device,
         )
         T_enc = min(len(z_train), len(oracle_actions))
@@ -234,6 +244,7 @@ def run_fold(
             h=h_train[:T_enc],
             oracle_actions=oracle_actions[:T_enc],
             regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
+            soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
         )
         bc_trainer.save(bc_path)
 

@@ -79,6 +79,8 @@ class BCPretrainer:
         batch_size: int = 256,
         n_epochs: int = 5,
         sirl_hidden: int = 128,
+        label_smoothing: float = 0.0,
+        entropy_coef: float = 0.0,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -86,6 +88,8 @@ class BCPretrainer:
         self.actor.to(self.device)
         self.n_epochs = n_epochs
         self.batch_size = batch_size
+        self.label_smoothing = label_smoothing
+        self.entropy_coef = entropy_coef
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -105,28 +109,56 @@ class BCPretrainer:
         oracle_actions: torch.Tensor,
         weights: Optional[torch.Tensor] = None,
         regime: Optional[torch.Tensor] = None,
+        soft_labels: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """KL-divergence ベースの BC 損失.
 
-        KL(oracle_onehot || actor_dist) = -log P_actor(oracle_action)
+        soft_labels が与えられた場合は Boltzmann value-based soft targets を使用。
+        なければ label_smoothing による均一 soft target または hard label を使用。
 
         Args:
             z: (B, z_dim)
             h: (B, h_dim)
-            oracle_actions: (B,) oracle 行動インデックス
+            oracle_actions: (B,) oracle 行動インデックス（soft_labels が None の時に使用）
             weights: (B,) 状態依存重み
             regime: (B, regime_dim) レジーム確率ベクトル（省略可）
+            soft_labels: (B, K) Boltzmann soft target（oracle Q 値由来）
 
         Returns:
             loss: スカラー
         """
         dist = self.actor(z, h, regime=regime)
-        log_prob = dist.log_prob(oracle_actions)  # (B,)
+        log_probs = torch.log(dist.probs + 1e-8)  # (B, K)
+
+        if soft_labels is not None:
+            # Value-based soft labels（動的）+ 均一フロア混合で OOD 安定性を確保
+            target = soft_labels
+            if self.label_smoothing > 0.0:
+                K = self.actor.act_dim
+                target = (1.0 - self.label_smoothing) * soft_labels + self.label_smoothing / K
+            kl = -(target * log_probs).sum(dim=-1)  # (B,)
+        elif self.label_smoothing > 0.0:
+            # 均一 soft labels（fallback）
+            K = self.actor.act_dim
+            soft = torch.full(
+                (oracle_actions.shape[0], K),
+                self.label_smoothing / K,
+                dtype=torch.float32,
+                device=oracle_actions.device,
+            )
+            soft.scatter_(1, oracle_actions.unsqueeze(1),
+                          1.0 - self.label_smoothing + self.label_smoothing / K)
+            kl = -(soft * log_probs).sum(dim=-1)  # (B,)
+        else:
+            kl = -dist.log_prob(oracle_actions)  # (B,)
 
         if weights is not None:
-            loss = -(weights * log_prob).mean()
+            loss = (weights * kl).mean()
         else:
-            loss = -log_prob.mean()
+            loss = kl.mean()
+
+        if self.entropy_coef > 0.0:
+            loss = loss - self.entropy_coef * dist.entropy().mean()
 
         return loss
 
@@ -137,6 +169,7 @@ class BCPretrainer:
         oracle_actions: np.ndarray,
         verbose: bool = True,
         regime_probs: "np.ndarray | None" = None,
+        soft_labels: "np.ndarray | None" = None,
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
@@ -155,11 +188,13 @@ class BCPretrainer:
         a_t = torch.tensor(oracle_actions[:T], dtype=torch.long)
 
         use_regime = regime_probs is not None
+        use_soft = soft_labels is not None
+        tensors = [z_t, h_t, a_t]
         if use_regime:
-            reg_t = torch.tensor(regime_probs[:T], dtype=torch.float32)
-            dataset = TensorDataset(z_t, h_t, a_t, reg_t)
-        else:
-            dataset = TensorDataset(z_t, h_t, a_t)
+            tensors.append(torch.tensor(regime_probs[:T], dtype=torch.float32))
+        if use_soft:
+            tensors.append(torch.tensor(soft_labels[:T], dtype=torch.float32))
+        dataset = TensorDataset(*tensors)
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
         logs = []
@@ -168,12 +203,14 @@ class BCPretrainer:
             count = 0
 
             for batch in loader:
+                idx = 0
+                z_b, h_b, a_b = batch[0], batch[1], batch[2]
+                idx = 3
+                reg_b = batch[idx].to(self.device) if use_regime else None
                 if use_regime:
-                    z_b, h_b, a_b, reg_b = batch
-                    reg_b = reg_b.to(self.device)
-                else:
-                    z_b, h_b, a_b = batch
-                    reg_b = None
+                    idx += 1
+                sl_b = batch[idx].to(self.device) if use_soft else None
+
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
                 a_b = a_b.to(self.device)
@@ -185,7 +222,7 @@ class BCPretrainer:
                 else:
                     weights = None
 
-                loss = self._bc_loss(z_b, h_b, a_b, weights, regime=reg_b)
+                loss = self._bc_loss(z_b, h_b, a_b, weights, regime=reg_b, soft_labels=sl_b)
 
                 self.optimizer.zero_grad()
                 loss.backward()
