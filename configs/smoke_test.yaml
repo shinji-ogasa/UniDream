@@ -86,7 +86,7 @@ ac:
   max_steps: 1000           # 本番の 1/200
   checkpoint_interval: 200  # 本番の 1/50
   val_patience: 4           # 4 回連続更新なしで early stop（5 checkpoint 中 step800 の改善を逃さない設定）
-  bc_loss_threshold: 0.05   # BC loss がこの値を超えたら
+  bc_loss_threshold: 2.0    # BC loss がこの値を超えたら（α 低下時の自然増は許容）
   bc_loss_patience: 3       # 3 連続 checkpoint で early stop
   grad_clip: 100.0
 

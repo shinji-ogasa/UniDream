@@ -526,21 +526,13 @@ class ImagACTrainer:
         else:
             all_regime = None
 
-        # context action 配列: encoded_sequences に "actions" があれば優先（BC/AC 由来）、
-        # なければ oracle にフォールバック（分布シフト対策）
-        has_enc_actions = all(
-            "actions" in s and s["actions"] is not None for s in encoded_sequences
+        # context action 配列: oracle actions を使用（WM は oracle context で学習済みのため in-distribution）
+        # BC actions に変えると WM が OOD になり imagination rollout の品質が大幅低下する
+        context_actions_np = (
+            self._oracle_actions.cpu().numpy()
+            if self._oracle_actions is not None
+            else None
         )
-        if has_enc_actions:
-            context_actions_np = np.concatenate(
-                [s["actions"] for s in encoded_sequences], axis=0
-            )
-        else:
-            context_actions_np = (
-                self._oracle_actions.cpu().numpy()
-                if self._oracle_actions is not None
-                else None
-            )
         flat_action = 2  # action index for position=0.0 (flat)
 
         # val Sharpe tracking for best checkpoint selection
@@ -651,10 +643,11 @@ class ImagACTrainer:
                         break
 
                     # Adaptive BC: 直前の val Sharpe と比較して alpha 減衰速度を調整
+                    # tolerance=0.01: 微小変動で speed を下げ続けないようにする
                     if self.adaptive_bc and self._last_val_sharpe is not None:
-                        if val_sharpe > self._last_val_sharpe:
+                        if val_sharpe > self._last_val_sharpe + 0.01:
                             self._alpha_speed = min(self._alpha_speed * 1.2, 3.0)
-                        else:
+                        elif val_sharpe < self._last_val_sharpe - 0.01:
                             self._alpha_speed = max(self._alpha_speed * 0.8, 0.3)
                     self._last_val_sharpe = val_sharpe
 

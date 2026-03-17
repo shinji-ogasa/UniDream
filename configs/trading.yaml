@@ -110,7 +110,7 @@ ac:
   max_steps: 200000
   checkpoint_interval: 10000  # 何ステップごとに中間保存するか
   val_patience: 5           # 5 回連続更新なしで early stop（本番は余裕を持たせる）
-  bc_loss_threshold: 0.05
+  bc_loss_threshold: 2.0
   bc_loss_patience: 3
   grad_clip: 100.0
 

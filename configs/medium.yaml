@@ -62,7 +62,7 @@ world_model:
   disagree_scale: 0.1
   lr: 1.0e-4
   batch_size: 64            # 本番 32→64（GPU メモリ効率向上）
-  max_steps: 4000           # 本番 100k → 4k
+  max_steps: 5000           # 本番 100k → 5k
   grad_clip: 100.0
   n_bins: 255
   bin_range: [-20.0, 20.0]
@@ -85,7 +85,7 @@ ac:
   ema_decay: 0.98
   alpha_init: 1.0
   alpha_final: 0.05
-  alpha_decay_steps: 3200   # max_steps の 80% で alpha_final に到達
+  alpha_decay_steps: 4800   # max_steps の 80% で alpha_final に到達
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
   actor_lr: 1.0e-4
@@ -99,7 +99,7 @@ ac:
   max_steps: 6000           # 本番 200k → 6k（early stop 込みで実効 2〜4k 想定）
   checkpoint_interval: 1000   # 本番 10000 → 1000
   val_patience: 3           # 3 回連続更新なしで early stop
-  bc_loss_threshold: 0.05   # BC loss がこの値を超えたら
+  bc_loss_threshold: 2.0    # BC loss がこの値を超えたら（α 低下時の自然増は許容）
   bc_loss_patience: 3       # 3 連続 checkpoint で early stop
   grad_clip: 100.0
 
