@@ -279,27 +279,39 @@ def run_fold(
         "z": z_train_ac,
         "h": h_train_ac,
         "regime": train_regime_probs if train_regime_probs is not None else None,
-        "actions": bc_action_indices,   # past_as context を BC 由来に統一（oracle 混入を排除）
+        "actions": bc_action_indices,
     }]
+
+    # Val encoding を BC 予測 action で一度だけ固定する。
+    # 毎回 actor の最新 action で re-encode すると AC の自己参照ループで val Sharpe が膨らむ:
+    #   "AC が long 予測 → h が long 文脈 → また long" → val uptrend では過大評価。
+    # BC action は Oracle に近く、かつ訓練 h 分布（h_train_ac）に整合するため固定コンテキストに適切。
+    val_features_arr = wfo_dataset.val_features
+    val_returns_arr = wfo_dataset.val_returns
+    if len(val_features_arr) > 0:
+        _enc_val_bc1 = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
+        _bc_val_preds = actor.predict_positions(
+            _enc_val_bc1["z"], _enc_val_bc1["h"], regime_np=val_regime_probs, device=device
+        )
+        _bc_val_act_idx = np.array([int(np.argmin(np.abs(_ACTIONS - p))) for p in _bc_val_preds])
+        _enc_val_fixed = wm_trainer.encode_sequence(
+            val_features_arr, actions=_bc_val_act_idx, seq_len=seq_len
+        )
+        z_val_fixed = _enc_val_fixed["z"]
+        h_val_fixed = _enc_val_fixed["h"]
+    else:
+        z_val_fixed = h_val_fixed = None
 
     # Val backtest function — used for AC checkpoint selection
     def _val_eval() -> float:
-        val_features = wfo_dataset.val_features
-        val_returns = wfo_dataset.val_returns
-        if len(val_features) == 0:
+        if z_val_fixed is None:
             return -float("inf")
-        enc1 = wm_trainer.encode_sequence(val_features, seq_len=seq_len)
-        preds = actor.predict_positions(
-            enc1["z"], enc1["h"], regime_np=val_regime_probs, device=device
-        )
-        act_idx = np.array([int(np.argmin(np.abs(_ACTIONS - p))) for p in preds])
-        enc2 = wm_trainer.encode_sequence(val_features, actions=act_idx, seq_len=seq_len)
         pos = actor.predict_positions(
-            enc2["z"], enc2["h"], regime_np=val_regime_probs, device=device
+            z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
         )
-        T_min = min(len(val_returns), len(pos))
+        T_min = min(len(val_returns_arr), len(pos))
         return Backtest(
-            val_returns[:T_min], pos[:T_min],
+            val_returns_arr[:T_min], pos[:T_min],
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
