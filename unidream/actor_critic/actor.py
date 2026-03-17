@@ -1,7 +1,7 @@
 """Actor モジュール.
 
 離散 5 行動（ポジション比率）を出力する方策ネットワーク。
-入力: 世界モデルの潜在 z + Transformer hidden h
+入力: 世界モデルの潜在 z + Transformer hidden h （+ オプションの regime ベクトル）
 出力: 5 行動の logits（Categorical 分布）
 
 DreamerV3 スタイル: entropy 正則化付き。
@@ -26,6 +26,7 @@ class Actor(nn.Module):
         hidden_dim: MLP 隠れ層次元
         n_layers: MLP 層数
         unimix_ratio: 行動分布の均一混合比率（exploration 用）
+        regime_dim: レジーム確率ベクトルの次元（0 で無効）
     """
 
     def __init__(
@@ -36,29 +37,42 @@ class Actor(nn.Module):
         hidden_dim: int = 256,
         n_layers: int = 2,
         unimix_ratio: float = 0.01,
+        regime_dim: int = 0,
     ):
         super().__init__()
         self.act_dim = act_dim
         self.unimix_ratio = unimix_ratio
+        self.regime_dim = regime_dim
 
-        in_dim = z_dim + h_dim
+        in_dim = z_dim + h_dim + regime_dim
         layers = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
         for _ in range(n_layers - 1):
             layers += [nn.Linear(hidden_dim, hidden_dim), nn.ELU()]
         layers.append(nn.Linear(hidden_dim, act_dim))
         self.net = nn.Sequential(*layers)
 
-    def forward(self, z: torch.Tensor, h: torch.Tensor) -> Categorical:
+    def forward(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        regime: "torch.Tensor | None" = None,
+    ) -> Categorical:
         """潜在表現から行動分布を返す.
 
         Args:
             z: (..., z_dim)
             h: (..., h_dim)
+            regime: (..., regime_dim) レジーム確率ベクトル（省略可）
 
         Returns:
             Categorical 分布（unimix 済み）
         """
-        x = torch.cat([z, h], dim=-1)
+        if self.regime_dim > 0:
+            if regime is None:
+                regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
+            x = torch.cat([z, h, regime], dim=-1)
+        else:
+            x = torch.cat([z, h], dim=-1)
         logits = self.net(x)
 
         if self.unimix_ratio > 0.0:
@@ -69,7 +83,10 @@ class Actor(nn.Module):
         return Categorical(logits=logits)
 
     def get_action(
-        self, z: torch.Tensor, h: torch.Tensor
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        regime: "torch.Tensor | None" = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """行動サンプル・log_prob・entropy を返す.
 
@@ -78,14 +95,19 @@ class Actor(nn.Module):
             log_prob: (...,) 対数確率
             entropy: (...,) エントロピー
         """
-        dist = self.forward(z, h)
+        dist = self.forward(z, h, regime=regime)
         action = dist.sample()
         return action, dist.log_prob(action), dist.entropy()
 
     @torch.no_grad()
-    def act_greedy(self, z: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+    def act_greedy(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        regime: "torch.Tensor | None" = None,
+    ) -> torch.Tensor:
         """最頻値行動を返す（推論時 greedy）."""
-        dist = self.forward(z, h)
+        dist = self.forward(z, h, regime=regime)
         return dist.probs.argmax(dim=-1)
 
     @torch.no_grad()
@@ -93,6 +115,7 @@ class Actor(nn.Module):
         self,
         z_np: "np.ndarray",
         h_np: "np.ndarray",
+        regime_np: "np.ndarray | None" = None,
         device: str = "cpu",
     ) -> "np.ndarray":
         """numpy 配列から ポジション比率列を返す.
@@ -100,6 +123,7 @@ class Actor(nn.Module):
         Args:
             z_np: (T, z_dim)
             h_np: (T, h_dim)
+            regime_np: (T, regime_dim) レジーム確率ベクトル（省略可）
 
         Returns:
             positions: (T,) ∈ {-1, -0.5, 0, 0.5, 1}
@@ -108,5 +132,8 @@ class Actor(nn.Module):
         dev = torch.device(device)
         z = torch.tensor(z_np, dtype=torch.float32, device=dev)
         h = torch.tensor(h_np, dtype=torch.float32, device=dev)
-        action_indices = self.act_greedy(z, h).cpu().numpy()
+        regime = None
+        if regime_np is not None and self.regime_dim > 0:
+            regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
+        action_indices = self.act_greedy(z, h, regime=regime).cpu().numpy()
         return ACTIONS[action_indices]

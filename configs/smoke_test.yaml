@@ -66,20 +66,31 @@ ac:
   actor_hidden: 256
   critic_hidden: 256
   ac_layers: 2
-  horizon: 5
+  horizon: 3
   lam: 0.95
   gamma: 0.99
   ema_decay: 0.98
   alpha_init: 1.0
-  alpha_final: 0.0
-  alpha_decay_steps: 500
-  entropy_scale: 3.0e-4
+  alpha_final: 0.05             # BC フロアを維持して actor 発散を防ぐ
+  alpha_decay_steps: 1000
+  entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
-  actor_lr: 3.0e-5
+  actor_lr: 1.0e-4
+  online_wm_interval: 200   # AC steps ごとに WM をオンライン更新
+  online_wm_window_days: 30 # 更新に使う直近日数
+  online_wm_steps: 20       # WM 更新のステップ数
+  use_dsr: true             # DSR 報酬を使用する
+  adaptive_bc: true         # val Sharpe に応じて alpha 減衰を適応
   critic_lr: 3.0e-4
+  critic_pretrain_steps: 200  # 本番の 1/10
   max_steps: 1000           # 本番の 1/200
   checkpoint_interval: 200  # 本番の 1/50
   grad_clip: 100.0
+
+qdt:
+  n_epochs: 20              # QDT 用エポック数（bc.n_epochs とは独立）
+  batch_size: 64
+  lr: 3.0e-4
 
 ppo:
   n_epochs: 3

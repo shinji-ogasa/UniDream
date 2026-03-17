@@ -47,14 +47,24 @@ class RegimeDetector:
         self._fitted = False
 
     def fit(self, returns: np.ndarray | pd.Series) -> "RegimeDetector":
-        """リターン系列に HMM をフィットさせる."""
+        """リターン系列に HMM をフィットさせる.
+
+        fit 後、状態を平均リターンの昇順にソートする（ラベルスイッチング対策）。
+        state 0 = 最低平均リターン（bearish）、state n-1 = 最高（bullish）。
+        """
         r = np.asarray(returns).reshape(-1, 1)
         self.model.fit(r)
         self._fitted = True
+
+        # ラベルを平均リターン昇順に固定（fold 間の一貫性確保）
+        order = np.argsort(self.model.means_.flatten())
+        self._state_perm = order          # new_i → old_i（モデル内部インデックス）
+        self._inv_perm = np.argsort(order) # old_i → new_i（外部ラベル）
+
         return self
 
     def predict(self, returns: np.ndarray | pd.Series) -> np.ndarray:
-        """レジームラベルを予測する.
+        """レジームラベルを予測する（平均リターン昇順にソート済み）.
 
         Returns:
             レジームラベル列 (T,) ∈ {0, 1, ..., n_states-1}
@@ -62,31 +72,39 @@ class RegimeDetector:
         if not self._fitted:
             raise RuntimeError("fit() を先に呼んでください")
         r = np.asarray(returns).reshape(-1, 1)
-        return self.model.predict(r)
+        raw = self.model.predict(r)
+        return self._inv_perm[raw]
 
     def predict_proba(self, returns: np.ndarray | pd.Series) -> np.ndarray:
-        """各レジームの事後確率を返す.
+        """各レジームの事後確率を返す（平均リターン昇順にソート済み）.
 
         Returns:
-            事後確率行列 (T, n_states)
+            事後確率行列 (T, n_states)  ─ 列 0 = bearish、列 n-1 = bullish
         """
         if not self._fitted:
             raise RuntimeError("fit() を先に呼んでください")
         r = np.asarray(returns).reshape(-1, 1)
-        return self.model.predict_proba(r)
+        raw = self.model.predict_proba(r)          # (T, n_states) 元の順
+        return raw[:, self._state_perm]             # ソート済み列順に並べ替え
 
     def fit_predict(self, returns: np.ndarray | pd.Series) -> np.ndarray:
         """fit と predict を一度に実行する."""
         return self.fit(returns).predict(returns)
 
+    def expected_returns(self) -> np.ndarray:
+        """各ソート済みレジームの平均リターンを返す (n_states,)."""
+        if not self._fitted:
+            raise RuntimeError("fit() を先に呼んでください")
+        return np.array([self.model.means_[old_i][0] for old_i in self._state_perm])
+
     @property
     def regime_stats(self) -> pd.DataFrame:
-        """各レジームの平均リターン・ボラティリティを返す."""
+        """各レジームの平均リターン・ボラティリティを返す（ソート済み）."""
         rows = []
-        for i in range(self.n_states):
-            mean = float(self.model.means_[i][0])
-            std = float(np.sqrt(self.model.covars_[i][0][0]))
-            rows.append({"regime": i, "mean": mean, "std": std, "sharpe": mean / (std + 1e-8)})
+        for new_i, old_i in enumerate(self._state_perm):
+            mean = float(self.model.means_[old_i][0])
+            std = float(np.sqrt(self.model.covars_[old_i][0][0]))
+            rows.append({"regime": new_i, "mean": mean, "std": std, "sharpe": mean / (std + 1e-8)})
         return pd.DataFrame(rows)
 
 

@@ -1,0 +1,130 @@
+# UniDream — Medium Configuration
+# 数時間（GPU で 2〜4h）で完走できる本番寄り設定。
+# フォールド数: 2020-01-01〜2024-01-01 → 約 5〜6 folds
+#
+# Usage:
+#   uv run python train.py --config configs/medium.yaml --start 2020-01-01 --end 2024-01-01
+
+# --- データ ---
+data:
+  symbol: "BTCUSDT"
+  interval: "15m"
+  train_years: 2
+  val_months: 3
+  test_months: 3
+  seq_len: 64
+
+# --- 正規化 ---
+normalization:
+  zscore_window_days: 60
+
+# --- 行動空間 ---
+actions:
+  n: 5
+  values: [-1.0, -0.5, 0.0, 0.5, 1.0]
+
+# --- コスト・スリッページモデル ---
+costs:
+  spread_bps: 5.0
+  fee_rate: 0.0004
+  slippage_bps: 2.0
+
+# --- Oracle ---
+oracle:
+  discount: 1.0
+
+# --- 報酬 ---
+reward:
+  beta: 0.1
+  dsr_eta: 0.01
+
+# --- 世界モデル ---
+# アーキテクチャは本番と同一。ステップ数のみ削減。
+world_model:
+  encoder_hidden: 256
+  encoder_layers: 2
+  n_categoricals: 32
+  n_classes: 32
+  unimix_ratio: 0.01
+  d_model: 512              # 本番と同一
+  n_heads: 8                # 本番と同一
+  n_layers: 4               # 本番と同一
+  d_ff: 2048
+  dropout: 0.1
+  max_seq_len: 256
+  free_bits: 1.0
+  dyn_scale: 0.5
+  rep_scale: 0.1
+  recon_scale: 1.0
+  reward_scale: 1.0
+  done_scale: 1.0
+  n_ensemble: 3
+  disagree_scale: 0.1
+  lr: 1.0e-4
+  batch_size: 64            # 本番 32→64（GPU メモリ効率向上）
+  max_steps: 8000           # 本番 100k → 8k（val loss 収束確認済みの目安）
+  grad_clip: 100.0
+  n_bins: 255
+  bin_range: [-20.0, 20.0]
+
+# --- BC 事前学習 ---
+bc:
+  n_epochs: 3               # 本番 5 → 3
+  lr: 3.0e-4
+  batch_size: 256
+  sirl_hidden: 128
+
+# --- Actor-Critic ---
+ac:
+  actor_hidden: 256
+  critic_hidden: 256
+  ac_layers: 2
+  horizon: 5                # 本番 10 → 5（smoke test 3 より長く、本番より保守的）
+  lam: 0.95
+  gamma: 0.99
+  ema_decay: 0.98
+  alpha_init: 1.0
+  alpha_final: 0.05
+  alpha_decay_steps: 12000  # max_steps の 80% で alpha_final に到達
+  entropy_scale: 1.0e-2
+  td3bc_alpha: 2.5
+  actor_lr: 1.0e-4
+  online_wm_interval: 2000  # 本番 5000 → 2000
+  online_wm_window_days: 30
+  online_wm_steps: 50       # 本番 200 → 50
+  use_dsr: true
+  adaptive_bc: true
+  critic_lr: 3.0e-4
+  critic_pretrain_steps: 500  # 本番 2000 → 500
+  max_steps: 15000          # 本番 200k → 15k
+  checkpoint_interval: 2000   # 本番 10000 → 2000
+  grad_clip: 100.0
+
+# --- PPO ベースライン ---
+ppo:
+  n_epochs: 10
+  batch_size: 64
+  lr: 3.0e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_steps: 50000
+  grad_clip: 0.5
+
+# --- 評価 ---
+eval:
+  pbo_n_trials: 100
+  hmm_n_states: 3
+  report_metrics:
+    - sharpe
+    - sortino
+    - max_drawdown
+    - calmar
+
+# --- ロギング ---
+logging:
+  log_interval: 500
+  eval_interval: 2000
+  checkpoint_dir: "checkpoints/medium"

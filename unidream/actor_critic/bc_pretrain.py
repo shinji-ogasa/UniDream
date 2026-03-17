@@ -104,6 +104,7 @@ class BCPretrainer:
         h: torch.Tensor,
         oracle_actions: torch.Tensor,
         weights: Optional[torch.Tensor] = None,
+        regime: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """KL-divergence ベースの BC 損失.
 
@@ -114,11 +115,12 @@ class BCPretrainer:
             h: (B, h_dim)
             oracle_actions: (B,) oracle 行動インデックス
             weights: (B,) 状態依存重み
+            regime: (B, regime_dim) レジーム確率ベクトル（省略可）
 
         Returns:
             loss: スカラー
         """
-        dist = self.actor(z, h)
+        dist = self.actor(z, h, regime=regime)
         log_prob = dist.log_prob(oracle_actions)  # (B,)
 
         if weights is not None:
@@ -134,6 +136,7 @@ class BCPretrainer:
         h: np.ndarray,
         oracle_actions: np.ndarray,
         verbose: bool = True,
+        regime_probs: "np.ndarray | None" = None,
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
@@ -141,6 +144,7 @@ class BCPretrainer:
             z: (T, z_dim) エンコードされた潜在
             h: (T, h_dim) Transformer hidden
             oracle_actions: (T,) oracle 行動インデックス
+            regime_probs: (T, regime_dim) レジーム確率ベクトル（省略可）
 
         Returns:
             各エポックのロスログ
@@ -150,7 +154,12 @@ class BCPretrainer:
         h_t = torch.tensor(h[:T], dtype=torch.float32)
         a_t = torch.tensor(oracle_actions[:T], dtype=torch.long)
 
-        dataset = TensorDataset(z_t, h_t, a_t)
+        use_regime = regime_probs is not None
+        if use_regime:
+            reg_t = torch.tensor(regime_probs[:T], dtype=torch.float32)
+            dataset = TensorDataset(z_t, h_t, a_t, reg_t)
+        else:
+            dataset = TensorDataset(z_t, h_t, a_t)
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
         logs = []
@@ -158,7 +167,13 @@ class BCPretrainer:
             epoch_loss = 0.0
             count = 0
 
-            for z_b, h_b, a_b in loader:
+            for batch in loader:
+                if use_regime:
+                    z_b, h_b, a_b, reg_b = batch
+                    reg_b = reg_b.to(self.device)
+                else:
+                    z_b, h_b, a_b = batch
+                    reg_b = None
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
                 a_b = a_b.to(self.device)
@@ -170,7 +185,7 @@ class BCPretrainer:
                 else:
                     weights = None
 
-                loss = self._bc_loss(z_b, h_b, a_b, weights)
+                loss = self._bc_loss(z_b, h_b, a_b, weights, regime=reg_b)
 
                 self.optimizer.zero_grad()
                 loss.backward()

@@ -129,6 +129,26 @@ def run_fold(
     print(f"  Oracle computed: {len(oracle_actions)} steps, "
           f"mean value={oracle_values.mean():.4f}")
 
+    # --------- HMM レジーム事後確率（Actor 入力用）---------
+    # Actor 生成前に計算して regime_dim を確定する
+    n_states = cfg.get("eval", {}).get("hmm_n_states", 3)
+    hmm_det = None
+    regime_dim = 0
+    train_regime_probs = None
+    val_regime_probs = None
+    test_regime_probs = None
+    try:
+        from unidream.eval.regime import RegimeDetector
+        hmm_det = RegimeDetector(n_states=n_states)
+        hmm_det.fit(wfo_dataset.train_returns)  # 内部で平均リターン昇順にソート
+        train_regime_probs = hmm_det.predict_proba(wfo_dataset.train_returns).astype(np.float32)
+        val_regime_probs = hmm_det.predict_proba(wfo_dataset.val_returns).astype(np.float32)
+        test_regime_probs = hmm_det.predict_proba(wfo_dataset.test_returns).astype(np.float32)
+        regime_dim = n_states
+        print(f"[Regime] HMM fitted, regime_dim={regime_dim}")
+    except Exception as e:
+        print(f"[Regime] HMM skipped: {e}")
+
     # --------- Step 2: 世界モデル学習 ---------
     ensemble = build_ensemble(obs_dim, cfg)
     wm_trainer = WorldModelTrainer(ensemble, cfg, device=device)
@@ -179,6 +199,7 @@ def run_fold(
         act_dim=cfg.get("actions", {}).get("n", 5),
         hidden_dim=ac_cfg.get("actor_hidden", 256),
         n_layers=ac_cfg.get("ac_layers", 2),
+        regime_dim=regime_dim,
     )
 
     if has_bc:
@@ -207,6 +228,7 @@ def run_fold(
             z=z_train[:T_enc],
             h=h_train[:T_enc],
             oracle_actions=oracle_actions[:T_enc],
+            regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
         )
         bc_trainer.save(bc_path)
 
@@ -250,21 +272,96 @@ def run_fold(
         z=z_train[:T_enc],
         h=h_train[:T_enc],
         oracle_actions=oracle_actions[:T_enc],
+        regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
     )
+
+    encoded_list = [{
+        "z": z_train_ac,
+        "h": h_train_ac,
+        "regime": train_regime_probs if train_regime_probs is not None else None,
+    }]
+
+    # Val backtest function — used for AC checkpoint selection
+    def _val_eval() -> float:
+        val_features = wfo_dataset.val_features
+        val_returns = wfo_dataset.val_returns
+        if len(val_features) == 0:
+            return -float("inf")
+        enc1 = wm_trainer.encode_sequence(val_features, seq_len=seq_len)
+        preds = actor.predict_positions(
+            enc1["z"], enc1["h"], regime_np=val_regime_probs, device=device
+        )
+        act_idx = np.array([int(np.argmin(np.abs(_ACTIONS - p))) for p in preds])
+        enc2 = wm_trainer.encode_sequence(val_features, actions=act_idx, seq_len=seq_len)
+        pos = actor.predict_positions(
+            enc2["z"], enc2["h"], regime_np=val_regime_probs, device=device
+        )
+        T_min = min(len(val_returns), len(pos))
+        return Backtest(
+            val_returns[:T_min], pos[:T_min],
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+            interval=cfg.get("data", {}).get("interval", "15m"),
+        ).run().sharpe
 
     ac_max_steps = ac_cfg.get("max_steps", 200_000)
     if ac_trainer.global_step >= ac_max_steps:
         print(f"\n[{_ts()}] [Step 4] AC — already complete (step={ac_trainer.global_step})")
     else:
+        bc_val_sharpe = -float("inf")
         if has_ac:
             print(f"\n[{_ts()}] [Step 4] AC — resuming from step {ac_trainer.global_step}/{ac_max_steps}")
         else:
             print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
-        encoded_list = [{"z": z_train_ac, "h": h_train_ac}]
+
+            # BC-only val Sharpe (checkpoint selection のベースライン)
+            bc_val_sharpe = _val_eval()
+            print(f"[AC] BC-only val Sharpe: {bc_val_sharpe:.3f}")
+
+            # Critic pre-training (Actor-Critic Alignment)
+            critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
+            if critic_pretrain_steps > 0:
+                ac_trainer.pretrain_critic(
+                    encoded_sequences=encoded_list,
+                    n_steps=critic_pretrain_steps,
+                    batch_size=ac_cfg.get("batch_size", 32),
+                )
+
+        # Online WM callback
+        interval = cfg.get("data", {}).get("interval", "15m")
+        bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(interval, 96)
+        online_wm_window = ac_cfg.get("online_wm_window_days", 30) * bars_per_day
+        online_wm_steps_val = ac_cfg.get("online_wm_steps", 0)
+
+        def _online_wm_cb(step: int) -> None:
+            if online_wm_steps_val <= 0:
+                return
+            T_train = len(wfo_dataset.train_features)
+            window_start = max(0, T_train - online_wm_window)
+            recent_feat = wfo_dataset.train_features[window_start:]
+            recent_actions = bc_action_indices[window_start:T_train]
+            recent_returns = wfo_dataset.train_returns[window_start:]
+            recent_ds = SequenceDataset(
+                recent_feat, seq_len=seq_len,
+                actions=recent_actions[:len(recent_feat)],
+                returns=recent_returns[:len(recent_feat)],
+            )
+            if len(recent_ds) < 2:
+                return
+            wm_trainer.ensemble.train()
+            wm_trainer.train_on_dataset(recent_ds, max_steps=online_wm_steps_val, checkpoint_path=None)
+            wm_trainer.ensemble.eval()
+
+        online_wm_callback = _online_wm_cb if online_wm_steps_val > 0 else None
+
         ac_trainer.train(
             encoded_sequences=encoded_list,
             batch_size=ac_cfg.get("batch_size", 32),
             checkpoint_path=ac_path,
+            val_eval_fn=_val_eval,
+            val_baseline_sharpe=bc_val_sharpe,
+            online_wm_callback=online_wm_callback,
         )
         ac_trainer.save(ac_path)
 
@@ -277,7 +374,7 @@ def run_fold(
     # テスト時もactor の予測 action を渡して h を整合させる。
     enc_pass1 = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
     predicted_actions = actor.predict_positions(
-        enc_pass1["z"], enc_pass1["h"], device=device,
+        enc_pass1["z"], enc_pass1["h"], regime_np=test_regime_probs, device=device,
     )
     action_indices = np.array([
         int(np.argmin(np.abs(_ACTIONS - p))) for p in predicted_actions
@@ -285,7 +382,9 @@ def run_fold(
     enc_test = wm_trainer.encode_sequence(
         test_features, actions=action_indices, seq_len=seq_len,
     )
-    positions = actor.predict_positions(enc_test["z"], enc_test["h"], device=device)
+    positions = actor.predict_positions(
+        enc_test["z"], enc_test["h"], regime_np=test_regime_probs, device=device
+    )
 
     T_min = min(len(test_returns), len(positions))
     bt = Backtest(

@@ -100,28 +100,80 @@ class ImagACTrainer:
         self.global_step = 0
         self.loss_history: list[dict] = []
         self.checkpoint_interval = ac_cfg.get("checkpoint_interval", 10_000)
+        self.critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
+
+        # EMA of |advantage| for stable norm_q (TD3+BC)
+        self._adv_ema: float = 1.0
 
         # BC 損失用の oracle データ（bc_pretrain 後に set_oracle_data で設定）
         self._oracle_z: Optional[torch.Tensor] = None
         self._oracle_h: Optional[torch.Tensor] = None
         self._oracle_actions: Optional[torch.Tensor] = None
 
+        # DSR EMA trackers
+        self._dsr_A: float = 0.0    # EMA of reward (running mean)
+        self._dsr_B: float = 1e-4   # EMA of reward^2 (running variance proxy)
+        self._dsr_eta: float = reward_cfg.get("dsr_eta", 0.01)
+        self.use_dsr: bool = ac_cfg.get("use_dsr", False)
+
+        # Adaptive BC
+        self.adaptive_bc: bool = ac_cfg.get("adaptive_bc", False)
+        self._alpha_speed: float = 1.0   # multiplier on alpha decay speed
+        self._last_val_sharpe: Optional[float] = None
+
+        # Regime conditioning
+        self.regime_dim: int = 0  # set later via set_regime_dim()
+        self._oracle_regime: Optional[torch.Tensor] = None
+
+        # Online WM update interval
+        self.online_wm_interval: int = ac_cfg.get("online_wm_interval", 0)
+
+    def set_regime_dim(self, regime_dim: int) -> None:
+        """regime_dim を後から設定する（Actor が外部で構築される場合用）."""
+        self.regime_dim = regime_dim
+
     def set_oracle_data(
         self,
         z: np.ndarray,
         h: np.ndarray,
         oracle_actions: np.ndarray,
+        regime_probs: "np.ndarray | None" = None,
     ) -> None:
         """BC 損失用の Oracle データを設定する."""
         T = min(len(z), len(h), len(oracle_actions))
         self._oracle_z = torch.tensor(z[:T], dtype=torch.float32, device=self.device)
         self._oracle_h = torch.tensor(h[:T], dtype=torch.float32, device=self.device)
         self._oracle_actions = torch.tensor(oracle_actions[:T], dtype=torch.long, device=self.device)
+        if regime_probs is not None:
+            self._oracle_regime = torch.tensor(
+                regime_probs[:T], dtype=torch.float32, device=self.device
+            )
+        else:
+            self._oracle_regime = None
 
     def _get_alpha(self) -> float:
         """現在の BC/AC 混合比率 α を返す（線形減衰: 1→0）."""
-        t = min(self.global_step, self.alpha_decay_steps)
+        t = min(self.global_step * self._alpha_speed, self.alpha_decay_steps)
         return self.alpha_init + (self.alpha_final - self.alpha_init) * (t / self.alpha_decay_steps)
+
+    def _compute_dsr_rewards(self, net_returns: torch.Tensor) -> torch.Tensor:
+        """DSR 報酬を計算する（インクリメンタル Sharpe 改善量）."""
+        B, H = net_returns.shape
+        dsr_rewards = torch.zeros_like(net_returns)
+        A = self._dsr_A
+        Bsq = self._dsr_B
+        eta = self._dsr_eta
+        for t in range(H):
+            r_t = net_returns[:, t]
+            denom = (Bsq - A * A + 1e-8) ** 1.5
+            dsr_t = (Bsq * (r_t - A) - 0.5 * A * (r_t ** 2 - Bsq)) / denom
+            dsr_rewards[:, t] = dsr_t
+            r_mean = r_t.detach().mean().item()
+            A = A + eta * (r_mean - A)
+            Bsq = Bsq + eta * (r_mean ** 2 - Bsq)
+        self._dsr_A = A
+        self._dsr_B = Bsq
+        return dsr_rewards
 
     def _imagination_rollout(
         self,
@@ -129,6 +181,7 @@ class ImagACTrainer:
         h0: torch.Tensor,
         past_zs: Optional[torch.Tensor] = None,
         past_as: Optional[torch.Tensor] = None,
+        regime0: Optional[torch.Tensor] = None,
     ) -> dict[str, torch.Tensor]:
         """Imagination rollout を実行する（horizon ステップ）.
 
@@ -143,7 +196,7 @@ class ImagACTrainer:
         pas = past_as
 
         for _ in range(self.horizon):
-            action, log_prob, entropy = self.actor.get_action(z, h)
+            action, log_prob, entropy = self.actor.get_action(z, h, regime=regime0)
 
             with torch.no_grad():
                 result = self.ensemble.imagine_step(z, h, action, pzs, pas)
@@ -235,7 +288,8 @@ class ImagACTrainer:
 
         T = self._oracle_z.shape[0]
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
-        dist = self.actor(self._oracle_z[idx], self._oracle_h[idx])
+        regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
+        dist = self.actor(self._oracle_z[idx], self._oracle_h[idx], regime=regime_batch)
         return -dist.log_prob(self._oracle_actions[idx]).mean()
 
     def train_step(
@@ -244,12 +298,13 @@ class ImagACTrainer:
         h0: torch.Tensor,
         past_zs: Optional[torch.Tensor] = None,
         past_as: Optional[torch.Tensor] = None,
+        regime0: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         """1 ステップの Actor-Critic 更新."""
         B = z0.shape[0]
 
         # --- Imagination rollout ---
-        rollout = self._imagination_rollout(z0, h0, past_zs, past_as)
+        rollout = self._imagination_rollout(z0, h0, past_zs, past_as, regime0=regime0)
 
         zs = rollout["zs"]            # (B, H, z_dim)
         hs = rollout["hs"]            # (B, H, h_dim)
@@ -260,11 +315,15 @@ class ImagACTrainer:
         last_z = rollout["last_z"]
         last_h = rollout["last_h"]
 
-        # --- SPEC 準拠の報酬: R_t ≈ net_return / EMA_scale - β·DD_t ---
-        self.reward_ema.update(net_returns)
-        rewards_norm = net_returns / self.reward_ema.scale          # EMA 正規化（DSR の近似）
-        drawdown = self._compute_drawdown(net_returns)
-        rewards_for_ac = rewards_norm - self.beta * drawdown        # (B, H) 原スケール
+        # --- 報酬計算 ---
+        if self.use_dsr:
+            rewards_for_ac = self._compute_dsr_rewards(net_returns)
+        else:
+            # SPEC 準拠の報酬: R_t ≈ net_return / EMA_scale - β·DD_t
+            self.reward_ema.update(net_returns)
+            rewards_norm = net_returns / self.reward_ema.scale          # EMA 正規化（DSR の近似）
+            drawdown = self._compute_drawdown(net_returns)
+            rewards_for_ac = rewards_norm - self.beta * drawdown        # (B, H) 原スケール
 
         # --- Slow Critic の value 推定（原スケール）---
         zs_flat = zs.reshape(B * self.horizon, -1)
@@ -309,7 +368,9 @@ class ImagACTrainer:
         # values は原スケールなので symlog 変換してから引く
         # symlog(0)=0 なので ε 加算は不要（バイアスを避ける）
         advantage = (returns - symlog(values)).detach()            # symlog 空間
-        norm_q = self.td3bc_alpha / advantage.abs().mean().clamp(min=0.1)
+        adv_scale = advantage.abs().mean().item()
+        self._adv_ema = 0.99 * self._adv_ema + 0.01 * adv_scale
+        norm_q = self.td3bc_alpha / max(self._adv_ema, 0.1)
 
         ac_loss = -(norm_q * advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
         bc_loss = self._bc_loss_batch()
@@ -333,12 +394,103 @@ class ImagACTrainer:
             "reward_scale": self.reward_ema.scale,
         }
 
+    def pretrain_critic(
+        self,
+        encoded_sequences: list[dict],
+        n_steps: int = 2000,
+        batch_size: int = 32,
+    ) -> None:
+        """Actor を固定して Critic だけ事前学習する (Actor-Critic Alignment).
+
+        BC 後・AC 前に呼び出す。Critic が収束してから Actor の更新を開始することで
+        advantage 推定の不安定さによる Actor 崩壊を防ぐ。
+        """
+        all_z = np.concatenate([s["z"] for s in encoded_sequences], axis=0)
+        all_h = np.concatenate([s["h"] for s in encoded_sequences], axis=0)
+        T_total = len(all_z)
+        z_dim = all_z.shape[1]
+        L = self.context_len
+
+        for p in self.actor.parameters():
+            p.requires_grad_(False)
+
+        print(f"[AC] Critic pre-training ({n_steps} steps, actor frozen)...")
+        log_every = max(1, n_steps // 5)
+        last_loss = 0.0
+
+        for step in range(n_steps):
+            idx = np.random.randint(0, T_total, size=batch_size)
+            z0 = torch.tensor(all_z[idx], dtype=torch.float32, device=self.device)
+            h0 = torch.tensor(all_h[idx], dtype=torch.float32, device=self.device)
+
+            past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
+            past_as_np = np.full((batch_size, L), 2, dtype=np.int64)
+            for b, i in enumerate(idx):
+                start = max(0, i - L)
+                length = i - start
+                if length > 0:
+                    past_zs_np[b, L - length:] = all_z[start:i]
+            past_zs = torch.tensor(past_zs_np, device=self.device)
+            past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
+
+            with torch.no_grad():
+                rollout = self._imagination_rollout(z0, h0, past_zs, past_as)
+
+            zs = rollout["zs"]
+            hs = rollout["hs"]
+            net_returns = rollout["rewards"]
+            dones = rollout["dones"]
+            last_z = rollout["last_z"]
+            last_h = rollout["last_h"]
+            B = z0.shape[0]
+
+            self.reward_ema.update(net_returns)
+            rewards_norm = net_returns / self.reward_ema.scale
+            drawdown = self._compute_drawdown(net_returns)
+            rewards_for_ac = rewards_norm - self.beta * drawdown
+
+            zs_flat = zs.reshape(B * self.horizon, -1)
+            hs_flat = hs.reshape(B * self.horizon, -1)
+            with torch.no_grad():
+                values_flat = self.critic.slow_value(zs_flat, hs_flat, self.bins)
+                values = values_flat.reshape(B, self.horizon)
+                last_val = self.critic.slow_value(last_z, last_h, self.bins)
+
+            returns = self._compute_lambda_returns(rewards_for_ac, values, last_val, dones)
+
+            critic_logits_flat = self.critic(zs_flat.detach(), hs_flat.detach())
+            critic_logits = critic_logits_flat.reshape(B, self.horizon, -1)
+            targets_symlog = returns.detach()
+            critic_loss = torch.tensor(0.0, device=self.device)
+            for t in range(self.horizon):
+                target_twohot = twohot_encode(targets_symlog[:, t], self.bins)
+                log_p = F.log_softmax(critic_logits[:, t], dim=-1)
+                critic_loss = critic_loss - (target_twohot * log_p).sum(-1).mean()
+            critic_loss = critic_loss / self.horizon
+
+            self.critic_optimizer.zero_grad()
+            critic_loss.backward()
+            nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
+            self.critic_optimizer.step()
+            self.critic.update_slow_target()
+            last_loss = critic_loss.item()
+
+            if (step + 1) % log_every == 0:
+                print(f"[AC] Critic pretrain step {step+1}/{n_steps} | Loss: {last_loss:.4f}")
+
+        for p in self.actor.parameters():
+            p.requires_grad_(True)
+        print(f"[AC] Critic pre-training done.")
+
     def train(
         self,
         encoded_sequences: list[dict],
         max_steps: Optional[int] = None,
         batch_size: int = 32,
         checkpoint_path: Optional[str] = None,
+        val_eval_fn=None,
+        val_baseline_sharpe: float = -float("inf"),
+        online_wm_callback=None,
     ) -> list[dict]:
         """学習ループを実行する."""
         max_steps = max_steps or self.max_steps
@@ -350,6 +502,15 @@ class ImagACTrainer:
         z_dim = all_z.shape[1]
         L = self.context_len
 
+        # Regime 配列の抽出
+        has_regime = all(
+            "regime" in s and s["regime"] is not None for s in encoded_sequences
+        )
+        if has_regime:
+            all_regime = np.concatenate([s["regime"] for s in encoded_sequences], axis=0)
+        else:
+            all_regime = None
+
         # oracle actions as numpy for context building
         oracle_np = (
             self._oracle_actions.cpu().numpy()
@@ -358,10 +519,26 @@ class ImagACTrainer:
         )
         flat_action = 2  # action index for position=0.0 (flat)
 
+        # val Sharpe tracking for best checkpoint selection
+        best_val_sharpe = val_baseline_sharpe
+        best_ckpt_path = (
+            checkpoint_path.replace(".pt", "_best.pt")
+            if checkpoint_path is not None and val_eval_fn is not None
+            else None
+        )
+
         while self.global_step < max_steps:
             idx = np.random.randint(0, T_total, size=batch_size)
             z0 = torch.tensor(all_z[idx], dtype=torch.float32, device=self.device)
             h0 = torch.tensor(all_h[idx], dtype=torch.float32, device=self.device)
+
+            # Regime バッチ
+            if all_regime is not None:
+                regime0 = torch.tensor(
+                    all_regime[idx], dtype=torch.float32, device=self.device
+                )
+            else:
+                regime0 = None
 
             # 各サンプルの直前 L ステップを context として取得（左端はゼロパディング）
             past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
@@ -378,7 +555,9 @@ class ImagACTrainer:
             past_zs = torch.tensor(past_zs_np, device=self.device)
             past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
 
-            step_log = self.train_step(z0, h0, past_zs=past_zs, past_as=past_as)
+            step_log = self.train_step(
+                z0, h0, past_zs=past_zs, past_as=past_as, regime0=regime0
+            )
             logs.append({"step": self.global_step, **step_log})
             self.loss_history.append(logs[-1])
 
@@ -393,6 +572,14 @@ class ImagACTrainer:
                     f"α={step_log['alpha']:.3f}"
                 )
 
+            # Online WM callback
+            if (
+                online_wm_callback is not None
+                and self.online_wm_interval > 0
+                and self.global_step % self.online_wm_interval == 0
+            ):
+                online_wm_callback(self.global_step)
+
             if (
                 checkpoint_path is not None
                 and self.checkpoint_interval > 0
@@ -400,6 +587,30 @@ class ImagACTrainer:
             ):
                 self.save(checkpoint_path)
                 print(f"[AC] Checkpoint saved: {checkpoint_path} (step={self.global_step})")
+
+                if val_eval_fn is not None:
+                    val_sharpe = val_eval_fn()
+                    marker = ""
+                    if val_sharpe > best_val_sharpe:
+                        best_val_sharpe = val_sharpe
+                        self.save(best_ckpt_path)
+                        marker = " ★ best"
+                    print(f"[AC] Val Sharpe: {val_sharpe:.3f}{marker}")
+
+                    # Adaptive BC: 直前の val Sharpe と比較して alpha 減衰速度を調整
+                    if self.adaptive_bc and self._last_val_sharpe is not None:
+                        if val_sharpe > self._last_val_sharpe:
+                            self._alpha_speed = min(self._alpha_speed * 1.2, 3.0)
+                        else:
+                            self._alpha_speed = max(self._alpha_speed * 0.8, 0.3)
+                    self._last_val_sharpe = val_sharpe
+
+        # 最良 val checkpoint に復元
+        if best_ckpt_path is not None and os.path.exists(best_ckpt_path):
+            print(f"[AC] Restoring best val checkpoint (Sharpe={best_val_sharpe:.3f})")
+            saved_step = self.global_step
+            self.load(best_ckpt_path)
+            self.global_step = saved_step  # resume のため step は保持
 
         return logs
 
@@ -411,6 +622,10 @@ class ImagACTrainer:
             "actor_optimizer": self.actor_optimizer.state_dict(),
             "critic_optimizer": self.critic_optimizer.state_dict(),
             "global_step": self.global_step,
+            "adv_ema": self._adv_ema,
+            "dsr_A": self._dsr_A,
+            "dsr_B": self._dsr_B,
+            "alpha_speed": self._alpha_speed,
         }, path)
 
     def load(self, path: str) -> None:
@@ -420,3 +635,7 @@ class ImagACTrainer:
         self.actor_optimizer.load_state_dict(ckpt["actor_optimizer"])
         self.critic_optimizer.load_state_dict(ckpt["critic_optimizer"])
         self.global_step = ckpt.get("global_step", 0)
+        self._adv_ema = ckpt.get("adv_ema", 1.0)
+        self._dsr_A = ckpt.get("dsr_A", 0.0)
+        self._dsr_B = ckpt.get("dsr_B", 1e-4)
+        self._alpha_speed = ckpt.get("alpha_speed", 1.0)
