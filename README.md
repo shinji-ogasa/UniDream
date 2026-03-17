@@ -131,6 +131,9 @@ uv run python train.py --resume
 
 # Smoke test（パイプライン動作確認、数分で完了）
 uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
+
+# Medium run（2020-2024、6 fold WFO、~3 時間）
+uv run python train.py --config configs/medium.yaml --start 2020-01-01 --end 2024-01-01
 ```
 
 ### PPO ベースライン
