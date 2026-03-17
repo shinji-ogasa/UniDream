@@ -279,6 +279,7 @@ def run_fold(
         "z": z_train_ac,
         "h": h_train_ac,
         "regime": train_regime_probs if train_regime_probs is not None else None,
+        "actions": bc_action_indices,   # past_as context を BC 由来に統一（oracle 混入を排除）
     }]
 
     # Val backtest function — used for AC checkpoint selection
@@ -340,8 +341,20 @@ def run_fold(
             T_train = len(wfo_dataset.train_features)
             window_start = max(0, T_train - online_wm_window)
             recent_feat = wfo_dataset.train_features[window_start:]
-            recent_actions = bc_action_indices[window_start:T_train]
             recent_returns = wfo_dataset.train_returns[window_start:]
+            recent_regime = (
+                train_regime_probs[window_start:T_train]
+                if train_regime_probs is not None else None
+            )
+            # 現在の actor で recent_feat の actions を予測（BC 固定から脱却）
+            enc_recent = wm_trainer.encode_sequence(recent_feat, seq_len=seq_len)
+            recent_pos = actor.predict_positions(
+                enc_recent["z"], enc_recent["h"],
+                regime_np=recent_regime, device=device,
+            )
+            recent_actions = np.array([
+                int(np.argmin(np.abs(_ACTIONS - p))) for p in recent_pos
+            ])
             recent_ds = SequenceDataset(
                 recent_feat, seq_len=seq_len,
                 actions=recent_actions[:len(recent_feat)],

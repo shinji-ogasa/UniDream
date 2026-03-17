@@ -57,7 +57,7 @@ world_model:
   # Loss weights
   recon_scale: 1.0
   reward_scale: 1.0
-  done_scale: 1.0
+  done_scale: 0.0               # 継続トレーディングでは done=0 固定のため無効化
   # Ensemble
   n_ensemble: 3
   disagree_scale: 0.1       # 不一致ペナルティ係数
@@ -109,6 +109,9 @@ ac:
   critic_pretrain_steps: 2000
   max_steps: 200000
   checkpoint_interval: 10000  # 何ステップごとに中間保存するか
+  val_patience: 5           # 5 回連続更新なしで early stop（本番は余裕を持たせる）
+  bc_loss_threshold: 0.05
+  bc_loss_patience: 3
   grad_clip: 100.0
 
 # --- PPO ベースライン ---

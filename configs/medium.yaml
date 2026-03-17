@@ -57,12 +57,12 @@ world_model:
   rep_scale: 0.1
   recon_scale: 1.0
   reward_scale: 1.0
-  done_scale: 1.0
+  done_scale: 0.0               # 継続トレーディングでは done=0 固定のため無効化
   n_ensemble: 3
   disagree_scale: 0.1
   lr: 1.0e-4
   batch_size: 64            # 本番 32→64（GPU メモリ効率向上）
-  max_steps: 8000           # 本番 100k → 8k（val loss 収束確認済みの目安）
+  max_steps: 4000           # 本番 100k → 4k
   grad_clip: 100.0
   n_bins: 255
   bin_range: [-20.0, 20.0]
@@ -85,7 +85,7 @@ ac:
   ema_decay: 0.98
   alpha_init: 1.0
   alpha_final: 0.05
-  alpha_decay_steps: 12000  # max_steps の 80% で alpha_final に到達
+  alpha_decay_steps: 3200   # max_steps の 80% で alpha_final に到達
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
   actor_lr: 1.0e-4
@@ -96,8 +96,11 @@ ac:
   adaptive_bc: true
   critic_lr: 3.0e-4
   critic_pretrain_steps: 500  # 本番 2000 → 500
-  max_steps: 15000          # 本番 200k → 15k
-  checkpoint_interval: 2000   # 本番 10000 → 2000
+  max_steps: 6000           # 本番 200k → 6k（early stop 込みで実効 2〜4k 想定）
+  checkpoint_interval: 1000   # 本番 10000 → 1000
+  val_patience: 3           # 3 回連続更新なしで early stop
+  bc_loss_threshold: 0.05   # BC loss がこの値を超えたら
+  bc_loss_patience: 3       # 3 連続 checkpoint で early stop
   grad_clip: 100.0
 
 # --- PPO ベースライン ---

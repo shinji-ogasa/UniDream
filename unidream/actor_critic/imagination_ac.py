@@ -102,8 +102,18 @@ class ImagACTrainer:
         self.checkpoint_interval = ac_cfg.get("checkpoint_interval", 10_000)
         self.critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
 
+        # Early stopping
+        # val_patience: val Sharpe が N 回連続で best 更新なければ停止（0 で無効）
+        self.val_patience = ac_cfg.get("val_patience", 0)
+        # bc_loss_threshold: BC loss がこの値を超えた状態が bc_loss_patience 回続けば停止
+        self.bc_loss_threshold = ac_cfg.get("bc_loss_threshold", 0.0)
+        self.bc_loss_patience = ac_cfg.get("bc_loss_patience", 3)
+
         # EMA of |advantage| for stable norm_q (TD3+BC)
         self._adv_ema: float = 1.0
+
+        # α が単調非増加になるよう到達済み最大 t を追跡する
+        self._max_alpha_t: float = 0.0
 
         # BC 損失用の oracle データ（bc_pretrain 後に set_oracle_data で設定）
         self._oracle_z: Optional[torch.Tensor] = None
@@ -152,9 +162,14 @@ class ImagACTrainer:
             self._oracle_regime = None
 
     def _get_alpha(self) -> float:
-        """現在の BC/AC 混合比率 α を返す（線形減衰: 1→0）."""
+        """現在の BC/AC 混合比率 α を返す（単調非増加で線形減衰: alpha_init→alpha_final）.
+
+        adaptive_bc で _alpha_speed が下がっても α が増加しないよう
+        _max_alpha_t で到達済み最大 t を追跡する。
+        """
         t = min(self.global_step * self._alpha_speed, self.alpha_decay_steps)
-        return self.alpha_init + (self.alpha_final - self.alpha_init) * (t / self.alpha_decay_steps)
+        self._max_alpha_t = max(self._max_alpha_t, t)   # 単調増加を強制
+        return self.alpha_init + (self.alpha_final - self.alpha_init) * (self._max_alpha_t / self.alpha_decay_steps)
 
     def _compute_dsr_rewards(self, net_returns: torch.Tensor) -> torch.Tensor:
         """DSR 報酬を計算する（インクリメンタル Sharpe 改善量）."""
@@ -511,12 +526,21 @@ class ImagACTrainer:
         else:
             all_regime = None
 
-        # oracle actions as numpy for context building
-        oracle_np = (
-            self._oracle_actions.cpu().numpy()
-            if self._oracle_actions is not None
-            else None
+        # context action 配列: encoded_sequences に "actions" があれば優先（BC/AC 由来）、
+        # なければ oracle にフォールバック（分布シフト対策）
+        has_enc_actions = all(
+            "actions" in s and s["actions"] is not None for s in encoded_sequences
         )
+        if has_enc_actions:
+            context_actions_np = np.concatenate(
+                [s["actions"] for s in encoded_sequences], axis=0
+            )
+        else:
+            context_actions_np = (
+                self._oracle_actions.cpu().numpy()
+                if self._oracle_actions is not None
+                else None
+            )
         flat_action = 2  # action index for position=0.0 (flat)
 
         # val Sharpe tracking for best checkpoint selection
@@ -526,6 +550,14 @@ class ImagACTrainer:
             if checkpoint_path is not None and val_eval_fn is not None
             else None
         )
+        # AC が一度も BC を超えなかった場合の fallback として
+        # 学習開始時点（BC 状態）を _best.pt に必ず保存する
+        if best_ckpt_path is not None:
+            self.save(best_ckpt_path)
+
+        # Early stop カウンター
+        _no_improve_count = 0
+        _bc_loss_exceed_count = 0
 
         while self.global_step < max_steps:
             idx = np.random.randint(0, T_total, size=batch_size)
@@ -548,10 +580,10 @@ class ImagACTrainer:
                 length = i - start
                 if length > 0:
                     past_zs_np[b, L - length:] = all_z[start:i]
-                    if oracle_np is not None:
-                        act_end = min(i, len(oracle_np))
+                    if context_actions_np is not None:
+                        act_end = min(i, len(context_actions_np))
                         act_start = max(0, act_end - length)
-                        past_as_np[b, L - (act_end - act_start):] = oracle_np[act_start:act_end]
+                        past_as_np[b, L - (act_end - act_start):] = context_actions_np[act_start:act_end]
             past_zs = torch.tensor(past_zs_np, device=self.device)
             past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
 
@@ -588,6 +620,18 @@ class ImagACTrainer:
                 self.save(checkpoint_path)
                 print(f"[AC] Checkpoint saved: {checkpoint_path} (step={self.global_step})")
 
+                # BC loss early stop チェック
+                cur_bc_loss = step_log["bc_loss"]
+                if self.bc_loss_threshold > 0:
+                    if cur_bc_loss > self.bc_loss_threshold:
+                        _bc_loss_exceed_count += 1
+                    else:
+                        _bc_loss_exceed_count = 0
+                    if _bc_loss_exceed_count >= self.bc_loss_patience:
+                        print(f"[AC] Early stop: BC loss {cur_bc_loss:.4f} > {self.bc_loss_threshold} "
+                              f"for {_bc_loss_exceed_count} consecutive checkpoints")
+                        break
+
                 if val_eval_fn is not None:
                     val_sharpe = val_eval_fn()
                     marker = ""
@@ -595,7 +639,16 @@ class ImagACTrainer:
                         best_val_sharpe = val_sharpe
                         self.save(best_ckpt_path)
                         marker = " ★ best"
+                        _no_improve_count = 0
+                    else:
+                        _no_improve_count += 1
                     print(f"[AC] Val Sharpe: {val_sharpe:.3f}{marker}")
+
+                    # Val patience early stop チェック
+                    if self.val_patience > 0 and _no_improve_count >= self.val_patience:
+                        print(f"[AC] Early stop: val Sharpe no improvement for "
+                              f"{_no_improve_count} consecutive checkpoints")
+                        break
 
                     # Adaptive BC: 直前の val Sharpe と比較して alpha 減衰速度を調整
                     if self.adaptive_bc and self._last_val_sharpe is not None:
@@ -626,6 +679,7 @@ class ImagACTrainer:
             "dsr_A": self._dsr_A,
             "dsr_B": self._dsr_B,
             "alpha_speed": self._alpha_speed,
+            "max_alpha_t": self._max_alpha_t,
         }, path)
 
     def load(self, path: str) -> None:
@@ -639,3 +693,4 @@ class ImagACTrainer:
         self._dsr_A = ckpt.get("dsr_A", 0.0)
         self._dsr_B = ckpt.get("dsr_B", 1e-4)
         self._alpha_speed = ckpt.get("alpha_speed", 1.0)
+        self._max_alpha_t = ckpt.get("max_alpha_t", 0.0)
