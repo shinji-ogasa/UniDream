@@ -35,6 +35,39 @@ from unidream.actor_critic.critic import Critic, RewardEMANorm
 from unidream.world_model.ensemble import EnsembleWorldModel
 from unidream.world_model.transformer import symlog, symexp, twohot_decode, twohot_encode
 
+_AC_ACTIONS = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
+
+
+def _action_stats(positions: np.ndarray) -> dict:
+    """ポジション配列の行動分布統計を計算する."""
+    total = max(len(positions), 1)
+    counts = {v: int((positions == v).sum()) for v in _AC_ACTIONS}
+    long_r  = (counts.get(0.5, 0) + counts.get(1.0, 0)) / total
+    short_r = (counts.get(-1.0, 0) + counts.get(-0.5, 0)) / total
+    flat_r  = counts.get(0.0, 0) / total
+    mean_p  = float(np.mean(positions)) if total > 0 else 0.0
+    switches = int((np.diff(positions) != 0).sum()) if total > 1 else 0
+    avg_hold = total / max(switches, 1)
+    return dict(long=long_r, short=short_r, flat=flat_r, mean=mean_p,
+                switches=switches, avg_hold=avg_hold, counts=counts)
+
+
+def _fmt_action_stats(s: dict) -> str:
+    return (f"long={s['long']:.0%} short={s['short']:.0%} flat={s['flat']:.0%} "
+            f"mean={s['mean']:+.3f} switches={s['switches']} avg_hold={s['avg_hold']:.1f}b")
+
+
+def _ac_alerts(label: str, s: dict, bc_loss: float | None = None) -> None:
+    """ポジション偏り・turnover・BC loss の異常を検出してアラートを出す."""
+    if s["long"] > 0.80:
+        print(f"  ⚠️  [{label}] long 比率 {s['long']:.0%} > 80%")
+    if s["short"] > 0.80:
+        print(f"  ⚠️  [{label}] short 比率 {s['short']:.0%} > 80%")
+    if s["avg_hold"] < 2.0:
+        print(f"  ⚠️  [{label}] avg_hold={s['avg_hold']:.1f}b — 高 turnover")
+    if bc_loss is not None and bc_loss > 0.05:
+        print(f"  ⚠️  [{label}] BC loss {bc_loss:.4f} > 0.05")
+
 
 class ImagACTrainer:
     """Imagination Actor-Critic 学習ループ.
@@ -611,6 +644,23 @@ class ImagACTrainer:
             ):
                 self.save(checkpoint_path)
                 print(f"[AC] Checkpoint saved: {checkpoint_path} (step={self.global_step})")
+
+                # --- Train 行動分布ログ（oracle z/h 上の greedy 予測）---
+                if self._oracle_z is not None:
+                    n_sample = min(5000, self._oracle_z.shape[0])
+                    _tr_pos = self.actor.predict_positions(
+                        self._oracle_z[:n_sample].cpu().numpy(),
+                        self._oracle_h[:n_sample].cpu().numpy(),
+                        regime_np=(
+                            self._oracle_regime[:n_sample].cpu().numpy()
+                            if self._oracle_regime is not None else None
+                        ),
+                        device=str(self.device),
+                    )
+                    _tr_s = _action_stats(_tr_pos)
+                    print(f"[AC] Train dist: {_fmt_action_stats(_tr_s)}")
+                    _ac_alerts(f"train/step{self.global_step}", _tr_s,
+                               bc_loss=step_log.get("bc_loss"))
 
                 # BC loss early stop チェック
                 cur_bc_loss = step_log["bc_loss"]

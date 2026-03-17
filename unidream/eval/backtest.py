@@ -207,6 +207,30 @@ class Backtest:
         )
 
 
+def pnl_attribution(
+    returns: np.ndarray,
+    positions: np.ndarray,
+    spread_bps: float = 5.0,
+    fee_rate: float = 0.0004,
+    slippage_bps: float = 2.0,
+) -> dict:
+    """PnL を long / short / コスト 起因に分解する.
+
+    Returns:
+        {"long_gross": float, "short_gross": float, "cost_total": float, "net_total": float}
+    """
+    gross = positions * returns
+    costs = compute_costs(positions, spread_bps, fee_rate, slippage_bps)
+    long_mask = positions > 0
+    short_mask = positions < 0
+    return {
+        "long_gross":  float(gross[long_mask].sum())  if long_mask.any()  else 0.0,
+        "short_gross": float(gross[short_mask].sum()) if short_mask.any() else 0.0,
+        "cost_total":  float(costs.sum()),
+        "net_total":   float((gross - costs).sum()),
+    }
+
+
 def regime_backtest(
     returns: np.ndarray,
     positions: np.ndarray,

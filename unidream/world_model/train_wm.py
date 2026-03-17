@@ -295,6 +295,7 @@ class WorldModelTrainer:
             if i >= n_batches:
                 break
             obs = batch["obs"].to(self.device)
+            obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)  # training と同一処理
             actions = batch.get("actions", torch.zeros(obs.shape[:2], dtype=torch.long))
             actions = actions.to(self.device)
 
@@ -302,6 +303,7 @@ class WorldModelTrainer:
             raw_returns = batch.get("returns")
             if raw_returns is not None:
                 raw_returns = raw_returns.to(self.device)
+                raw_returns = torch.nan_to_num(raw_returns, nan=0.0, posinf=0.0, neginf=0.0)
                 rewards = self._compute_net_returns(actions, raw_returns)
             else:
                 rewards = torch.zeros(obs.shape[:2], device=self.device)

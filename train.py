@@ -36,8 +36,8 @@ from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 from unidream.actor_critic.actor import Actor
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.bc_pretrain import BCPretrainer
-from unidream.actor_critic.imagination_ac import ImagACTrainer
-from unidream.eval.backtest import Backtest
+from unidream.actor_critic.imagination_ac import ImagACTrainer, _action_stats, _fmt_action_stats, _ac_alerts
+from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.eval.wfo import aggregate_wfo_results
 from unidream.eval.pbo import compute_pbo, deflated_sharpe
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
@@ -128,6 +128,18 @@ def run_fold(
     )
     print(f"  Oracle computed: {len(oracle_actions)} steps, "
           f"mean value={oracle_values.mean():.4f}")
+    _oracle_pos = np.array([_ACTIONS[a] for a in oracle_actions])
+    _oracle_s = _action_stats(_oracle_pos)
+    print(f"  Oracle dist: {_fmt_action_stats(_oracle_s)}")
+
+    # Val oracle actions（分布比較・WM 学習に使用）
+    val_oracle_actions, _ = hindsight_oracle_dp(
+        wfo_dataset.val_returns,
+        spread_bps=costs_cfg.get("spread_bps", 5.0),
+        fee_rate=costs_cfg.get("fee_rate", 0.0004),
+        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+        discount=cfg.get("oracle", {}).get("discount", 1.0),
+    )
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
     # Actor 生成前に計算して regime_dim を確定する
@@ -163,13 +175,6 @@ def run_fold(
             seq_len=seq_len,
             actions=oracle_actions[:len(wfo_dataset.train_features)],
             returns=train_returns,
-        )
-        val_oracle_actions, _ = hindsight_oracle_dp(
-            wfo_dataset.val_returns,
-            spread_bps=costs_cfg.get("spread_bps", 5.0),
-            fee_rate=costs_cfg.get("fee_rate", 0.0004),
-            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-            discount=cfg.get("oracle", {}).get("discount", 1.0),
         )
         val_ds = SequenceDataset(
             wfo_dataset.val_features,
@@ -331,6 +336,35 @@ def run_fold(
             # BC-only val Sharpe (checkpoint selection のベースライン)
             bc_val_sharpe = _val_eval()
             print(f"[AC] BC-only val Sharpe: {bc_val_sharpe:.3f}")
+            if z_val_fixed is not None:
+                _bc_pos = actor.predict_positions(
+                    z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
+                )
+                _bc_T = min(len(val_returns_arr), len(_bc_pos))
+                _bc_m = Backtest(
+                    val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
+                    spread_bps=costs_cfg.get("spread_bps", 5.0),
+                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                    interval=cfg.get("data", {}).get("interval", "15m"),
+                ).run()
+                _bc_attr = pnl_attribution(
+                    val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
+                    spread_bps=costs_cfg.get("spread_bps", 5.0),
+                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                )
+                _bc_s = _action_stats(_bc_pos[:_bc_T])
+                print(f"  BC val dist: {_fmt_action_stats(_bc_s)}")
+                print(f"  BC val: TotalRet={_bc_m.total_return:.3f}  "
+                      f"long={_bc_attr['long_gross']:+.4f}  "
+                      f"short={_bc_attr['short_gross']:+.4f}  "
+                      f"cost={_bc_attr['cost_total']:.4f}")
+                # Oracle vs BC 比較
+                _oracle_val_pos = np.array([_ACTIONS[a] for a in val_oracle_actions[:_bc_T]])
+                _oracle_val_s = _action_stats(_oracle_val_pos)
+                print(f"  Oracle val dist: {_fmt_action_stats(_oracle_val_s)}")
+                _ac_alerts("BC-val", _bc_s)
 
             # Critic pre-training (Actor-Critic Alignment)
             critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
@@ -422,10 +456,24 @@ def run_fold(
     )
     metrics = bt.run()
 
+    _test_attr = pnl_attribution(
+        test_returns[:T_min], positions[:T_min],
+        spread_bps=costs_cfg.get("spread_bps", 5.0),
+        fee_rate=costs_cfg.get("fee_rate", 0.0004),
+        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+    )
+    _test_s = _action_stats(positions[:T_min])
     print(f"  Sharpe:   {metrics.sharpe:.3f}")
+    print(f"  Sortino:  {metrics.sortino:.3f}")
     print(f"  MaxDD:    {metrics.max_drawdown:.3f}")
     print(f"  Calmar:   {metrics.calmar:.3f}")
     print(f"  TotalRet: {metrics.total_return:.4f}")
+    print(f"  PnL attr: long={_test_attr['long_gross']:+.4f}  "
+          f"short={_test_attr['short_gross']:+.4f}  "
+          f"cost={_test_attr['cost_total']:.4f}  "
+          f"net={_test_attr['net_total']:+.4f}")
+    print(f"  Test dist: {_fmt_action_stats(_test_s)}")
+    _ac_alerts("test", _test_s)
 
     return {
         "fold": fold_idx,
