@@ -25,6 +25,7 @@ costs:
 oracle:
   discount: 1.0
   soft_label_temp: 0.5      # Boltzmann 温度（medium と同一）
+  min_hold: 10              # 最低10バー保有を強制
 
 reward:
   beta: 0.1
