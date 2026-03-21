@@ -194,10 +194,14 @@ def run_fold(
             checkpoint_path=wm_path,
         )
 
-    # train 期間の全シーケンスをエンコード（AC の初期状態として使用）
+    # train 期間の全シーケンスをエンコード
+    # BC 学習・評価の一貫性のため no-action（flat）context で encode する。
+    # oracle action context で h を作ると「未来情報リーク入り h」になり、
+    # val/test（no-action h）との分布ギャップが大きすぎて BC が崩壊する。
+    # z はエンコーダ出力で action-independent なため、どちらの encode でも同一。
     encoded = wm_trainer.encode_sequence(
         wfo_dataset.train_features,
-        actions=oracle_actions[:len(wfo_dataset.train_features)],
+        actions=None,   # no oracle context → BC/val/test で h 分布を一致させる
         seq_len=seq_len,
     )
     z_train = encoded["z"]
@@ -236,6 +240,8 @@ def run_fold(
             sirl_hidden=bc_cfg.get("sirl_hidden", 128),
             label_smoothing=bc_cfg.get("label_smoothing", 0.0),
             entropy_coef=bc_cfg.get("entropy_coef", 0.0),
+            chunk_size=bc_cfg.get("chunk_size", 1),
+            class_balanced=bc_cfg.get("class_balanced", False),
             device=device,
         )
         T_enc = min(len(z_train), len(oracle_actions))
@@ -298,21 +304,14 @@ def run_fold(
         "actions": bc_action_indices,
     }]
 
-    # Val encoding を BC 予測 action で一度だけ固定する。
-    # 毎回 actor の最新 action で re-encode すると AC の自己参照ループで val Sharpe が膨らむ:
-    #   "AC が long 予測 → h が long 文脈 → また long" → val uptrend では過大評価。
-    # BC action は Oracle に近く、かつ訓練 h 分布（h_train_ac）に整合するため固定コンテキストに適切。
+    # Val encoding を no-action（flat）で一度だけ固定する。
+    # test と同じ single-pass encoding に統一することで val/test の比較を整合させる。
+    # 自己参照ループ（AC の自身の予測を context に使う → val Sharpe 過大）は
+    # ここで固定した z_val_fixed/h_val_fixed を AC 学習中ずっと使い回すことで回避する。
     val_features_arr = wfo_dataset.val_features
     val_returns_arr = wfo_dataset.val_returns
     if len(val_features_arr) > 0:
-        _enc_val_bc1 = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
-        _bc_val_preds = actor.predict_positions(
-            _enc_val_bc1["z"], _enc_val_bc1["h"], regime_np=val_regime_probs, device=device
-        )
-        _bc_val_act_idx = np.array([int(np.argmin(np.abs(_ACTIONS - p))) for p in _bc_val_preds])
-        _enc_val_fixed = wm_trainer.encode_sequence(
-            val_features_arr, actions=_bc_val_act_idx, seq_len=seq_len
-        )
+        _enc_val_fixed = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
         z_val_fixed = _enc_val_fixed["z"]
         h_val_fixed = _enc_val_fixed["h"]
     else:
@@ -440,18 +439,10 @@ def run_fold(
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
 
-    # Two-pass encoding: 学習時は oracle action 付きで h を計算しているため、
-    # テスト時もactor の予測 action を渡して h を整合させる。
-    enc_pass1 = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
-    predicted_actions = actor.predict_positions(
-        enc_pass1["z"], enc_pass1["h"], regime_np=test_regime_probs, device=device,
-    )
-    action_indices = np.array([
-        int(np.argmin(np.abs(_ACTIONS - p))) for p in predicted_actions
-    ])
-    enc_test = wm_trainer.encode_sequence(
-        test_features, actions=action_indices, seq_len=seq_len,
-    )
+    # Single-pass encoding: no-action context（flat）で encode して actor を適用する。
+    # 2-pass encoding はノイジーな BC 予測を context に混入させ switching を増幅するため、
+    # val と同じ no-action single-pass に統一して安定性を確保する。
+    enc_test = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
     positions = actor.predict_positions(
         enc_test["z"], enc_test["h"], regime_np=test_regime_probs, device=device
     )

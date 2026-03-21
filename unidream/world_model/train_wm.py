@@ -2,6 +2,8 @@
 
 EnsembleWorldModel を WFO データ上で学習する。
 損失: reconstruction + KL (free bits) + reward (twohot) + done (BCE)
+     + IDM (Inverse Dynamics Model) auxiliary loss
+     + N-step return prediction auxiliary loss
 """
 from __future__ import annotations
 
@@ -12,11 +14,65 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from unidream.data.dataset import SequenceDataset
 from unidream.data.oracle import ACTIONS as ORACLE_ACTIONS
 from unidream.world_model.ensemble import EnsembleWorldModel
+
+
+class IDMHead(nn.Module):
+    """Inverse Dynamics Model: (z_t, z_{t+1}) → action logits.
+
+    エンコーダが行動識別に有用な情報を保持することを強制する。
+    NeurIPS 2023 で BC 事前学習の表現学習に有効と示された手法。
+    """
+
+    def __init__(self, z_dim: int, hidden: int, n_actions: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(z_dim * 2, hidden),
+            nn.ELU(),
+            nn.Linear(hidden, hidden),
+            nn.ELU(),
+            nn.Linear(hidden, n_actions),
+        )
+
+    def forward(self, z_t: torch.Tensor, z_t1: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            z_t:  (B, T, z_dim)
+            z_t1: (B, T, z_dim)
+        Returns:
+            logits: (B, T, n_actions)
+        """
+        return self.net(torch.cat([z_t, z_t1], dim=-1))
+
+
+class ReturnHead(nn.Module):
+    """N-step return prediction: (z_t, h_t) → scalar.
+
+    WM の潜在表現に将来リターンの情報を埋め込む。
+    """
+
+    def __init__(self, z_dim: int, d_model: int, hidden: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(z_dim + d_model, hidden),
+            nn.ELU(),
+            nn.Linear(hidden, 1),
+        )
+
+    def forward(self, z: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            z: (B, T, z_dim)
+            h: (B, T, d_model)
+        Returns:
+            pred: (B, T)
+        """
+        return self.net(torch.cat([z, h], dim=-1)).squeeze(-1)
 
 
 def build_ensemble(obs_dim: int, cfg: dict) -> EnsembleWorldModel:
@@ -79,6 +135,11 @@ class WorldModelTrainer:
         self.reward_scale = wm_cfg.get("reward_scale", 1.0)
         self.done_scale = wm_cfg.get("done_scale", 1.0)
 
+        # Auxiliary loss スケール
+        self.idm_scale = wm_cfg.get("idm_scale", 0.0)
+        self.return_scale = wm_cfg.get("return_scale", 0.0)
+        self.return_horizon = wm_cfg.get("return_horizon", 10)
+
         # コストパラメータ（net_return 計算に使用）
         costs_cfg = cfg.get("costs", {})
         self.cost_rate = (
@@ -87,8 +148,27 @@ class WorldModelTrainer:
             + (costs_cfg.get("slippage_bps", 2.0) / 10000)
         )
 
+        # Auxiliary heads（スケール > 0 の場合のみ構築）
+        z_dim = ensemble.get_z_dim()
+        d_model = ensemble.get_d_model()
+        n_actions = cfg.get("actions", {}).get("n", 5)
+        aux_params: list[nn.Parameter] = []
+
+        if self.idm_scale > 0.0:
+            self.idm_head = IDMHead(z_dim, hidden=256, n_actions=n_actions).to(self.device)
+            aux_params.extend(self.idm_head.parameters())
+        else:
+            self.idm_head = None
+
+        if self.return_scale > 0.0:
+            self.return_head = ReturnHead(z_dim, d_model, hidden=256).to(self.device)
+            aux_params.extend(self.return_head.parameters())
+        else:
+            self.return_head = None
+
+        self._all_params = list(self.ensemble.parameters()) + aux_params
         self.optimizer = torch.optim.Adam(
-            self.ensemble.parameters(),
+            self._all_params,
             lr=self.lr,
         )
 
@@ -218,9 +298,43 @@ class WorldModelTrainer:
 
                 total_loss = loss_dict["loss"]
 
+                # --- Auxiliary losses ---
+                idm_loss_val = 0.0
+                return_loss_val = 0.0
+
+                if self.idm_head is not None or self.return_head is not None:
+                    z, _ = self.ensemble.encode(obs)  # (B, T, z_dim)
+
+                    if self.idm_head is not None and "actions" in batch:
+                        z_t = z[:, :-1, :]   # (B, T-1, z_dim)
+                        z_t1 = z[:, 1:, :]   # (B, T-1, z_dim)
+                        idm_logits = self.idm_head(z_t, z_t1)  # (B, T-1, n_actions)
+                        oracle_acts = actions[:, :-1]           # (B, T-1)
+                        B_, T_, A_ = idm_logits.shape
+                        idm_loss = F.cross_entropy(
+                            idm_logits.reshape(B_ * T_, A_),
+                            oracle_acts.reshape(B_ * T_),
+                        )
+                        total_loss = total_loss + self.idm_scale * idm_loss
+                        idm_loss_val = idm_loss.item()
+
+                    if self.return_head is not None and raw_returns is not None:
+                        out_h = self.ensemble.forward(z, actions)
+                        h = out_h["h"]  # (B, T, d_model)
+                        # N-step cumulative raw return: n_step[t] = sum_{k=0}^{N-1} raw_returns[t+k]
+                        T_ = raw_returns.shape[1]
+                        n_step = torch.zeros_like(raw_returns)
+                        for k in range(self.return_horizon):
+                            if k < T_:
+                                n_step[:, :T_ - k] += raw_returns[:, k:]
+                        pred = self.return_head(z, h)  # (B, T)
+                        return_loss = F.mse_loss(pred, n_step)
+                        total_loss = total_loss + self.return_scale * return_loss
+                        return_loss_val = return_loss.item()
+
                 self.optimizer.zero_grad()
                 total_loss.backward()
-                nn.utils.clip_grad_norm_(self.ensemble.parameters(), self.grad_clip)
+                nn.utils.clip_grad_norm_(self._all_params, self.grad_clip)
                 self.optimizer.step()
 
                 step += 1
@@ -231,17 +345,25 @@ class WorldModelTrainer:
                     "loss": total_loss.item(),
                     "base_loss": loss_dict["base_loss"].item(),
                     "disagreement": loss_dict["disagreement"].item(),
+                    "idm_loss": idm_loss_val,
+                    "return_loss": return_loss_val,
                 }
                 logs.append(log)
                 self.loss_history.append(log)
 
                 if step % self.log_interval == 0:
                     ts = datetime.now().strftime("%H:%M:%S")
+                    aux_str = ""
+                    if self.idm_head is not None:
+                        aux_str += f" | IDM: {log['idm_loss']:.4f}"
+                    if self.return_head is not None:
+                        aux_str += f" | Ret: {log['return_loss']:.4f}"
                     print(
                         f"[{ts}] [WM] Step {self.global_step}/{max_steps} | "
                         f"Loss: {log['loss']:.4f} | "
                         f"BaseLoss: {log['base_loss']:.4f} | "
                         f"Disagree: {log['disagreement']:.4f}"
+                        + aux_str
                     )
 
                     # Validation loss + early stopping
@@ -406,11 +528,16 @@ class WorldModelTrainer:
     def save(self, path: str) -> None:
         """チェックポイントを保存する."""
         os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
-        torch.save({
+        ckpt = {
             "ensemble": self.ensemble.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "global_step": self.global_step,
-        }, path)
+        }
+        if self.idm_head is not None:
+            ckpt["idm_head"] = self.idm_head.state_dict()
+        if self.return_head is not None:
+            ckpt["return_head"] = self.return_head.state_dict()
+        torch.save(ckpt, path)
         print(f"[WM] Checkpoint saved: {path}")
 
     def load(self, path: str) -> None:
@@ -419,4 +546,8 @@ class WorldModelTrainer:
         self.ensemble.load_state_dict(ckpt["ensemble"])
         self.optimizer.load_state_dict(ckpt["optimizer"])
         self.global_step = ckpt.get("global_step", 0)
+        if self.idm_head is not None and "idm_head" in ckpt:
+            self.idm_head.load_state_dict(ckpt["idm_head"])
+        if self.return_head is not None and "return_head" in ckpt:
+            self.return_head.load_state_dict(ckpt["return_head"])
         print(f"[WM] Checkpoint loaded: {path} (step={self.global_step})")

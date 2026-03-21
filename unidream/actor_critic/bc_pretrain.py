@@ -67,6 +67,10 @@ class BCPretrainer:
         batch_size: ミニバッチサイズ
         n_epochs: 学習エポック数
         sirl_hidden: SIRL 重みネット隠れ層次元（0 で無効）
+        label_smoothing: ラベル平滑化係数
+        entropy_coef: エントロピー正則化係数
+        chunk_size: Action Chunking のチャンクサイズ（1 で無効）
+        class_balanced: クラス頻度逆数による損失重み付けを有効化
         device: 計算デバイス
     """
 
@@ -81,6 +85,8 @@ class BCPretrainer:
         sirl_hidden: int = 128,
         label_smoothing: float = 0.0,
         entropy_coef: float = 0.0,
+        chunk_size: int = 1,
+        class_balanced: bool = False,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -90,6 +96,8 @@ class BCPretrainer:
         self.batch_size = batch_size
         self.label_smoothing = label_smoothing
         self.entropy_coef = entropy_coef
+        self.chunk_size = max(1, chunk_size)
+        self.class_balanced = class_balanced
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -110,6 +118,7 @@ class BCPretrainer:
         weights: Optional[torch.Tensor] = None,
         regime: Optional[torch.Tensor] = None,
         soft_labels: Optional[torch.Tensor] = None,
+        class_weights: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """KL-divergence ベースの BC 損失.
 
@@ -119,10 +128,11 @@ class BCPretrainer:
         Args:
             z: (B, z_dim)
             h: (B, h_dim)
-            oracle_actions: (B,) oracle 行動インデックス（soft_labels が None の時に使用）
-            weights: (B,) 状態依存重み
+            oracle_actions: (B,) oracle 行動インデックス（クラス重み・hard label に使用）
+            weights: (B,) 状態依存重み（SIRL）
             regime: (B, regime_dim) レジーム確率ベクトル（省略可）
             soft_labels: (B, K) Boltzmann soft target（oracle Q 値由来）
+            class_weights: (K,) クラス逆頻度重み（class_balanced=True 時）
 
         Returns:
             loss: スカラー
@@ -152,6 +162,11 @@ class BCPretrainer:
         else:
             kl = -dist.log_prob(oracle_actions)  # (B,)
 
+        # クラス逆頻度重みをサンプル重みとして乗算
+        if class_weights is not None:
+            sample_class_w = class_weights[oracle_actions]  # (B,)
+            weights = weights * sample_class_w if weights is not None else sample_class_w
+
         if weights is not None:
             loss = (weights * kl).mean()
         else:
@@ -173,16 +188,112 @@ class BCPretrainer:
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
+        chunk_size > 1 の場合は Action Chunking を適用する。
+        各チャンクの先頭ステップの (z, h) で k ステップ分の oracle 行動を予測し、
+        損失を k ステップの平均とすることで高頻度ラベルノイズを平滑化する。
+
         Args:
             z: (T, z_dim) エンコードされた潜在
             h: (T, h_dim) Transformer hidden
             oracle_actions: (T,) oracle 行動インデックス
             regime_probs: (T, regime_dim) レジーム確率ベクトル（省略可）
+            soft_labels: (T, K) Boltzmann soft target（省略可）
 
         Returns:
             各エポックのロスログ
         """
         T = min(len(z), len(h), len(oracle_actions))
+
+        # --- クラス逆頻度重みを計算 ---
+        if self.class_balanced:
+            counts = np.bincount(oracle_actions[:T], minlength=self.actor.act_dim).astype(float)
+            counts = np.maximum(counts, 1.0)
+            cw_np = T / (self.actor.act_dim * counts)
+            class_weights_t = torch.tensor(cw_np, dtype=torch.float32, device=self.device)
+        else:
+            class_weights_t = None
+
+        # --- Action Chunking: データをチャンク単位に再構築 ---
+        k = self.chunk_size
+        if k > 1:
+            n_chunks = T // k
+            T_use = n_chunks * k
+
+            # チャンク先頭の (z, h, regime) を取得
+            z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, z_dim)
+            h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, h_dim)
+            a_arr = oracle_actions[:T_use].reshape(n_chunks, k)          # (n_chunks, k)
+
+            tensors = [
+                torch.tensor(z_arr, dtype=torch.float32),
+                torch.tensor(h_arr, dtype=torch.float32),
+                torch.tensor(a_arr, dtype=torch.long),
+            ]
+            use_regime = regime_probs is not None
+            use_soft = soft_labels is not None
+            if use_regime:
+                r_arr = regime_probs[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
+                tensors.append(torch.tensor(r_arr, dtype=torch.float32))
+            if use_soft:
+                sl_arr = soft_labels[:T_use].reshape(n_chunks, k, -1)   # (n_chunks, k, K)
+                tensors.append(torch.tensor(sl_arr, dtype=torch.float32))
+
+            dataset = TensorDataset(*tensors)
+            loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+
+            logs = []
+            for epoch in range(self.n_epochs):
+                epoch_loss = 0.0
+                count = 0
+                for batch in loader:
+                    z_b = batch[0].to(self.device)       # (B, z_dim)
+                    h_b = batch[1].to(self.device)       # (B, h_dim)
+                    a_chunk = batch[2].to(self.device)   # (B, k)
+                    bi = 3
+                    reg_b = batch[bi].to(self.device) if use_regime else None
+                    if use_regime:
+                        bi += 1
+                    sl_chunk = batch[bi].to(self.device) if use_soft else None  # (B, k, K) or None
+
+                    if self.use_sirl:
+                        state = torch.cat([z_b, h_b], dim=-1)
+                        sirl_w = self.weight_net(state)
+                    else:
+                        sirl_w = None
+
+                    # k ステップ分の損失を平均
+                    step_losses = []
+                    for step in range(k):
+                        a_step = a_chunk[:, step]        # (B,)
+                        sl_step = sl_chunk[:, step, :] if sl_chunk is not None else None
+                        step_loss = self._bc_loss(
+                            z_b, h_b, a_step,
+                            weights=sirl_w,
+                            regime=reg_b,
+                            soft_labels=sl_step,
+                            class_weights=class_weights_t,
+                        )
+                        step_losses.append(step_loss)
+                    loss = torch.stack(step_losses).mean()
+
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    nn.utils.clip_grad_norm_(
+                        list(self.actor.parameters()) +
+                        (list(self.weight_net.parameters()) if self.use_sirl else []),
+                        max_norm=10.0,
+                    )
+                    self.optimizer.step()
+                    epoch_loss += loss.item()
+                    count += 1
+
+                avg_loss = epoch_loss / max(count, 1)
+                logs.append({"epoch": epoch, "bc_loss": avg_loss})
+                if verbose:
+                    print(f"[BC] Epoch {epoch + 1}/{self.n_epochs} | Loss: {avg_loss:.4f}")
+            return logs
+
+        # --- 通常の per-step 学習（chunk_size=1）---
         z_t = torch.tensor(z[:T], dtype=torch.float32)
         h_t = torch.tensor(h[:T], dtype=torch.float32)
         a_t = torch.tensor(oracle_actions[:T], dtype=torch.long)
@@ -203,26 +314,29 @@ class BCPretrainer:
             count = 0
 
             for batch in loader:
-                idx = 0
                 z_b, h_b, a_b = batch[0], batch[1], batch[2]
-                idx = 3
-                reg_b = batch[idx].to(self.device) if use_regime else None
+                bi = 3
+                reg_b = batch[bi].to(self.device) if use_regime else None
                 if use_regime:
-                    idx += 1
-                sl_b = batch[idx].to(self.device) if use_soft else None
+                    bi += 1
+                sl_b = batch[bi].to(self.device) if use_soft else None
 
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
                 a_b = a_b.to(self.device)
 
-                # SIRL 重み
                 if self.use_sirl:
                     state = torch.cat([z_b, h_b], dim=-1)
                     weights = self.weight_net(state)
                 else:
                     weights = None
 
-                loss = self._bc_loss(z_b, h_b, a_b, weights, regime=reg_b, soft_labels=sl_b)
+                loss = self._bc_loss(
+                    z_b, h_b, a_b, weights,
+                    regime=reg_b,
+                    soft_labels=sl_b,
+                    class_weights=class_weights_t,
+                )
 
                 self.optimizer.zero_grad()
                 loss.backward()

@@ -24,6 +24,7 @@ costs:
 
 oracle:
   discount: 1.0
+  soft_label_temp: 0.5      # Boltzmann 温度（medium と同一）
 
 reward:
   beta: 0.1
@@ -49,6 +50,9 @@ world_model:
   done_scale: 0.0               # 継続トレーディングでは done=0 固定のため無効化
   n_ensemble: 2             # 本番より少なく
   disagree_scale: 0.1
+  idm_scale: 0.3
+  return_scale: 0.1
+  return_horizon: 10
   lr: 1.0e-4
   batch_size: 32
   max_steps: 500            # 本番の 1/200
@@ -61,11 +65,17 @@ bc:
   lr: 3.0e-4
   batch_size: 256
   sirl_hidden: 128
+  label_smoothing: 0.10
+  entropy_coef: 0.05
+  chunk_size: 3
+  class_balanced: true
 
 ac:
   actor_hidden: 256
   critic_hidden: 256
   ac_layers: 2
+  actor_dropout: 0.20
+  infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
   horizon: 3
   lam: 0.95
   gamma: 0.99

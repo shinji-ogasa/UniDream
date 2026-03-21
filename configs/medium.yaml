@@ -61,6 +61,10 @@ world_model:
   done_scale: 0.0               # 継続トレーディングでは done=0 固定のため無効化
   n_ensemble: 3
   disagree_scale: 0.1
+  # Auxiliary losses（BC 表現品質向上）
+  idm_scale: 0.3            # IDM (Inverse Dynamics Model) 損失係数
+  return_scale: 0.1         # N-step return 予測損失係数
+  return_horizon: 10        # N-step return の N
   lr: 1.0e-4
   batch_size: 64            # 本番 32→64（GPU メモリ効率向上）
   max_steps: 5000           # 本番 100k → 5k
@@ -75,7 +79,9 @@ bc:
   batch_size: 256
   sirl_hidden: 128
   label_smoothing: 0.10     # Soft labels（ε=0.10）→ argmax saturation 防止
-  entropy_coef: 0.01        # Entropy bonus → OOS 分布崩壊防止
+  entropy_coef: 0.05        # Entropy bonus → OOS 分布崩壊防止（0.01→0.05 に強化）
+  chunk_size: 3             # Action Chunking: 3バー分の行動を一括予測（avg_hold=3.3 に合わせる）
+  class_balanced: true      # クラス逆頻度重み付き損失（long=100%崩壊防止）
 
 # --- Actor-Critic ---
 ac:
