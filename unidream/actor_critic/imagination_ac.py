@@ -373,7 +373,7 @@ class ImagACTrainer:
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
         inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
-        trade_logits, target_mean, band_width, current_inventory = self.actor.controller_outputs(
+        trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
             self._oracle_z[idx],
             self._oracle_h[idx],
             inventory=inventory_batch,
@@ -383,7 +383,7 @@ class ImagACTrainer:
         target_gap = torch.abs(oracle_pos - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
 
-        target_loss = F.smooth_l1_loss(target_mean, oracle_pos, reduction="none")
+        target_loss = -target_dist.log_prob(self._oracle_actions[idx])
         if self._oracle_trade_pos_weight is not None:
             target_w = torch.where(
                 trade_targets > 0.5,
