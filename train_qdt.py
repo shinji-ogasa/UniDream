@@ -38,6 +38,26 @@ def set_seed(seed):
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
 
 
+def resolve_costs(cfg: dict, cost_profile: str | None = None) -> tuple[dict, str]:
+    resolved_cfg = dict(cfg)
+    profile_name = cost_profile or cfg.get("cost_profile") or "default"
+    profiles = cfg.get("cost_profiles")
+
+    if profiles:
+        if profile_name == "default":
+            profile_name = "base" if "base" in profiles else next(iter(profiles))
+        if profile_name not in profiles:
+            available = ", ".join(profiles.keys())
+            raise KeyError(f"Unknown cost profile '{profile_name}'. Available: {available}")
+        resolved_cfg["costs"] = dict(profiles[profile_name])
+        resolved_cfg["cost_profile"] = profile_name
+    else:
+        resolved_cfg["costs"] = dict(cfg.get("costs", {}))
+        resolved_cfg["cost_profile"] = profile_name
+
+    return resolved_cfg, resolved_cfg["cost_profile"]
+
+
 class QDTModel(nn.Module):
     """Q-conditioned Decision Transformer.
 
@@ -181,6 +201,8 @@ def main():
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/qdt")
+    parser.add_argument("--cost-profile", default=None,
+                        help="Named cost profile from config cost_profiles")
     parser.add_argument("--data_cache_dir", default="checkpoints/data_cache",
                         help="メインの train.py と同じキャッシュを共有する場合に指定")
     parser.add_argument("--resume", action="store_true")
@@ -188,6 +210,7 @@ def main():
 
     with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
+    cfg, active_cost_profile = resolve_costs(cfg, args.cost_profile)
     set_seed(args.seed)
 
     symbol = args.symbol or cfg.get("data", {}).get("symbol", "BTCUSDT")
@@ -198,6 +221,19 @@ def main():
 
     print(f"QDT Training | {symbol} {interval} | {args.start} → {args.end}")
     print(f"Device: {args.device}")
+    total_cost_bps = (
+        costs_cfg.get("spread_bps", 0.0) / 2
+        + costs_cfg.get("fee_rate", 0.0) * 10000
+        + costs_cfg.get("slippage_bps", 0.0)
+    )
+    print(
+        "Costs: "
+        f"profile={active_cost_profile} | "
+        f"spread={costs_cfg.get('spread_bps', 0.0):.2f}bps "
+        f"fee={costs_cfg.get('fee_rate', 0.0) * 10000:.2f}bps "
+        f"slip={costs_cfg.get('slippage_bps', 0.0):.2f}bps "
+        f"=> one-way Δpos=1 cost={total_cost_bps:.2f}bps"
+    )
 
     cache_dir = args.data_cache_dir
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)

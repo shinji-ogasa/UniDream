@@ -126,6 +126,7 @@ uv run python train.py
 | `--resume` | off | チェックポイントから再開 |
 | `--start-from` | `wm` | `wm / bc / ac / test` から開始 |
 | `--stop-after` | `test` | `wm / bc / ac / test` で停止 |
+| `--cost-profile` | config 既定 (`base`) | `base / stress` のコスト設定を選択 |
 
 ```bash
 # 途中で落ちた場合の再開
@@ -142,6 +143,9 @@ uv run python train.py --start-from ac --stop-after ac
 
 # 既存 checkpoint から backtest だけ再実行
 uv run python train.py --start-from test
+
+# コストを stress 条件で評価
+uv run python train.py --cost-profile stress
 
 # Smoke test（パイプライン動作確認、数分で完了）
 uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01

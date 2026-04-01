@@ -80,6 +80,27 @@ def _stage_idx(stage: str) -> int:
     return _STAGE_TO_INDEX[stage]
 
 
+def resolve_costs(cfg: dict, cost_profile: str | None = None) -> tuple[dict, str]:
+    """Resolve trading costs from either legacy `costs` or named `cost_profiles`."""
+    resolved_cfg = dict(cfg)
+    profile_name = cost_profile or cfg.get("cost_profile") or "default"
+    profiles = cfg.get("cost_profiles")
+
+    if profiles:
+        if profile_name == "default":
+            profile_name = "base" if "base" in profiles else next(iter(profiles))
+        if profile_name not in profiles:
+            available = ", ".join(profiles.keys())
+            raise KeyError(f"Unknown cost profile '{profile_name}'. Available: {available}")
+        resolved_cfg["costs"] = dict(profiles[profile_name])
+        resolved_cfg["cost_profile"] = profile_name
+    else:
+        resolved_cfg["costs"] = dict(cfg.get("costs", {}))
+        resolved_cfg["cost_profile"] = profile_name
+
+    return resolved_cfg, resolved_cfg["cost_profile"]
+
+
 def run_fold(
     fold_idx: int,
     wfo_dataset: WFODataset,
@@ -544,12 +565,18 @@ def main():
         choices=_PIPELINE_STAGES,
         help="Stop pipeline after this stage",
     )
+    parser.add_argument(
+        "--cost-profile",
+        default=None,
+        help="Named cost profile from config cost_profiles (for example: base, stress)",
+    )
     args = parser.parse_args()
 
     if _stage_idx(args.start_from) > _stage_idx(args.stop_after):
         parser.error("--start-from must be earlier than or equal to --stop-after")
 
     cfg = load_config(args.config)
+    cfg, active_cost_profile = resolve_costs(cfg, args.cost_profile)
     set_seed(args.seed)
 
     symbol = args.symbol or cfg.get("data", {}).get("symbol", "BTCUSDT")
@@ -558,6 +585,20 @@ def main():
     print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")
     print(f"Device: {args.device} | Seed: {args.seed} | Resume: {args.resume}")
     print(f"Stages: {args.start_from} -> {args.stop_after}")
+    costs_cfg = cfg.get("costs", {})
+    total_cost_bps = (
+        costs_cfg.get("spread_bps", 0.0) / 2
+        + costs_cfg.get("fee_rate", 0.0) * 10000
+        + costs_cfg.get("slippage_bps", 0.0)
+    )
+    print(
+        "Costs: "
+        f"profile={active_cost_profile} | "
+        f"spread={costs_cfg.get('spread_bps', 0.0):.2f}bps "
+        f"fee={costs_cfg.get('fee_rate', 0.0) * 10000:.2f}bps "
+        f"slip={costs_cfg.get('slippage_bps', 0.0):.2f}bps "
+        f"=> one-way Δpos=1 cost={total_cost_bps:.2f}bps"
+    )
 
     # --------- データ取得・特徴量計算（キャッシュ対応）---------
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
