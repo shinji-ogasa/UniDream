@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 from unidream.actor_critic.actor import Actor
+from unidream.data.oracle import ACTIONS
 
 
 class SIRLWeightNet(nn.Module):
@@ -115,6 +116,7 @@ class BCPretrainer:
         z: torch.Tensor,
         h: torch.Tensor,
         oracle_actions: torch.Tensor,
+        inventory: Optional[torch.Tensor] = None,
         weights: Optional[torch.Tensor] = None,
         regime: Optional[torch.Tensor] = None,
         soft_labels: Optional[torch.Tensor] = None,
@@ -137,7 +139,7 @@ class BCPretrainer:
         Returns:
             loss: スカラー
         """
-        dist = self.actor(z, h, regime=regime)
+        dist = self.actor(z, h, inventory=inventory, regime=regime)
         log_probs = torch.log(dist.probs + 1e-8)  # (B, K)
 
         if soft_labels is not None:
@@ -203,6 +205,9 @@ class BCPretrainer:
             各エポックのロスログ
         """
         T = min(len(z), len(h), len(oracle_actions))
+        inv_all = np.zeros(T, dtype=np.float32)
+        if T > 1:
+            inv_all[1:] = ACTIONS[oracle_actions[:T - 1]]
 
         # --- クラス逆頻度重みを計算 ---
         if self.class_balanced:
@@ -223,11 +228,13 @@ class BCPretrainer:
             z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, z_dim)
             h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, h_dim)
             a_arr = oracle_actions[:T_use].reshape(n_chunks, k)          # (n_chunks, k)
+            inv_arr = inv_all[:T_use].reshape(n_chunks, k)               # (n_chunks, k)
 
             tensors = [
                 torch.tensor(z_arr, dtype=torch.float32),
                 torch.tensor(h_arr, dtype=torch.float32),
                 torch.tensor(a_arr, dtype=torch.long),
+                torch.tensor(inv_arr, dtype=torch.float32),
             ]
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
@@ -249,7 +256,8 @@ class BCPretrainer:
                     z_b = batch[0].to(self.device)       # (B, z_dim)
                     h_b = batch[1].to(self.device)       # (B, h_dim)
                     a_chunk = batch[2].to(self.device)   # (B, k)
-                    bi = 3
+                    inv_chunk = batch[3].to(self.device) # (B, k)
+                    bi = 4
                     reg_b = batch[bi].to(self.device) if use_regime else None
                     if use_regime:
                         bi += 1
@@ -265,9 +273,11 @@ class BCPretrainer:
                     step_losses = []
                     for step in range(k):
                         a_step = a_chunk[:, step]        # (B,)
+                        inv_step = inv_chunk[:, step]
                         sl_step = sl_chunk[:, step, :] if sl_chunk is not None else None
                         step_loss = self._bc_loss(
                             z_b, h_b, a_step,
+                            inventory=inv_step,
                             weights=sirl_w,
                             regime=reg_b,
                             soft_labels=sl_step,
@@ -297,10 +307,11 @@ class BCPretrainer:
         z_t = torch.tensor(z[:T], dtype=torch.float32)
         h_t = torch.tensor(h[:T], dtype=torch.float32)
         a_t = torch.tensor(oracle_actions[:T], dtype=torch.long)
+        inv_t = torch.tensor(inv_all[:T], dtype=torch.float32)
 
         use_regime = regime_probs is not None
         use_soft = soft_labels is not None
-        tensors = [z_t, h_t, a_t]
+        tensors = [z_t, h_t, a_t, inv_t]
         if use_regime:
             tensors.append(torch.tensor(regime_probs[:T], dtype=torch.float32))
         if use_soft:
@@ -314,8 +325,8 @@ class BCPretrainer:
             count = 0
 
             for batch in loader:
-                z_b, h_b, a_b = batch[0], batch[1], batch[2]
-                bi = 3
+                z_b, h_b, a_b, inv_b = batch[0], batch[1], batch[2], batch[3]
+                bi = 4
                 reg_b = batch[bi].to(self.device) if use_regime else None
                 if use_regime:
                     bi += 1
@@ -324,6 +335,7 @@ class BCPretrainer:
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
                 a_b = a_b.to(self.device)
+                inv_b = inv_b.to(self.device)
 
                 if self.use_sirl:
                     state = torch.cat([z_b, h_b], dim=-1)
@@ -332,7 +344,9 @@ class BCPretrainer:
                     weights = None
 
                 loss = self._bc_loss(
-                    z_b, h_b, a_b, weights,
+                    z_b, h_b, a_b,
+                    inventory=inv_b,
+                    weights=weights,
                     regime=reg_b,
                     soft_labels=sl_b,
                     class_weights=class_weights_t,

@@ -40,13 +40,15 @@ class Actor(nn.Module):
         unimix_ratio: float = 0.01,
         regime_dim: int = 0,
         dropout_p: float = 0.0,
+        inventory_dim: int = 1,
     ):
         super().__init__()
         self.act_dim = act_dim
         self.unimix_ratio = unimix_ratio
         self.regime_dim = regime_dim
+        self.inventory_dim = inventory_dim
 
-        in_dim = z_dim + h_dim + regime_dim
+        in_dim = z_dim + h_dim + regime_dim + inventory_dim
         layers: list[nn.Module] = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
         if dropout_p > 0.0:
             layers.append(nn.Dropout(dropout_p))
@@ -61,6 +63,7 @@ class Actor(nn.Module):
         self,
         z: torch.Tensor,
         h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
         regime: "torch.Tensor | None" = None,
         temperature: float = 1.0,
     ) -> Categorical:
@@ -75,12 +78,17 @@ class Actor(nn.Module):
         Returns:
             Categorical 分布（unimix 済み）
         """
+        if inventory is None:
+            inventory = torch.zeros(*z.shape[:-1], self.inventory_dim, dtype=z.dtype, device=z.device)
+        elif inventory.ndim == z.ndim - 1:
+            inventory = inventory.unsqueeze(-1)
+
+        parts = [z, h, inventory]
         if self.regime_dim > 0:
             if regime is None:
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
-            x = torch.cat([z, h, regime], dim=-1)
-        else:
-            x = torch.cat([z, h], dim=-1)
+            parts.append(regime)
+        x = torch.cat(parts, dim=-1)
         logits = self.net(x)
 
         if temperature != 1.0:
@@ -97,6 +105,7 @@ class Actor(nn.Module):
         self,
         z: torch.Tensor,
         h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
         regime: "torch.Tensor | None" = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """行動サンプル・log_prob・entropy を返す.
@@ -106,7 +115,7 @@ class Actor(nn.Module):
             log_prob: (...,) 対数確率
             entropy: (...,) エントロピー
         """
-        dist = self.forward(z, h, regime=regime)
+        dist = self.forward(z, h, inventory=inventory, regime=regime)
         action = dist.sample()
         return action, dist.log_prob(action), dist.entropy()
 
@@ -115,11 +124,12 @@ class Actor(nn.Module):
         self,
         z: torch.Tensor,
         h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
         regime: "torch.Tensor | None" = None,
         temperature: float = 1.0,
     ) -> torch.Tensor:
         """最頻値行動を返す（推論時 greedy）."""
-        dist = self.forward(z, h, regime=regime, temperature=temperature)
+        dist = self.forward(z, h, inventory=inventory, regime=regime, temperature=temperature)
         return dist.probs.argmax(dim=-1)
 
     @torch.no_grad()
@@ -142,7 +152,6 @@ class Actor(nn.Module):
         Returns:
             positions: (T,) ∈ {-1, -0.5, 0, 0.5, 1}
         """
-        import numpy as np
         t = temperature if temperature is not None else getattr(self, "infer_temperature", 1.0)
         switch_margin = float(getattr(self, "switch_margin", 0.0))
         max_position_step = float(getattr(self, "max_position_step", 10.0))
@@ -154,12 +163,15 @@ class Actor(nn.Module):
         regime = None
         if regime_np is not None and self.regime_dim > 0:
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
-        dist = self.forward(z, h, regime=regime, temperature=t)
-        probs = dist.probs.detach().cpu().numpy()
-
-        action_indices = np.zeros(len(probs), dtype=np.int64)
+        action_indices = np.zeros(len(z_np), dtype=np.int64)
         prev_idx = int(np.where(ACTIONS == 0.0)[0][0])
-        for i, p in enumerate(probs):
+        for i in range(len(z_np)):
+            inv_t = torch.tensor([[ACTIONS[prev_idx]]], dtype=torch.float32, device=dev)
+            z_t = z[i:i + 1]
+            h_t = h[i:i + 1]
+            reg_t = regime[i:i + 1] if regime is not None else None
+            dist = self.forward(z_t, h_t, inventory=inv_t, regime=reg_t, temperature=t)
+            p = dist.probs.squeeze(0).detach().cpu().numpy()
             best_idx = int(np.argmax(p))
             chosen_idx = best_idx
 

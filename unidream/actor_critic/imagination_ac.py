@@ -36,6 +36,7 @@ from unidream.world_model.ensemble import EnsembleWorldModel
 from unidream.world_model.transformer import symlog, symexp, twohot_decode, twohot_encode
 
 _AC_ACTIONS = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
+_AC_ACTIONS_T = torch.tensor(_AC_ACTIONS, dtype=torch.float32)
 
 
 def _action_stats(positions: np.ndarray) -> dict:
@@ -152,6 +153,7 @@ class ImagACTrainer:
         self._oracle_z: Optional[torch.Tensor] = None
         self._oracle_h: Optional[torch.Tensor] = None
         self._oracle_actions: Optional[torch.Tensor] = None
+        self._oracle_inventory: Optional[torch.Tensor] = None
 
         # DSR EMA trackers
         self._dsr_A: float = 0.0    # EMA of reward (running mean)
@@ -187,6 +189,12 @@ class ImagACTrainer:
         self._oracle_z = torch.tensor(z[:T], dtype=torch.float32, device=self.device)
         self._oracle_h = torch.tensor(h[:T], dtype=torch.float32, device=self.device)
         self._oracle_actions = torch.tensor(oracle_actions[:T], dtype=torch.long, device=self.device)
+        oracle_inventory = np.zeros(T, dtype=np.float32)
+        if T > 1:
+            oracle_inventory[1:] = _AC_ACTIONS[oracle_actions[:T - 1]]
+        self._oracle_inventory = torch.tensor(
+            oracle_inventory, dtype=torch.float32, device=self.device
+        )
         if regime_probs is not None:
             self._oracle_regime = torch.tensor(
                 regime_probs[:T], dtype=torch.float32, device=self.device
@@ -229,6 +237,7 @@ class ImagACTrainer:
         h0: torch.Tensor,
         past_zs: Optional[torch.Tensor] = None,
         past_as: Optional[torch.Tensor] = None,
+        inventory0: Optional[torch.Tensor] = None,
         regime0: Optional[torch.Tensor] = None,
     ) -> dict[str, torch.Tensor]:
         """Imagination rollout を実行する（horizon ステップ）.
@@ -236,21 +245,30 @@ class ImagACTrainer:
         Returns:
             rewards: WM の reward head が予測した net_return（原スケール）
         """
-        zs, hs, acts, log_probs_list, entropies_list, rewards_list, dones_list = [], [], [], [], [], [], []
+        zs, hs, inventories, acts, log_probs_list, entropies_list, rewards_list, dones_list = [], [], [], [], [], [], [], []
 
         z = z0
         h = h0
         pzs = past_zs
         pas = past_as
+        if inventory0 is None:
+            inventory = torch.zeros(z0.shape[0], 1, dtype=z0.dtype, device=z0.device)
+        elif inventory0.ndim == 1:
+            inventory = inventory0.unsqueeze(-1)
+        else:
+            inventory = inventory0
 
         for _ in range(self.horizon):
-            action, log_prob, entropy = self.actor.get_action(z, h, regime=regime0)
+            action, log_prob, entropy = self.actor.get_action(
+                z, h, inventory=inventory, regime=regime0
+            )
 
             with torch.no_grad():
                 result = self.ensemble.imagine_step(z, h, action, pzs, pas)
 
             zs.append(z)
             hs.append(h)
+            inventories.append(inventory.squeeze(-1))
             acts.append(action)
             log_probs_list.append(log_prob)
             entropies_list.append(entropy)
@@ -261,10 +279,12 @@ class ImagACTrainer:
             h = result["next_h"].detach()
             pzs = result["past_zs"]
             pas = result["past_as"]
+            inventory = _AC_ACTIONS_T.to(device=z.device, dtype=z.dtype)[action].unsqueeze(-1)
 
         return {
             "zs": torch.stack(zs, dim=1),                      # (B, H, z_dim)
             "hs": torch.stack(hs, dim=1),                      # (B, H, h_dim)
+            "inventories": torch.stack(inventories, dim=1),    # (B, H)
             "actions": torch.stack(acts, dim=1),               # (B, H)
             "log_probs": torch.stack(log_probs_list, dim=1),   # (B, H)
             "entropies": torch.stack(entropies_list, dim=1),   # (B, H)
@@ -337,7 +357,13 @@ class ImagACTrainer:
         T = self._oracle_z.shape[0]
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
-        dist = self.actor(self._oracle_z[idx], self._oracle_h[idx], regime=regime_batch)
+        inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
+        dist = self.actor(
+            self._oracle_z[idx],
+            self._oracle_h[idx],
+            inventory=inventory_batch,
+            regime=regime_batch,
+        )
         return -dist.log_prob(self._oracle_actions[idx]).mean()
 
     def train_step(
@@ -350,9 +376,15 @@ class ImagACTrainer:
     ) -> dict[str, float]:
         """1 ステップの Actor-Critic 更新."""
         B = z0.shape[0]
+        if past_as is not None and past_as.shape[1] > 0:
+            inventory0 = _AC_ACTIONS_T.to(device=z0.device, dtype=z0.dtype)[past_as[:, -1]].unsqueeze(-1)
+        else:
+            inventory0 = torch.zeros(B, 1, dtype=z0.dtype, device=z0.device)
 
         # --- Imagination rollout ---
-        rollout = self._imagination_rollout(z0, h0, past_zs, past_as, regime0=regime0)
+        rollout = self._imagination_rollout(
+            z0, h0, past_zs, past_as, inventory0=inventory0, regime0=regime0
+        )
 
         zs = rollout["zs"]            # (B, H, z_dim)
         hs = rollout["hs"]            # (B, H, h_dim)
@@ -482,7 +514,10 @@ class ImagACTrainer:
             past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
 
             with torch.no_grad():
-                rollout = self._imagination_rollout(z0, h0, past_zs, past_as)
+                inventory0 = _AC_ACTIONS_T.to(device=z0.device, dtype=z0.dtype)[past_as[:, -1]].unsqueeze(-1)
+                rollout = self._imagination_rollout(
+                    z0, h0, past_zs, past_as, inventory0=inventory0
+                )
 
             zs = rollout["zs"]
             hs = rollout["hs"]
