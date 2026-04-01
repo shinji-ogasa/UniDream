@@ -74,7 +74,7 @@ world_model:
   bin_range: [-20.0, 20.0]
 
 bc:
-  n_epochs: 1               # 本番の 1/5
+  n_epochs: 3               # controller 化後は target head の収束に少し必要
   lr: 3.0e-4
   batch_size: 256
   sirl_hidden: 128
@@ -82,9 +82,9 @@ bc:
   entropy_coef: 0.05
   chunk_size: 3
   class_balanced: true
-  target_aux_coef: 1.00
-  trade_aux_coef: 0.75      # trade / hold head を強めに教師あり学習
-  band_aux_coef: 0.25       # no-trade band head の符号学習
+  target_aux_coef: 2.00
+  trade_aux_coef: 0.35
+  band_aux_coef: 0.10
 
 ac:
   actor_hidden: 256
@@ -107,9 +107,9 @@ ac:
   alpha_decay_steps: 1500
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
-  target_aux_coef: 1.00
-  trade_aux_coef: 0.50
-  band_aux_coef: 0.25
+  target_aux_coef: 1.50
+  trade_aux_coef: 0.25
+  band_aux_coef: 0.10
   actor_lr: 5.0e-5
   online_wm_interval: 200   # AC steps ごとに WM をオンライン更新
   online_wm_window_days: 30 # 更新に使う直近日数

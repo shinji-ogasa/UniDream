@@ -95,9 +95,9 @@ bc:
   entropy_coef: 0.05        # Entropy bonus → OOS 分布崩壊防止（0.01→0.05 に強化）
   chunk_size: 3             # Action Chunking: 3バー分の行動を一括予測（avg_hold=3.3 に合わせる）
   class_balanced: true      # クラス逆頻度重み付き損失（long=100%崩壊防止）
-  target_aux_coef: 1.00
-  trade_aux_coef: 0.75      # trade / hold 補助 head を教師ありで安定化
-  band_aux_coef: 0.25       # no-trade band head の符号学習
+  target_aux_coef: 1.50
+  trade_aux_coef: 0.35
+  band_aux_coef: 0.10
 
 # --- Actor-Critic ---
 ac:
@@ -120,9 +120,9 @@ ac:
   alpha_decay_steps: 4800   # max_steps の 80% で alpha_final に到達
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
-  target_aux_coef: 1.00
-  trade_aux_coef: 0.50
-  band_aux_coef: 0.25
+  target_aux_coef: 1.25
+  trade_aux_coef: 0.25
+  band_aux_coef: 0.10
   actor_lr: 1.0e-4
   online_wm_interval: 2000  # 本番 5000 → 2000
   online_wm_window_days: 30
