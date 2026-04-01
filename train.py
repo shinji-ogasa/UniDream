@@ -72,6 +72,14 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
+_PIPELINE_STAGES = ("wm", "bc", "ac", "test")
+_STAGE_TO_INDEX = {stage: idx for idx, stage in enumerate(_PIPELINE_STAGES)}
+
+
+def _stage_idx(stage: str) -> int:
+    return _STAGE_TO_INDEX[stage]
+
+
 def run_fold(
     fold_idx: int,
     wfo_dataset: WFODataset,
@@ -79,6 +87,8 @@ def run_fold(
     device: str,
     checkpoint_dir: str,
     resume: bool = False,
+    start_from: str = "wm",
+    stop_after: str = "test",
 ) -> dict:
     """1 WFO fold の学習・評価を実行する.
 
@@ -111,10 +121,27 @@ def run_fold(
     bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
     ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
 
-    # resume 時のスキップ判定
-    has_wm = resume and os.path.exists(wm_path)
-    has_bc = resume and os.path.exists(bc_path)
-    has_ac = resume and os.path.exists(ac_path)
+    start_idx = _stage_idx(start_from)
+    stop_idx = _stage_idx(stop_after)
+    has_wm_ckpt = os.path.exists(wm_path)
+    has_bc_ckpt = os.path.exists(bc_path)
+    has_ac_ckpt = os.path.exists(ac_path)
+    has_wm = has_wm_ckpt and (resume or start_idx > _stage_idx("wm"))
+    has_bc = has_bc_ckpt and (resume or start_idx > _stage_idx("bc"))
+    has_ac = has_ac_ckpt and (resume or start_idx > _stage_idx("ac"))
+
+    if start_idx > _stage_idx("wm") and not has_wm_ckpt:
+        raise FileNotFoundError(
+            f"Fold {fold_idx}: missing WM checkpoint for --start-from {start_from}: {wm_path}"
+        )
+    if start_from == "ac" and not has_bc_ckpt:
+        raise FileNotFoundError(
+            f"Fold {fold_idx}: missing BC checkpoint for --start-from ac: {bc_path}"
+        )
+    if start_from == "test" and not (has_bc_ckpt or has_ac_ckpt):
+        raise FileNotFoundError(
+            f"Fold {fold_idx}: --start-from test requires {bc_path} or {ac_path}"
+        )
 
     # --------- Step 1: Hindsight Oracle ---------
     print(f"\n[{_ts()}] [Step 1] Hindsight Oracle DP...")
@@ -194,6 +221,10 @@ def run_fold(
             checkpoint_path=wm_path,
         )
 
+    if stop_after == "wm":
+        print(f"\n[{_ts()}] [Stop] Requested stop after WM")
+        return {"fold": fold_idx, "completed_stage": "wm"}
+
     # train 期間の全シーケンスをエンコード
     # BC 学習・評価の一貫性のため no-action（flat）context で encode する。
     # oracle action context で h を作ると「未来情報リーク入り h」になり、
@@ -229,30 +260,37 @@ def run_fold(
         )
         bc_trainer.load(bc_path)
     else:
-        print(f"\n[{_ts()}] [Step 3] BC Pre-training...")
-        bc_trainer = BCPretrainer(
-            actor=actor,
-            z_dim=ensemble.get_z_dim(),
-            h_dim=ensemble.get_d_model(),
-            lr=bc_cfg.get("lr", 3e-4),
-            batch_size=bc_cfg.get("batch_size", 256),
-            n_epochs=bc_cfg.get("n_epochs", 5),
-            sirl_hidden=bc_cfg.get("sirl_hidden", 128),
-            label_smoothing=bc_cfg.get("label_smoothing", 0.0),
-            entropy_coef=bc_cfg.get("entropy_coef", 0.0),
-            chunk_size=bc_cfg.get("chunk_size", 1),
-            class_balanced=bc_cfg.get("class_balanced", False),
-            device=device,
-        )
-        T_enc = min(len(z_train), len(oracle_actions))
-        bc_trainer.train(
-            z=z_train[:T_enc],
-            h=h_train[:T_enc],
-            oracle_actions=oracle_actions[:T_enc],
-            regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
-            soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
-        )
-        bc_trainer.save(bc_path)
+        if start_idx <= _stage_idx("bc"):
+            print(f"\n[{_ts()}] [Step 3] BC Pre-training...")
+            bc_trainer = BCPretrainer(
+                actor=actor,
+                z_dim=ensemble.get_z_dim(),
+                h_dim=ensemble.get_d_model(),
+                lr=bc_cfg.get("lr", 3e-4),
+                batch_size=bc_cfg.get("batch_size", 256),
+                n_epochs=bc_cfg.get("n_epochs", 5),
+                sirl_hidden=bc_cfg.get("sirl_hidden", 128),
+                label_smoothing=bc_cfg.get("label_smoothing", 0.0),
+                entropy_coef=bc_cfg.get("entropy_coef", 0.0),
+                chunk_size=bc_cfg.get("chunk_size", 1),
+                class_balanced=bc_cfg.get("class_balanced", False),
+                device=device,
+            )
+            T_enc = min(len(z_train), len(oracle_actions))
+            bc_trainer.train(
+                z=z_train[:T_enc],
+                h=h_train[:T_enc],
+                oracle_actions=oracle_actions[:T_enc],
+                regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
+                soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
+            )
+            bc_trainer.save(bc_path)
+        else:
+            print(f"\n[{_ts()}] [Step 3] BC — skipped (AC checkpoint will provide actor weights)")
+
+    if stop_after == "bc":
+        print(f"\n[{_ts()}] [Stop] Requested stop after BC")
+        return {"fold": fold_idx, "completed_stage": "bc"}
 
     # --------- Step 4: Imagination AC Fine-tune ---------
     # no-action h（z_train/h_train）を AC でもそのまま使う。
@@ -262,169 +300,174 @@ def run_fold(
     # 異なる h 分布上で計算されて矛盾した gradient が生じる。
     # no-action h に統一することで BC train/AC train/val/test が一貫する。
 
-    critic = Critic(
-        z_dim=ensemble.get_z_dim(),
-        h_dim=ensemble.get_d_model(),
-        hidden_dim=ac_cfg.get("critic_hidden", 256),
-        n_layers=ac_cfg.get("ac_layers", 2),
-        n_bins=wm_cfg.get("n_bins", 255),
-        ema_decay=ac_cfg.get("ema_decay", 0.98),
-    )
-    ac_trainer = ImagACTrainer(
-        actor=actor,
-        critic=critic,
-        ensemble=ensemble,
-        cfg=cfg,
-        device=device,
-    )
-    if has_ac:
-        ac_trainer.load(ac_path)
-
-    # oracle データは resume 時も必要（BC 損失計算用）
-    # z/h は oracle エンコード（z は obs のみなので同一、h は BC エンコードとは別途保持）
-    T_enc = min(len(z_train), len(oracle_actions))
-    ac_trainer.set_oracle_data(
-        z=z_train[:T_enc],
-        h=h_train[:T_enc],
-        oracle_actions=oracle_actions[:T_enc],
-        regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
-    )
-
-    encoded_list = [{
-        "z": z_train,
-        "h": h_train,
-        "regime": train_regime_probs if train_regime_probs is not None else None,
-    }]
-
-    # Val encoding を no-action（flat）で一度だけ固定する。
-    # test と同じ single-pass encoding に統一することで val/test の比較を整合させる。
-    # 自己参照ループ（AC の自身の予測を context に使う → val Sharpe 過大）は
-    # ここで固定した z_val_fixed/h_val_fixed を AC 学習中ずっと使い回すことで回避する。
-    val_features_arr = wfo_dataset.val_features
-    val_returns_arr = wfo_dataset.val_returns
-    if len(val_features_arr) > 0:
-        _enc_val_fixed = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
-        z_val_fixed = _enc_val_fixed["z"]
-        h_val_fixed = _enc_val_fixed["h"]
-    else:
-        z_val_fixed = h_val_fixed = None
-
-    # Val backtest function — used for AC checkpoint selection
-    def _val_eval() -> float:
-        if z_val_fixed is None:
-            return -float("inf")
-        pos = actor.predict_positions(
-            z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
+    ac_requested = stop_idx >= _stage_idx("ac") or has_ac
+    if ac_requested:
+        critic = Critic(
+            z_dim=ensemble.get_z_dim(),
+            h_dim=ensemble.get_d_model(),
+            hidden_dim=ac_cfg.get("critic_hidden", 256),
+            n_layers=ac_cfg.get("ac_layers", 2),
+            n_bins=wm_cfg.get("n_bins", 255),
+            ema_decay=ac_cfg.get("ema_decay", 0.98),
         )
-        T_min = min(len(val_returns_arr), len(pos))
-        return Backtest(
-            val_returns_arr[:T_min], pos[:T_min],
-            spread_bps=costs_cfg.get("spread_bps", 5.0),
-            fee_rate=costs_cfg.get("fee_rate", 0.0004),
-            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-            interval=cfg.get("data", {}).get("interval", "15m"),
-        ).run().sharpe
-
-    ac_max_steps = ac_cfg.get("max_steps", 200_000)
-    if ac_trainer.global_step >= ac_max_steps:
-        print(f"\n[{_ts()}] [Step 4] AC — already complete (step={ac_trainer.global_step})")
-    else:
-        bc_val_sharpe = -float("inf")
+        ac_trainer = ImagACTrainer(
+            actor=actor,
+            critic=critic,
+            ensemble=ensemble,
+            cfg=cfg,
+            device=device,
+        )
         if has_ac:
-            print(f"\n[{_ts()}] [Step 4] AC — resuming from step {ac_trainer.global_step}/{ac_max_steps}")
-        else:
-            print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
+            ac_trainer.load(ac_path)
 
-            # BC-only val Sharpe (checkpoint selection のベースライン)
-            bc_val_sharpe = _val_eval()
-            print(f"[AC] BC-only val Sharpe: {bc_val_sharpe:.3f}")
-            if z_val_fixed is not None:
-                _bc_pos = actor.predict_positions(
+        if start_idx <= _stage_idx("ac") or has_ac:
+            # oracle データは resume 時も必要（BC 損失計算用）
+            # z/h は oracle エンコード（z は obs のみなので同一、h は BC エンコードとは別途保持）
+            T_enc = min(len(z_train), len(oracle_actions))
+            ac_trainer.set_oracle_data(
+                z=z_train[:T_enc],
+                h=h_train[:T_enc],
+                oracle_actions=oracle_actions[:T_enc],
+                regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
+            )
+
+            encoded_list = [{
+                "z": z_train,
+                "h": h_train,
+                "regime": train_regime_probs if train_regime_probs is not None else None,
+            }]
+
+            # Val encoding を no-action（flat）で一度だけ固定する。
+            # test と同じ single-pass encoding に統一することで val/test の比較を整合させる。
+            # 自己参照ループ（AC の自身の予測を context に使う → val Sharpe 過大）は
+            # ここで固定した z_val_fixed/h_val_fixed を AC 学習中ずっと使い回すことで回避する。
+            val_features_arr = wfo_dataset.val_features
+            val_returns_arr = wfo_dataset.val_returns
+            if len(val_features_arr) > 0:
+                _enc_val_fixed = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
+                z_val_fixed = _enc_val_fixed["z"]
+                h_val_fixed = _enc_val_fixed["h"]
+            else:
+                z_val_fixed = h_val_fixed = None
+
+            # Val backtest function — used for AC checkpoint selection
+            def _val_eval() -> float:
+                if z_val_fixed is None:
+                    return -float("inf")
+                pos = actor.predict_positions(
                     z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
                 )
-                _bc_T = min(len(val_returns_arr), len(_bc_pos))
-                _bc_m = Backtest(
-                    val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
+                T_min = min(len(val_returns_arr), len(pos))
+                return Backtest(
+                    val_returns_arr[:T_min], pos[:T_min],
                     spread_bps=costs_cfg.get("spread_bps", 5.0),
                     fee_rate=costs_cfg.get("fee_rate", 0.0004),
                     slippage_bps=costs_cfg.get("slippage_bps", 2.0),
                     interval=cfg.get("data", {}).get("interval", "15m"),
-                ).run()
-                _bc_attr = pnl_attribution(
-                    val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
-                    spread_bps=costs_cfg.get("spread_bps", 5.0),
-                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                )
-                _bc_s = _action_stats(_bc_pos[:_bc_T])
-                print(f"  BC val dist: {_fmt_action_stats(_bc_s)}")
-                print(f"  BC val: TotalRet={_bc_m.total_return:.3f}  "
-                      f"long={_bc_attr['long_gross']:+.4f}  "
-                      f"short={_bc_attr['short_gross']:+.4f}  "
-                      f"cost={_bc_attr['cost_total']:.4f}")
-                # Oracle vs BC 比較
-                _oracle_val_pos = np.array([_ACTIONS[a] for a in val_oracle_actions[:_bc_T]])
-                _oracle_val_s = _action_stats(_oracle_val_pos)
-                print(f"  Oracle val dist: {_fmt_action_stats(_oracle_val_s)}")
-                _ac_alerts("BC-val", _bc_s)
+                ).run().sharpe
 
-            # Critic pre-training (Actor-Critic Alignment)
-            critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
-            if critic_pretrain_steps > 0:
-                ac_trainer.pretrain_critic(
+            ac_max_steps = ac_cfg.get("max_steps", 200_000)
+            if ac_trainer.global_step >= ac_max_steps:
+                print(f"\n[{_ts()}] [Step 4] AC — already complete (step={ac_trainer.global_step})")
+            else:
+                bc_val_sharpe = -float("inf")
+                if has_ac:
+                    print(f"\n[{_ts()}] [Step 4] AC — resuming from step {ac_trainer.global_step}/{ac_max_steps}")
+                else:
+                    print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
+
+                    # BC-only val Sharpe (checkpoint selection のベースライン)
+                    bc_val_sharpe = _val_eval()
+                    print(f"[AC] BC-only val Sharpe: {bc_val_sharpe:.3f}")
+                    if z_val_fixed is not None:
+                        _bc_pos = actor.predict_positions(
+                            z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
+                        )
+                        _bc_T = min(len(val_returns_arr), len(_bc_pos))
+                        _bc_m = Backtest(
+                            val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
+                            spread_bps=costs_cfg.get("spread_bps", 5.0),
+                            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                            interval=cfg.get("data", {}).get("interval", "15m"),
+                        ).run()
+                        _bc_attr = pnl_attribution(
+                            val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
+                            spread_bps=costs_cfg.get("spread_bps", 5.0),
+                            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                        )
+                        _bc_s = _action_stats(_bc_pos[:_bc_T])
+                        print(f"  BC val dist: {_fmt_action_stats(_bc_s)}")
+                        print(f"  BC val: TotalRet={_bc_m.total_return:.3f}  "
+                              f"long={_bc_attr['long_gross']:+.4f}  "
+                              f"short={_bc_attr['short_gross']:+.4f}  "
+                              f"cost={_bc_attr['cost_total']:.4f}")
+                        _oracle_val_pos = np.array([_ACTIONS[a] for a in val_oracle_actions[:_bc_T]])
+                        _oracle_val_s = _action_stats(_oracle_val_pos)
+                        print(f"  Oracle val dist: {_fmt_action_stats(_oracle_val_s)}")
+                        _ac_alerts("BC-val", _bc_s)
+
+                    critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
+                    if critic_pretrain_steps > 0:
+                        ac_trainer.pretrain_critic(
+                            encoded_sequences=encoded_list,
+                            n_steps=critic_pretrain_steps,
+                            batch_size=ac_cfg.get("batch_size", 32),
+                        )
+
+                interval = cfg.get("data", {}).get("interval", "15m")
+                bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(interval, 96)
+                online_wm_window = ac_cfg.get("online_wm_window_days", 30) * bars_per_day
+                online_wm_steps_val = ac_cfg.get("online_wm_steps", 0)
+
+                def _online_wm_cb(step: int) -> None:
+                    if online_wm_steps_val <= 0:
+                        return
+                    T_train = len(wfo_dataset.train_features)
+                    window_start = max(0, T_train - online_wm_window)
+                    recent_feat = wfo_dataset.train_features[window_start:]
+                    recent_returns = wfo_dataset.train_returns[window_start:]
+                    recent_regime = (
+                        train_regime_probs[window_start:T_train]
+                        if train_regime_probs is not None else None
+                    )
+                    enc_recent = wm_trainer.encode_sequence(recent_feat, seq_len=seq_len)
+                    recent_pos = actor.predict_positions(
+                        enc_recent["z"], enc_recent["h"],
+                        regime_np=recent_regime, device=device,
+                    )
+                    recent_actions = np.array([
+                        int(np.argmin(np.abs(_ACTIONS - p))) for p in recent_pos
+                    ])
+                    recent_ds = SequenceDataset(
+                        recent_feat, seq_len=seq_len,
+                        actions=recent_actions[:len(recent_feat)],
+                        returns=recent_returns[:len(recent_feat)],
+                    )
+                    if len(recent_ds) < 2:
+                        return
+                    wm_trainer.ensemble.train()
+                    wm_trainer.train_on_dataset(recent_ds, max_steps=online_wm_steps_val, checkpoint_path=None)
+                    wm_trainer.ensemble.eval()
+
+                online_wm_callback = _online_wm_cb if online_wm_steps_val > 0 else None
+
+                ac_trainer.train(
                     encoded_sequences=encoded_list,
-                    n_steps=critic_pretrain_steps,
                     batch_size=ac_cfg.get("batch_size", 32),
+                    checkpoint_path=ac_path,
+                    val_eval_fn=_val_eval,
+                    val_baseline_sharpe=bc_val_sharpe,
+                    online_wm_callback=online_wm_callback,
                 )
+                ac_trainer.save(ac_path)
+        else:
+            print(f"\n[{_ts()}] [Step 4] AC — skipped (BC actor only for test)")
 
-        # Online WM callback
-        interval = cfg.get("data", {}).get("interval", "15m")
-        bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(interval, 96)
-        online_wm_window = ac_cfg.get("online_wm_window_days", 30) * bars_per_day
-        online_wm_steps_val = ac_cfg.get("online_wm_steps", 0)
-
-        def _online_wm_cb(step: int) -> None:
-            if online_wm_steps_val <= 0:
-                return
-            T_train = len(wfo_dataset.train_features)
-            window_start = max(0, T_train - online_wm_window)
-            recent_feat = wfo_dataset.train_features[window_start:]
-            recent_returns = wfo_dataset.train_returns[window_start:]
-            recent_regime = (
-                train_regime_probs[window_start:T_train]
-                if train_regime_probs is not None else None
-            )
-            # 現在の actor で recent_feat の actions を予測（BC 固定から脱却）
-            enc_recent = wm_trainer.encode_sequence(recent_feat, seq_len=seq_len)
-            recent_pos = actor.predict_positions(
-                enc_recent["z"], enc_recent["h"],
-                regime_np=recent_regime, device=device,
-            )
-            recent_actions = np.array([
-                int(np.argmin(np.abs(_ACTIONS - p))) for p in recent_pos
-            ])
-            recent_ds = SequenceDataset(
-                recent_feat, seq_len=seq_len,
-                actions=recent_actions[:len(recent_feat)],
-                returns=recent_returns[:len(recent_feat)],
-            )
-            if len(recent_ds) < 2:
-                return
-            wm_trainer.ensemble.train()
-            wm_trainer.train_on_dataset(recent_ds, max_steps=online_wm_steps_val, checkpoint_path=None)
-            wm_trainer.ensemble.eval()
-
-        online_wm_callback = _online_wm_cb if online_wm_steps_val > 0 else None
-
-        ac_trainer.train(
-            encoded_sequences=encoded_list,
-            batch_size=ac_cfg.get("batch_size", 32),
-            checkpoint_path=ac_path,
-            val_eval_fn=_val_eval,
-            val_baseline_sharpe=bc_val_sharpe,
-            online_wm_callback=online_wm_callback,
-        )
-        ac_trainer.save(ac_path)
+    if stop_after == "ac":
+        print(f"\n[{_ts()}] [Stop] Requested stop after AC")
+        return {"fold": fold_idx, "completed_stage": "ac"}
 
     # --------- Step 5: Test バックテスト ---------
     print(f"\n[{_ts()}] [Step 5] Test Backtest...")
@@ -474,6 +517,7 @@ def run_fold(
         "metrics": metrics,
         "positions": positions[:T_min],
         "test_returns": test_returns[:T_min],
+        "completed_stage": "test",
     }
 
 
@@ -488,7 +532,22 @@ def main():
     parser.add_argument("--checkpoint_dir", default="checkpoints")
     parser.add_argument("--resume", action="store_true",
                         help="保存済みチェックポイントから再開する")
+    parser.add_argument(
+        "--start-from",
+        default="wm",
+        choices=_PIPELINE_STAGES,
+        help="Start pipeline from this stage",
+    )
+    parser.add_argument(
+        "--stop-after",
+        default="test",
+        choices=_PIPELINE_STAGES,
+        help="Stop pipeline after this stage",
+    )
     args = parser.parse_args()
+
+    if _stage_idx(args.start_from) > _stage_idx(args.stop_after):
+        parser.error("--start-from must be earlier than or equal to --stop-after")
 
     cfg = load_config(args.config)
     set_seed(args.seed)
@@ -498,6 +557,7 @@ def main():
 
     print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")
     print(f"Device: {args.device} | Seed: {args.seed} | Resume: {args.resume}")
+    print(f"Stages: {args.start_from} -> {args.stop_after}")
 
     # --------- データ取得・特徴量計算（キャッシュ対応）---------
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
@@ -583,8 +643,18 @@ def main():
             device=args.device,
             checkpoint_dir=args.checkpoint_dir,
             resume=args.resume,
+            start_from=args.start_from,
+            stop_after=args.stop_after,
         )
         fold_results[split.fold_idx] = result
+
+    if args.stop_after != "test":
+        print("\n" + "="*60)
+        print("Stage Summary")
+        print("="*60)
+        for fold_idx, r in fold_results.items():
+            print(f"  Fold {fold_idx}: completed_stage={r.get('completed_stage', args.stop_after)}")
+        return
 
     # --------- PBO / Deflated Sharpe ---------
     # 注意: PBO は「fold を戦略候補扱いした IS/OOS 分割の簡略版」。

@@ -124,10 +124,24 @@ uv run python train.py
 | `--seed` | `42` | 乱数シード |
 | `--checkpoint_dir` | `checkpoints` | チェックポイント保存先 |
 | `--resume` | off | チェックポイントから再開 |
+| `--start-from` | `wm` | `wm / bc / ac / test` から開始 |
+| `--stop-after` | `test` | `wm / bc / ac / test` で停止 |
 
 ```bash
 # 途中で落ちた場合の再開
 uv run python train.py --resume
+
+# World Model だけ学習して停止
+uv run python train.py --stop-after wm
+
+# 既存の WM checkpoint を使って BC だけ実行
+uv run python train.py --start-from bc --stop-after bc
+
+# 既存の WM / BC checkpoint を使って AC だけ実行
+uv run python train.py --start-from ac --stop-after ac
+
+# 既存 checkpoint から backtest だけ再実行
+uv run python train.py --start-from test
 
 # Smoke test（パイプライン動作確認、数分で完了）
 uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
