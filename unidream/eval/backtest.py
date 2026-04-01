@@ -47,13 +47,13 @@ class BacktestMetrics:
     annual_return: float
     n_trades: int
     avg_holding: float
+    equity_curve: np.ndarray = field(repr=False)
+    pnl_series: np.ndarray = field(repr=False)
     benchmark_total_return: float | None = None
     benchmark_annual_return: float | None = None
     benchmark_sharpe: float | None = None
     alpha_excess: float | None = None
     sharpe_delta: float | None = None
-    equity_curve: np.ndarray = field(repr=False)
-    pnl_series: np.ndarray = field(repr=False)
 
     def to_dict(self) -> dict:
         return {
