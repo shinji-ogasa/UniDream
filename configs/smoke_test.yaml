@@ -103,8 +103,8 @@ ac:
   gamma: 0.99
   ema_decay: 0.98
   alpha_init: 1.0
-  alpha_final: 0.15             # smoke は BC floor をやや高めに残して collapse を防ぐ
-  alpha_decay_steps: 1500
+  alpha_final: 0.00
+  alpha_decay_steps: 600
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
   target_aux_coef: 1.50
@@ -112,7 +112,7 @@ ac:
   band_aux_coef: 0.05
   turnover_coef: 0.15
   flow_change_coef: 0.05
-  actor_lr: 5.0e-5
+  actor_lr: 3.0e-5
   online_wm_interval: 200   # AC steps ごとに WM をオンライン更新
   online_wm_window_days: 30 # 更新に使う直近日数
   online_wm_steps: 20       # WM 更新のステップ数
@@ -122,9 +122,9 @@ ac:
   critic_pretrain_steps: 200  # 本番の 1/10
   max_steps: 1000           # 本番の 1/200
   checkpoint_interval: 200  # 本番の 1/50
-  val_patience: 4           # 4 回連続更新なしで early stop（5 checkpoint 中 step800 の改善を逃さない設定）
-  bc_loss_threshold: 2.0    # BC loss がこの値を超えたら（α 低下時の自然増は許容）
-  bc_loss_patience: 3       # 3 連続 checkpoint で early stop
+  val_patience: 6
+  bc_loss_threshold: 0.0
+  bc_loss_patience: 3
   grad_clip: 100.0
 
 qdt:
