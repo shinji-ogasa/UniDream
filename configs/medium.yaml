@@ -95,6 +95,7 @@ bc:
   entropy_coef: 0.05        # Entropy bonus → OOS 分布崩壊防止（0.01→0.05 に強化）
   chunk_size: 3             # Action Chunking: 3バー分の行動を一括予測（avg_hold=3.3 に合わせる）
   class_balanced: true      # クラス逆頻度重み付き損失（long=100%崩壊防止）
+  target_aux_coef: 1.00
   trade_aux_coef: 0.75      # trade / hold 補助 head を教師ありで安定化
   band_aux_coef: 0.25       # no-trade band head の符号学習
 
@@ -106,6 +107,9 @@ ac:
   actor_dropout: 0.20       # Dropout（過学習防止・OOS 汎化）
   infer_temperature: 1.5    # 推論時 softmax 温度（T>1 で分布平滑化→constant output 防止）
   infer_trade_threshold: 0.50
+  min_band: 0.02
+  min_target_std: 0.05
+  max_target_std: 0.25
   horizon: 5                # 本番 10 → 5（smoke test 3 より長く、本番より保守的）
   lam: 0.95
   gamma: 0.99
@@ -115,6 +119,7 @@ ac:
   alpha_decay_steps: 4800   # max_steps の 80% で alpha_final に到達
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
+  target_aux_coef: 1.00
   trade_aux_coef: 0.50
   band_aux_coef: 0.25
   actor_lr: 1.0e-4

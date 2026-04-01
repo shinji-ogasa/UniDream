@@ -1,7 +1,7 @@
 """BC (Behavior Cloning) 事前学習モジュール.
 
-Hindsight Oracle の最適行動列を教師ラベルとして、
-Actor を KL-divergence 損失で数エポック学習する。
+Hindsight Oracle の最適 inventory path を教師ラベルとして、
+Actor の `trade / target / band` を数エポック学習する。
 
 SIRL (State-dependent Importance-weighted RL) スタイルの
 状態依存重み w(s) で各サンプルの損失を重み付けする。
@@ -90,6 +90,7 @@ class BCPretrainer:
         entropy_coef: float = 0.0,
         chunk_size: int = 1,
         class_balanced: bool = False,
+        target_aux_coef: float = 1.0,
         trade_aux_coef: float = 0.5,
         band_aux_coef: float = 0.25,
         device: str = "cpu",
@@ -103,6 +104,7 @@ class BCPretrainer:
         self.entropy_coef = entropy_coef
         self.chunk_size = max(1, chunk_size)
         self.class_balanced = class_balanced
+        self.target_aux_coef = target_aux_coef
         self.trade_aux_coef = trade_aux_coef
         self.band_aux_coef = band_aux_coef
 
@@ -129,99 +131,54 @@ class BCPretrainer:
         class_weights: Optional[torch.Tensor] = None,
         trade_pos_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """KL-divergence ベースの BC 損失.
-
-        soft_labels が与えられた場合は Boltzmann value-based soft targets を使用。
-        なければ label_smoothing による均一 soft target または hard label を使用。
-
-        Args:
-            z: (B, z_dim)
-            h: (B, h_dim)
-            oracle_actions: (B,) oracle 行動インデックス（クラス重み・hard label に使用）
-            weights: (B,) 状態依存重み（SIRL）
-            regime: (B, regime_dim) レジーム確率ベクトル（省略可）
-            soft_labels: (B, K) Boltzmann soft target（oracle Q 値由来）
-            class_weights: (K,) クラス逆頻度重み（class_balanced=True 時）
-
-        Returns:
-            loss: スカラー
-        """
-        dist, trade_logits, band_width = self.actor.policy_outputs(
+        """Inventory controller 向けの BC 損失."""
+        del soft_labels, class_weights
+        trade_logits, target_mean, band_width, current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
-        log_probs = torch.log(dist.probs + 1e-8)  # (B, K)
+        oracle_target = _ACTIONS_T.to(device=target_mean.device, dtype=target_mean.dtype)[oracle_actions]
+        target_gap = torch.abs(oracle_target - current_inventory)
+        trade_targets = (target_gap > 1e-8).float()
 
-        if soft_labels is not None:
-            # Value-based soft labels（動的）+ 均一フロア混合で OOD 安定性を確保
-            target = soft_labels
-            if self.label_smoothing > 0.0:
-                K = self.actor.act_dim
-                target = (1.0 - self.label_smoothing) * soft_labels + self.label_smoothing / K
-            kl = -(target * log_probs).sum(dim=-1)  # (B,)
-        elif self.label_smoothing > 0.0:
-            # 均一 soft labels（fallback）
-            K = self.actor.act_dim
-            soft = torch.full(
-                (oracle_actions.shape[0], K),
-                self.label_smoothing / K,
-                dtype=torch.float32,
-                device=oracle_actions.device,
+        target_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
+        if trade_pos_weight is not None:
+            target_w = torch.where(
+                trade_targets > 0.5,
+                trade_pos_weight.to(device=target_loss.device, dtype=target_loss.dtype),
+                torch.ones_like(target_loss),
             )
-            soft.scatter_(1, oracle_actions.unsqueeze(1),
-                          1.0 - self.label_smoothing + self.label_smoothing / K)
-            kl = -(soft * log_probs).sum(dim=-1)  # (B,)
-        else:
-            kl = -dist.log_prob(oracle_actions)  # (B,)
+            target_loss = target_loss * target_w
 
-        # クラス逆頻度重みをサンプル重みとして乗算
-        if class_weights is not None:
-            sample_class_w = class_weights[oracle_actions]  # (B,)
-            weights = weights * sample_class_w if weights is not None else sample_class_w
+        trade_loss = F.binary_cross_entropy_with_logits(
+            trade_logits,
+            trade_targets,
+            reduction="none",
+            pos_weight=trade_pos_weight,
+        )
+
+        loss_terms = self.target_aux_coef * target_loss
+        if self.trade_aux_coef > 0.0:
+            loss_terms = loss_terms + self.trade_aux_coef * trade_loss
+
+        if self.band_aux_coef > 0.0:
+            trade_margin = 0.05
+            hold_band_min = 0.05
+            trade_penalty = F.softplus(band_width - (target_gap - trade_margin).clamp(min=0.0))
+            hold_penalty = F.softplus(hold_band_min - band_width)
+            band_penalty = torch.where(trade_targets > 0.5, trade_penalty, hold_penalty)
+            if trade_pos_weight is not None:
+                band_sample_w = torch.where(
+                    trade_targets > 0.5,
+                    trade_pos_weight.to(device=band_penalty.device, dtype=band_penalty.dtype),
+                    torch.ones_like(band_penalty),
+                )
+                band_penalty = band_penalty * band_sample_w
+            loss_terms = loss_terms + self.band_aux_coef * band_penalty
 
         if weights is not None:
-            loss = (weights * kl).mean()
+            loss = (weights * loss_terms).mean()
         else:
-            loss = kl.mean()
-
-        if inventory is not None and self.trade_aux_coef > 0.0:
-            if inventory.ndim > 1:
-                inventory_prev = inventory.squeeze(-1)
-            else:
-                inventory_prev = inventory
-            target_pos = _ACTIONS_T.to(device=trade_logits.device, dtype=inventory_prev.dtype)[oracle_actions]
-            target_gap = torch.abs(target_pos - inventory_prev)
-            trade_targets = (target_gap > 1e-8).float()
-            trade_bce = F.binary_cross_entropy_with_logits(
-                trade_logits,
-                trade_targets,
-                reduction="none",
-                pos_weight=trade_pos_weight,
-            )
-            if weights is not None:
-                trade_loss = (weights * trade_bce).mean()
-            else:
-                trade_loss = trade_bce.mean()
-            loss = loss + self.trade_aux_coef * trade_loss
-
-            if self.band_aux_coef > 0.0:
-                direction = trade_targets * 2.0 - 1.0
-                band_margin = direction * (target_gap - band_width)
-                band_penalty = F.softplus(-band_margin)
-                if trade_pos_weight is not None:
-                    band_sample_w = torch.where(
-                        trade_targets > 0.5,
-                        trade_pos_weight.to(device=band_penalty.device, dtype=band_penalty.dtype),
-                        torch.ones_like(band_penalty),
-                    )
-                    band_penalty = band_penalty * band_sample_w
-                if weights is not None:
-                    band_loss = (weights * band_penalty).mean()
-                else:
-                    band_loss = band_penalty.mean()
-                loss = loss + self.band_aux_coef * band_loss
-
-        if self.entropy_coef > 0.0:
-            loss = loss - self.entropy_coef * dist.entropy().mean()
+            loss = loss_terms.mean()
 
         return loss
 
@@ -260,15 +217,6 @@ class BCPretrainer:
         trade_pos_weight_t = None
         if n_pos > 0 and n_neg > 0:
             trade_pos_weight_t = torch.tensor(n_neg / n_pos, dtype=torch.float32, device=self.device)
-
-        # --- クラス逆頻度重みを計算 ---
-        if self.class_balanced:
-            counts = np.bincount(oracle_actions[:T], minlength=self.actor.act_dim).astype(float)
-            counts = np.maximum(counts, 1.0)
-            cw_np = T / (self.actor.act_dim * counts)
-            class_weights_t = torch.tensor(cw_np, dtype=torch.float32, device=self.device)
-        else:
-            class_weights_t = None
 
         # --- Action Chunking: データをチャンク単位に再構築 ---
         k = self.chunk_size
@@ -333,7 +281,6 @@ class BCPretrainer:
                             weights=sirl_w,
                             regime=reg_b,
                             soft_labels=sl_step,
-                            class_weights=class_weights_t,
                             trade_pos_weight=trade_pos_weight_t,
                         )
                         step_losses.append(step_loss)
@@ -402,7 +349,6 @@ class BCPretrainer:
                     weights=weights,
                     regime=reg_b,
                     soft_labels=sl_b,
-                    class_weights=class_weights_t,
                     trade_pos_weight=trade_pos_weight_t,
                 )
 

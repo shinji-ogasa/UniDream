@@ -82,6 +82,7 @@ bc:
   entropy_coef: 0.05
   chunk_size: 3
   class_balanced: true
+  target_aux_coef: 1.00
   trade_aux_coef: 0.75      # trade / hold head を強めに教師あり学習
   band_aux_coef: 0.25       # no-trade band head の符号学習
 
@@ -92,8 +93,10 @@ ac:
   actor_dropout: 0.20
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
   infer_trade_threshold: 0.50
-  switch_margin: 0.08       # best action と現保有 action の確率差が小さい場合は据え置く
   max_position_step: 0.5    # 1 バーでの在庫変化を 0.5 までに制限
+  min_band: 0.02
+  min_target_std: 0.05
+  max_target_std: 0.25
   horizon: 3
   lam: 0.95
   gamma: 0.99
@@ -103,6 +106,7 @@ ac:
   alpha_decay_steps: 1500
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
+  target_aux_coef: 1.00
   trade_aux_coef: 0.50
   band_aux_coef: 0.25
   actor_lr: 5.0e-5

@@ -1,14 +1,7 @@
 """Actor モジュール.
 
-離散 5 行動（ポジション比率）に加えて、`trade / hold` の補助 head を持つ。
-入力: 世界モデルの潜在 z + Transformer hidden h + 現在 inventory
-      （+ オプションの regime ベクトル）
-出力:
-  - target inventory 用 5 行動 logits（Categorical 分布）
-  - trade / hold 用 logit
-  - no-trade band 幅
-
-DreamerV3 スタイル: entropy 正則化付き。
+`trade / target inventory / no-trade band` を主出力に持つ inventory controller。
+世界モデルとは execution rule を介して接続し、最終的には離散 action index へ写像する。
 """
 from __future__ import annotations
 
@@ -16,23 +9,15 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Categorical
+from torch.distributions import Bernoulli, Normal
 
 from unidream.data.oracle import ACTIONS, N_ACTIONS
 
+_ACTIONS_T = torch.tensor(ACTIONS, dtype=torch.float32)
+
 
 class Actor(nn.Module):
-    """離散行動 Actor.
-
-    Args:
-        z_dim: 潜在次元（n_categoricals × n_classes = 1024）
-        h_dim: Transformer hidden 次元
-        act_dim: 行動数（デフォルト 5）
-        hidden_dim: MLP 隠れ層次元
-        n_layers: MLP 層数
-        unimix_ratio: 行動分布の均一混合比率（exploration 用）
-        regime_dim: レジーム確率ベクトルの次元（0 で無効）
-    """
+    """Inventory controller actor."""
 
     def __init__(
         self,
@@ -41,7 +26,7 @@ class Actor(nn.Module):
         act_dim: int = N_ACTIONS,
         hidden_dim: int = 256,
         n_layers: int = 2,
-        unimix_ratio: float = 0.01,
+        unimix_ratio: float = 0.0,
         regime_dim: int = 0,
         dropout_p: float = 0.0,
         inventory_dim: int = 1,
@@ -60,20 +45,22 @@ class Actor(nn.Module):
             layers += [nn.Linear(hidden_dim, hidden_dim), nn.ELU()]
             if dropout_p > 0.0:
                 layers.append(nn.Dropout(dropout_p))
-        layers.append(nn.Linear(hidden_dim, act_dim))
-        self.trunk = nn.Sequential(*layers[:-1])
-        self.policy_head = layers[-1]
+        self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
+        self.target_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
+        self.target_log_std = nn.Parameter(torch.tensor(np.log(0.15), dtype=torch.float32))
 
-    def _encode_state(
+        # Conservative initialization: narrow band but not zero.
+        nn.init.constant_(self.band_head.bias, -2.0)
+
+    def _prepare_inputs(
         self,
         z: torch.Tensor,
         h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
-    ) -> torch.Tensor:
-        """方策ヘッド共有の状態表現を作る."""
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         if inventory is None:
             inventory = torch.zeros(*z.shape[:-1], self.inventory_dim, dtype=z.dtype, device=z.device)
         elif inventory.ndim == z.ndim - 1:
@@ -85,122 +72,125 @@ class Actor(nn.Module):
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
             parts.append(regime)
         x = torch.cat(parts, dim=-1)
-        return self.trunk(x)
+        return self.trunk(x), inventory
 
-    def policy_outputs(
+    def controller_outputs(
         self,
         z: torch.Tensor,
         h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
-        temperature: float = 1.0,
-    ) -> tuple[Categorical, torch.Tensor, torch.Tensor]:
-        """行動分布と trade logit と no-trade band 幅を返す."""
-        hidden = self._encode_state(z, h, inventory=inventory, regime=regime)
-        logits = self.policy_head(hidden)
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """trade logit, target inventory mean, band width, current inventory."""
+        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
         trade_logits = self.trade_head(hidden).squeeze(-1)
-        band_width = F.softplus(self.band_head(hidden).squeeze(-1))
+        target_mean = torch.tanh(self.target_head(hidden).squeeze(-1))
+        min_band = float(getattr(self, "min_band", 0.02))
+        band_width = min_band + F.softplus(self.band_head(hidden).squeeze(-1))
+        return trade_logits, target_mean, band_width, inventory_t.squeeze(-1)
 
-        if temperature != 1.0:
-            logits = logits / temperature
+    def target_std(self) -> torch.Tensor:
+        """Shared exploration std for target inventory sampling."""
+        min_std = float(getattr(self, "min_target_std", 0.05))
+        max_std = float(getattr(self, "max_target_std", 0.35))
+        std = torch.exp(self.target_log_std)
+        return std.clamp(min=min_std, max=max_std)
 
-        if self.unimix_ratio > 0.0:
-            probs = F.softmax(logits, dim=-1)
-            probs = probs * (1.0 - self.unimix_ratio) + self.unimix_ratio / self.act_dim
-            return Categorical(probs=probs), trade_logits, band_width
+    def _nearest_action_idx(self, inventory: torch.Tensor) -> torch.Tensor:
+        action_values = _ACTIONS_T.to(device=inventory.device, dtype=inventory.dtype)
+        return torch.argmin(torch.abs(inventory.unsqueeze(-1) - action_values), dim=-1)
 
-        return Categorical(logits=logits), trade_logits, band_width
+    def _step_limited_target(self, current: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        max_position_step = float(getattr(self, "max_position_step", 10.0))
+        if max_position_step >= 10.0:
+            return target
+        delta = (target - current).clamp(min=-max_position_step, max=max_position_step)
+        return current + delta
 
-    def forward(
+    def execute_controller(
         self,
-        z: torch.Tensor,
-        h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
-        temperature: float = 1.0,
-    ) -> Categorical:
-        """潜在表現から行動分布を返す."""
-        dist, _, _ = self.policy_outputs(
-            z, h, inventory=inventory, regime=regime, temperature=temperature
-        )
-        return dist
-
-    def trade_logits(
-        self,
-        z: torch.Tensor,
-        h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
-    ) -> torch.Tensor:
-        """trade / hold の logit を返す."""
-        _, trade_logits, _ = self.policy_outputs(z, h, inventory=inventory, regime=regime)
-        return trade_logits
-
-    def band_width(
-        self,
-        z: torch.Tensor,
-        h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
-    ) -> torch.Tensor:
-        """learned no-trade band 幅を返す."""
-        _, _, band_width = self.policy_outputs(z, h, inventory=inventory, regime=regime)
-        return band_width
+        trade_signal: torch.Tensor,
+        target_inventory: torch.Tensor,
+        band_width: torch.Tensor,
+        current_inventory: torch.Tensor,
+        trade_threshold: float = 0.5,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Controller 出力を inventory と discrete action に変換する."""
+        target_gap = torch.abs(target_inventory - current_inventory)
+        will_trade = (trade_signal >= trade_threshold) & (target_gap > band_width)
+        bounded_target = self._step_limited_target(current_inventory, target_inventory)
+        next_inventory = torch.where(will_trade, bounded_target, current_inventory).clamp(min=-1.0, max=1.0)
+        action_idx = self._nearest_action_idx(next_inventory)
+        snapped_inventory = _ACTIONS_T.to(device=next_inventory.device, dtype=next_inventory.dtype)[action_idx]
+        return snapped_inventory, action_idx
 
     def get_action(
         self,
         z: torch.Tensor,
         h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """行動サンプル・log_prob・entropy を返す.
+        """行動サンプル・log_prob・entropy を返す."""
+        trade_logits, target_mean, band_width, current_inventory = self.controller_outputs(
+            z, h, inventory=inventory, regime=regime
+        )
+        trade_dist = Bernoulli(logits=trade_logits)
+        target_dist = Normal(target_mean, self.target_std().to(device=target_mean.device, dtype=target_mean.dtype))
 
-        Returns:
-            action: (...,) 行動インデックス
-            log_prob: (...,) 対数確率
-            entropy: (...,) エントロピー
-        """
-        dist = self.forward(z, h, inventory=inventory, regime=regime)
-        action = dist.sample()
-        return action, dist.log_prob(action), dist.entropy()
+        trade_sample = trade_dist.sample()
+        raw_target = target_dist.rsample()
+        target_sample = raw_target.clamp(min=-1.0, max=1.0)
+
+        next_inventory, action_idx = self.execute_controller(
+            trade_signal=trade_sample,
+            target_inventory=target_sample,
+            band_width=band_width,
+            current_inventory=current_inventory,
+            trade_threshold=0.5,
+        )
+        trade_log_prob = trade_dist.log_prob(trade_sample)
+        target_log_prob = target_dist.log_prob(target_sample) * trade_sample
+        log_prob = trade_log_prob + target_log_prob
+        entropy = trade_dist.entropy() + target_dist.entropy() * trade_dist.probs
+        _ = next_inventory
+        return action_idx, log_prob, entropy
 
     @torch.no_grad()
     def act_greedy(
         self,
         z: torch.Tensor,
         h: torch.Tensor,
-        inventory: "torch.Tensor | None" = None,
-        regime: "torch.Tensor | None" = None,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
         temperature: float = 1.0,
     ) -> torch.Tensor:
-        """最頻値行動を返す（推論時 greedy）."""
-        dist = self.forward(z, h, inventory=inventory, regime=regime, temperature=temperature)
-        return dist.probs.argmax(dim=-1)
+        """greedy execution に対応する discrete action index を返す."""
+        del temperature
+        trade_logits, target_mean, band_width, current_inventory = self.controller_outputs(
+            z, h, inventory=inventory, regime=regime
+        )
+        trade_prob = torch.sigmoid(trade_logits)
+        _, action_idx = self.execute_controller(
+            trade_signal=trade_prob,
+            target_inventory=target_mean,
+            band_width=band_width,
+            current_inventory=current_inventory,
+            trade_threshold=float(getattr(self, "infer_trade_threshold", 0.5)),
+        )
+        return action_idx
 
     @torch.no_grad()
     def predict_positions(
         self,
-        z_np: "np.ndarray",
-        h_np: "np.ndarray",
-        regime_np: "np.ndarray | None" = None,
+        z_np: np.ndarray,
+        h_np: np.ndarray,
+        regime_np: np.ndarray | None = None,
         device: str = "cpu",
-        temperature: "float | None" = None,
-    ) -> "np.ndarray":
-        """numpy 配列から ポジション比率列を返す.
-
-        Args:
-            z_np: (T, z_dim)
-            h_np: (T, h_dim)
-            regime_np: (T, regime_dim) レジーム確率ベクトル（省略可）
-            temperature: softmax 温度（None のとき self.infer_temperature を使用）
-
-        Returns:
-            positions: (T,) ∈ {-1, -0.5, 0, 0.5, 1}
-        """
-        t = temperature if temperature is not None else getattr(self, "infer_temperature", 1.0)
-        switch_margin = float(getattr(self, "switch_margin", 0.0))
-        max_position_step = float(getattr(self, "max_position_step", 10.0))
+        temperature: float | None = None,
+    ) -> np.ndarray:
+        """numpy 配列からポジション比率列を返す."""
+        del temperature
         was_training = self.training
         self.eval()
         dev = torch.device(device)
@@ -209,39 +199,20 @@ class Actor(nn.Module):
         regime = None
         if regime_np is not None and self.regime_dim > 0:
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
+
         action_indices = np.zeros(len(z_np), dtype=np.int64)
-        prev_idx = int(np.where(ACTIONS == 0.0)[0][0])
+        prev_inventory = torch.zeros(1, 1, dtype=torch.float32, device=dev)
         for i in range(len(z_np)):
-            inv_t = torch.tensor([[ACTIONS[prev_idx]]], dtype=torch.float32, device=dev)
-            z_t = z[i:i + 1]
-            h_t = h[i:i + 1]
             reg_t = regime[i:i + 1] if regime is not None else None
-            dist, trade_logits, band_width = self.policy_outputs(
-                z_t, h_t, inventory=inv_t, regime=reg_t, temperature=t
+            action_idx = self.act_greedy(
+                z[i:i + 1],
+                h[i:i + 1],
+                inventory=prev_inventory,
+                regime=reg_t,
             )
-            p = dist.probs.squeeze(0).detach().cpu().numpy()
-            best_idx = int(np.argmax(p))
-            chosen_idx = best_idx
-            trade_prob = float(torch.sigmoid(trade_logits).item())
-            band = float(band_width.item())
-            trade_threshold = float(getattr(self, "infer_trade_threshold", 0.5))
-            target_gap = float(abs(ACTIONS[best_idx] - ACTIONS[prev_idx]))
+            action_indices[i] = int(action_idx.item())
+            prev_inventory = _ACTIONS_T.to(device=dev).to(dtype=torch.float32)[action_idx].reshape(1, 1)
 
-            if trade_prob < trade_threshold or target_gap <= band:
-                chosen_idx = prev_idx
-
-            if chosen_idx != prev_idx and switch_margin > 0.0:
-                if p[best_idx] - p[prev_idx] < switch_margin:
-                    chosen_idx = prev_idx
-
-            if chosen_idx != prev_idx and max_position_step < 10.0:
-                prev_pos = ACTIONS[prev_idx]
-                allowed = np.where(np.abs(ACTIONS - prev_pos) <= max_position_step + 1e-8)[0]
-                if chosen_idx not in allowed:
-                    chosen_idx = int(allowed[np.argmax(p[allowed])])
-
-            action_indices[i] = chosen_idx
-            prev_idx = chosen_idx
         if was_training:
             self.train()
         return ACTIONS[action_indices]

@@ -115,6 +115,7 @@ class ImagACTrainer:
         self.max_steps = ac_cfg.get("max_steps", 200_000)
         self.grad_clip = ac_cfg.get("grad_clip", 100.0)
         self.log_interval = cfg.get("logging", {}).get("log_interval", 1000)
+        self.target_aux_coef = ac_cfg.get("target_aux_coef", 1.0)
         self.trade_aux_coef = ac_cfg.get("trade_aux_coef", 0.5)
         self.band_aux_coef = ac_cfg.get("band_aux_coef", 0.25)
 
@@ -370,17 +371,27 @@ class ImagACTrainer:
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
         inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
-        dist, trade_logits, band_width = self.actor.policy_outputs(
+        trade_logits, target_mean, band_width, current_inventory = self.actor.controller_outputs(
             self._oracle_z[idx],
             self._oracle_h[idx],
             inventory=inventory_batch,
             regime=regime_batch,
         )
-        loss = -dist.log_prob(self._oracle_actions[idx]).mean()
-        if inventory_batch is not None and self.trade_aux_coef > 0.0:
-            oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=inventory_batch.dtype)[self._oracle_actions[idx]]
-            target_gap = torch.abs(oracle_pos - inventory_batch)
-            trade_targets = (target_gap > 1e-8).float()
+        oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=current_inventory.dtype)[self._oracle_actions[idx]]
+        target_gap = torch.abs(oracle_pos - current_inventory)
+        trade_targets = (target_gap > 1e-8).float()
+
+        target_loss = F.smooth_l1_loss(target_mean, oracle_pos, reduction="none")
+        if self._oracle_trade_pos_weight is not None:
+            target_w = torch.where(
+                trade_targets > 0.5,
+                self._oracle_trade_pos_weight.to(device=target_loss.device, dtype=target_loss.dtype),
+                torch.ones_like(target_loss),
+            )
+            target_loss = target_loss * target_w
+
+        loss = self.target_aux_coef * target_loss.mean()
+        if self.trade_aux_coef > 0.0:
             trade_loss = F.binary_cross_entropy_with_logits(
                 trade_logits,
                 trade_targets,
@@ -388,9 +399,11 @@ class ImagACTrainer:
             )
             loss = loss + self.trade_aux_coef * trade_loss
             if self.band_aux_coef > 0.0:
-                direction = trade_targets * 2.0 - 1.0
-                band_margin = direction * (target_gap - band_width)
-                band_penalty = F.softplus(-band_margin)
+                trade_margin = 0.05
+                hold_band_min = 0.05
+                trade_penalty = F.softplus(band_width - (target_gap - trade_margin).clamp(min=0.0))
+                hold_penalty = F.softplus(hold_band_min - band_width)
+                band_penalty = torch.where(trade_targets > 0.5, trade_penalty, hold_penalty)
                 if self._oracle_trade_pos_weight is not None:
                     band_penalty = torch.where(
                         trade_targets > 0.5,

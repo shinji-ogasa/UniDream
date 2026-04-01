@@ -284,8 +284,10 @@ def run_fold(
     )
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
     actor.infer_trade_threshold = ac_cfg.get("infer_trade_threshold", 0.5)
-    actor.switch_margin = ac_cfg.get("switch_margin", 0.0)
     actor.max_position_step = ac_cfg.get("max_position_step", 10.0)
+    actor.min_band = ac_cfg.get("min_band", 0.02)
+    actor.min_target_std = ac_cfg.get("min_target_std", 0.05)
+    actor.max_target_std = ac_cfg.get("max_target_std", 0.35)
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC — loading checkpoint: {bc_path}")
@@ -293,6 +295,7 @@ def run_fold(
             actor=actor,
             z_dim=ensemble.get_z_dim(),
             h_dim=ensemble.get_d_model(),
+            target_aux_coef=bc_cfg.get("target_aux_coef", 1.0),
             trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
             band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
             device=device,
@@ -313,6 +316,7 @@ def run_fold(
                 entropy_coef=bc_cfg.get("entropy_coef", 0.0),
                 chunk_size=bc_cfg.get("chunk_size", 1),
                 class_balanced=bc_cfg.get("class_balanced", False),
+                target_aux_coef=bc_cfg.get("target_aux_coef", 1.0),
                 trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
                 band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
                 device=device,
