@@ -371,21 +371,42 @@ def run_fold(
             else:
                 z_val_fixed = h_val_fixed = None
 
-            # Val backtest function — used for AC checkpoint selection
-            def _val_eval() -> float:
-                if z_val_fixed is None:
-                    return -float("inf")
-                pos = actor.predict_positions(
-                    z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
-                )
-                T_min = min(len(val_returns_arr), len(pos))
-                return Backtest(
-                    val_returns_arr[:T_min], pos[:T_min],
-                    spread_bps=costs_cfg.get("spread_bps", 5.0),
-                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                    interval=cfg.get("data", {}).get("interval", "15m"),
-                ).run().sharpe
+    # Val backtest function — used for AC checkpoint selection
+    def _val_eval() -> tuple[float, str]:
+        if z_val_fixed is None:
+            return -float("inf"), "raw=-inf score=-inf"
+        pos = actor.predict_positions(
+            z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
+        )
+        T_min = min(len(val_returns_arr), len(pos))
+        metrics = Backtest(
+            val_returns_arr[:T_min], pos[:T_min],
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+            interval=cfg.get("data", {}).get("interval", "15m"),
+        ).run()
+        stats = _action_stats(pos[:T_min])
+
+        score = metrics.sharpe
+        penalty = 0.0
+        if stats["flat"] >= 0.80:
+            penalty += 50.0
+        if stats["long"] >= 0.85:
+            penalty += 40.0
+        if stats["short"] >= 0.85:
+            penalty += 40.0
+        if stats["avg_hold"] < 2.0:
+            penalty += 10.0
+        if stats["switches"] == 0:
+            penalty += 10.0
+
+        score -= penalty
+        label = (
+            f"raw={metrics.sharpe:.3f} score={score:.3f} "
+            f"long={stats['long']:.0%} short={stats['short']:.0%} flat={stats['flat']:.0%}"
+        )
+        return score, label
 
             ac_max_steps = ac_cfg.get("max_steps", 200_000)
             if ac_trainer.global_step >= ac_max_steps:
@@ -397,9 +418,9 @@ def run_fold(
                 else:
                     print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
 
-                    # BC-only val Sharpe (checkpoint selection のベースライン)
-                    bc_val_sharpe = _val_eval()
-                    print(f"[AC] BC-only val Sharpe: {bc_val_sharpe:.3f}")
+                    # BC-only val score (checkpoint selection のベースライン)
+                    bc_val_sharpe, bc_val_label = _val_eval()
+                    print(f"[AC] BC-only val score: {bc_val_label}")
                     if z_val_fixed is not None:
                         _bc_pos = actor.predict_positions(
                             z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device

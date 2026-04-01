@@ -673,7 +673,11 @@ class ImagACTrainer:
                         break
 
                 if val_eval_fn is not None:
-                    val_sharpe = val_eval_fn()
+                    val_result = val_eval_fn()
+                    if isinstance(val_result, tuple):
+                        val_sharpe, val_label = val_result
+                    else:
+                        val_sharpe, val_label = val_result, f"{val_result:.3f}"
                     marker = ""
                     if val_sharpe > best_val_sharpe:
                         best_val_sharpe = val_sharpe
@@ -682,7 +686,7 @@ class ImagACTrainer:
                         _no_improve_count = 0
                     else:
                         _no_improve_count += 1
-                    print(f"[AC] Val Sharpe: {val_sharpe:.3f}{marker}")
+                    print(f"[AC] Val Score: {val_label}{marker}")
 
                     # Val patience early stop チェック
                     if self.val_patience > 0 and _no_improve_count >= self.val_patience:
