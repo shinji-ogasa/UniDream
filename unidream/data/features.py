@@ -125,6 +125,67 @@ def rolling_zscore_df(df: pd.DataFrame, window_bars: int) -> pd.DataFrame:
     return df.apply(lambda col: rolling_zscore(col, window_bars))
 
 
+# --- Realized Volatility（マルチスケール）---
+
+def compute_realized_vol(
+    close: pd.Series,
+    windows_bars: list[int],
+    interval: str = "15m",
+) -> pd.DataFrame:
+    """マルチスケール Realized Volatility を計算する（shift(1) 済み）.
+
+    RV = rolling std of log returns over window.
+    各ウィンドウは **バー数** で指定する。
+
+    Args:
+        close: 終値系列
+        windows_bars: ウィンドウサイズのリスト（バー数）
+        interval: 足種（列名生成用）
+
+    Returns:
+        DataFrame with columns like ['rv_4', 'rv_16', 'rv_96']
+    """
+    log_ret = np.log(close / close.shift(1))
+    cols = {}
+    for w in windows_bars:
+        cols[f"rv_{w}"] = log_ret.rolling(w, min_periods=w // 2).std()
+    df = pd.DataFrame(cols, index=close.index)
+    return df.shift(1)
+
+
+# --- Funding Rate / OI 前処理 ---
+
+def align_funding_rate(
+    funding_df: pd.DataFrame,
+    target_index: pd.DatetimeIndex,
+) -> pd.Series:
+    """Funding rate を target 周期に forward fill する（shift(1) 済み）.
+
+    Funding rate は 8h ごとに更新。15m 足に対して最新既知の値を使う。
+    """
+    if funding_df is None or funding_df.empty:
+        return pd.Series(0.0, index=target_index, name="funding_rate")
+    fr = funding_df["funding_rate"].reindex(target_index, method="ffill")
+    fr = fr.fillna(0.0)
+    return fr.shift(1).rename("funding_rate")
+
+
+def compute_oi_change(
+    oi_df: pd.DataFrame,
+    target_index: pd.DatetimeIndex,
+) -> pd.Series:
+    """OI 変化率を計算し target 周期にアラインする（shift(1) 済み）.
+
+    OI の対数変化率を使用（大きな値でも安定）。
+    """
+    if oi_df is None or oi_df.empty:
+        return pd.Series(0.0, index=target_index, name="oi_change")
+    oi = oi_df["open_interest"].reindex(target_index, method="ffill")
+    oi = oi.fillna(method="bfill").fillna(method="ffill")
+    oi_change = np.log(oi / oi.shift(1)).fillna(0.0)
+    return oi_change.shift(1).rename("oi_change")
+
+
 # --- メインの特徴量生成 ---
 
 def compute_features(
@@ -136,6 +197,9 @@ def compute_features(
     macd_slow: int = 26,
     macd_signal: int = 9,
     atr_period: int = 14,
+    funding_df: "pd.DataFrame | None" = None,
+    oi_df: "pd.DataFrame | None" = None,
+    rv_windows_hours: list[int] | None = None,
 ) -> pd.DataFrame:
     """OHLCV DataFrame から特徴量を計算して結合する.
 
@@ -146,14 +210,16 @@ def compute_features(
         df: columns=[open, high, low, close, volume]
         zscore_window_days: rolling z-score の窓サイズ（**日数**）
         interval: 足種（バー数変換に使用）
+        funding_df: Funding rate DataFrame（省略時はスキップ）
+        oi_df: Open Interest DataFrame（省略時はスキップ）
+        rv_windows_hours: Realized Vol のウィンドウ（時間単位、デフォルト [1, 4, 24]）
 
     Returns:
-        特徴量 DataFrame（NaN 行は dropna で除去済み）:
-        [open_ret, high_ret, low_ret, close_ret, vol_ret,
-         rsi, macd, macd_signal, atr_norm_ret, atr]
+        特徴量 DataFrame（NaN 行は dropna で除去済み）
     """
     # 日数 → バー数変換（単位を明確化）
     window_bars = days_to_bars(zscore_window_days, interval)
+    bars_per_hour = BARS_PER_DAY.get(interval, 96) // 24
 
     # --- 対数リターン（shift(1) 込み）---
     open_ret = log_returns(df["open"]).rename("open_ret")
@@ -171,13 +237,32 @@ def compute_features(
     close_ret_raw = np.log(df["close"] / df["close"].shift(1)).shift(1)
     atr_norm_ret = atr_normalize_returns(close_ret_raw, atr / df["close"].shift(1)).rename("atr_norm_ret")
 
-    # --- 結合 ---
-    feat = pd.concat([
+    parts = [
         open_ret, high_ret, low_ret, close_ret, vol_ret,
         rsi, macd_df["macd"], macd_df["macd_signal"],
         atr_norm_ret,
         atr.rename("atr"),
-    ], axis=1)
+    ]
+
+    # --- Realized Volatility（マルチスケール、shift(1) 込み）---
+    if rv_windows_hours is None:
+        rv_windows_hours = [1, 4, 24]
+    rv_windows_bars = [max(2, h * bars_per_hour) for h in rv_windows_hours]
+    rv_df = compute_realized_vol(df["close"], rv_windows_bars, interval=interval)
+    parts.append(rv_df)
+
+    # --- Funding Rate（shift(1) 込み）---
+    if funding_df is not None and not funding_df.empty:
+        fr = align_funding_rate(funding_df, df.index)
+        parts.append(fr)
+
+    # --- OI 変化率（shift(1) 込み）---
+    if oi_df is not None and not oi_df.empty:
+        oi_chg = compute_oi_change(oi_df, df.index)
+        parts.append(oi_chg)
+
+    # --- 結合 ---
+    feat = pd.concat(parts, axis=1)
 
     # --- rolling z-score 正規化（バー数で統一）---
     feat_normalized = rolling_zscore_df(feat, window_bars=window_bars)

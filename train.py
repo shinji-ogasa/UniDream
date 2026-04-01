@@ -28,7 +28,7 @@ import pandas as pd
 import torch
 import yaml
 
-from unidream.data.download import fetch_binance_ohlcv
+from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetch_open_interest_hist
 from unidream.data.features import compute_features, get_raw_returns
 from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset, ACTIONS as _ACTIONS
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
@@ -255,19 +255,12 @@ def run_fold(
         bc_trainer.save(bc_path)
 
     # --------- Step 4: Imagination AC Fine-tune ---------
-    # BC 学習済み actor の予測 action で re-encode し、AC 学習用 h を推論時分布に合わせる。
-    # oracle action で作った h_train は将来情報を含むため分布シフトが起きる。
-    bc_positions = actor.predict_positions(z_train, h_train, device=device)
-    bc_action_indices = np.array([
-        int(np.argmin(np.abs(_ACTIONS - p))) for p in bc_positions
-    ])
-    encoded_ac = wm_trainer.encode_sequence(
-        wfo_dataset.train_features,
-        actions=bc_action_indices,
-        seq_len=seq_len,
-    )
-    z_train_ac = encoded_ac["z"]
-    h_train_ac = encoded_ac["h"]
+    # no-action h（z_train/h_train）を AC でもそのまま使う。
+    # BC-action re-encode は廃止: test/val も no-action h のため、
+    # re-encode すると AC 開始状態が no-action h から外れ、
+    # BC 正則化（_oracle_z/_oracle_h = no-action h）と AC gradient が
+    # 異なる h 分布上で計算されて矛盾した gradient が生じる。
+    # no-action h に統一することで BC train/AC train/val/test が一貫する。
 
     critic = Critic(
         z_dim=ensemble.get_z_dim(),
@@ -298,10 +291,9 @@ def run_fold(
     )
 
     encoded_list = [{
-        "z": z_train_ac,
-        "h": h_train_ac,
+        "z": z_train,
+        "h": h_train,
         "regime": train_regime_probs if train_regime_probs is not None else None,
-        "actions": bc_action_indices,
     }]
 
     # Val encoding を no-action（flat）で一度だけ固定する。
@@ -510,7 +502,7 @@ def main():
     # --------- データ取得・特徴量計算（キャッシュ対応）---------
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
+    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
 
@@ -524,11 +516,29 @@ def main():
         df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
         print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
 
+        # Futures 追加データ（funding rate, OI）
+        funding_df = None
+        oi_df = None
+        try:
+            print("[Data] Fetching funding rate...")
+            funding_df = fetch_funding_rate(symbol, args.start, args.end)
+            print(f"  Funding rate: {len(funding_df)} records")
+        except Exception as e:
+            print(f"  Funding rate skipped: {e}")
+        try:
+            print("[Data] Fetching open interest...")
+            oi_df = fetch_open_interest_hist(symbol, interval, args.start, args.end)
+            print(f"  Open interest: {len(oi_df)} records")
+        except Exception as e:
+            print(f"  Open interest skipped: {e}")
+
         print("[Data] Computing features...")
         features_df = compute_features(
             df,
             zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
             interval=interval,
+            funding_df=funding_df,
+            oi_df=oi_df,
         )
         raw_returns = get_raw_returns(df)
         common_idx = features_df.index.intersection(raw_returns.index)

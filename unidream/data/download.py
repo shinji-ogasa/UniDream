@@ -100,6 +100,113 @@ def fetch_binance_ohlcv(
     return df
 
 
+BINANCE_FUTURES_URL = "https://fapi.binance.com"
+
+
+def fetch_funding_rate(
+    symbol: str,
+    start: str | datetime,
+    end: str | datetime,
+    base_url: str = BINANCE_FUTURES_URL,
+    sleep_sec: float = 0.1,
+) -> pd.DataFrame:
+    """Binance Futures から過去の funding rate を取得する.
+
+    8 時間ごとのデータを返す。15m 足への forward fill は呼び出し側で行う。
+
+    Returns:
+        DataFrame (index=datetime, columns=['funding_rate'])
+    """
+    start_ms = _parse_timestamp(start)
+    end_ms = _parse_timestamp(end)
+    all_rows: list[dict] = []
+    current_start = start_ms
+
+    while current_start < end_ms:
+        params = {
+            "symbol": symbol,
+            "startTime": current_start,
+            "endTime": end_ms,
+            "limit": MAX_LIMIT,
+        }
+        resp = requests.get(
+            base_url + "/fapi/v1/fundingRate", params=params, timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data:
+            break
+        all_rows.extend(data)
+        current_start = data[-1]["fundingTime"] + 1
+        if len(data) < MAX_LIMIT:
+            break
+        time.sleep(sleep_sec)
+
+    if not all_rows:
+        return pd.DataFrame(columns=["funding_rate"])
+
+    df = pd.DataFrame(all_rows)
+    df["time"] = pd.to_datetime(df["fundingTime"], unit="ms")
+    df["funding_rate"] = df["fundingRate"].astype(float)
+    df = df.set_index("time")[["funding_rate"]]
+    df = df[df.index < pd.Timestamp(end_ms, unit="ms")]
+    return df
+
+
+def fetch_open_interest_hist(
+    symbol: str,
+    period: str,
+    start: str | datetime,
+    end: str | datetime,
+    base_url: str = BINANCE_FUTURES_URL,
+    sleep_sec: float = 0.5,
+) -> pd.DataFrame:
+    """Binance Futures から OI 履歴を取得する.
+
+    Args:
+        period: 集計間隔 ("5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d")
+
+    Returns:
+        DataFrame (index=datetime, columns=['open_interest'])
+    """
+    start_ms = _parse_timestamp(start)
+    end_ms = _parse_timestamp(end)
+    all_rows: list[dict] = []
+    current_start = start_ms
+    limit = 500  # this endpoint max
+
+    while current_start < end_ms:
+        params = {
+            "symbol": symbol,
+            "period": period,
+            "startTime": current_start,
+            "endTime": end_ms,
+            "limit": limit,
+        }
+        resp = requests.get(
+            base_url + "/futures/data/openInterestHist", params=params, timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data:
+            break
+        all_rows.extend(data)
+        current_start = data[-1]["timestamp"] + 1
+        if len(data) < limit:
+            break
+        time.sleep(sleep_sec)
+
+    if not all_rows:
+        return pd.DataFrame(columns=["open_interest"])
+
+    df = pd.DataFrame(all_rows)
+    df["time"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df["open_interest"] = df["sumOpenInterest"].astype(float)
+    df = df.set_index("time")[["open_interest"]]
+    df = df[df.index < pd.Timestamp(end_ms, unit="ms")]
+    return df
+
+
 def fetch_multi_symbol(
     symbols: list[str],
     interval: str,

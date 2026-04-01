@@ -559,13 +559,11 @@ class ImagACTrainer:
         else:
             all_regime = None
 
-        # context action 配列: oracle actions を使用（WM は oracle context で学習済みのため in-distribution）
-        # BC actions に変えると WM が OOD になり imagination rollout の品質が大幅低下する
-        context_actions_np = (
-            self._oracle_actions.cpu().numpy()
-            if self._oracle_actions is not None
-            else None
-        )
+        # context action 配列: flat（no-action）で統一する。
+        # oracle actions を使うと WM は oracle context 空間で imagination するが、
+        # test 時は no-action context のため train/test 分布が大きくずれる。
+        # no-action context に統一することで imagination の分布を test と揃える。
+        context_actions_np = None
         flat_action = 2  # action index for position=0.0 (flat)
 
         # val Sharpe tracking for best checkpoint selection
