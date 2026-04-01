@@ -123,6 +123,8 @@ ac:
   target_aux_coef: 1.25
   trade_aux_coef: 0.25
   band_aux_coef: 0.10
+  turnover_coef: 0.15
+  flow_change_coef: 0.05
   actor_lr: 1.0e-4
   online_wm_interval: 2000  # 本番 5000 → 2000
   online_wm_window_days: 30

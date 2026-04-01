@@ -110,6 +110,8 @@ ac:
   target_aux_coef: 1.50
   trade_aux_coef: 0.25
   band_aux_coef: 0.10
+  turnover_coef: 0.15
+  flow_change_coef: 0.05
   actor_lr: 5.0e-5
   online_wm_interval: 200   # AC steps ごとに WM をオンライン更新
   online_wm_window_days: 30 # 更新に使う直近日数

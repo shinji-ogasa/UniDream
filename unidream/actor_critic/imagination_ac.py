@@ -118,6 +118,8 @@ class ImagACTrainer:
         self.target_aux_coef = ac_cfg.get("target_aux_coef", 1.0)
         self.trade_aux_coef = ac_cfg.get("trade_aux_coef", 0.5)
         self.band_aux_coef = ac_cfg.get("band_aux_coef", 0.25)
+        self.turnover_coef = ac_cfg.get("turnover_coef", 0.0)
+        self.flow_change_coef = ac_cfg.get("flow_change_coef", 0.0)
 
         # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
         # WM は net_return（コスト控除済み）を予測するため、
@@ -438,8 +440,14 @@ class ImagACTrainer:
 
         zs = rollout["zs"]            # (B, H, z_dim)
         hs = rollout["hs"]            # (B, H, h_dim)
+        inventories = rollout["inventories"]  # (B, H)
         net_returns = rollout["rewards"]  # (B, H) 原スケール（WM 予測の net_return）
         dones = rollout["dones"]      # (B, H)
+        next_inventory = _AC_ACTIONS_T.to(device=zs.device, dtype=zs.dtype)[rollout["actions"]]
+        delta_inventory = torch.abs(next_inventory - inventories)
+        flow_change = torch.zeros_like(delta_inventory)
+        if self.horizon > 1:
+            flow_change[:, 1:] = torch.abs(delta_inventory[:, 1:] - delta_inventory[:, :-1])
         log_probs = rollout["log_probs"]
         entropies = rollout["entropies"]
         last_z = rollout["last_z"]
@@ -454,6 +462,11 @@ class ImagACTrainer:
             rewards_norm = net_returns / self.reward_ema.scale          # EMA 正規化（DSR の近似）
             drawdown = self._compute_drawdown(net_returns)
             rewards_for_ac = rewards_norm - self.beta * drawdown        # (B, H) 原スケール
+
+        if self.turnover_coef > 0.0:
+            rewards_for_ac = rewards_for_ac - self.turnover_coef * delta_inventory
+        if self.flow_change_coef > 0.0:
+            rewards_for_ac = rewards_for_ac - self.flow_change_coef * flow_change
 
         # --- Slow Critic の value 推定（原スケール）---
         zs_flat = zs.reshape(B * self.horizon, -1)
