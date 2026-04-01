@@ -80,6 +80,11 @@ def _stage_idx(stage: str) -> int:
     return _STAGE_TO_INDEX[stage]
 
 
+def _benchmark_positions(length: int, cfg: dict) -> np.ndarray:
+    benchmark_pos = cfg.get("reward", {}).get("benchmark_position", 1.0)
+    return np.full(length, benchmark_pos, dtype=np.float64)
+
+
 def resolve_costs(cfg: dict, cost_profile: str | None = None) -> tuple[dict, str]:
     """Resolve trading costs from either legacy `costs` or named `cost_profiles`."""
     resolved_cfg = dict(cfg)
@@ -387,10 +392,13 @@ def run_fold(
                     fee_rate=costs_cfg.get("fee_rate", 0.0004),
                     slippage_bps=costs_cfg.get("slippage_bps", 2.0),
                     interval=cfg.get("data", {}).get("interval", "15m"),
+                    benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
                 stats = _action_stats(pos[:T_min])
 
-                score = metrics.sharpe
+                alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
+                sharpe_delta = metrics.sharpe_delta or 0.0
+                score = alpha_excess + 2.0 * sharpe_delta
                 penalty = 0.0
                 if stats["flat"] >= 0.80:
                     penalty += 50.0
@@ -405,7 +413,7 @@ def run_fold(
 
                 score -= penalty
                 label = (
-                    f"raw={metrics.sharpe:.3f} score={score:.3f} "
+                    f"alpha={alpha_excess:+.2f}pt sharpeΔ={sharpe_delta:+.3f} score={score:.3f} "
                     f"long={stats['long']:.0%} short={stats['short']:.0%} flat={stats['flat']:.0%}"
                 )
                 return score, label
@@ -434,6 +442,7 @@ def run_fold(
                             fee_rate=costs_cfg.get("fee_rate", 0.0004),
                             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
                             interval=cfg.get("data", {}).get("interval", "15m"),
+                            benchmark_positions=_benchmark_positions(_bc_T, cfg),
                         ).run()
                         _bc_attr = pnl_attribution(
                             val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
@@ -444,6 +453,7 @@ def run_fold(
                         _bc_s = _action_stats(_bc_pos[:_bc_T])
                         print(f"  BC val dist: {_fmt_action_stats(_bc_s)}")
                         print(f"  BC val: TotalRet={_bc_m.total_return:.3f}  "
+                              f"AlphaExcess={100.0 * (_bc_m.alpha_excess or 0.0):+.2f}pt  "
                               f"long={_bc_attr['long_gross']:+.4f}  "
                               f"short={_bc_attr['short_gross']:+.4f}  "
                               f"cost={_bc_attr['cost_total']:.4f}")
@@ -534,6 +544,7 @@ def run_fold(
         fee_rate=costs_cfg.get("fee_rate", 0.0004),
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
         interval=cfg.get("data", {}).get("interval", "15m"),
+        benchmark_positions=_benchmark_positions(T_min, cfg),
     )
     metrics = bt.run()
 
@@ -549,6 +560,9 @@ def run_fold(
     print(f"  MaxDD:    {metrics.max_drawdown:.3f}")
     print(f"  Calmar:   {metrics.calmar:.3f}")
     print(f"  TotalRet: {metrics.total_return:.4f}")
+    if metrics.alpha_excess is not None:
+        print(f"  AlphaEx:  {100.0 * metrics.alpha_excess:+.2f} pt/yr")
+        print(f"  SharpeΔ:  {(metrics.sharpe_delta or 0.0):+.3f}")
     print(f"  PnL attr: long={_test_attr['long_gross']:+.4f}  "
           f"short={_test_attr['short_gross']:+.4f}  "
           f"cost={_test_attr['cost_total']:.4f}  "

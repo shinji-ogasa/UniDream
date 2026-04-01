@@ -44,8 +44,14 @@ class BacktestMetrics:
     max_drawdown: float
     calmar: float
     total_return: float
+    annual_return: float
     n_trades: int
     avg_holding: float
+    benchmark_total_return: float | None = None
+    benchmark_annual_return: float | None = None
+    benchmark_sharpe: float | None = None
+    alpha_excess: float | None = None
+    sharpe_delta: float | None = None
     equity_curve: np.ndarray = field(repr=False)
     pnl_series: np.ndarray = field(repr=False)
 
@@ -56,8 +62,14 @@ class BacktestMetrics:
             "max_drawdown": self.max_drawdown,
             "calmar": self.calmar,
             "total_return": self.total_return,
+            "annual_return": self.annual_return,
             "n_trades": self.n_trades,
             "avg_holding": self.avg_holding,
+            "benchmark_total_return": self.benchmark_total_return,
+            "benchmark_annual_return": self.benchmark_annual_return,
+            "benchmark_sharpe": self.benchmark_sharpe,
+            "alpha_excess": self.alpha_excess,
+            "sharpe_delta": self.sharpe_delta,
         }
 
 
@@ -135,6 +147,14 @@ def compute_calmar(total_return: float, max_dd: float, period_years: float = 1.0
     return float((total_return / period_years) / abs(max_dd))
 
 
+def compute_annual_return(total_return: float, period_years: float) -> float:
+    """累積リターンから年率リターンを計算する."""
+    if period_years <= 0:
+        return 0.0
+    equity_end = max(1e-12, 1.0 + total_return)
+    return float(equity_end ** (1.0 / period_years) - 1.0)
+
+
 class Backtest:
     """バックテスト実行クラス.
 
@@ -155,6 +175,7 @@ class Backtest:
         fee_rate: float = 0.0004,
         slippage_bps: float = 2.0,
         interval: str = "15m",
+        benchmark_positions: np.ndarray | None = None,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -163,6 +184,14 @@ class Backtest:
         self.fee_rate = fee_rate
         self.slippage_bps = slippage_bps
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
+        self.benchmark_positions = (
+            np.asarray(benchmark_positions, dtype=np.float64)
+            if benchmark_positions is not None else None
+        )
+        if self.benchmark_positions is not None:
+            assert len(self.benchmark_positions) == len(self.positions), (
+                "benchmark_positions と positions の長さが一致しない"
+            )
 
     def run(self) -> BacktestMetrics:
         """バックテストを実行してメトリクスを返す."""
@@ -176,6 +205,7 @@ class Backtest:
         max_dd = compute_max_drawdown(equity)
 
         period_years = len(pnl) / self.ann_factor
+        annual_return = compute_annual_return(total_return, period_years)
         calmar = compute_calmar(total_return, max_dd, period_years)
 
         # トレード数・平均保有期間
@@ -194,14 +224,40 @@ class Backtest:
         holding_lengths.append(current_len)
         avg_holding = float(np.mean(holding_lengths)) if holding_lengths else 0.0
 
+        benchmark_total_return = None
+        benchmark_annual_return = None
+        benchmark_sharpe = None
+        alpha_excess = None
+        sharpe_delta = None
+        if self.benchmark_positions is not None:
+            bench_pnl = compute_pnl(
+                self.returns,
+                self.benchmark_positions,
+                self.spread_bps,
+                self.fee_rate,
+                self.slippage_bps,
+            )
+            bench_equity = np.exp(np.cumsum(bench_pnl))
+            benchmark_total_return = float(bench_equity[-1] - 1.0)
+            benchmark_annual_return = compute_annual_return(benchmark_total_return, period_years)
+            benchmark_sharpe = compute_sharpe(bench_pnl, self.ann_factor)
+            alpha_excess = annual_return - benchmark_annual_return
+            sharpe_delta = sharpe - benchmark_sharpe
+
         return BacktestMetrics(
             sharpe=sharpe,
             sortino=sortino,
             max_drawdown=max_dd,
             calmar=calmar,
             total_return=total_return,
+            annual_return=annual_return,
             n_trades=n_trades,
             avg_holding=avg_holding,
+            benchmark_total_return=benchmark_total_return,
+            benchmark_annual_return=benchmark_annual_return,
+            benchmark_sharpe=benchmark_sharpe,
+            alpha_excess=alpha_excess,
+            sharpe_delta=sharpe_delta,
             equity_curve=equity,
             pnl_series=pnl,
         )

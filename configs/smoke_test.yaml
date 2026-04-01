@@ -40,6 +40,8 @@ oracle:
 reward:
   beta: 0.1
   dsr_eta: 0.01
+  mode: "excess_bh"
+  benchmark_position: 1.0
 
 world_model:
   encoder_hidden: 256

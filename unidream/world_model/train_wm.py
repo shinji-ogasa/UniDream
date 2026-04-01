@@ -147,6 +147,9 @@ class WorldModelTrainer:
             + costs_cfg.get("fee_rate", 0.0004)
             + (costs_cfg.get("slippage_bps", 2.0) / 10000)
         )
+        reward_cfg = cfg.get("reward", {})
+        self.reward_mode = reward_cfg.get("mode", "absolute")
+        self.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
 
         # Auxiliary heads（スケール > 0 の場合のみ構築）
         z_dim = ensemble.get_z_dim()
@@ -207,7 +210,11 @@ class WorldModelTrainer:
 
         delta_pos = (positions - prev_positions).abs()
         costs = self.cost_rate * delta_pos                           # (B, T)
-        return positions * raw_returns - costs                       # (B, T)
+        net_returns = positions * raw_returns - costs               # (B, T)
+        if self.reward_mode == "excess_bh":
+            benchmark_returns = self.benchmark_position * raw_returns
+            return net_returns - benchmark_returns
+        return net_returns
 
     def train_on_dataset(
         self,

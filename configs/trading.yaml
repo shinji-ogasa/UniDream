@@ -45,6 +45,8 @@ oracle:
 reward:
   beta: 0.1                 # ΔDD ペナルティ係数
   dsr_eta: 0.01             # DSR EMA 係数
+  mode: "excess_bh"
+  benchmark_position: 1.0
 
 # --- 世界モデル ---
 world_model:
