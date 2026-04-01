@@ -6,6 +6,7 @@
 出力:
   - target inventory 用 5 行動 logits（Categorical 分布）
   - trade / hold 用 logit
+  - no-trade band 幅
 
 DreamerV3 スタイル: entropy 正則化付き。
 """
@@ -63,6 +64,7 @@ class Actor(nn.Module):
         self.trunk = nn.Sequential(*layers[:-1])
         self.policy_head = layers[-1]
         self.trade_head = nn.Linear(hidden_dim, 1)
+        self.band_head = nn.Linear(hidden_dim, 1)
 
     def _encode_state(
         self,
@@ -92,11 +94,12 @@ class Actor(nn.Module):
         inventory: "torch.Tensor | None" = None,
         regime: "torch.Tensor | None" = None,
         temperature: float = 1.0,
-    ) -> tuple[Categorical, torch.Tensor]:
-        """行動分布と trade logit を返す."""
+    ) -> tuple[Categorical, torch.Tensor, torch.Tensor]:
+        """行動分布と trade logit と no-trade band 幅を返す."""
         hidden = self._encode_state(z, h, inventory=inventory, regime=regime)
         logits = self.policy_head(hidden)
         trade_logits = self.trade_head(hidden).squeeze(-1)
+        band_width = F.softplus(self.band_head(hidden).squeeze(-1))
 
         if temperature != 1.0:
             logits = logits / temperature
@@ -104,9 +107,9 @@ class Actor(nn.Module):
         if self.unimix_ratio > 0.0:
             probs = F.softmax(logits, dim=-1)
             probs = probs * (1.0 - self.unimix_ratio) + self.unimix_ratio / self.act_dim
-            return Categorical(probs=probs), trade_logits
+            return Categorical(probs=probs), trade_logits, band_width
 
-        return Categorical(logits=logits), trade_logits
+        return Categorical(logits=logits), trade_logits, band_width
 
     def forward(
         self,
@@ -117,7 +120,7 @@ class Actor(nn.Module):
         temperature: float = 1.0,
     ) -> Categorical:
         """潜在表現から行動分布を返す."""
-        dist, _ = self.policy_outputs(
+        dist, _, _ = self.policy_outputs(
             z, h, inventory=inventory, regime=regime, temperature=temperature
         )
         return dist
@@ -130,8 +133,19 @@ class Actor(nn.Module):
         regime: "torch.Tensor | None" = None,
     ) -> torch.Tensor:
         """trade / hold の logit を返す."""
-        _, trade_logits = self.policy_outputs(z, h, inventory=inventory, regime=regime)
+        _, trade_logits, _ = self.policy_outputs(z, h, inventory=inventory, regime=regime)
         return trade_logits
+
+    def band_width(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
+        regime: "torch.Tensor | None" = None,
+    ) -> torch.Tensor:
+        """learned no-trade band 幅を返す."""
+        _, _, band_width = self.policy_outputs(z, h, inventory=inventory, regime=regime)
+        return band_width
 
     def get_action(
         self,
@@ -202,16 +216,18 @@ class Actor(nn.Module):
             z_t = z[i:i + 1]
             h_t = h[i:i + 1]
             reg_t = regime[i:i + 1] if regime is not None else None
-            dist, trade_logits = self.policy_outputs(
+            dist, trade_logits, band_width = self.policy_outputs(
                 z_t, h_t, inventory=inv_t, regime=reg_t, temperature=t
             )
             p = dist.probs.squeeze(0).detach().cpu().numpy()
             best_idx = int(np.argmax(p))
             chosen_idx = best_idx
             trade_prob = float(torch.sigmoid(trade_logits).item())
+            band = float(band_width.item())
             trade_threshold = float(getattr(self, "infer_trade_threshold", 0.5))
+            target_gap = float(abs(ACTIONS[best_idx] - ACTIONS[prev_idx]))
 
-            if trade_prob < trade_threshold:
+            if trade_prob < trade_threshold or target_gap <= band:
                 chosen_idx = prev_idx
 
             if chosen_idx != prev_idx and switch_margin > 0.0:

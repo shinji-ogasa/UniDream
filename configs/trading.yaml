@@ -99,6 +99,7 @@ bc:
   chunk_size: 3             # Action Chunking: 3バー分の行動を一括予測（avg_hold=3.3 に合わせる）
   class_balanced: true      # クラス逆頻度重み付き損失（long=100%崩壊防止）
   trade_aux_coef: 0.75      # trade / hold 補助 head を教師ありで安定化
+  band_aux_coef: 0.25       # no-trade band head の符号学習
 
 # --- Actor-Critic ---
 ac:
@@ -108,7 +109,7 @@ ac:
   ac_layers: 2
   actor_dropout: 0.20       # Dropout（過学習防止・OOS 汎化）
   infer_temperature: 1.5    # 推論時 softmax 温度（T>1 で分布平滑化→constant output 防止）
-  infer_trade_threshold: 0.55
+  infer_trade_threshold: 0.50
   # Imagination（金融15分足では WM 予測精度が劣化するため H=5 が現実的）
   horizon: 5
   # λ-return
@@ -125,6 +126,7 @@ ac:
   # TD3+BC 保守的制約
   td3bc_alpha: 2.5
   trade_aux_coef: 0.50
+  band_aux_coef: 0.25
   # 最適化
   actor_lr: 1.0e-4
   online_wm_interval: 5000

@@ -24,6 +24,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from unidream.actor_critic.actor import Actor
 from unidream.data.oracle import ACTIONS
 
+_ACTIONS_T = torch.tensor(ACTIONS, dtype=torch.float32)
+
 
 class SIRLWeightNet(nn.Module):
     """状態依存 BC 重み w(s) を出力するネットワーク（SIRL）.
@@ -89,6 +91,7 @@ class BCPretrainer:
         chunk_size: int = 1,
         class_balanced: bool = False,
         trade_aux_coef: float = 0.5,
+        band_aux_coef: float = 0.25,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -101,6 +104,7 @@ class BCPretrainer:
         self.chunk_size = max(1, chunk_size)
         self.class_balanced = class_balanced
         self.trade_aux_coef = trade_aux_coef
+        self.band_aux_coef = band_aux_coef
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -141,7 +145,9 @@ class BCPretrainer:
         Returns:
             loss: スカラー
         """
-        dist, trade_logits = self.actor.policy_outputs(z, h, inventory=inventory, regime=regime)
+        dist, trade_logits, band_width = self.actor.policy_outputs(
+            z, h, inventory=inventory, regime=regime
+        )
         log_probs = torch.log(dist.probs + 1e-8)  # (B, K)
 
         if soft_labels is not None:
@@ -181,12 +187,9 @@ class BCPretrainer:
                 inventory_prev = inventory.squeeze(-1)
             else:
                 inventory_prev = inventory
-            target_pos = ACTIONS[oracle_actions.detach().cpu().numpy()]
-            trade_targets = torch.tensor(
-                (np.abs(target_pos - inventory_prev.detach().cpu().numpy()) > 1e-8).astype(np.float32),
-                dtype=torch.float32,
-                device=trade_logits.device,
-            )
+            target_pos = _ACTIONS_T.to(device=trade_logits.device, dtype=inventory_prev.dtype)[oracle_actions]
+            target_gap = torch.abs(target_pos - inventory_prev)
+            trade_targets = (target_gap > 1e-8).float()
             trade_bce = F.binary_cross_entropy_with_logits(
                 trade_logits, trade_targets, reduction="none"
             )
@@ -195,6 +198,16 @@ class BCPretrainer:
             else:
                 trade_loss = trade_bce.mean()
             loss = loss + self.trade_aux_coef * trade_loss
+
+            if self.band_aux_coef > 0.0:
+                direction = trade_targets * 2.0 - 1.0
+                band_margin = direction * (target_gap - band_width)
+                band_penalty = F.softplus(-band_margin)
+                if weights is not None:
+                    band_loss = (weights * band_penalty).mean()
+                else:
+                    band_loss = band_penalty.mean()
+                loss = loss + self.band_aux_coef * band_loss
 
         if self.entropy_coef > 0.0:
             loss = loss - self.entropy_coef * dist.entropy().mean()

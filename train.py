@@ -294,6 +294,7 @@ def run_fold(
             z_dim=ensemble.get_z_dim(),
             h_dim=ensemble.get_d_model(),
             trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
+            band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -313,6 +314,7 @@ def run_fold(
                 chunk_size=bc_cfg.get("chunk_size", 1),
                 class_balanced=bc_cfg.get("class_balanced", False),
                 trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
+                band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_actions))
