@@ -127,6 +127,7 @@ class BCPretrainer:
         regime: Optional[torch.Tensor] = None,
         soft_labels: Optional[torch.Tensor] = None,
         class_weights: Optional[torch.Tensor] = None,
+        trade_pos_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """KL-divergence ベースの BC 損失.
 
@@ -191,7 +192,10 @@ class BCPretrainer:
             target_gap = torch.abs(target_pos - inventory_prev)
             trade_targets = (target_gap > 1e-8).float()
             trade_bce = F.binary_cross_entropy_with_logits(
-                trade_logits, trade_targets, reduction="none"
+                trade_logits,
+                trade_targets,
+                reduction="none",
+                pos_weight=trade_pos_weight,
             )
             if weights is not None:
                 trade_loss = (weights * trade_bce).mean()
@@ -203,6 +207,13 @@ class BCPretrainer:
                 direction = trade_targets * 2.0 - 1.0
                 band_margin = direction * (target_gap - band_width)
                 band_penalty = F.softplus(-band_margin)
+                if trade_pos_weight is not None:
+                    band_sample_w = torch.where(
+                        trade_targets > 0.5,
+                        trade_pos_weight.to(device=band_penalty.device, dtype=band_penalty.dtype),
+                        torch.ones_like(band_penalty),
+                    )
+                    band_penalty = band_penalty * band_sample_w
                 if weights is not None:
                     band_loss = (weights * band_penalty).mean()
                 else:
@@ -243,6 +254,12 @@ class BCPretrainer:
         inv_all = np.zeros(T, dtype=np.float32)
         if T > 1:
             inv_all[1:] = ACTIONS[oracle_actions[:T - 1]]
+        trade_mask = (np.abs(ACTIONS[oracle_actions[:T]] - inv_all[:T]) > 1e-8).astype(np.float32)
+        n_pos = float(trade_mask.sum())
+        n_neg = float(T - n_pos)
+        trade_pos_weight_t = None
+        if n_pos > 0 and n_neg > 0:
+            trade_pos_weight_t = torch.tensor(n_neg / n_pos, dtype=torch.float32, device=self.device)
 
         # --- クラス逆頻度重みを計算 ---
         if self.class_balanced:
@@ -317,6 +334,7 @@ class BCPretrainer:
                             regime=reg_b,
                             soft_labels=sl_step,
                             class_weights=class_weights_t,
+                            trade_pos_weight=trade_pos_weight_t,
                         )
                         step_losses.append(step_loss)
                     loss = torch.stack(step_losses).mean()
@@ -385,6 +403,7 @@ class BCPretrainer:
                     regime=reg_b,
                     soft_labels=sl_b,
                     class_weights=class_weights_t,
+                    trade_pos_weight=trade_pos_weight_t,
                 )
 
                 self.optimizer.zero_grad()

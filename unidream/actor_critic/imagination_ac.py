@@ -156,6 +156,7 @@ class ImagACTrainer:
         self._oracle_h: Optional[torch.Tensor] = None
         self._oracle_actions: Optional[torch.Tensor] = None
         self._oracle_inventory: Optional[torch.Tensor] = None
+        self._oracle_trade_pos_weight: Optional[torch.Tensor] = None
 
         # DSR EMA trackers
         self._dsr_A: float = 0.0    # EMA of reward (running mean)
@@ -197,6 +198,15 @@ class ImagACTrainer:
         self._oracle_inventory = torch.tensor(
             oracle_inventory, dtype=torch.float32, device=self.device
         )
+        trade_targets = (np.abs(_AC_ACTIONS[oracle_actions[:T]] - oracle_inventory) > 1e-8).astype(np.float32)
+        n_pos = float(trade_targets.sum())
+        n_neg = float(T - n_pos)
+        if n_pos > 0 and n_neg > 0:
+            self._oracle_trade_pos_weight = torch.tensor(
+                n_neg / n_pos, dtype=torch.float32, device=self.device
+            )
+        else:
+            self._oracle_trade_pos_weight = None
         if regime_probs is not None:
             self._oracle_regime = torch.tensor(
                 regime_probs[:T], dtype=torch.float32, device=self.device
@@ -371,12 +381,25 @@ class ImagACTrainer:
             oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=inventory_batch.dtype)[self._oracle_actions[idx]]
             target_gap = torch.abs(oracle_pos - inventory_batch)
             trade_targets = (target_gap > 1e-8).float()
-            trade_loss = F.binary_cross_entropy_with_logits(trade_logits, trade_targets)
+            trade_loss = F.binary_cross_entropy_with_logits(
+                trade_logits,
+                trade_targets,
+                pos_weight=self._oracle_trade_pos_weight,
+            )
             loss = loss + self.trade_aux_coef * trade_loss
             if self.band_aux_coef > 0.0:
                 direction = trade_targets * 2.0 - 1.0
                 band_margin = direction * (target_gap - band_width)
-                band_loss = F.softplus(-band_margin).mean()
+                band_penalty = F.softplus(-band_margin)
+                if self._oracle_trade_pos_weight is not None:
+                    band_penalty = torch.where(
+                        trade_targets > 0.5,
+                        band_penalty * self._oracle_trade_pos_weight.to(
+                            device=band_penalty.device, dtype=band_penalty.dtype
+                        ),
+                        band_penalty,
+                    )
+                band_loss = band_penalty.mean()
                 loss = loss + self.band_aux_coef * band_loss
         return loss
 
