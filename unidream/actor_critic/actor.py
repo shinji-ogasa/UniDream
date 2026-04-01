@@ -50,8 +50,9 @@ class Actor(nn.Module):
         self.target_head = nn.Linear(hidden_dim, act_dim)
         self.band_head = nn.Linear(hidden_dim, 1)
 
-        # Conservative initialization: narrow band but not zero.
-        nn.init.constant_(self.band_head.bias, -2.0)
+        # BC 初期段階では target inventory を優先して学ばせ、gate は hold に寄りすぎないようにする。
+        nn.init.constant_(self.trade_head.bias, 0.5)
+        nn.init.constant_(self.band_head.bias, -4.0)
 
     def _prepare_inputs(
         self,
