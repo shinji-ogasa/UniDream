@@ -39,7 +39,7 @@ cost_profiles:
 oracle:
   discount: 1.0             # DP 割引率
   soft_label_temp: 0.5      # Boltzmann 温度（正規化 advantage ベース。0.5≈45%entropy、1.0≈76%）
-  min_hold: 10              # 最低10バー（=2.5時間）保有を強制 → oracle avg_hold改善 → BC安定化
+  min_hold: 16              # controller 版は target path をやや滑らかにして BC 安定化
 
 # --- 報酬 ---
 reward:
