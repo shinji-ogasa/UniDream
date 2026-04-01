@@ -132,7 +132,6 @@ class BCPretrainer:
         trade_pos_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
-        del soft_labels, class_weights
         trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
