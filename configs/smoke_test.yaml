@@ -82,6 +82,7 @@ bc:
   entropy_coef: 0.05
   chunk_size: 3
   class_balanced: true
+  trade_aux_coef: 0.75      # trade / hold head を強めに教師あり学習
 
 ac:
   actor_hidden: 256
@@ -89,6 +90,7 @@ ac:
   ac_layers: 2
   actor_dropout: 0.20
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
+  infer_trade_threshold: 0.55
   switch_margin: 0.08       # best action と現保有 action の確率差が小さい場合は据え置く
   max_position_step: 0.5    # 1 バーでの在庫変化を 0.5 までに制限
   horizon: 3
@@ -100,6 +102,7 @@ ac:
   alpha_decay_steps: 1500
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
+  trade_aux_coef: 0.50
   actor_lr: 5.0e-5
   online_wm_interval: 200   # AC steps ごとに WM をオンライン更新
   online_wm_window_days: 30 # 更新に使う直近日数

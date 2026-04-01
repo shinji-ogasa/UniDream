@@ -88,6 +88,7 @@ class BCPretrainer:
         entropy_coef: float = 0.0,
         chunk_size: int = 1,
         class_balanced: bool = False,
+        trade_aux_coef: float = 0.5,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -99,6 +100,7 @@ class BCPretrainer:
         self.entropy_coef = entropy_coef
         self.chunk_size = max(1, chunk_size)
         self.class_balanced = class_balanced
+        self.trade_aux_coef = trade_aux_coef
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -139,7 +141,7 @@ class BCPretrainer:
         Returns:
             loss: スカラー
         """
-        dist = self.actor(z, h, inventory=inventory, regime=regime)
+        dist, trade_logits = self.actor.policy_outputs(z, h, inventory=inventory, regime=regime)
         log_probs = torch.log(dist.probs + 1e-8)  # (B, K)
 
         if soft_labels is not None:
@@ -173,6 +175,26 @@ class BCPretrainer:
             loss = (weights * kl).mean()
         else:
             loss = kl.mean()
+
+        if inventory is not None and self.trade_aux_coef > 0.0:
+            if inventory.ndim > 1:
+                inventory_prev = inventory.squeeze(-1)
+            else:
+                inventory_prev = inventory
+            target_pos = ACTIONS[oracle_actions.detach().cpu().numpy()]
+            trade_targets = torch.tensor(
+                (np.abs(target_pos - inventory_prev.detach().cpu().numpy()) > 1e-8).astype(np.float32),
+                dtype=torch.float32,
+                device=trade_logits.device,
+            )
+            trade_bce = F.binary_cross_entropy_with_logits(
+                trade_logits, trade_targets, reduction="none"
+            )
+            if weights is not None:
+                trade_loss = (weights * trade_bce).mean()
+            else:
+                trade_loss = trade_bce.mean()
+            loss = loss + self.trade_aux_coef * trade_loss
 
         if self.entropy_coef > 0.0:
             loss = loss - self.entropy_coef * dist.entropy().mean()

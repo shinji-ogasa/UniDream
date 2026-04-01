@@ -1,8 +1,11 @@
 """Actor モジュール.
 
-離散 5 行動（ポジション比率）を出力する方策ネットワーク。
-入力: 世界モデルの潜在 z + Transformer hidden h （+ オプションの regime ベクトル）
-出力: 5 行動の logits（Categorical 分布）
+離散 5 行動（ポジション比率）に加えて、`trade / hold` の補助 head を持つ。
+入力: 世界モデルの潜在 z + Transformer hidden h + 現在 inventory
+      （+ オプションの regime ベクトル）
+出力:
+  - target inventory 用 5 行動 logits（Categorical 分布）
+  - trade / hold 用 logit
 
 DreamerV3 スタイル: entropy 正則化付き。
 """
@@ -57,27 +60,18 @@ class Actor(nn.Module):
             if dropout_p > 0.0:
                 layers.append(nn.Dropout(dropout_p))
         layers.append(nn.Linear(hidden_dim, act_dim))
-        self.net = nn.Sequential(*layers)
+        self.trunk = nn.Sequential(*layers[:-1])
+        self.policy_head = layers[-1]
+        self.trade_head = nn.Linear(hidden_dim, 1)
 
-    def forward(
+    def _encode_state(
         self,
         z: torch.Tensor,
         h: torch.Tensor,
         inventory: "torch.Tensor | None" = None,
         regime: "torch.Tensor | None" = None,
-        temperature: float = 1.0,
-    ) -> Categorical:
-        """潜在表現から行動分布を返す.
-
-        Args:
-            z: (..., z_dim)
-            h: (..., h_dim)
-            regime: (..., regime_dim) レジーム確率ベクトル（省略可）
-            temperature: softmax 温度（> 1 で分布を平滑化、OOS 過信防止）
-
-        Returns:
-            Categorical 分布（unimix 済み）
-        """
+    ) -> torch.Tensor:
+        """方策ヘッド共有の状態表現を作る."""
         if inventory is None:
             inventory = torch.zeros(*z.shape[:-1], self.inventory_dim, dtype=z.dtype, device=z.device)
         elif inventory.ndim == z.ndim - 1:
@@ -89,7 +83,20 @@ class Actor(nn.Module):
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
             parts.append(regime)
         x = torch.cat(parts, dim=-1)
-        logits = self.net(x)
+        return self.trunk(x)
+
+    def policy_outputs(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
+        regime: "torch.Tensor | None" = None,
+        temperature: float = 1.0,
+    ) -> tuple[Categorical, torch.Tensor]:
+        """行動分布と trade logit を返す."""
+        hidden = self._encode_state(z, h, inventory=inventory, regime=regime)
+        logits = self.policy_head(hidden)
+        trade_logits = self.trade_head(hidden).squeeze(-1)
 
         if temperature != 1.0:
             logits = logits / temperature
@@ -97,9 +104,34 @@ class Actor(nn.Module):
         if self.unimix_ratio > 0.0:
             probs = F.softmax(logits, dim=-1)
             probs = probs * (1.0 - self.unimix_ratio) + self.unimix_ratio / self.act_dim
-            return Categorical(probs=probs)
+            return Categorical(probs=probs), trade_logits
 
-        return Categorical(logits=logits)
+        return Categorical(logits=logits), trade_logits
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
+        regime: "torch.Tensor | None" = None,
+        temperature: float = 1.0,
+    ) -> Categorical:
+        """潜在表現から行動分布を返す."""
+        dist, _ = self.policy_outputs(
+            z, h, inventory=inventory, regime=regime, temperature=temperature
+        )
+        return dist
+
+    def trade_logits(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: "torch.Tensor | None" = None,
+        regime: "torch.Tensor | None" = None,
+    ) -> torch.Tensor:
+        """trade / hold の logit を返す."""
+        _, trade_logits = self.policy_outputs(z, h, inventory=inventory, regime=regime)
+        return trade_logits
 
     def get_action(
         self,
@@ -170,16 +202,23 @@ class Actor(nn.Module):
             z_t = z[i:i + 1]
             h_t = h[i:i + 1]
             reg_t = regime[i:i + 1] if regime is not None else None
-            dist = self.forward(z_t, h_t, inventory=inv_t, regime=reg_t, temperature=t)
+            dist, trade_logits = self.policy_outputs(
+                z_t, h_t, inventory=inv_t, regime=reg_t, temperature=t
+            )
             p = dist.probs.squeeze(0).detach().cpu().numpy()
             best_idx = int(np.argmax(p))
             chosen_idx = best_idx
+            trade_prob = float(torch.sigmoid(trade_logits).item())
+            trade_threshold = float(getattr(self, "infer_trade_threshold", 0.5))
 
-            if switch_margin > 0.0:
+            if trade_prob < trade_threshold:
+                chosen_idx = prev_idx
+
+            if chosen_idx != prev_idx and switch_margin > 0.0:
                 if p[best_idx] - p[prev_idx] < switch_margin:
                     chosen_idx = prev_idx
 
-            if max_position_step < 10.0:
+            if chosen_idx != prev_idx and max_position_step < 10.0:
                 prev_pos = ACTIONS[prev_idx]
                 allowed = np.where(np.abs(ACTIONS - prev_pos) <= max_position_step + 1e-8)[0]
                 if chosen_idx not in allowed:

@@ -115,6 +115,7 @@ class ImagACTrainer:
         self.max_steps = ac_cfg.get("max_steps", 200_000)
         self.grad_clip = ac_cfg.get("grad_clip", 100.0)
         self.log_interval = cfg.get("logging", {}).get("log_interval", 1000)
+        self.trade_aux_coef = ac_cfg.get("trade_aux_coef", 0.5)
 
         # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
         # WM は net_return（コスト控除済み）を予測するため、
@@ -358,13 +359,19 @@ class ImagACTrainer:
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
         inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
-        dist = self.actor(
+        dist, trade_logits = self.actor.policy_outputs(
             self._oracle_z[idx],
             self._oracle_h[idx],
             inventory=inventory_batch,
             regime=regime_batch,
         )
-        return -dist.log_prob(self._oracle_actions[idx]).mean()
+        loss = -dist.log_prob(self._oracle_actions[idx]).mean()
+        if inventory_batch is not None and self.trade_aux_coef > 0.0:
+            oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=inventory_batch.dtype)[self._oracle_actions[idx]]
+            trade_targets = (torch.abs(oracle_pos - inventory_batch) > 1e-8).float()
+            trade_loss = F.binary_cross_entropy_with_logits(trade_logits, trade_targets)
+            loss = loss + self.trade_aux_coef * trade_loss
+        return loss
 
     def train_step(
         self,

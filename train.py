@@ -283,6 +283,7 @@ def run_fold(
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
     )
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
+    actor.infer_trade_threshold = ac_cfg.get("infer_trade_threshold", 0.5)
     actor.switch_margin = ac_cfg.get("switch_margin", 0.0)
     actor.max_position_step = ac_cfg.get("max_position_step", 10.0)
 
@@ -292,6 +293,7 @@ def run_fold(
             actor=actor,
             z_dim=ensemble.get_z_dim(),
             h_dim=ensemble.get_d_model(),
+            trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -310,6 +312,7 @@ def run_fold(
                 entropy_coef=bc_cfg.get("entropy_coef", 0.0),
                 chunk_size=bc_cfg.get("chunk_size", 1),
                 class_balanced=bc_cfg.get("class_balanced", False),
+                trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_actions))
