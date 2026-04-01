@@ -69,6 +69,8 @@ def hindsight_oracle_dp(
     discount: float = 1.0,
     min_hold: int = 0,
     soft_label_temp: float = 0.0,
+    reward_mode: str = "absolute",
+    benchmark_position: float = 1.0,
 ) -> tuple[np.ndarray, np.ndarray, "np.ndarray | None"]:
     """後ろ向き DP で最適行動列を計算する（Hindsight Oracle）.
 
@@ -88,6 +90,8 @@ def hindsight_oracle_dp(
         discount: DP の割引率
         min_hold: 最短保有バー数（後処理で強制。0 で無効）
         soft_label_temp: Boltzmann 温度（> 0 で Q 値から soft label を生成）
+        reward_mode: "absolute" または "excess_bh"
+        benchmark_position: excess_bh 時の benchmark inventory
 
     Returns:
         actions: 最適行動インデックス列 (T,)
@@ -114,6 +118,8 @@ def hindsight_oracle_dp(
                 pos = ACTIONS[a]
                 cost = _transition_cost(prev_pos, pos, spread_bps, fee_rate, slippage_bps)
                 net_pnl = pos * r_t - cost
+                if reward_mode == "excess_bh":
+                    net_pnl = net_pnl - benchmark_position * r_t
                 val = net_pnl + discount * V[t + 1, a]
                 if val > best_val:
                     best_val = val
@@ -155,6 +161,8 @@ def hindsight_oracle_dp(
             delta = np.abs(pos - prev_pos_arr)
             cost_arr = ((spread_bps / 10000) / 2 + fee_rate + (slippage_bps / 10000)) * delta
             q[:, a] = pos * returns - cost_arr + discount * V[1:, a]
+            if reward_mode == "excess_bh":
+                q[:, a] = q[:, a] - benchmark_position * returns
 
         # Advantage: A(t,a) = Q(t,a) - max_a Q(t,a)  → max = 0、他は ≤ 0
         adv = q - q.max(axis=1, keepdims=True)
@@ -177,6 +185,8 @@ def compute_net_returns(
     spread_bps: float = 5.0,
     fee_rate: float = 0.0004,
     slippage_bps: float = 2.0,
+    reward_mode: str = "absolute",
+    benchmark_position: float = 1.0,
 ) -> np.ndarray:
     """行動列と生リターン列からネットリターン（コスト控除後）を計算する.
 
@@ -201,6 +211,8 @@ def compute_net_returns(
         pos = ACTIONS[action_indices[t]]
         cost = _transition_cost(prev_pos, pos, spread_bps, fee_rate, slippage_bps)
         net_returns[t] = pos * returns[t] - cost
+        if reward_mode == "excess_bh":
+            net_returns[t] = net_returns[t] - benchmark_position * returns[t]
         prev_pos = pos
 
     return net_returns
@@ -236,6 +248,8 @@ def oracle_to_dataset(
         spread_bps=kwargs.get("spread_bps", 5.0),
         fee_rate=kwargs.get("fee_rate", 0.0004),
         slippage_bps=kwargs.get("slippage_bps", 2.0),
+        reward_mode=kwargs.get("reward_mode", "absolute"),
+        benchmark_position=kwargs.get("benchmark_position", 1.0),
     )
     T_min = min(len(action_indices), len(features))
     return {

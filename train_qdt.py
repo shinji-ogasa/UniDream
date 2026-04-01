@@ -281,6 +281,8 @@ def main():
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
             discount=cfg.get("oracle", {}).get("discount", 1.0),
+            reward_mode=cfg.get("reward", {}).get("mode", "absolute"),
+            benchmark_position=cfg.get("reward", {}).get("benchmark_position", 1.0),
         )
         target_rtg = float(np.percentile(oracle_values, 75))
         print(f"  Oracle: mean={oracle_values.mean():.3f}, target_rtg={target_rtg:.3f}")
