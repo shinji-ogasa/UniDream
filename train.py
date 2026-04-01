@@ -286,6 +286,7 @@ def run_fold(
     actor.infer_trade_threshold = ac_cfg.get("infer_trade_threshold", 0.5)
     actor.max_position_step = ac_cfg.get("max_position_step", 10.0)
     actor.min_band = ac_cfg.get("min_band", 0.02)
+    actor.max_band = ac_cfg.get("max_band", 0.20)
     actor.min_target_std = ac_cfg.get("min_target_std", 0.05)
     actor.max_target_std = ac_cfg.get("max_target_std", 0.35)
 

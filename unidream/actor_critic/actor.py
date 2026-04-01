@@ -86,7 +86,8 @@ class Actor(nn.Module):
         trade_logits = self.trade_head(hidden).squeeze(-1)
         target_mean = torch.tanh(self.target_head(hidden).squeeze(-1))
         min_band = float(getattr(self, "min_band", 0.02))
-        band_width = min_band + F.softplus(self.band_head(hidden).squeeze(-1))
+        max_band = float(getattr(self, "max_band", 0.20))
+        band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
         return trade_logits, target_mean, band_width, inventory_t.squeeze(-1)
 
     def target_std(self) -> torch.Tensor:
@@ -116,12 +117,44 @@ class Actor(nn.Module):
         trade_threshold: float = 0.5,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Controller 出力を inventory と discrete action に変換する."""
+        action_values = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)
         target_gap = torch.abs(target_inventory - current_inventory)
         will_trade = (trade_signal >= trade_threshold) & (target_gap > band_width)
         bounded_target = self._step_limited_target(current_inventory, target_inventory)
-        next_inventory = torch.where(will_trade, bounded_target, current_inventory).clamp(min=-1.0, max=1.0)
-        action_idx = self._nearest_action_idx(next_inventory)
-        snapped_inventory = _ACTIONS_T.to(device=next_inventory.device, dtype=next_inventory.dtype)[action_idx]
+        next_inventory = current_inventory.clone()
+        action_idx = self._nearest_action_idx(current_inventory)
+        move_eps = 1e-8
+
+        if will_trade.ndim == 0:
+            will_trade = will_trade.unsqueeze(0)
+            bounded_target = bounded_target.unsqueeze(0)
+            current_inventory = current_inventory.unsqueeze(0)
+            action_idx = action_idx.unsqueeze(0)
+            next_inventory = next_inventory.unsqueeze(0)
+
+        max_position_step = float(getattr(self, "max_position_step", 10.0))
+        for i in range(will_trade.shape[0]):
+            if not bool(will_trade[i].item()):
+                continue
+            cur = current_inventory[i]
+            tgt = bounded_target[i]
+            direction = torch.sign(tgt - cur)
+            if torch.abs(direction) <= move_eps:
+                continue
+
+            allowed = torch.abs(action_values - cur) <= max_position_step + move_eps
+            directional = torch.sign(action_values - cur) == direction
+            movable = allowed & directional & (torch.abs(action_values - cur) > move_eps)
+            candidates = action_values[movable]
+            candidate_idx = torch.arange(len(action_values), device=action_values.device)[movable]
+            if candidates.numel() == 0:
+                continue
+
+            best = torch.argmin(torch.abs(candidates - tgt))
+            action_idx[i] = candidate_idx[best]
+            next_inventory[i] = candidates[best]
+
+        snapped_inventory = action_values[action_idx]
         return snapped_inventory, action_idx
 
     def get_action(

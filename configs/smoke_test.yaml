@@ -92,9 +92,10 @@ ac:
   ac_layers: 2
   actor_dropout: 0.20
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
-  infer_trade_threshold: 0.50
+  infer_trade_threshold: 0.45
   max_position_step: 0.5    # 1 バーでの在庫変化を 0.5 までに制限
   min_band: 0.02
+  max_band: 0.20
   min_target_std: 0.05
   max_target_std: 0.25
   horizon: 3
