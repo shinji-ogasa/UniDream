@@ -270,6 +270,8 @@ def run_fold(
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
     )
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
+    actor.switch_margin = ac_cfg.get("switch_margin", 0.0)
+    actor.max_position_step = ac_cfg.get("max_position_step", 10.0)
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC — loading checkpoint: {bc_path}")

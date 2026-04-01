@@ -8,6 +8,7 @@ DreamerV3 スタイル: entropy 正則化付き。
 """
 from __future__ import annotations
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -143,6 +144,8 @@ class Actor(nn.Module):
         """
         import numpy as np
         t = temperature if temperature is not None else getattr(self, "infer_temperature", 1.0)
+        switch_margin = float(getattr(self, "switch_margin", 0.0))
+        max_position_step = float(getattr(self, "max_position_step", 10.0))
         was_training = self.training
         self.eval()
         dev = torch.device(device)
@@ -151,7 +154,27 @@ class Actor(nn.Module):
         regime = None
         if regime_np is not None and self.regime_dim > 0:
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
-        action_indices = self.act_greedy(z, h, regime=regime, temperature=t).cpu().numpy()
+        dist = self.forward(z, h, regime=regime, temperature=t)
+        probs = dist.probs.detach().cpu().numpy()
+
+        action_indices = np.zeros(len(probs), dtype=np.int64)
+        prev_idx = int(np.where(ACTIONS == 0.0)[0][0])
+        for i, p in enumerate(probs):
+            best_idx = int(np.argmax(p))
+            chosen_idx = best_idx
+
+            if switch_margin > 0.0:
+                if p[best_idx] - p[prev_idx] < switch_margin:
+                    chosen_idx = prev_idx
+
+            if max_position_step < 10.0:
+                prev_pos = ACTIONS[prev_idx]
+                allowed = np.where(np.abs(ACTIONS - prev_pos) <= max_position_step + 1e-8)[0]
+                if chosen_idx not in allowed:
+                    chosen_idx = int(allowed[np.argmax(p[allowed])])
+
+            action_indices[i] = chosen_idx
+            prev_idx = chosen_idx
         if was_training:
             self.train()
         return ACTIONS[action_indices]

@@ -87,6 +87,8 @@ ac:
   ac_layers: 2
   actor_dropout: 0.20
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
+  switch_margin: 0.08       # best action と現保有 action の確率差が小さい場合は据え置く
+  max_position_step: 0.5    # 1 バーでの在庫変化を 0.5 までに制限
   horizon: 3
   lam: 0.95
   gamma: 0.99
