@@ -128,22 +128,22 @@ class BCPretrainer:
         trade_pos_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
-        trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
+        trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         oracle_target = oracle_positions - benchmark_position
         target_gap = torch.abs(oracle_target - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
+        target_indices = self.actor.target_indices(oracle_positions)
 
         if soft_labels is not None:
-            oracle_target_soft = soft_labels - benchmark_position
-            target_loss = F.smooth_l1_loss(target_mean, oracle_target_soft, reduction="none")
+            target_probs = soft_labels.to(device=trade_logits.device, dtype=trade_logits.dtype)
+            target_probs = target_probs / target_probs.sum(dim=-1, keepdim=True).clamp_min(1e-8)
+            log_probs = F.log_softmax(target_dist.logits, dim=-1)
+            target_loss = -(target_probs * log_probs).sum(dim=-1)
         else:
-            target_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
-
-        if self.label_smoothing > 0.0:
-            target_loss = target_loss + self.label_smoothing * target_std
+            target_loss = -target_dist.log_prob(target_indices)
 
         if class_weights is not None:
             sample_class_w = torch.ones_like(target_loss)
@@ -207,7 +207,7 @@ class BCPretrainer:
         Args:
             z: (T, z_dim) エンコードされた潜在
             h: (T, h_dim) Transformer hidden
-            oracle_actions: (T,) oracle 行動インデックス
+            oracle_positions: (T,) oracle ポジション比率
             regime_probs: (T, regime_dim) レジーム確率ベクトル（省略可）
             soft_labels: (T, K) Boltzmann soft target（省略可）
 

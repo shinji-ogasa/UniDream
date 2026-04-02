@@ -9,8 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Bernoulli, Normal, TransformedDistribution
-from torch.distributions.transforms import AffineTransform, TanhTransform
+from torch.distributions import Bernoulli, Categorical
 
 from unidream.data.oracle import N_ACTIONS
 
@@ -46,14 +45,12 @@ class Actor(nn.Module):
                 layers.append(nn.Dropout(dropout_p))
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
-        self.target_mean_head = nn.Linear(hidden_dim, 1)
-        self.target_std_head = nn.Linear(hidden_dim, 1)
+        self.target_head = nn.Linear(hidden_dim, act_dim)
         self.band_head = nn.Linear(hidden_dim, 1)
 
         # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
         nn.init.constant_(self.trade_head.bias, -0.5)
         nn.init.constant_(self.band_head.bias, 0.0)
-        nn.init.constant_(self.target_std_head.bias, -2.0)
 
     def _benchmark_position(self) -> float:
         return float(getattr(self, "benchmark_position", 0.0))
@@ -102,38 +99,35 @@ class Actor(nn.Module):
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
         temperature: float = 1.0,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """trade logit, target mean/std, band width, current inventory."""
+    ) -> tuple[torch.Tensor, Categorical, torch.Tensor, torch.Tensor]:
+        """trade logit, target distribution, band width, current inventory."""
         hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
         trade_logits = self.trade_head(hidden).squeeze(-1)
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
-        overlay_low, overlay_high = self._overlay_bounds()
-        target_mean_unit = torch.tanh(self.target_mean_head(hidden).squeeze(-1))
-        target_mean = overlay_low + 0.5 * (target_mean_unit + 1.0) * (overlay_high - overlay_low)
-        min_std = float(getattr(self, "min_target_std", 0.05))
-        max_std = float(getattr(self, "max_target_std", 0.35))
-        target_std = min_std + max_std * torch.sigmoid(self.target_std_head(hidden).squeeze(-1))
         if temperature != 1.0:
-            target_std = target_std * temperature
-        return trade_logits, target_mean, target_std, band_width, inventory_t.squeeze(-1)
+            target_logits = self.target_head(hidden) / temperature
+        else:
+            target_logits = self.target_head(hidden)
+        if self.unimix_ratio > 0.0:
+            probs = F.softmax(target_logits, dim=-1)
+            probs = probs * (1.0 - self.unimix_ratio) + self.unimix_ratio / self.act_dim
+            target_dist = Categorical(probs=probs)
+        else:
+            target_dist = Categorical(logits=target_logits)
+        return trade_logits, target_dist, band_width, inventory_t.squeeze(-1)
 
-    def _target_dist(
-        self,
-        target_mean: torch.Tensor,
-        target_std: torch.Tensor,
-    ) -> TransformedDistribution:
-        overlay_low, overlay_high = self._overlay_bounds()
-        mid = 0.5 * (overlay_high + overlay_low)
-        half_range = 0.5 * (overlay_high - overlay_low)
-        target_mean_unit = ((target_mean - mid) / max(half_range, 1e-6)).clamp(min=-0.999, max=0.999)
-        target_std_unit = (target_std / max(half_range, 1e-6)).clamp_min(1e-4)
-        base = Normal(target_mean_unit, target_std_unit)
-        return TransformedDistribution(
-            base,
-            [TanhTransform(cache_size=1), AffineTransform(loc=mid, scale=half_range)],
-        )
+    def _target_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        values = getattr(self, "target_values", None)
+        if values is None:
+            abs_min, abs_max = self._absolute_bounds()
+            values = np.linspace(abs_min, abs_max, self.act_dim, dtype=np.float32)
+        return torch.as_tensor(values, dtype=dtype, device=device)
+
+    def target_indices(self, absolute_positions: torch.Tensor) -> torch.Tensor:
+        target_values = self._target_values_tensor(absolute_positions.device, absolute_positions.dtype)
+        return torch.argmin(torch.abs(absolute_positions.unsqueeze(-1) - target_values), dim=-1)
 
     def _bounded_step(self, gap: torch.Tensor) -> torch.Tensor:
         max_position_step = float(getattr(self, "max_position_step", 10.0))
@@ -166,14 +160,15 @@ class Actor(nn.Module):
         regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """executed inventory・log_prob・entropy を返す."""
-        trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         trade_dist = Bernoulli(logits=trade_logits)
-        target_dist = self._target_dist(target_mean, target_std)
 
         trade_sample = trade_dist.sample()
-        target_inventory = target_dist.rsample()
+        target_idx = target_dist.sample()
+        target_values = self._target_values_tensor(current_inventory.device, current_inventory.dtype)
+        target_inventory = target_values[target_idx] - self._benchmark_position()
 
         next_inventory = self.execute_controller(
             trade_signal=trade_sample,
@@ -183,9 +178,9 @@ class Actor(nn.Module):
             trade_threshold=0.5,
         )
         trade_log_prob = trade_dist.log_prob(trade_sample)
-        target_log_prob = target_dist.log_prob(target_inventory) * trade_sample
+        target_log_prob = target_dist.log_prob(target_idx) * trade_sample
         log_prob = trade_log_prob + target_log_prob
-        entropy = trade_dist.entropy() + target_dist.base_dist.entropy() * trade_dist.probs
+        entropy = trade_dist.entropy() + target_dist.entropy() * trade_dist.probs
         next_position = self._overlay_to_position(next_inventory)
         return next_position.unsqueeze(-1), log_prob, entropy
 
@@ -200,12 +195,13 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         """greedy execution に対応する executed inventory を返す."""
         del temperature
-        trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
-        _ = target_std
         trade_prob = torch.sigmoid(trade_logits)
-        target_inventory = target_mean
+        target_idx = target_dist.probs.argmax(dim=-1)
+        target_values = self._target_values_tensor(current_inventory.device, current_inventory.dtype)
+        target_inventory = target_values[target_idx] - self._benchmark_position()
         next_inventory = self.execute_controller(
             trade_signal=trade_prob,
             target_inventory=target_inventory,
