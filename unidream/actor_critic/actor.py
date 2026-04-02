@@ -9,11 +9,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Bernoulli, Categorical
+from torch.distributions import Bernoulli, Normal, TransformedDistribution
+from torch.distributions.transforms import TanhTransform
 
-from unidream.data.oracle import ACTIONS, N_ACTIONS
-
-_ACTIONS_T = torch.tensor(ACTIONS, dtype=torch.float32)
+from unidream.data.oracle import N_ACTIONS
 
 
 class Actor(nn.Module):
@@ -47,7 +46,8 @@ class Actor(nn.Module):
                 layers.append(nn.Dropout(dropout_p))
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
-        self.target_head = nn.Linear(hidden_dim, act_dim)
+        self.target_mean_head = nn.Linear(hidden_dim, 1)
+        self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
 
         # BC 初期段階では target inventory を優先して学ばせ、gate は hold に寄りすぎないようにする。
@@ -81,27 +81,28 @@ class Actor(nn.Module):
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
         temperature: float = 1.0,
-    ) -> tuple[torch.Tensor, Categorical, torch.Tensor, torch.Tensor]:
-        """trade logit, target inventory distribution, band width, current inventory."""
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """trade logit, target mean/std, band width, current inventory."""
         hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
         trade_logits = self.trade_head(hidden).squeeze(-1)
-        target_logits = self.target_head(hidden)
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
+        target_mean = torch.tanh(self.target_mean_head(hidden).squeeze(-1))
+        min_std = float(getattr(self, "min_target_std", 0.05))
+        max_std = float(getattr(self, "max_target_std", 0.35))
+        target_std = min_std + max_std * torch.sigmoid(self.target_std_head(hidden).squeeze(-1))
         if temperature != 1.0:
-            target_logits = target_logits / temperature
-        if self.unimix_ratio > 0.0:
-            probs = F.softmax(target_logits, dim=-1)
-            probs = probs * (1.0 - self.unimix_ratio) + self.unimix_ratio / self.act_dim
-            target_dist = Categorical(probs=probs)
-        else:
-            target_dist = Categorical(logits=target_logits)
-        return trade_logits, target_dist, band_width, inventory_t.squeeze(-1)
+            target_std = target_std * temperature
+        return trade_logits, target_mean, target_std, band_width, inventory_t.squeeze(-1)
 
-    def _nearest_action_idx(self, inventory: torch.Tensor) -> torch.Tensor:
-        action_values = _ACTIONS_T.to(device=inventory.device, dtype=inventory.dtype)
-        return torch.argmin(torch.abs(inventory.unsqueeze(-1) - action_values), dim=-1)
+    def _target_dist(
+        self,
+        target_mean: torch.Tensor,
+        target_std: torch.Tensor,
+    ) -> TransformedDistribution:
+        base = Normal(target_mean, target_std.clamp_min(1e-4))
+        return TransformedDistribution(base, [TanhTransform(cache_size=1)])
 
     def _step_limited_target(self, current: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         max_position_step = float(getattr(self, "max_position_step", 10.0))
@@ -117,47 +118,13 @@ class Actor(nn.Module):
         band_width: torch.Tensor,
         current_inventory: torch.Tensor,
         trade_threshold: float = 0.5,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Controller 出力を executed inventory と最寄り action index に変換する."""
-        action_values = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)
+    ) -> torch.Tensor:
+        """Controller 出力を executed inventory に変換する."""
         target_gap = torch.abs(target_inventory - current_inventory)
         will_trade = (trade_signal >= trade_threshold) & (target_gap > band_width)
         bounded_target = self._step_limited_target(current_inventory, target_inventory)
-        next_inventory = current_inventory.clone()
-        action_idx = self._nearest_action_idx(current_inventory)
-        move_eps = 1e-8
-
-        if will_trade.ndim == 0:
-            will_trade = will_trade.unsqueeze(0)
-            bounded_target = bounded_target.unsqueeze(0)
-            current_inventory = current_inventory.unsqueeze(0)
-            action_idx = action_idx.unsqueeze(0)
-            next_inventory = next_inventory.unsqueeze(0)
-
-        max_position_step = float(getattr(self, "max_position_step", 10.0))
-        for i in range(will_trade.shape[0]):
-            if not bool(will_trade[i].item()):
-                continue
-            cur = current_inventory[i]
-            tgt = bounded_target[i]
-            direction = torch.sign(tgt - cur)
-            if torch.abs(direction) <= move_eps:
-                continue
-
-            allowed = torch.abs(action_values - cur) <= max_position_step + move_eps
-            directional = torch.sign(action_values - cur) == direction
-            movable = allowed & directional & (torch.abs(action_values - cur) > move_eps)
-            candidates = action_values[movable]
-            candidate_idx = torch.arange(len(action_values), device=action_values.device)[movable]
-            if candidates.numel() == 0:
-                continue
-
-            best = torch.argmin(torch.abs(candidates - tgt))
-            action_idx[i] = candidate_idx[best]
-            next_inventory[i] = candidates[best]
-
-        executed_inventory = action_values[action_idx]
-        return executed_inventory, action_idx
+        next_inventory = torch.where(will_trade, bounded_target, current_inventory)
+        return next_inventory.clamp(min=-1.0, max=1.0)
 
     def get_action(
         self,
@@ -167,16 +134,16 @@ class Actor(nn.Module):
         regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """executed inventory・log_prob・entropy を返す."""
-        trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         trade_dist = Bernoulli(logits=trade_logits)
+        target_dist = self._target_dist(target_mean, target_std)
 
         trade_sample = trade_dist.sample()
-        target_idx = target_dist.sample()
-        target_inventory = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[target_idx]
+        target_inventory = target_dist.rsample()
 
-        next_inventory, _ = self.execute_controller(
+        next_inventory = self.execute_controller(
             trade_signal=trade_sample,
             target_inventory=target_inventory,
             band_width=band_width,
@@ -184,9 +151,9 @@ class Actor(nn.Module):
             trade_threshold=0.5,
         )
         trade_log_prob = trade_dist.log_prob(trade_sample)
-        target_log_prob = target_dist.log_prob(target_idx) * trade_sample
+        target_log_prob = target_dist.log_prob(target_inventory) * trade_sample
         log_prob = trade_log_prob + target_log_prob
-        entropy = trade_dist.entropy() + target_dist.entropy() * trade_dist.probs
+        entropy = trade_dist.entropy() + target_dist.base_dist.entropy() * trade_dist.probs
         return next_inventory.unsqueeze(-1), log_prob, entropy
 
     @torch.no_grad()
@@ -200,13 +167,13 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         """greedy execution に対応する executed inventory を返す."""
         del temperature
-        trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
+        _ = target_std
         trade_prob = torch.sigmoid(trade_logits)
-        target_idx = target_dist.probs.argmax(dim=-1)
-        target_inventory = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[target_idx]
-        next_inventory, _ = self.execute_controller(
+        target_inventory = target_mean
+        next_inventory = self.execute_controller(
             trade_signal=trade_prob,
             target_inventory=target_inventory,
             band_width=band_width,

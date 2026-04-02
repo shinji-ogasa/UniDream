@@ -43,12 +43,17 @@ _AC_ACTIONS_T = torch.tensor(_AC_ACTIONS, dtype=torch.float32)
 def _action_stats(positions: np.ndarray) -> dict:
     """ポジション配列の行動分布統計を計算する."""
     total = max(len(positions), 1)
-    counts = {v: int((positions == v).sum()) for v in _AC_ACTIONS}
-    long_r  = (counts.get(0.5, 0) + counts.get(1.0, 0)) / total
-    short_r = (counts.get(-1.0, 0) + counts.get(-0.5, 0)) / total
-    flat_r  = counts.get(0.0, 0) / total
+    active_eps = 0.05
+    counts = {
+        "long": int((positions > active_eps).sum()),
+        "short": int((positions < -active_eps).sum()),
+        "flat": int((np.abs(positions) <= active_eps).sum()),
+    }
+    long_r  = counts["long"] / total
+    short_r = counts["short"] / total
+    flat_r  = counts["flat"] / total
     mean_p  = float(np.mean(positions)) if total > 0 else 0.0
-    switches = int((np.diff(positions) != 0).sum()) if total > 1 else 0
+    switches = int((np.abs(np.diff(positions)) > active_eps).sum()) if total > 1 else 0
     avg_hold = total / max(switches, 1)
     return dict(long=long_r, short=short_r, flat=flat_r, mean=mean_p,
                 switches=switches, avg_hold=avg_hold, counts=counts)
@@ -381,17 +386,18 @@ class ImagACTrainer:
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
         inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
-        trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
+        trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
             self._oracle_z[idx],
             self._oracle_h[idx],
             inventory=inventory_batch,
             regime=regime_batch,
         )
+        target_dist = self.actor._target_dist(target_mean, target_std)
         oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=current_inventory.dtype)[self._oracle_actions[idx]]
         target_gap = torch.abs(oracle_pos - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
 
-        target_loss = -target_dist.log_prob(self._oracle_actions[idx])
+        target_loss = -target_dist.log_prob(oracle_pos.clamp(-0.999, 0.999))
         if self._oracle_trade_pos_weight is not None:
             target_w = torch.where(
                 trade_targets > 0.5,
@@ -437,20 +443,23 @@ class ImagACTrainer:
         if self.prior_kl_coef <= 0.0 and self.prior_trade_coef <= 0.0 and self.prior_band_coef <= 0.0:
             return torch.tensor(0.0, device=self.device)
 
-        cur_trade_logits, cur_target_dist, cur_band, _ = self.actor.controller_outputs(
+        cur_trade_logits, cur_target_mean, cur_target_std, cur_band, _ = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         with torch.no_grad():
-            ref_trade_logits, ref_target_dist, ref_band, _ = self.actor_prior.controller_outputs(
+            ref_trade_logits, ref_target_mean, ref_target_std, ref_band, _ = self.actor_prior.controller_outputs(
                 z, h, inventory=inventory, regime=regime
             )
 
         loss = torch.tensor(0.0, device=self.device)
         if self.prior_kl_coef > 0.0:
-            p_ref = ref_target_dist.probs
-            log_p_ref = torch.log(p_ref + 1e-8)
-            log_p_cur = torch.log(cur_target_dist.probs + 1e-8)
-            target_kl = (p_ref * (log_p_ref - log_p_cur)).sum(dim=-1).mean()
+            ref_var = ref_target_std.pow(2).clamp_min(1e-6)
+            cur_var = cur_target_std.pow(2).clamp_min(1e-6)
+            target_kl = (
+                torch.log(cur_target_std.clamp_min(1e-6) / ref_target_std.clamp_min(1e-6))
+                + (ref_var + (ref_target_mean - cur_target_mean).pow(2)) / (2.0 * cur_var)
+                - 0.5
+            ).mean()
             loss = loss + self.prior_kl_coef * target_kl
         if self.prior_trade_coef > 0.0:
             ref_trade_prob = torch.sigmoid(ref_trade_logits)
