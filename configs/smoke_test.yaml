@@ -74,14 +74,14 @@ world_model:
   bin_range: [-20.0, 20.0]
 
 bc:
-  n_epochs: 3               # controller 化後は target head の収束に少し必要
+  n_epochs: 5               # controller 用 BC はまず target inventory をしっかり当てる
   lr: 3.0e-4
   batch_size: 256
-  sirl_hidden: 128
-  label_smoothing: 0.10
+  sirl_hidden: 0
+  label_smoothing: 0.00
   entropy_coef: 0.05
-  chunk_size: 3
-  class_balanced: true
+  chunk_size: 1
+  class_balanced: false
   target_aux_coef: 2.00
   trade_aux_coef: 0.05
   band_aux_coef: 0.00
@@ -90,7 +90,7 @@ ac:
   actor_hidden: 256
   critic_hidden: 256
   ac_layers: 2
-  actor_dropout: 0.20
+  actor_dropout: 0.10
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
   infer_trade_threshold: 0.45
   max_position_step: 0.5    # 1 バーでの在庫変化を 0.5 までに制限
