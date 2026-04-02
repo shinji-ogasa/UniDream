@@ -207,6 +207,8 @@ def run_fold(
         reward_mode=oracle_reward_mode,
         benchmark_position=oracle_benchmark_position,
     )
+    oracle_positions = _ACTIONS[oracle_actions].astype(np.float32)
+    val_oracle_positions = _ACTIONS[val_oracle_actions].astype(np.float32)
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
     # Actor 生成前に計算して regime_dim を確定する
@@ -240,13 +242,13 @@ def run_fold(
         train_ds_with_actions = SequenceDataset(
             wfo_dataset.train_features,
             seq_len=seq_len,
-            actions=oracle_actions[:len(wfo_dataset.train_features)],
+            actions=oracle_positions[:len(wfo_dataset.train_features)],
             returns=train_returns,
         )
         val_ds = SequenceDataset(
             wfo_dataset.val_features,
             seq_len=seq_len,
-            actions=val_oracle_actions[:len(wfo_dataset.val_features)],
+            actions=val_oracle_positions[:len(wfo_dataset.val_features)],
             returns=wfo_dataset.val_returns,
         )
         wm_trainer.train_on_dataset(
@@ -509,12 +511,9 @@ def run_fold(
                         enc_recent["z"], enc_recent["h"],
                         regime_np=recent_regime, device=device,
                     )
-                    recent_actions = np.array([
-                        int(np.argmin(np.abs(_ACTIONS - p))) for p in recent_pos
-                    ])
                     recent_ds = SequenceDataset(
                         recent_feat, seq_len=seq_len,
-                        actions=recent_actions[:len(recent_feat)],
+                        actions=recent_pos[:len(recent_feat)],
                         returns=recent_returns[:len(recent_feat)],
                     )
                     if len(recent_ds) < 2:

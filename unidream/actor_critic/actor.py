@@ -1,7 +1,7 @@
 """Actor モジュール.
 
 `trade / target inventory / no-trade band` を主出力に持つ inventory controller。
-世界モデルとは execution rule を介して接続し、最終的には離散 action index へ写像する。
+policy が学習するのは inventory path で、世界モデルにも executed inventory を渡す。
 """
 from __future__ import annotations
 
@@ -118,7 +118,7 @@ class Actor(nn.Module):
         current_inventory: torch.Tensor,
         trade_threshold: float = 0.5,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Controller 出力を inventory と discrete action に変換する."""
+        """Controller 出力を executed inventory と最寄り action index に変換する."""
         action_values = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)
         target_gap = torch.abs(target_inventory - current_inventory)
         will_trade = (trade_signal >= trade_threshold) & (target_gap > band_width)
@@ -156,8 +156,8 @@ class Actor(nn.Module):
             action_idx[i] = candidate_idx[best]
             next_inventory[i] = candidates[best]
 
-        snapped_inventory = action_values[action_idx]
-        return snapped_inventory, action_idx
+        executed_inventory = action_values[action_idx]
+        return executed_inventory, action_idx
 
     def get_action(
         self,
@@ -166,7 +166,7 @@ class Actor(nn.Module):
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """行動サンプル・log_prob・entropy を返す."""
+        """executed inventory・log_prob・entropy を返す."""
         trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
@@ -176,7 +176,7 @@ class Actor(nn.Module):
         target_idx = target_dist.sample()
         target_inventory = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[target_idx]
 
-        next_inventory, action_idx = self.execute_controller(
+        next_inventory, _ = self.execute_controller(
             trade_signal=trade_sample,
             target_inventory=target_inventory,
             band_width=band_width,
@@ -187,8 +187,7 @@ class Actor(nn.Module):
         target_log_prob = target_dist.log_prob(target_idx) * trade_sample
         log_prob = trade_log_prob + target_log_prob
         entropy = trade_dist.entropy() + target_dist.entropy() * trade_dist.probs
-        _ = next_inventory
-        return action_idx, log_prob, entropy
+        return next_inventory.unsqueeze(-1), log_prob, entropy
 
     @torch.no_grad()
     def act_greedy(
@@ -199,7 +198,7 @@ class Actor(nn.Module):
         regime: torch.Tensor | None = None,
         temperature: float = 1.0,
     ) -> torch.Tensor:
-        """greedy execution に対応する discrete action index を返す."""
+        """greedy execution に対応する executed inventory を返す."""
         del temperature
         trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
@@ -207,14 +206,14 @@ class Actor(nn.Module):
         trade_prob = torch.sigmoid(trade_logits)
         target_idx = target_dist.probs.argmax(dim=-1)
         target_inventory = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[target_idx]
-        _, action_idx = self.execute_controller(
+        next_inventory, _ = self.execute_controller(
             trade_signal=trade_prob,
             target_inventory=target_inventory,
             band_width=band_width,
             current_inventory=current_inventory,
             trade_threshold=float(getattr(self, "infer_trade_threshold", 0.5)),
         )
-        return action_idx
+        return next_inventory.unsqueeze(-1)
 
     @torch.no_grad()
     def predict_positions(
@@ -236,19 +235,19 @@ class Actor(nn.Module):
         if regime_np is not None and self.regime_dim > 0:
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
 
-        action_indices = np.zeros(len(z_np), dtype=np.int64)
+        positions = np.zeros(len(z_np), dtype=np.float32)
         prev_inventory = torch.zeros(1, 1, dtype=torch.float32, device=dev)
         for i in range(len(z_np)):
             reg_t = regime[i:i + 1] if regime is not None else None
-            action_idx = self.act_greedy(
+            next_inventory = self.act_greedy(
                 z[i:i + 1],
                 h[i:i + 1],
                 inventory=prev_inventory,
                 regime=reg_t,
             )
-            action_indices[i] = int(action_idx.item())
-            prev_inventory = _ACTIONS_T.to(device=dev).to(dtype=torch.float32)[action_idx].reshape(1, 1)
+            positions[i] = float(next_inventory.item())
+            prev_inventory = next_inventory.reshape(1, 1)
 
         if was_training:
             self.train()
-        return ACTIONS[action_indices]
+        return positions

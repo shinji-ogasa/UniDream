@@ -282,17 +282,17 @@ class ImagACTrainer:
             inventory = inventory0
 
         for _ in range(self.horizon):
-            action, log_prob, entropy = self.actor.get_action(
+            next_inventory, log_prob, entropy = self.actor.get_action(
                 z, h, inventory=inventory, regime=regime0
             )
 
             with torch.no_grad():
-                result = self.ensemble.imagine_step(z, h, action, pzs, pas)
+                result = self.ensemble.imagine_step(z, h, next_inventory, pzs, pas)
 
             zs.append(z)
             hs.append(h)
             inventories.append(inventory.squeeze(-1))
-            acts.append(action)
+            acts.append(next_inventory.squeeze(-1))
             log_probs_list.append(log_prob)
             entropies_list.append(entropy)
             rewards_list.append(result["reward"])   # net_return（原スケール）
@@ -302,7 +302,7 @@ class ImagACTrainer:
             h = result["next_h"].detach()
             pzs = result["past_zs"]
             pas = result["past_as"]
-            inventory = _AC_ACTIONS_T.to(device=z.device, dtype=z.dtype)[action].unsqueeze(-1)
+            inventory = next_inventory
 
         return {
             "zs": torch.stack(zs, dim=1),                      # (B, H, z_dim)
@@ -472,7 +472,9 @@ class ImagACTrainer:
         """1 ステップの Actor-Critic 更新."""
         B = z0.shape[0]
         if past_as is not None and past_as.shape[1] > 0:
-            inventory0 = _AC_ACTIONS_T.to(device=z0.device, dtype=z0.dtype)[past_as[:, -1]].unsqueeze(-1)
+            inventory0 = past_as[:, -1]
+            if inventory0.ndim == 1:
+                inventory0 = inventory0.unsqueeze(-1)
         else:
             inventory0 = torch.zeros(B, 1, dtype=z0.dtype, device=z0.device)
 
@@ -486,7 +488,7 @@ class ImagACTrainer:
         inventories = rollout["inventories"]  # (B, H)
         net_returns = rollout["rewards"]  # (B, H) 原スケール（WM 予測の net_return）
         dones = rollout["dones"]      # (B, H)
-        next_inventory = _AC_ACTIONS_T.to(device=zs.device, dtype=zs.dtype)[rollout["actions"]]
+        next_inventory = rollout["actions"]
         delta_inventory = torch.abs(next_inventory - inventories)
         flow_change = torch.zeros_like(delta_inventory)
         if self.horizon > 1:
@@ -613,17 +615,17 @@ class ImagACTrainer:
             h0 = torch.tensor(all_h[idx], dtype=torch.float32, device=self.device)
 
             past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
-            past_as_np = np.full((batch_size, L), 2, dtype=np.int64)
+            past_as_np = np.zeros((batch_size, L, 1), dtype=np.float32)
             for b, i in enumerate(idx):
                 start = max(0, i - L)
                 length = i - start
                 if length > 0:
                     past_zs_np[b, L - length:] = all_z[start:i]
             past_zs = torch.tensor(past_zs_np, device=self.device)
-            past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
+            past_as = torch.tensor(past_as_np, dtype=torch.float32, device=self.device)
 
             with torch.no_grad():
-                inventory0 = _AC_ACTIONS_T.to(device=z0.device, dtype=z0.dtype)[past_as[:, -1]].unsqueeze(-1)
+                inventory0 = past_as[:, -1]
                 rollout = self._imagination_rollout(
                     z0, h0, past_zs, past_as, inventory0=inventory0
                 )
@@ -708,7 +710,6 @@ class ImagACTrainer:
         # test 時は no-action context のため train/test 分布が大きくずれる。
         # no-action context に統一することで imagination の分布を test と揃える。
         context_actions_np = None
-        flat_action = 2  # action index for position=0.0 (flat)
 
         # val Sharpe tracking for best checkpoint selection
         best_val_sharpe = val_baseline_sharpe
@@ -741,7 +742,7 @@ class ImagACTrainer:
 
             # 各サンプルの直前 L ステップを context として取得（左端はゼロパディング）
             past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
-            past_as_np = np.full((batch_size, L), flat_action, dtype=np.int64)
+            past_as_np = np.zeros((batch_size, L, 1), dtype=np.float32)
             for b, i in enumerate(idx):
                 start = max(0, i - L)
                 length = i - start
@@ -750,9 +751,9 @@ class ImagACTrainer:
                     if context_actions_np is not None:
                         act_end = min(i, len(context_actions_np))
                         act_start = max(0, act_end - length)
-                        past_as_np[b, L - (act_end - act_start):] = context_actions_np[act_start:act_end]
+                        past_as_np[b, L - (act_end - act_start):, 0] = context_actions_np[act_start:act_end]
             past_zs = torch.tensor(past_zs_np, device=self.device)
-            past_as = torch.tensor(past_as_np, dtype=torch.long, device=self.device)
+            past_as = torch.tensor(past_as_np, dtype=torch.float32, device=self.device)
 
             step_log = self.train_step(
                 z0, h0, past_zs=past_zs, past_as=past_as, regime0=regime0

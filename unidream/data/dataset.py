@@ -107,7 +107,14 @@ class SequenceDataset(Dataset):
     ):
         self.features = torch.tensor(features, dtype=torch.float32)
         self.seq_len = seq_len
-        self.actions = torch.tensor(actions, dtype=torch.long) if actions is not None else None
+        if actions is not None:
+            action_arr = np.asarray(actions)
+            if np.issubdtype(action_arr.dtype, np.integer):
+                self.actions = torch.tensor(action_arr, dtype=torch.long)
+            else:
+                self.actions = torch.tensor(action_arr, dtype=torch.float32)
+        else:
+            self.actions = None
         self.returns = torch.tensor(returns, dtype=torch.float32) if returns is not None else None
         self.T = len(features)
 

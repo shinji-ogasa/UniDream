@@ -18,7 +18,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from unidream.data.dataset import SequenceDataset
-from unidream.data.oracle import ACTIONS as ORACLE_ACTIONS
 from unidream.world_model.ensemble import EnsembleWorldModel
 
 
@@ -82,7 +81,7 @@ def build_ensemble(obs_dim: int, cfg: dict) -> EnsembleWorldModel:
         n_models=wm_cfg.get("n_ensemble", 3),
         disagree_scale=wm_cfg.get("disagree_scale", 0.1),
         obs_dim=obs_dim,
-        act_dim=cfg.get("actions", {}).get("n", 5),
+        act_dim=cfg.get("actions", {}).get("dim", 1),
         n_categoricals=wm_cfg.get("n_categoricals", 32),
         n_classes=wm_cfg.get("n_classes", 32),
         d_model=wm_cfg.get("d_model", 512),
@@ -155,6 +154,11 @@ class WorldModelTrainer:
         z_dim = ensemble.get_z_dim()
         d_model = ensemble.get_d_model()
         n_actions = cfg.get("actions", {}).get("n", 5)
+        self.action_values = torch.tensor(
+            cfg.get("actions", {}).get("values", [-1.0, -0.5, 0.0, 0.5, 1.0]),
+            dtype=torch.float32,
+            device=self.device,
+        )
         aux_params: list[nn.Parameter] = []
 
         if self.idm_scale > 0.0:
@@ -185,22 +189,19 @@ class WorldModelTrainer:
     ) -> torch.Tensor:
         """行動インデックスと生リターンからネットリターン（コスト控除後）を計算する.
 
-        net_return[t] = ACTIONS[actions[t]] * raw_returns[t]
-                        - cost_rate * |ACTIONS[actions[t]] - ACTIONS[actions[t-1]]|
+        net_return[t] = position[t] * raw_returns[t]
+                        - cost_rate * |position[t] - position[t-1]|
 
         初期ポジション = 0.0（フラット）。
 
         Args:
-            actions: (B, T) 行動インデックス
+            actions: (B, T, 1) position path
             raw_returns: (B, T) 生の対数リターン
 
         Returns:
             net_returns: (B, T) コスト控除後リターン
         """
-        action_vals = torch.tensor(
-            ORACLE_ACTIONS, dtype=raw_returns.dtype, device=raw_returns.device
-        )
-        positions = action_vals[actions]                             # (B, T)
+        positions = actions.squeeze(-1)                             # (B, T)
 
         # 前ステップポジション（初期 = 0.0 = フラット）
         prev_positions = torch.cat([
@@ -273,9 +274,13 @@ class WorldModelTrainer:
 
                 # actions がない場合はゼロ埋め（WM 事前学習時はランダムポリシーで収集した軌跡を想定）
                 if "actions" in batch:
-                    actions = batch["actions"].to(self.device)  # (B, T)
+                    actions = batch["actions"].to(self.device)  # (B, T, 1) or (B, T)
                 else:
-                    actions = torch.zeros(obs.shape[:2], dtype=torch.long, device=self.device)
+                    actions = torch.zeros((*obs.shape[:2], 1), dtype=torch.float32, device=self.device)
+                if actions.ndim == 2 and not torch.is_floating_point(actions):
+                    actions = self.action_values[actions].unsqueeze(-1)
+                elif actions.ndim == 2:
+                    actions = actions.unsqueeze(-1)
 
                 # SPEC 準拠: WM の reward head は net_return（コスト控除後）を学習する
                 # raw return がある場合のみ net_return を計算、なければゼロ埋め
@@ -312,11 +317,11 @@ class WorldModelTrainer:
                 if self.idm_head is not None or self.return_head is not None:
                     z, _ = self.ensemble.encode(obs)  # (B, T, z_dim)
 
-                    if self.idm_head is not None and "actions" in batch:
+                    if self.idm_head is not None and "actions" in batch and not torch.is_floating_point(batch["actions"]):
                         z_t = z[:, :-1, :]   # (B, T-1, z_dim)
                         z_t1 = z[:, 1:, :]   # (B, T-1, z_dim)
                         idm_logits = self.idm_head(z_t, z_t1)  # (B, T-1, n_actions)
-                        oracle_acts = actions[:, :-1]           # (B, T-1)
+                        oracle_acts = batch["actions"].to(self.device)[:, :-1]  # (B, T-1)
                         B_, T_, A_ = idm_logits.shape
                         idm_loss = F.cross_entropy(
                             idm_logits.reshape(B_ * T_, A_),
@@ -425,8 +430,12 @@ class WorldModelTrainer:
                 break
             obs = batch["obs"].to(self.device)
             obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)  # training と同一処理
-            actions = batch.get("actions", torch.zeros(obs.shape[:2], dtype=torch.long))
+            actions = batch.get("actions", torch.zeros((*obs.shape[:2], 1), dtype=torch.float32))
             actions = actions.to(self.device)
+            if actions.ndim == 2 and not torch.is_floating_point(actions):
+                actions = self.action_values[actions].unsqueeze(-1)
+            elif actions.ndim == 2:
+                actions = actions.unsqueeze(-1)
 
             # 学習時と同じ: raw_returns → net_returns を reward として使用
             raw_returns = batch.get("returns")
@@ -508,10 +517,12 @@ class WorldModelTrainer:
 
             if actions is not None:
                 act_t = torch.tensor(
-                    actions[ctx_start:end], dtype=torch.long, device=self.device
+                    actions[ctx_start:end], dtype=torch.float32, device=self.device
                 ).unsqueeze(0)
             else:
-                act_t = torch.zeros(1, end - ctx_start, dtype=torch.long, device=self.device)
+                act_t = torch.zeros(1, end - ctx_start, 1, dtype=torch.float32, device=self.device)
+            if act_t.ndim == 2:
+                act_t = act_t.unsqueeze(-1)
 
             z, _ = self.ensemble.encode(obs_t)
             out = self.ensemble.forward(z, act_t)
