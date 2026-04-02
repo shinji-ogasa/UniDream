@@ -89,6 +89,8 @@ class BCPretrainer:
         target_aux_coef: float = 1.0,
         trade_aux_coef: float = 0.5,
         band_aux_coef: float = 0.25,
+        soft_trade_targets: bool = True,
+        trade_target_scale: float | None = None,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -103,6 +105,8 @@ class BCPretrainer:
         self.target_aux_coef = target_aux_coef
         self.trade_aux_coef = trade_aux_coef
         self.band_aux_coef = band_aux_coef
+        self.soft_trade_targets = soft_trade_targets
+        self.trade_target_scale = trade_target_scale
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -134,7 +138,22 @@ class BCPretrainer:
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         oracle_target = oracle_positions - benchmark_position
         target_gap = torch.abs(oracle_target - current_inventory)
-        trade_targets = (target_gap > 1e-8).float()
+        trade_mask = (target_gap > 1e-8).float()
+        if self.soft_trade_targets:
+            scale = self.trade_target_scale
+            if scale is None or scale <= 0.0:
+                target_values = getattr(self.actor, "target_values", None)
+                if target_values is not None:
+                    unique_vals = np.unique(np.asarray(target_values, dtype=np.float32))
+                    diffs = np.diff(np.sort(unique_vals))
+                    positive_diffs = diffs[diffs > 1e-8]
+                    if len(positive_diffs) > 0:
+                        scale = float(np.median(positive_diffs))
+                if scale is None or scale <= 0.0:
+                    scale = 0.5
+            trade_targets = (target_gap / float(scale)).clamp(0.0, 1.0)
+        else:
+            trade_targets = trade_mask
         target_indices = self.actor.target_indices(oracle_positions)
 
         if soft_labels is not None:
@@ -150,7 +169,7 @@ class BCPretrainer:
             weights = weights * sample_class_w if weights is not None else sample_class_w
         if trade_pos_weight is not None:
             target_w = torch.where(
-                trade_targets > 0.5,
+                trade_mask > 0.5,
                 trade_pos_weight.to(device=target_loss.device, dtype=target_loss.dtype),
                 torch.ones_like(target_loss),
             )
@@ -172,10 +191,10 @@ class BCPretrainer:
             hold_band_min = 0.05
             trade_penalty = F.softplus(band_width - (target_gap - trade_margin).clamp(min=0.0))
             hold_penalty = F.softplus(hold_band_min - band_width)
-            band_penalty = torch.where(trade_targets > 0.5, trade_penalty, hold_penalty)
+            band_penalty = torch.where(trade_mask > 0.5, trade_penalty, hold_penalty)
             if trade_pos_weight is not None:
                 band_sample_w = torch.where(
-                    trade_targets > 0.5,
+                    trade_mask > 0.5,
                     trade_pos_weight.to(device=band_penalty.device, dtype=band_penalty.dtype),
                     torch.ones_like(band_penalty),
                 )
