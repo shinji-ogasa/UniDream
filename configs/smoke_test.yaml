@@ -35,7 +35,7 @@ cost_profiles:
 oracle:
   discount: 1.0
   soft_label_temp: 0.5      # Boltzmann 温度（medium と同一）
-  min_hold: 20              # controller 版は oracle target path をより滑らかにする
+  min_hold: 64              # 高コスト前提なので oracle をより低 turnover に寄せる
   action_values: [0.0, 0.5, 1.0]
 
 reward:
@@ -93,7 +93,7 @@ ac:
   ac_layers: 2
   actor_dropout: 0.10
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
-  infer_trade_threshold: 0.35
+  infer_trade_threshold: 0.60
   max_position_step: 1.00   # oracle が 1 バーで de-risk する前提と揃える
   abs_min_position: 0.0
   abs_max_position: 1.0
