@@ -311,6 +311,7 @@ def run_fold(
             target_aux_coef=bc_cfg.get("target_aux_coef", 1.0),
             trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
             band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
+            inventory_noise_std=bc_cfg.get("inventory_noise_std", 0.0),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -332,6 +333,7 @@ def run_fold(
                 target_aux_coef=bc_cfg.get("target_aux_coef", 1.0),
                 trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
                 band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
+                inventory_noise_std=bc_cfg.get("inventory_noise_std", 0.0),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_positions))

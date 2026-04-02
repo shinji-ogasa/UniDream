@@ -89,6 +89,7 @@ class BCPretrainer:
         target_aux_coef: float = 1.0,
         trade_aux_coef: float = 0.5,
         band_aux_coef: float = 0.25,
+        inventory_noise_std: float = 0.0,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -103,6 +104,7 @@ class BCPretrainer:
         self.target_aux_coef = target_aux_coef
         self.trade_aux_coef = trade_aux_coef
         self.band_aux_coef = band_aux_coef
+        self.inventory_noise_std = inventory_noise_std
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -128,8 +130,15 @@ class BCPretrainer:
         trade_pos_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
+        inventory_in = inventory
+        if inventory is not None and self.inventory_noise_std > 0.0:
+            noise = torch.randn_like(inventory) * self.inventory_noise_std
+            inventory_in = inventory + noise
+            overlay_low, overlay_high = self.actor._overlay_bounds()
+            inventory_in = inventory_in.clamp(min=overlay_low, max=overlay_high)
+
         trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
-            z, h, inventory=inventory, regime=regime
+            z, h, inventory=inventory_in, regime=regime
         )
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         oracle_target = oracle_positions - benchmark_position

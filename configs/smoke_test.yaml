@@ -86,6 +86,7 @@ bc:
   target_aux_coef: 3.00
   trade_aux_coef: 0.30
   band_aux_coef: 0.10
+  inventory_noise_std: 0.15
 
 ac:
   actor_hidden: 256
