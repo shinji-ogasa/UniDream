@@ -81,12 +81,11 @@ bc:
   sirl_hidden: 0
   label_smoothing: 0.00
   entropy_coef: 0.05
-  chunk_size: 1
+  chunk_size: 4
   class_balanced: false
   target_aux_coef: 3.00
-  trade_aux_coef: 0.30
-  band_aux_coef: 0.10
-  inventory_noise_std: 0.15
+  trade_aux_coef: 0.60
+  band_aux_coef: 0.20
 
 ac:
   actor_hidden: 256
