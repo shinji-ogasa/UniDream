@@ -341,7 +341,7 @@ def run_fold(
                 h=h_train[:T_enc],
                 oracle_positions=oracle_positions[:T_enc],
                 regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
-                soft_labels=None,
+                soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
             )
             bc_trainer.save(bc_path)
         else:
