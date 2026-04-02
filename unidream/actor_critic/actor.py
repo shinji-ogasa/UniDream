@@ -146,8 +146,7 @@ class Actor(nn.Module):
         """Controller 出力を executed inventory に変換する."""
         target_gap = target_inventory - current_inventory
         will_trade = (trade_signal >= trade_threshold) & (torch.abs(target_gap) > band_width)
-        active_gap = torch.sign(target_gap) * torch.relu(torch.abs(target_gap) - band_width)
-        bounded_step = self._bounded_step(active_gap)
+        bounded_step = self._bounded_step(target_gap)
         next_inventory = torch.where(will_trade, current_inventory + bounded_step, current_inventory)
         overlay_low, overlay_high = self._overlay_bounds()
         return next_inventory.clamp(min=overlay_low, max=overlay_high)
