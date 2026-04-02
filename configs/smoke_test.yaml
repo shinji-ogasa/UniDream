@@ -113,6 +113,7 @@ ac:
   prior_kl_coef: 0.10
   prior_trade_coef: 0.05
   prior_band_coef: 0.02
+  prior_flow_coef: 0.10
   turnover_coef: 0.25
   flow_change_coef: 0.10
   positive_advantages: true

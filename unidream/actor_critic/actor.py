@@ -105,12 +105,11 @@ class Actor(nn.Module):
         base = Normal(target_mean, target_std.clamp_min(1e-4))
         return TransformedDistribution(base, [TanhTransform(cache_size=1)])
 
-    def _step_limited_target(self, current: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def _bounded_step(self, gap: torch.Tensor) -> torch.Tensor:
         max_position_step = float(getattr(self, "max_position_step", 10.0))
         if max_position_step >= 10.0:
-            return target
-        delta = (target - current).clamp(min=-max_position_step, max=max_position_step)
-        return current + delta
+            return gap
+        return gap.clamp(min=-max_position_step, max=max_position_step)
 
     def execute_controller(
         self,
@@ -121,10 +120,11 @@ class Actor(nn.Module):
         trade_threshold: float = 0.5,
     ) -> torch.Tensor:
         """Controller 出力を executed inventory に変換する."""
-        target_gap = torch.abs(target_inventory - current_inventory)
-        will_trade = (trade_signal >= trade_threshold) & (target_gap > band_width)
-        bounded_target = self._step_limited_target(current_inventory, target_inventory)
-        next_inventory = torch.where(will_trade, bounded_target, current_inventory)
+        target_gap = target_inventory - current_inventory
+        will_trade = (trade_signal >= trade_threshold) & (torch.abs(target_gap) > band_width)
+        active_gap = torch.sign(target_gap) * torch.relu(torch.abs(target_gap) - band_width)
+        bounded_step = self._bounded_step(active_gap)
+        next_inventory = torch.where(will_trade, current_inventory + bounded_step, current_inventory)
         return next_inventory.clamp(min=-1.0, max=1.0)
 
     def get_action(

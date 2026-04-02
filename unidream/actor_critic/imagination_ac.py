@@ -130,6 +130,7 @@ class ImagACTrainer:
         self.prior_kl_coef = ac_cfg.get("prior_kl_coef", 0.0)
         self.prior_trade_coef = ac_cfg.get("prior_trade_coef", 0.0)
         self.prior_band_coef = ac_cfg.get("prior_band_coef", 0.0)
+        self.prior_flow_coef = ac_cfg.get("prior_flow_coef", 0.0)
         self.turnover_coef = ac_cfg.get("turnover_coef", 0.0)
         self.flow_change_coef = ac_cfg.get("flow_change_coef", 0.0)
         self.positive_advantages = ac_cfg.get("positive_advantages", False)
@@ -439,7 +440,12 @@ class ImagACTrainer:
         regime: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """BC 初期 policy からの trust-region 正則化."""
-        if self.prior_kl_coef <= 0.0 and self.prior_trade_coef <= 0.0 and self.prior_band_coef <= 0.0:
+        if (
+            self.prior_kl_coef <= 0.0
+            and self.prior_trade_coef <= 0.0
+            and self.prior_band_coef <= 0.0
+            and self.prior_flow_coef <= 0.0
+        ):
             return torch.tensor(0.0, device=self.device)
 
         cur_trade_logits, cur_target_mean, cur_target_std, cur_band, _ = self.actor.controller_outputs(
@@ -467,6 +473,27 @@ class ImagACTrainer:
         if self.prior_band_coef > 0.0:
             band_anchor = F.smooth_l1_loss(cur_band, ref_band)
             loss = loss + self.prior_band_coef * band_anchor
+        if self.prior_flow_coef > 0.0:
+            cur_trade_prob = torch.sigmoid(cur_trade_logits)
+            ref_trade_prob = torch.sigmoid(ref_trade_logits)
+            cur_next_inventory = self.actor.execute_controller(
+                trade_signal=cur_trade_prob,
+                target_inventory=cur_target_mean,
+                band_width=cur_band,
+                current_inventory=inventory.squeeze(-1) if inventory.ndim > 1 else inventory,
+                trade_threshold=float(getattr(self.actor, "infer_trade_threshold", 0.5)),
+            )
+            ref_next_inventory = self.actor_prior.execute_controller(
+                trade_signal=ref_trade_prob,
+                target_inventory=ref_target_mean,
+                band_width=ref_band,
+                current_inventory=inventory.squeeze(-1) if inventory.ndim > 1 else inventory,
+                trade_threshold=float(getattr(self.actor_prior, "infer_trade_threshold", 0.5)),
+            )
+            cur_flow = cur_next_inventory - (inventory.squeeze(-1) if inventory.ndim > 1 else inventory)
+            ref_flow = ref_next_inventory - (inventory.squeeze(-1) if inventory.ndim > 1 else inventory)
+            flow_anchor = F.smooth_l1_loss(cur_flow, ref_flow)
+            loss = loss + self.prior_flow_coef * flow_anchor
         return loss
 
     def train_step(
