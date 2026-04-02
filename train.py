@@ -418,8 +418,12 @@ def run_fold(
 
                 alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
                 sharpe_delta = metrics.sharpe_delta or 0.0
-                score = alpha_excess + 2.0 * sharpe_delta
+                score = 2.0 * alpha_excess + 5.0 * sharpe_delta
                 penalty = 0.0
+                if alpha_excess < 0.0:
+                    penalty += 0.5 * abs(alpha_excess)
+                if stats["flat"] >= 0.50:
+                    penalty += 30.0
                 if stats["flat"] >= 0.80:
                     penalty += 50.0
                 if stats["long"] >= 0.85:
