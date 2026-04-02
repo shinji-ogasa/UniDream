@@ -181,6 +181,8 @@ class ImagACTrainer:
         self._dsr_eta: float = reward_cfg.get("dsr_eta", 0.01)
         self.use_dsr: bool = ac_cfg.get("use_dsr", False)
         self.benchmark_position: float = reward_cfg.get("benchmark_position", 1.0)
+        self.abs_min_position: float = ac_cfg.get("abs_min_position", -1.0)
+        self.abs_max_position: float = ac_cfg.get("abs_max_position", 1.0)
 
         # Adaptive BC
         self.adaptive_bc: bool = ac_cfg.get("adaptive_bc", False)
@@ -210,14 +212,15 @@ class ImagACTrainer:
         self._oracle_z = torch.tensor(z[:T], dtype=torch.float32, device=self.device)
         self._oracle_h = torch.tensor(h[:T], dtype=torch.float32, device=self.device)
         self._oracle_actions = torch.tensor(oracle_actions[:T], dtype=torch.long, device=self.device)
+        clipped_positions = np.clip(_AC_ACTIONS[oracle_actions[:T]], self.abs_min_position, self.abs_max_position)
         oracle_inventory = np.zeros(T, dtype=np.float32)
         if T > 1:
-            oracle_inventory[1:] = _AC_ACTIONS[oracle_actions[:T - 1]] - self.benchmark_position
+            oracle_inventory[1:] = clipped_positions[:T - 1] - self.benchmark_position
         self._oracle_inventory = torch.tensor(
             oracle_inventory, dtype=torch.float32, device=self.device
         )
         trade_targets = (
-            np.abs((_AC_ACTIONS[oracle_actions[:T]] - self.benchmark_position) - oracle_inventory) > 1e-8
+            np.abs((clipped_positions - self.benchmark_position) - oracle_inventory) > 1e-8
         ).astype(np.float32)
         n_pos = float(trade_targets.sum())
         n_neg = float(T - n_pos)
@@ -398,6 +401,7 @@ class ImagACTrainer:
             regime=regime_batch,
         )
         oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=current_inventory.dtype)[self._oracle_actions[idx]]
+        oracle_pos = oracle_pos.clamp(min=self.abs_min_position, max=self.abs_max_position)
         oracle_overlay = oracle_pos - self.benchmark_position
         target_gap = torch.abs(oracle_overlay - current_inventory)
         trade_targets = (target_gap > 1e-8).float()

@@ -136,7 +136,10 @@ class BCPretrainer:
             z, h, inventory=inventory, regime=regime
         )
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+        abs_min = float(getattr(self.actor, "abs_min_position", -1.0))
+        abs_max = float(getattr(self.actor, "abs_max_position", 1.0))
         oracle_position = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[oracle_actions]
+        oracle_position = oracle_position.clamp(min=abs_min, max=abs_max)
         oracle_target = oracle_position - benchmark_position
         target_gap = torch.abs(oracle_target - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
@@ -222,10 +225,13 @@ class BCPretrainer:
         """
         T = min(len(z), len(h), len(oracle_actions))
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+        abs_min = float(getattr(self.actor, "abs_min_position", -1.0))
+        abs_max = float(getattr(self.actor, "abs_max_position", 1.0))
+        clipped_actions = np.clip(ACTIONS[oracle_actions[:T]], abs_min, abs_max)
         inv_all = np.zeros(T, dtype=np.float32)
         if T > 1:
-            inv_all[1:] = ACTIONS[oracle_actions[:T - 1]] - benchmark_position
-        trade_mask = (np.abs((ACTIONS[oracle_actions[:T]] - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
+            inv_all[1:] = clipped_actions[:T - 1] - benchmark_position
+        trade_mask = (np.abs((clipped_actions - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
         n_pos = float(trade_mask.sum())
         n_neg = float(T - n_pos)
         trade_pos_weight_t = None

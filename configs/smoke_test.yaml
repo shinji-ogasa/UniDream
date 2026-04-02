@@ -94,6 +94,8 @@ ac:
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
   infer_trade_threshold: 0.35
   max_position_step: 0.50   # overlay では hedge の立ち上がりを遅くしすぎない
+  abs_min_position: 0.0
+  abs_max_position: 1.0
   min_band: 0.02
   max_band: 0.20
   min_target_std: 0.05

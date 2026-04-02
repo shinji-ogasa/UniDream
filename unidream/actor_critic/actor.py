@@ -58,15 +58,22 @@ class Actor(nn.Module):
     def _benchmark_position(self) -> float:
         return float(getattr(self, "benchmark_position", 0.0))
 
+    def _absolute_bounds(self) -> tuple[float, float]:
+        abs_min = float(getattr(self, "abs_min_position", -1.0))
+        abs_max = float(getattr(self, "abs_max_position", 1.0))
+        return abs_min, abs_max
+
     def _overlay_bounds(self) -> tuple[float, float]:
         bench = self._benchmark_position()
-        return -1.0 - bench, 1.0 - bench
+        abs_min, abs_max = self._absolute_bounds()
+        return abs_min - bench, abs_max - bench
 
     def _position_to_overlay(self, position: torch.Tensor) -> torch.Tensor:
         return position - self._benchmark_position()
 
     def _overlay_to_position(self, overlay: torch.Tensor) -> torch.Tensor:
-        return (overlay + self._benchmark_position()).clamp(min=-1.0, max=1.0)
+        abs_min, abs_max = self._absolute_bounds()
+        return (overlay + self._benchmark_position()).clamp(min=abs_min, max=abs_max)
 
     def _prepare_inputs(
         self,
