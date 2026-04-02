@@ -277,22 +277,20 @@ class BCPretrainer:
                     else:
                         sirl_w = None
 
-                    # k ステップ分の損失を平均
-                    step_losses = []
-                    for step in range(k):
-                        a_step = a_chunk[:, step]        # (B,)
-                        inv_step = inv_chunk[:, step]
-                        sl_step = sl_chunk[:, step, :] if sl_chunk is not None else None
-                        step_loss = self._bc_loss(
-                            z_b, h_b, a_step,
-                            inventory=inv_step,
-                            weights=sirl_w,
-                            regime=reg_b,
-                            soft_labels=sl_step,
-                            trade_pos_weight=trade_pos_weight_t,
-                        )
-                        step_losses.append(step_loss)
-                    loss = torch.stack(step_losses).mean()
+                    # Chunk 先頭 state から「この先 k ステップで目指す在庫」を 1 つ学ばせる。
+                    # 各 step を同じ state に押し当てると trade/band supervision が歪みやすいので、
+                    # chunk 平均 target と先頭 inventory の組で controller を学習する。
+                    a_repr = a_chunk.mean(dim=1)         # (B,)
+                    inv_now = inv_chunk[:, 0]            # (B,)
+                    sl_repr = sl_chunk.mean(dim=1) if sl_chunk is not None else None
+                    loss = self._bc_loss(
+                        z_b, h_b, a_repr,
+                        inventory=inv_now,
+                        weights=sirl_w,
+                        regime=reg_b,
+                        soft_labels=sl_repr,
+                        trade_pos_weight=trade_pos_weight_t,
+                    )
 
                     self.optimizer.zero_grad()
                     loss.backward()
