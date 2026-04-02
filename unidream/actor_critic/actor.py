@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Bernoulli, Normal, TransformedDistribution
-from torch.distributions.transforms import TanhTransform
+from torch.distributions.transforms import AffineTransform, TanhTransform
 
 from unidream.data.oracle import N_ACTIONS
 
@@ -55,6 +55,19 @@ class Actor(nn.Module):
         nn.init.constant_(self.band_head.bias, 0.0)
         nn.init.constant_(self.target_std_head.bias, -2.0)
 
+    def _benchmark_position(self) -> float:
+        return float(getattr(self, "benchmark_position", 0.0))
+
+    def _overlay_bounds(self) -> tuple[float, float]:
+        bench = self._benchmark_position()
+        return -1.0 - bench, 1.0 - bench
+
+    def _position_to_overlay(self, position: torch.Tensor) -> torch.Tensor:
+        return position - self._benchmark_position()
+
+    def _overlay_to_position(self, overlay: torch.Tensor) -> torch.Tensor:
+        return (overlay + self._benchmark_position()).clamp(min=-1.0, max=1.0)
+
     def _prepare_inputs(
         self,
         z: torch.Tensor,
@@ -89,7 +102,9 @@ class Actor(nn.Module):
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
-        target_mean = torch.tanh(self.target_mean_head(hidden).squeeze(-1))
+        overlay_low, overlay_high = self._overlay_bounds()
+        target_mean_unit = torch.tanh(self.target_mean_head(hidden).squeeze(-1))
+        target_mean = overlay_low + 0.5 * (target_mean_unit + 1.0) * (overlay_high - overlay_low)
         min_std = float(getattr(self, "min_target_std", 0.05))
         max_std = float(getattr(self, "max_target_std", 0.35))
         target_std = min_std + max_std * torch.sigmoid(self.target_std_head(hidden).squeeze(-1))
@@ -102,8 +117,16 @@ class Actor(nn.Module):
         target_mean: torch.Tensor,
         target_std: torch.Tensor,
     ) -> TransformedDistribution:
-        base = Normal(target_mean, target_std.clamp_min(1e-4))
-        return TransformedDistribution(base, [TanhTransform(cache_size=1)])
+        overlay_low, overlay_high = self._overlay_bounds()
+        mid = 0.5 * (overlay_high + overlay_low)
+        half_range = 0.5 * (overlay_high - overlay_low)
+        target_mean_unit = ((target_mean - mid) / max(half_range, 1e-6)).clamp(min=-0.999, max=0.999)
+        target_std_unit = (target_std / max(half_range, 1e-6)).clamp_min(1e-4)
+        base = Normal(target_mean_unit, target_std_unit)
+        return TransformedDistribution(
+            base,
+            [TanhTransform(cache_size=1), AffineTransform(loc=mid, scale=half_range)],
+        )
 
     def _bounded_step(self, gap: torch.Tensor) -> torch.Tensor:
         max_position_step = float(getattr(self, "max_position_step", 10.0))
@@ -125,7 +148,8 @@ class Actor(nn.Module):
         active_gap = torch.sign(target_gap) * torch.relu(torch.abs(target_gap) - band_width)
         bounded_step = self._bounded_step(active_gap)
         next_inventory = torch.where(will_trade, current_inventory + bounded_step, current_inventory)
-        return next_inventory.clamp(min=-1.0, max=1.0)
+        overlay_low, overlay_high = self._overlay_bounds()
+        return next_inventory.clamp(min=overlay_low, max=overlay_high)
 
     def get_action(
         self,
@@ -155,7 +179,8 @@ class Actor(nn.Module):
         target_log_prob = target_dist.log_prob(target_inventory) * trade_sample
         log_prob = trade_log_prob + target_log_prob
         entropy = trade_dist.entropy() + target_dist.base_dist.entropy() * trade_dist.probs
-        return next_inventory.unsqueeze(-1), log_prob, entropy
+        next_position = self._overlay_to_position(next_inventory)
+        return next_position.unsqueeze(-1), log_prob, entropy
 
     @torch.no_grad()
     def act_greedy(
@@ -181,7 +206,8 @@ class Actor(nn.Module):
             current_inventory=current_inventory,
             trade_threshold=float(getattr(self, "infer_trade_threshold", 0.5)),
         )
-        return next_inventory.unsqueeze(-1)
+        next_position = self._overlay_to_position(next_inventory)
+        return next_position.unsqueeze(-1)
 
     @torch.no_grad()
     def predict_positions(
@@ -204,17 +230,17 @@ class Actor(nn.Module):
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
 
         positions = np.zeros(len(z_np), dtype=np.float32)
-        prev_inventory = torch.zeros(1, 1, dtype=torch.float32, device=dev)
+        prev_overlay = torch.zeros(1, 1, dtype=torch.float32, device=dev)
         for i in range(len(z_np)):
             reg_t = regime[i:i + 1] if regime is not None else None
-            next_inventory = self.act_greedy(
+            next_position = self.act_greedy(
                 z[i:i + 1],
                 h[i:i + 1],
-                inventory=prev_inventory,
+                inventory=prev_overlay,
                 regime=reg_t,
             )
-            positions[i] = float(next_inventory.item())
-            prev_inventory = next_inventory.reshape(1, 1)
+            positions[i] = float(next_position.item())
+            prev_overlay = self._position_to_overlay(next_position).reshape(1, 1)
 
         if was_training:
             self.train()

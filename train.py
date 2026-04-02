@@ -284,6 +284,7 @@ def run_fold(
         regime_dim=regime_dim,
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
     )
+    actor.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
     actor.infer_trade_threshold = ac_cfg.get("infer_trade_threshold", 0.5)
     actor.max_position_step = ac_cfg.get("max_position_step", 10.0)

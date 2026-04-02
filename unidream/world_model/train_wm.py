@@ -275,8 +275,13 @@ class WorldModelTrainer:
                 # actions がない場合はゼロ埋め（WM 事前学習時はランダムポリシーで収集した軌跡を想定）
                 if "actions" in batch:
                     actions = batch["actions"].to(self.device)  # (B, T, 1) or (B, T)
-                else:
-                    actions = torch.zeros((*obs.shape[:2], 1), dtype=torch.float32, device=self.device)
+            else:
+                actions = torch.full(
+                    (*obs.shape[:2], 1),
+                    fill_value=self.benchmark_position if self.reward_mode == "excess_bh" else 0.0,
+                    dtype=torch.float32,
+                    device=self.device,
+                )
                 if actions.ndim == 2 and not torch.is_floating_point(actions):
                     actions = self.action_values[actions].unsqueeze(-1)
                 elif actions.ndim == 2:
@@ -430,7 +435,8 @@ class WorldModelTrainer:
                 break
             obs = batch["obs"].to(self.device)
             obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)  # training と同一処理
-            actions = batch.get("actions", torch.zeros((*obs.shape[:2], 1), dtype=torch.float32))
+            default_action = self.benchmark_position if self.reward_mode == "excess_bh" else 0.0
+            actions = batch.get("actions", torch.full((*obs.shape[:2], 1), default_action, dtype=torch.float32))
             actions = actions.to(self.device)
             if actions.ndim == 2 and not torch.is_floating_point(actions):
                 actions = self.action_values[actions].unsqueeze(-1)
@@ -520,7 +526,12 @@ class WorldModelTrainer:
                     actions[ctx_start:end], dtype=torch.float32, device=self.device
                 ).unsqueeze(0)
             else:
-                act_t = torch.zeros(1, end - ctx_start, 1, dtype=torch.float32, device=self.device)
+                act_t = torch.full(
+                    (1, end - ctx_start, 1),
+                    fill_value=self.benchmark_position if self.reward_mode == "excess_bh" else 0.0,
+                    dtype=torch.float32,
+                    device=self.device,
+                )
             if act_t.ndim == 2:
                 act_t = act_t.unsqueeze(-1)
 

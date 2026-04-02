@@ -135,13 +135,15 @@ class BCPretrainer:
         trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
-        oracle_target = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[oracle_actions]
+        benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+        oracle_position = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[oracle_actions]
+        oracle_target = oracle_position - benchmark_position
         target_gap = torch.abs(oracle_target - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
 
         if soft_labels is not None:
             soft_actions = _ACTIONS_T.to(device=soft_labels.device, dtype=soft_labels.dtype)
-            oracle_target_soft = (soft_labels * soft_actions.unsqueeze(0)).sum(dim=-1)
+            oracle_target_soft = (soft_labels * soft_actions.unsqueeze(0)).sum(dim=-1) - benchmark_position
             target_loss = F.smooth_l1_loss(target_mean, oracle_target_soft, reduction="none")
         else:
             target_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
@@ -219,10 +221,11 @@ class BCPretrainer:
             各エポックのロスログ
         """
         T = min(len(z), len(h), len(oracle_actions))
+        benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         inv_all = np.zeros(T, dtype=np.float32)
         if T > 1:
-            inv_all[1:] = ACTIONS[oracle_actions[:T - 1]]
-        trade_mask = (np.abs(ACTIONS[oracle_actions[:T]] - inv_all[:T]) > 1e-8).astype(np.float32)
+            inv_all[1:] = ACTIONS[oracle_actions[:T - 1]] - benchmark_position
+        trade_mask = (np.abs((ACTIONS[oracle_actions[:T]] - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
         n_pos = float(trade_mask.sum())
         n_neg = float(T - n_pos)
         trade_pos_weight_t = None

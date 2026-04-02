@@ -180,6 +180,7 @@ class ImagACTrainer:
         self._dsr_B: float = 1e-4   # EMA of reward^2 (running variance proxy)
         self._dsr_eta: float = reward_cfg.get("dsr_eta", 0.01)
         self.use_dsr: bool = ac_cfg.get("use_dsr", False)
+        self.benchmark_position: float = reward_cfg.get("benchmark_position", 1.0)
 
         # Adaptive BC
         self.adaptive_bc: bool = ac_cfg.get("adaptive_bc", False)
@@ -211,11 +212,13 @@ class ImagACTrainer:
         self._oracle_actions = torch.tensor(oracle_actions[:T], dtype=torch.long, device=self.device)
         oracle_inventory = np.zeros(T, dtype=np.float32)
         if T > 1:
-            oracle_inventory[1:] = _AC_ACTIONS[oracle_actions[:T - 1]]
+            oracle_inventory[1:] = _AC_ACTIONS[oracle_actions[:T - 1]] - self.benchmark_position
         self._oracle_inventory = torch.tensor(
             oracle_inventory, dtype=torch.float32, device=self.device
         )
-        trade_targets = (np.abs(_AC_ACTIONS[oracle_actions[:T]] - oracle_inventory) > 1e-8).astype(np.float32)
+        trade_targets = (
+            np.abs((_AC_ACTIONS[oracle_actions[:T]] - self.benchmark_position) - oracle_inventory) > 1e-8
+        ).astype(np.float32)
         n_pos = float(trade_targets.sum())
         n_neg = float(T - n_pos)
         if n_pos > 0 and n_neg > 0:
@@ -294,11 +297,12 @@ class ImagACTrainer:
 
             with torch.no_grad():
                 result = self.ensemble.imagine_step(z, h, next_inventory, pzs, pas)
+            next_overlay = next_inventory.squeeze(-1) - self.benchmark_position
 
             zs.append(z)
             hs.append(h)
             inventories.append(inventory.squeeze(-1))
-            acts.append(next_inventory.squeeze(-1))
+            acts.append(next_overlay)
             log_probs_list.append(log_prob)
             entropies_list.append(entropy)
             rewards_list.append(result["reward"])   # net_return（原スケール）
@@ -308,7 +312,7 @@ class ImagACTrainer:
             h = result["next_h"].detach()
             pzs = result["past_zs"]
             pas = result["past_as"]
-            inventory = next_inventory
+            inventory = next_overlay.unsqueeze(-1)
 
         return {
             "zs": torch.stack(zs, dim=1),                      # (B, H, z_dim)
@@ -394,10 +398,11 @@ class ImagACTrainer:
             regime=regime_batch,
         )
         oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=current_inventory.dtype)[self._oracle_actions[idx]]
-        target_gap = torch.abs(oracle_pos - current_inventory)
+        oracle_overlay = oracle_pos - self.benchmark_position
+        target_gap = torch.abs(oracle_overlay - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
 
-        target_loss = F.smooth_l1_loss(target_mean, oracle_pos, reduction="none")
+        target_loss = F.smooth_l1_loss(target_mean, oracle_overlay, reduction="none")
         if self._oracle_trade_pos_weight is not None:
             target_w = torch.where(
                 trade_targets > 0.5,
@@ -507,7 +512,7 @@ class ImagACTrainer:
         """1 ステップの Actor-Critic 更新."""
         B = z0.shape[0]
         if past_as is not None and past_as.shape[1] > 0:
-            inventory0 = past_as[:, -1]
+            inventory0 = past_as[:, -1] - self.benchmark_position
             if inventory0.ndim == 1:
                 inventory0 = inventory0.unsqueeze(-1)
         else:
@@ -650,7 +655,7 @@ class ImagACTrainer:
             h0 = torch.tensor(all_h[idx], dtype=torch.float32, device=self.device)
 
             past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
-            past_as_np = np.zeros((batch_size, L, 1), dtype=np.float32)
+            past_as_np = np.full((batch_size, L, 1), self.benchmark_position, dtype=np.float32)
             for b, i in enumerate(idx):
                 start = max(0, i - L)
                 length = i - start
@@ -777,7 +782,7 @@ class ImagACTrainer:
 
             # 各サンプルの直前 L ステップを context として取得（左端はゼロパディング）
             past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
-            past_as_np = np.zeros((batch_size, L, 1), dtype=np.float32)
+            past_as_np = np.full((batch_size, L, 1), self.benchmark_position, dtype=np.float32)
             for b, i in enumerate(idx):
                 start = max(0, i - L)
                 length = i - start
