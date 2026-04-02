@@ -115,6 +115,7 @@ ac:
   prior_band_coef: 0.02
   turnover_coef: 0.15
   flow_change_coef: 0.05
+  positive_advantages: true
   actor_lr: 3.0e-5
   online_wm_interval: 200   # AC steps ごとに WM をオンライン更新
   online_wm_window_days: 30 # 更新に使う直近日数

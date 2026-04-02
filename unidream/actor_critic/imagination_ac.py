@@ -127,6 +127,7 @@ class ImagACTrainer:
         self.prior_band_coef = ac_cfg.get("prior_band_coef", 0.0)
         self.turnover_coef = ac_cfg.get("turnover_coef", 0.0)
         self.flow_change_coef = ac_cfg.get("flow_change_coef", 0.0)
+        self.positive_advantages = ac_cfg.get("positive_advantages", False)
 
         # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
         # WM は net_return（コスト控除済み）を予測するため、
@@ -557,7 +558,8 @@ class ImagACTrainer:
         self._adv_ema = 0.99 * self._adv_ema + 0.01 * adv_scale
         norm_q = self.td3bc_alpha / max(self._adv_ema, 0.1)
 
-        ac_loss = -(norm_q * advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
+        pg_advantage = F.relu(advantage) if self.positive_advantages else advantage
+        ac_loss = -(norm_q * pg_advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
         prior_loss = self._prior_anchor_loss(z0, h0, inventory0, regime=regime0)
         bc_loss = self._bc_loss_batch()
         actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss + prior_loss
