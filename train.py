@@ -174,6 +174,10 @@ def run_fold(
     train_returns = wfo_dataset.train_returns
     oracle_cfg = cfg.get("oracle", {})
     reward_cfg = cfg.get("reward", {})
+    oracle_action_values = np.asarray(
+        oracle_cfg.get("action_values", cfg.get("actions", {}).get("values", _ACTIONS)),
+        dtype=np.float32,
+    )
     oracle_min_hold = oracle_cfg.get("min_hold", 0)
     oracle_soft_temp = oracle_cfg.get("soft_label_temp", 0.0)
     oracle_reward_mode = reward_cfg.get("mode", "absolute")
@@ -188,11 +192,12 @@ def run_fold(
         soft_label_temp=oracle_soft_temp,
         reward_mode=oracle_reward_mode,
         benchmark_position=oracle_benchmark_position,
+        action_values=oracle_action_values,
     )
     print(f"  Oracle computed: {len(oracle_actions)} steps, "
           f"mean value={oracle_values.mean():.4f}")
     print(f"  Oracle objective: {oracle_reward_mode} (benchmark={oracle_benchmark_position:+.2f})")
-    _oracle_pos = np.array([_ACTIONS[a] for a in oracle_actions])
+    _oracle_pos = oracle_action_values[oracle_actions]
     _oracle_s = _action_stats(_oracle_pos)
     print(f"  Oracle dist: {_fmt_action_stats(_oracle_s)}")
 
@@ -206,9 +211,10 @@ def run_fold(
         min_hold=oracle_min_hold,
         reward_mode=oracle_reward_mode,
         benchmark_position=oracle_benchmark_position,
+        action_values=oracle_action_values,
     )
-    oracle_positions = _ACTIONS[oracle_actions].astype(np.float32)
-    val_oracle_positions = _ACTIONS[val_oracle_actions].astype(np.float32)
+    oracle_positions = oracle_action_values[oracle_actions].astype(np.float32)
+    val_oracle_positions = oracle_action_values[val_oracle_actions].astype(np.float32)
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
     # Actor 生成前に計算して regime_dim を確定する
@@ -327,13 +333,13 @@ def run_fold(
                 band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
                 device=device,
             )
-            T_enc = min(len(z_train), len(oracle_actions))
+            T_enc = min(len(z_train), len(oracle_positions))
             bc_trainer.train(
                 z=z_train[:T_enc],
                 h=h_train[:T_enc],
-                oracle_actions=oracle_actions[:T_enc],
+                oracle_positions=oracle_positions[:T_enc],
                 regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
-                soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
+                soft_labels=None,
             )
             bc_trainer.save(bc_path)
         else:
@@ -374,11 +380,11 @@ def run_fold(
         if start_idx <= _stage_idx("ac") or has_ac:
             # oracle データは resume 時も必要（BC 損失計算用）
             # z/h は oracle エンコード（z は obs のみなので同一、h は BC エンコードとは別途保持）
-            T_enc = min(len(z_train), len(oracle_actions))
+            T_enc = min(len(z_train), len(oracle_positions))
             ac_trainer.set_oracle_data(
                 z=z_train[:T_enc],
                 h=h_train[:T_enc],
-                oracle_actions=oracle_actions[:T_enc],
+                oracle_positions=oracle_positions[:T_enc],
                 regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
             )
 
@@ -486,7 +492,7 @@ def run_fold(
                               f"long={_bc_attr['long_gross']:+.4f}  "
                               f"short={_bc_attr['short_gross']:+.4f}  "
                               f"cost={_bc_attr['cost_total']:.4f}")
-                        _oracle_val_pos = np.array([_ACTIONS[a] for a in val_oracle_actions[:_bc_T]])
+                        _oracle_val_pos = val_oracle_positions[:_bc_T]
                         _oracle_val_s = _action_stats(_oracle_val_pos)
                         print(f"  Oracle val dist: {_fmt_action_stats(_oracle_val_s)}")
                         _ac_alerts("BC-val", _bc_s)

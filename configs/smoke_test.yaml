@@ -36,6 +36,7 @@ oracle:
   discount: 1.0
   soft_label_temp: 0.5      # Boltzmann 温度（medium と同一）
   min_hold: 20              # controller 版は oracle target path をより滑らかにする
+  action_values: [0.0, 0.5, 1.0]
 
 reward:
   beta: 0.1

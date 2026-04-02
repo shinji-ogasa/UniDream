@@ -22,10 +22,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 from unidream.actor_critic.actor import Actor
-from unidream.data.oracle import ACTIONS
-
-_ACTIONS_T = torch.tensor(ACTIONS, dtype=torch.float32)
-
 
 class SIRLWeightNet(nn.Module):
     """状態依存 BC 重み w(s) を出力するネットワーク（SIRL）.
@@ -123,7 +119,7 @@ class BCPretrainer:
         self,
         z: torch.Tensor,
         h: torch.Tensor,
-        oracle_actions: torch.Tensor,
+        oracle_positions: torch.Tensor,
         inventory: Optional[torch.Tensor] = None,
         weights: Optional[torch.Tensor] = None,
         regime: Optional[torch.Tensor] = None,
@@ -136,17 +132,12 @@ class BCPretrainer:
             z, h, inventory=inventory, regime=regime
         )
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
-        abs_min = float(getattr(self.actor, "abs_min_position", -1.0))
-        abs_max = float(getattr(self.actor, "abs_max_position", 1.0))
-        oracle_position = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[oracle_actions]
-        oracle_position = oracle_position.clamp(min=abs_min, max=abs_max)
-        oracle_target = oracle_position - benchmark_position
+        oracle_target = oracle_positions - benchmark_position
         target_gap = torch.abs(oracle_target - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
 
         if soft_labels is not None:
-            soft_actions = _ACTIONS_T.to(device=soft_labels.device, dtype=soft_labels.dtype)
-            oracle_target_soft = (soft_labels * soft_actions.unsqueeze(0)).sum(dim=-1) - benchmark_position
+            oracle_target_soft = soft_labels - benchmark_position
             target_loss = F.smooth_l1_loss(target_mean, oracle_target_soft, reduction="none")
         else:
             target_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
@@ -155,7 +146,7 @@ class BCPretrainer:
             target_loss = target_loss + self.label_smoothing * target_std
 
         if class_weights is not None:
-            sample_class_w = class_weights[oracle_actions]
+            sample_class_w = torch.ones_like(target_loss)
             weights = weights * sample_class_w if weights is not None else sample_class_w
         if trade_pos_weight is not None:
             target_w = torch.where(
@@ -202,7 +193,7 @@ class BCPretrainer:
         self,
         z: np.ndarray,
         h: np.ndarray,
-        oracle_actions: np.ndarray,
+        oracle_positions: np.ndarray,
         verbose: bool = True,
         regime_probs: "np.ndarray | None" = None,
         soft_labels: "np.ndarray | None" = None,
@@ -223,15 +214,12 @@ class BCPretrainer:
         Returns:
             各エポックのロスログ
         """
-        T = min(len(z), len(h), len(oracle_actions))
+        T = min(len(z), len(h), len(oracle_positions))
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
-        abs_min = float(getattr(self.actor, "abs_min_position", -1.0))
-        abs_max = float(getattr(self.actor, "abs_max_position", 1.0))
-        clipped_actions = np.clip(ACTIONS[oracle_actions[:T]], abs_min, abs_max)
         inv_all = np.zeros(T, dtype=np.float32)
         if T > 1:
-            inv_all[1:] = clipped_actions[:T - 1] - benchmark_position
-        trade_mask = (np.abs((clipped_actions - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
+            inv_all[1:] = oracle_positions[:T - 1] - benchmark_position
+        trade_mask = (np.abs((oracle_positions[:T] - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
         n_pos = float(trade_mask.sum())
         n_neg = float(T - n_pos)
         trade_pos_weight_t = None
@@ -247,13 +235,13 @@ class BCPretrainer:
             # チャンク先頭の (z, h, regime) を取得
             z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, z_dim)
             h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, h_dim)
-            a_arr = oracle_actions[:T_use].reshape(n_chunks, k)          # (n_chunks, k)
+            pos_arr = oracle_positions[:T_use].reshape(n_chunks, k)      # (n_chunks, k)
             inv_arr = inv_all[:T_use].reshape(n_chunks, k)               # (n_chunks, k)
 
             tensors = [
                 torch.tensor(z_arr, dtype=torch.float32),
                 torch.tensor(h_arr, dtype=torch.float32),
-                torch.tensor(a_arr, dtype=torch.long),
+                torch.tensor(pos_arr, dtype=torch.float32),
                 torch.tensor(inv_arr, dtype=torch.float32),
             ]
             use_regime = regime_probs is not None
@@ -326,7 +314,7 @@ class BCPretrainer:
         # --- 通常の per-step 学習（chunk_size=1）---
         z_t = torch.tensor(z[:T], dtype=torch.float32)
         h_t = torch.tensor(h[:T], dtype=torch.float32)
-        a_t = torch.tensor(oracle_actions[:T], dtype=torch.long)
+        a_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
         inv_t = torch.tensor(inv_all[:T], dtype=torch.float32)
 
         use_regime = regime_probs is not None

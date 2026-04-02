@@ -36,9 +36,6 @@ from unidream.actor_critic.critic import Critic, RewardEMANorm
 from unidream.world_model.ensemble import EnsembleWorldModel
 from unidream.world_model.transformer import symlog, symexp, twohot_decode, twohot_encode
 
-_AC_ACTIONS = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
-_AC_ACTIONS_T = torch.tensor(_AC_ACTIONS, dtype=torch.float32)
-
 
 def _action_stats(positions: np.ndarray) -> dict:
     """ポジション配列の行動分布統計を計算する."""
@@ -171,7 +168,7 @@ class ImagACTrainer:
         # BC 損失用の oracle データ（bc_pretrain 後に set_oracle_data で設定）
         self._oracle_z: Optional[torch.Tensor] = None
         self._oracle_h: Optional[torch.Tensor] = None
-        self._oracle_actions: Optional[torch.Tensor] = None
+        self._oracle_positions: Optional[torch.Tensor] = None
         self._oracle_inventory: Optional[torch.Tensor] = None
         self._oracle_trade_pos_weight: Optional[torch.Tensor] = None
 
@@ -204,15 +201,15 @@ class ImagACTrainer:
         self,
         z: np.ndarray,
         h: np.ndarray,
-        oracle_actions: np.ndarray,
+        oracle_positions: np.ndarray,
         regime_probs: "np.ndarray | None" = None,
     ) -> None:
         """BC 損失用の Oracle データを設定する."""
-        T = min(len(z), len(h), len(oracle_actions))
+        T = min(len(z), len(h), len(oracle_positions))
         self._oracle_z = torch.tensor(z[:T], dtype=torch.float32, device=self.device)
         self._oracle_h = torch.tensor(h[:T], dtype=torch.float32, device=self.device)
-        self._oracle_actions = torch.tensor(oracle_actions[:T], dtype=torch.long, device=self.device)
-        clipped_positions = np.clip(_AC_ACTIONS[oracle_actions[:T]], self.abs_min_position, self.abs_max_position)
+        clipped_positions = np.clip(oracle_positions[:T], self.abs_min_position, self.abs_max_position)
+        self._oracle_positions = torch.tensor(clipped_positions, dtype=torch.float32, device=self.device)
         oracle_inventory = np.zeros(T, dtype=np.float32)
         if T > 1:
             oracle_inventory[1:] = clipped_positions[:T - 1] - self.benchmark_position
@@ -400,8 +397,7 @@ class ImagACTrainer:
             inventory=inventory_batch,
             regime=regime_batch,
         )
-        oracle_pos = _AC_ACTIONS_T.to(device=self.device, dtype=current_inventory.dtype)[self._oracle_actions[idx]]
-        oracle_pos = oracle_pos.clamp(min=self.abs_min_position, max=self.abs_max_position)
+        oracle_pos = self._oracle_positions[idx].to(device=self.device, dtype=current_inventory.dtype)
         oracle_overlay = oracle_pos - self.benchmark_position
         target_gap = torch.abs(oracle_overlay - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
