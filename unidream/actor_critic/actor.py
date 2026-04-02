@@ -179,6 +179,29 @@ class Actor(nn.Module):
         overlay_low, overlay_high = self._overlay_bounds()
         return next_inventory.clamp(min=overlay_low, max=overlay_high)
 
+    def execute_controller_greedy(
+        self,
+        trade_signal: torch.Tensor,
+        target_inventory: torch.Tensor,
+        band_width: torch.Tensor,
+        current_inventory: torch.Tensor,
+        trade_threshold: float = 0.5,
+    ) -> torch.Tensor:
+        """Greedy rollout では target へ部分調整して threshold 依存を滑らかにする."""
+        target_gap = target_inventory - current_inventory
+        trade_score = self._trade_score(trade_signal, target_gap, band_width)
+        above_band = torch.abs(target_gap) > band_width
+        denom = max(1e-6, 1.0 - trade_threshold)
+        trade_frac = ((trade_score - trade_threshold) / denom).clamp(min=0.0, max=1.0)
+        bounded_step = self._bounded_step(target_gap)
+        next_inventory = torch.where(
+            above_band,
+            current_inventory + trade_frac * bounded_step,
+            current_inventory,
+        )
+        overlay_low, overlay_high = self._overlay_bounds()
+        return next_inventory.clamp(min=overlay_low, max=overlay_high)
+
     def get_action(
         self,
         z: torch.Tensor,
@@ -233,7 +256,7 @@ class Actor(nn.Module):
         band_width = self._quantize_inference(band_width)
         target_inventory = self._quantize_inference(target_inventory)
         current_inventory = self._quantize_inference(current_inventory)
-        next_inventory = self.execute_controller(
+        next_inventory = self.execute_controller_greedy(
             trade_signal=trade_prob,
             target_inventory=target_inventory,
             band_width=band_width,
