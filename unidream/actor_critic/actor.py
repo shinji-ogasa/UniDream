@@ -137,7 +137,7 @@ class Actor(nn.Module):
 
     def _quantize_inference(self, x: torch.Tensor) -> torch.Tensor:
         """Greedy rollout の device 差分を減らすために軽く量子化する."""
-        step = float(getattr(self, "infer_quantize_step", 1e-3))
+        step = float(getattr(self, "infer_quantize_step", 0.0))
         if step <= 0.0:
             return x
         return torch.round(x / step) * step
