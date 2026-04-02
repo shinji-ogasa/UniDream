@@ -284,12 +284,13 @@ def run_fold(
     actor = Actor(
         z_dim=ensemble.get_z_dim(),
         h_dim=ensemble.get_d_model(),
-        act_dim=cfg.get("actions", {}).get("n", 5),
+        act_dim=int(len(oracle_action_values)),
         hidden_dim=ac_cfg.get("actor_hidden", 256),
         n_layers=ac_cfg.get("ac_layers", 2),
         regime_dim=regime_dim,
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
     )
+    actor.target_values = oracle_action_values.astype(np.float32)
     actor.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
     actor.abs_min_position = ac_cfg.get("abs_min_position", -1.0)
     actor.abs_max_position = ac_cfg.get("abs_max_position", 1.0)
