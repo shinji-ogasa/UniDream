@@ -237,12 +237,19 @@ class BCPretrainer:
             h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, h_dim)
             pos_arr = oracle_positions[:T_use].reshape(n_chunks, k)      # (n_chunks, k)
             inv_arr = inv_all[:T_use].reshape(n_chunks, k)               # (n_chunks, k)
+            cur_abs_arr = inv_arr[:, 0] + benchmark_position             # (n_chunks,)
+            switch_mask = np.abs(pos_arr - cur_abs_arr[:, None]) > 1e-8  # (n_chunks, k)
+            has_switch = switch_mask.any(axis=1)
+            first_switch_idx = switch_mask.argmax(axis=1)
+            repr_idx = np.where(has_switch, first_switch_idx, 0)
+            repr_pos_arr = pos_arr[np.arange(n_chunks), repr_idx]        # (n_chunks,)
+            repr_inv_arr = inv_arr[:, 0]                                 # (n_chunks,)
 
             tensors = [
                 torch.tensor(z_arr, dtype=torch.float32),
                 torch.tensor(h_arr, dtype=torch.float32),
-                torch.tensor(pos_arr, dtype=torch.float32),
-                torch.tensor(inv_arr, dtype=torch.float32),
+                torch.tensor(repr_pos_arr, dtype=torch.float32),
+                torch.tensor(repr_inv_arr, dtype=torch.float32),
             ]
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
@@ -251,7 +258,8 @@ class BCPretrainer:
                 tensors.append(torch.tensor(r_arr, dtype=torch.float32))
             if use_soft:
                 sl_arr = soft_labels[:T_use].reshape(n_chunks, k, -1)   # (n_chunks, k, K)
-                tensors.append(torch.tensor(sl_arr, dtype=torch.float32))
+                sl_repr_arr = sl_arr[np.arange(n_chunks), repr_idx]
+                tensors.append(torch.tensor(sl_repr_arr, dtype=torch.float32))
 
             dataset = TensorDataset(*tensors)
             loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
@@ -263,13 +271,13 @@ class BCPretrainer:
                 for batch in loader:
                     z_b = batch[0].to(self.device)       # (B, z_dim)
                     h_b = batch[1].to(self.device)       # (B, h_dim)
-                    a_chunk = batch[2].to(self.device)   # (B, k)
-                    inv_chunk = batch[3].to(self.device) # (B, k)
+                    a_repr = batch[2].to(self.device)    # (B,)
+                    inv_now = batch[3].to(self.device)   # (B,)
                     bi = 4
                     reg_b = batch[bi].to(self.device) if use_regime else None
                     if use_regime:
                         bi += 1
-                    sl_chunk = batch[bi].to(self.device) if use_soft else None  # (B, k, K) or None
+                    sl_repr = batch[bi].to(self.device) if use_soft else None
 
                     if self.use_sirl:
                         state = torch.cat([z_b, h_b], dim=-1)
@@ -277,12 +285,7 @@ class BCPretrainer:
                     else:
                         sirl_w = None
 
-                    # Chunk 先頭 state から「この先 k ステップで目指す在庫」を 1 つ学ばせる。
-                    # 各 step を同じ state に押し当てると trade/band supervision が歪みやすいので、
-                    # chunk 平均 target と先頭 inventory の組で controller を学習する。
-                    a_repr = a_chunk.mean(dim=1)         # (B,)
-                    inv_now = inv_chunk[:, 0]            # (B,)
-                    sl_repr = sl_chunk.mean(dim=1) if sl_chunk is not None else None
+                    # chunk 先頭 state から「最初に起こる実 switch」を学ばせる。
                     loss = self._bc_loss(
                         z_b, h_b, a_repr,
                         inventory=inv_now,
