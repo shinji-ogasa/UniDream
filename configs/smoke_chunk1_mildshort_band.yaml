@@ -91,7 +91,7 @@ ac:
   ac_layers: 2
   actor_dropout: 0.10
   infer_temperature: 1.0
-  infer_trade_threshold: 0.70
+  infer_trade_threshold: 0.808
   infer_gap_boost: 0.00
   max_position_step: 1.00
   abs_min_position: -0.25

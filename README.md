@@ -16,9 +16,9 @@ UniDream は、暗号資産トレード向けに **World Model + Imagination RL*
 
 - **入力**: OHLCV（対数リターン）＋ 最小TA（RSI, MACD, ATR）をフラット concat
 - **世界モデル**: DreamerV3 ベース、RSSM を Block-Causal Transformer に置換、MLP encoder（2 層 256-256）、離散カテゴリカル潜在（32×32）、アンサンブル 3〜5
-- **行動空間**: 離散 5 択（-1, -0.5, 0, +0.5, +1）
-- **報酬**: DSR（Differential Sharpe Ratio）－ β · ドローダウン増分
-- **学習**: Hindsight Oracle → BC 初期化 → Imagination AC（BC 損失減衰混合）
+- **方策**: `trade / target inventory / no-trade band` を出力する inventory controller
+- **報酬**: Buy & Hold 超過収益（`excess_bh`）を基準に DSR / drawdown shaping を追加
+- **学習**: Hindsight Oracle → 世界モデル学習 → BC 初期化 → Imagination AC
 - **評価**: Walk-Forward（四半期ロール、10 期間以上）、PBO / Deflated Sharpe、HMM レジーム別メトリクス
 
 ---
@@ -32,13 +32,13 @@ rolling z-score正規化（60日窓）+ ATR割りリターン + TA計算（shift
   ↓
 時系列WFO分割（train 2年 / val 3ヶ月 / test 3ヶ月、四半期ロール）
   ↓
-train期間でhindsight oracle DP計算（離散5行動、コスト込み）
-  ↓
-BC初期化（KL損失、状態依存重み、数エポック）
+train期間でhindsight oracle DP計算（inventory path、コスト込み）
   ↓
 Transformer世界モデル学習（MLP encoder、離散カテゴリカル潜在、アンサンブル3-5）
   ↓
-AC fine-tune（imagination 1-3step、DSR-コスト-DD罰、BC損失減衰混合）
+BC初期化（controller を oracle inventory path に模倣）
+  ↓
+AC fine-tune（imagination 1-3step、excess_bh + turnover / flow 制約、BC prior 混合）
   ↓
 test期間バックテスト（スプレッド+手数料+スリッページモデル込み）
   ↓
@@ -53,13 +53,14 @@ PBO/DSR選別 → レジーム別メトリクス → 生き残りのみペーパ
 |------|-------|
 | 対象 | BTCUSDT (Binance Futures) |
 | 時間足 | 15 分足 |
-| 行動空間 | 離散 5 択（-1, -0.5, 0, +0.5, +1） |
+| 方策 | `trade / target inventory / band` controller |
+| 目標 inventory | config の `oracle.action_values` で指定 |
 | 世界モデル | DreamerV3 + Block-Causal Transformer |
 | エンコーダ | MLP 2 層（256-256） |
 | 潜在空間 | 離散カテゴリカル（32×32） |
 | Imagination horizon | 1〜3 ステップ |
 | アンサンブル | 3〜5 モデル |
-| 報酬 | DSR − β · ΔDD |
+| 学習報酬 | `excess_bh` + DSR / DD shaping |
 | DL Framework | PyTorch (>= 2.0) |
 
 ---
@@ -106,7 +107,7 @@ uv sync
 
 ### メインパイプライン（World Model + Imagination AC）
 
-Oracle → BC 初期化 → 世界モデル学習 → AC fine-tune → バックテスト → PBO/DSR 評価 を一括実行する。
+Oracle → 世界モデル学習 → BC 初期化 → AC fine-tune → バックテスト → PBO/DSR 評価 を一括実行する。
 
 ```bash
 uv run python train.py
@@ -150,6 +151,9 @@ uv run python train.py --cost-profile stress
 # Smoke test（パイプライン動作確認、数分で完了）
 uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
 
+# 現在の controller smoke 最有力（BC-only 検証）
+uv run python train.py --config configs/smoke_chunk1_mildshort_band.yaml --start 2021-01-01 --end 2023-06-01 --checkpoint_dir checkpoints/smoke_chunk1_mildshort_band_multifold --start-from test
+
 # Medium run（2020-2024、6 fold WFO、~3 時間）
 uv run python train.py --config configs/medium.yaml --start 2020-01-01 --end 2024-01-01
 ```
@@ -179,11 +183,14 @@ uv run python train_ppo.py --resume
 
 ### テスト
 
-現時点ではユニットテストは未整備。検証はバックテスト（WFO + PBO + Deflated Sharpe）で行う。
+現時点ではユニットテストは未整備。検証はバックテスト（WFO + PBO + Deflated Sharpe）と、`--stop-after bc` / `--start-from test` を使った段階評価で行う。
 
 ```bash
 # メインパイプラインの結果で検証
 uv run python train.py
+
+# BC-only controller を multi-fold で評価
+uv run python train.py --config configs/smoke_chunk1_mildshort_band.yaml --start 2021-01-01 --end 2023-06-01 --checkpoint_dir checkpoints/smoke_chunk1_mildshort_band_multifold --start-from bc --stop-after bc
 
 # PPO ベースラインとの比較で妥当性を確認
 uv run python train_ppo.py
@@ -213,7 +220,7 @@ UniDream/
 │   │   ├── ensemble.py            # アンサンブル（3-5モデル）+ 不一致ペナルティ
 │   │   └── train_wm.py            # 世界モデル学習エントリポイント
 │   ├── actor_critic/
-│   │   ├── actor.py               # Actor（MLP / Transformer）
+│   │   ├── actor.py               # Inventory controller actor（trade / target / band）
 │   │   ├── critic.py              # Critic（value function）
 │   │   ├── bc_pretrain.py         # BC初期化（KL損失、状態依存重み）
 │   │   └── imagination_ac.py      # Imagination AC（BC損失減衰混合）
