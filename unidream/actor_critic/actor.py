@@ -135,6 +135,13 @@ class Actor(nn.Module):
             return gap
         return gap.clamp(min=-max_position_step, max=max_position_step)
 
+    def _quantize_inference(self, x: torch.Tensor) -> torch.Tensor:
+        """Greedy rollout の device 差分を減らすために軽く量子化する."""
+        step = float(getattr(self, "infer_quantize_step", 1e-3))
+        if step <= 0.0:
+            return x
+        return torch.round(x / step) * step
+
     def _trade_score(
         self,
         trade_signal: torch.Tensor,
@@ -222,6 +229,10 @@ class Actor(nn.Module):
         target_idx = target_dist.probs.argmax(dim=-1)
         target_values = self._target_values_tensor(current_inventory.device, current_inventory.dtype)
         target_inventory = target_values[target_idx] - self._benchmark_position()
+        trade_prob = self._quantize_inference(trade_prob)
+        band_width = self._quantize_inference(band_width)
+        target_inventory = self._quantize_inference(target_inventory)
+        current_inventory = self._quantize_inference(current_inventory)
         next_inventory = self.execute_controller(
             trade_signal=trade_prob,
             target_inventory=target_inventory,
@@ -262,8 +273,11 @@ class Actor(nn.Module):
                 inventory=prev_overlay,
                 regime=reg_t,
             )
+            next_position = self._quantize_inference(next_position)
             positions[i] = float(next_position.item())
-            prev_overlay = self._position_to_overlay(next_position).reshape(1, 1)
+            prev_overlay = self._quantize_inference(
+                self._position_to_overlay(next_position).reshape(1, 1)
+            )
 
         if was_training:
             self.train()
