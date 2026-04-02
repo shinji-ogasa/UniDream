@@ -146,11 +146,14 @@ class Actor(nn.Module):
         if gap_boost <= 0.0:
             return trade_signal
 
-        overlay_low, overlay_high = self._overlay_bounds()
-        overlay_span = max(float(overlay_high - overlay_low), 1e-6)
         gap_excess = (torch.abs(target_gap) - band_width).clamp(min=0.0)
-        gap_scale = (gap_excess / overlay_span).clamp(max=1.0)
-        return trade_signal * (1.0 + gap_boost * gap_scale)
+        min_band = float(getattr(self, "min_band", 0.02))
+        band_scale = band_width.clamp(min=min_band)
+        # 固定 threshold 一本では fold ごとに no-trade / over-trade が切り替わりやすい。
+        # gap が learned band をどれだけ上回っているかで追加点を与えて、
+        # 明確な de-risk シグナルだけを通しやすくする。
+        gap_scale = torch.tanh(gap_excess / band_scale)
+        return (trade_signal + gap_boost * gap_scale).clamp(max=1.0)
 
     def execute_controller(
         self,
