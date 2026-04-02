@@ -135,6 +135,23 @@ class Actor(nn.Module):
             return gap
         return gap.clamp(min=-max_position_step, max=max_position_step)
 
+    def _trade_score(
+        self,
+        trade_signal: torch.Tensor,
+        target_gap: torch.Tensor,
+        band_width: torch.Tensor,
+    ) -> torch.Tensor:
+        """band を超えた gap が大きいほど発火しやすい score を作る."""
+        gap_boost = float(getattr(self, "infer_gap_boost", 0.0))
+        if gap_boost <= 0.0:
+            return trade_signal
+
+        overlay_low, overlay_high = self._overlay_bounds()
+        overlay_span = max(float(overlay_high - overlay_low), 1e-6)
+        gap_excess = (torch.abs(target_gap) - band_width).clamp(min=0.0)
+        gap_scale = (gap_excess / overlay_span).clamp(max=1.0)
+        return trade_signal * (1.0 + gap_boost * gap_scale)
+
     def execute_controller(
         self,
         trade_signal: torch.Tensor,
@@ -145,7 +162,8 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         """Controller 出力を executed inventory に変換する."""
         target_gap = target_inventory - current_inventory
-        will_trade = (trade_signal >= trade_threshold) & (torch.abs(target_gap) > band_width)
+        trade_score = self._trade_score(trade_signal, target_gap, band_width)
+        will_trade = (trade_score >= trade_threshold) & (torch.abs(target_gap) > band_width)
         bounded_step = self._bounded_step(target_gap)
         next_inventory = torch.where(will_trade, current_inventory + bounded_step, current_inventory)
         overlay_low, overlay_high = self._overlay_bounds()

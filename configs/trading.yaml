@@ -111,6 +111,7 @@ ac:
   actor_dropout: 0.20       # Dropout（過学習防止・OOS 汎化）
   infer_temperature: 1.5    # 推論時 softmax 温度（T>1 で分布平滑化→constant output 防止）
   infer_trade_threshold: 0.45
+  infer_gap_boost: 0.25
   min_band: 0.02
   max_band: 0.20
   min_target_std: 0.05
