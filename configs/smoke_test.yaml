@@ -83,8 +83,8 @@ bc:
   chunk_size: 1
   class_balanced: false
   target_aux_coef: 2.00
-  trade_aux_coef: 0.05
-  band_aux_coef: 0.00
+  trade_aux_coef: 0.15
+  band_aux_coef: 0.05
 
 ac:
   actor_hidden: 256
@@ -92,8 +92,8 @@ ac:
   ac_layers: 2
   actor_dropout: 0.10
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
-  infer_trade_threshold: 0.45
-  max_position_step: 0.5    # 1 バーでの在庫変化を 0.5 までに制限
+  infer_trade_threshold: 0.55
+  max_position_step: 0.25   # 1 バーでの在庫変化を 0.25 までに制限
   min_band: 0.02
   max_band: 0.20
   min_target_std: 0.05
@@ -103,7 +103,7 @@ ac:
   gamma: 0.99
   ema_decay: 0.98
   alpha_init: 1.0
-  alpha_final: 0.00
+  alpha_final: 0.10
   alpha_decay_steps: 600
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
@@ -113,8 +113,8 @@ ac:
   prior_kl_coef: 0.10
   prior_trade_coef: 0.05
   prior_band_coef: 0.02
-  turnover_coef: 0.15
-  flow_change_coef: 0.05
+  turnover_coef: 0.25
+  flow_change_coef: 0.10
   positive_advantages: true
   actor_lr: 3.0e-5
   online_wm_interval: 200   # AC steps ごとに WM をオンライン更新

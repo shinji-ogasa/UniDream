@@ -135,7 +135,6 @@ class BCPretrainer:
         trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
-        target_dist = self.actor._target_dist(target_mean, target_std)
         oracle_target = _ACTIONS_T.to(device=current_inventory.device, dtype=current_inventory.dtype)[oracle_actions]
         target_gap = torch.abs(oracle_target - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
@@ -143,11 +142,12 @@ class BCPretrainer:
         if soft_labels is not None:
             soft_actions = _ACTIONS_T.to(device=soft_labels.device, dtype=soft_labels.dtype)
             oracle_target_soft = (soft_labels * soft_actions.unsqueeze(0)).sum(dim=-1)
-            target_loss = -target_dist.log_prob(oracle_target_soft.clamp(-0.999, 0.999))
-        elif self.label_smoothing > 0.0:
-            target_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
+            target_loss = F.smooth_l1_loss(target_mean, oracle_target_soft, reduction="none")
         else:
-            target_loss = -target_dist.log_prob(oracle_target.clamp(-0.999, 0.999))
+            target_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
+
+        if self.label_smoothing > 0.0:
+            target_loss = target_loss + self.label_smoothing * target_std
 
         if class_weights is not None:
             sample_class_w = class_weights[oracle_actions]

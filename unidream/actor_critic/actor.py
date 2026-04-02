@@ -50,9 +50,10 @@ class Actor(nn.Module):
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
 
-        # BC 初期段階では target inventory を優先して学ばせ、gate は hold に寄りすぎないようにする。
-        nn.init.constant_(self.trade_head.bias, 0.5)
-        nn.init.constant_(self.band_head.bias, -4.0)
+        # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
+        nn.init.constant_(self.trade_head.bias, -0.5)
+        nn.init.constant_(self.band_head.bias, 0.0)
+        nn.init.constant_(self.target_std_head.bias, -2.0)
 
     def _prepare_inputs(
         self,
