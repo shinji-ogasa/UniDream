@@ -421,20 +421,22 @@ def run_fold(
                 sharpe_delta = metrics.sharpe_delta or 0.0
                 score = 2.0 * alpha_excess + 5.0 * sharpe_delta
                 penalty = 0.0
-                if alpha_excess < 0.0:
-                    penalty += 0.5 * abs(alpha_excess)
+                if alpha_excess <= 0.0:
+                    penalty += 100.0 + 0.5 * abs(alpha_excess)
                 if stats["flat"] >= 0.50:
                     penalty += 30.0
                 if stats["flat"] >= 0.80:
-                    penalty += 50.0
+                    penalty += 100.0
                 if stats["long"] >= 0.85:
-                    penalty += 40.0
+                    penalty += 120.0
                 if stats["short"] >= 0.85:
-                    penalty += 40.0
+                    penalty += 120.0
+                if max(stats["long"], stats["short"], stats["flat"]) >= 0.80:
+                    penalty += 200.0
                 if stats["avg_hold"] < 2.0:
                     penalty += 10.0
                 if stats["switches"] == 0:
-                    penalty += 10.0
+                    penalty += 25.0
 
                 score -= penalty
                 label = (
