@@ -74,7 +74,7 @@ world_model:
   bin_range: [-20.0, 20.0]
 
 bc:
-  n_epochs: 5               # controller 用 BC はまず target inventory をしっかり当てる
+  n_epochs: 12              # overlay controller は BC fit を強めてから AC に渡す
   lr: 3.0e-4
   batch_size: 256
   sirl_hidden: 0
@@ -82,9 +82,9 @@ bc:
   entropy_coef: 0.05
   chunk_size: 1
   class_balanced: false
-  target_aux_coef: 2.00
-  trade_aux_coef: 0.15
-  band_aux_coef: 0.05
+  target_aux_coef: 3.00
+  trade_aux_coef: 0.30
+  band_aux_coef: 0.10
 
 ac:
   actor_hidden: 256
@@ -92,8 +92,8 @@ ac:
   ac_layers: 2
   actor_dropout: 0.10
   infer_temperature: 1.0    # BC 収束前は 1.0 固定（1.5 は logits が分散した状態でスイッチング爆発を招く）
-  infer_trade_threshold: 0.55
-  max_position_step: 0.25   # 1 バーでの在庫変化を 0.25 までに制限
+  infer_trade_threshold: 0.35
+  max_position_step: 0.50   # overlay では hedge の立ち上がりを遅くしすぎない
   min_band: 0.02
   max_band: 0.20
   min_target_std: 0.05
@@ -103,7 +103,7 @@ ac:
   gamma: 0.99
   ema_decay: 0.98
   alpha_init: 1.0
-  alpha_final: 0.10
+  alpha_final: 0.30
   alpha_decay_steps: 600
   entropy_scale: 1.0e-2
   td3bc_alpha: 2.5
@@ -113,7 +113,7 @@ ac:
   prior_kl_coef: 0.10
   prior_trade_coef: 0.05
   prior_band_coef: 0.02
-  prior_flow_coef: 0.10
+  prior_flow_coef: 0.20
   turnover_coef: 0.25
   flow_change_coef: 0.10
   positive_advantages: true
