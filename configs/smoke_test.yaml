@@ -110,6 +110,9 @@ ac:
   target_aux_coef: 1.50
   trade_aux_coef: 0.15
   band_aux_coef: 0.05
+  prior_kl_coef: 0.10
+  prior_trade_coef: 0.05
+  prior_band_coef: 0.02
   turnover_coef: 0.15
   flow_change_coef: 0.05
   actor_lr: 3.0e-5

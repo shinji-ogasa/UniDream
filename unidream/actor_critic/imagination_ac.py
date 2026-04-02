@@ -21,6 +21,7 @@ References:
 """
 from __future__ import annotations
 
+import copy
 import os
 from datetime import datetime
 from typing import Optional
@@ -98,6 +99,9 @@ class ImagACTrainer:
         self.critic.to(self.device)
         self.ensemble.to(self.device)
         self.ensemble.eval()  # WM は固定
+        self.actor_prior = copy.deepcopy(self.actor).to(self.device).eval()
+        for p in self.actor_prior.parameters():
+            p.requires_grad_(False)
 
         cfg = cfg or {}
         ac_cfg = cfg.get("ac", {})
@@ -118,6 +122,9 @@ class ImagACTrainer:
         self.target_aux_coef = ac_cfg.get("target_aux_coef", 1.0)
         self.trade_aux_coef = ac_cfg.get("trade_aux_coef", 0.5)
         self.band_aux_coef = ac_cfg.get("band_aux_coef", 0.25)
+        self.prior_kl_coef = ac_cfg.get("prior_kl_coef", 0.0)
+        self.prior_trade_coef = ac_cfg.get("prior_trade_coef", 0.0)
+        self.prior_band_coef = ac_cfg.get("prior_band_coef", 0.0)
         self.turnover_coef = ac_cfg.get("turnover_coef", 0.0)
         self.flow_change_coef = ac_cfg.get("flow_change_coef", 0.0)
 
@@ -418,6 +425,41 @@ class ImagACTrainer:
                 loss = loss + self.band_aux_coef * band_loss
         return loss
 
+    def _prior_anchor_loss(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor,
+        regime: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """BC 初期 policy からの trust-region 正則化."""
+        if self.prior_kl_coef <= 0.0 and self.prior_trade_coef <= 0.0 and self.prior_band_coef <= 0.0:
+            return torch.tensor(0.0, device=self.device)
+
+        cur_trade_logits, cur_target_dist, cur_band, _ = self.actor.controller_outputs(
+            z, h, inventory=inventory, regime=regime
+        )
+        with torch.no_grad():
+            ref_trade_logits, ref_target_dist, ref_band, _ = self.actor_prior.controller_outputs(
+                z, h, inventory=inventory, regime=regime
+            )
+
+        loss = torch.tensor(0.0, device=self.device)
+        if self.prior_kl_coef > 0.0:
+            p_ref = ref_target_dist.probs
+            log_p_ref = torch.log(p_ref + 1e-8)
+            log_p_cur = torch.log(cur_target_dist.probs + 1e-8)
+            target_kl = (p_ref * (log_p_ref - log_p_cur)).sum(dim=-1).mean()
+            loss = loss + self.prior_kl_coef * target_kl
+        if self.prior_trade_coef > 0.0:
+            ref_trade_prob = torch.sigmoid(ref_trade_logits)
+            trade_anchor = F.binary_cross_entropy_with_logits(cur_trade_logits, ref_trade_prob)
+            loss = loss + self.prior_trade_coef * trade_anchor
+        if self.prior_band_coef > 0.0:
+            band_anchor = F.smooth_l1_loss(cur_band, ref_band)
+            loss = loss + self.prior_band_coef * band_anchor
+        return loss
+
     def train_step(
         self,
         z0: torch.Tensor,
@@ -516,8 +558,9 @@ class ImagACTrainer:
         norm_q = self.td3bc_alpha / max(self._adv_ema, 0.1)
 
         ac_loss = -(norm_q * advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
+        prior_loss = self._prior_anchor_loss(z0, h0, inventory0, regime=regime0)
         bc_loss = self._bc_loss_batch()
-        actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss
+        actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss + prior_loss
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -530,6 +573,7 @@ class ImagACTrainer:
             "actor_loss": actor_loss.item(),
             "ac_loss": ac_loss.item(),
             "bc_loss": bc_loss.item() if isinstance(bc_loss, torch.Tensor) else float(bc_loss),
+            "prior_loss": prior_loss.item() if isinstance(prior_loss, torch.Tensor) else float(prior_loss),
             "critic_loss": critic_loss.item(),
             "entropy": entropies.mean().item(),
             "alpha": alpha,
