@@ -124,6 +124,7 @@ class ImagACTrainer:
         self.target_aux_coef = ac_cfg.get("target_aux_coef", 1.0)
         self.trade_aux_coef = ac_cfg.get("trade_aux_coef", 0.5)
         self.band_aux_coef = ac_cfg.get("band_aux_coef", 0.25)
+        self.execution_aux_coef = ac_cfg.get("execution_aux_coef", 0.0)
         self.prior_kl_coef = ac_cfg.get("prior_kl_coef", 0.0)
         self.prior_trade_coef = ac_cfg.get("prior_trade_coef", 0.0)
         self.prior_band_coef = ac_cfg.get("prior_band_coef", 0.0)
@@ -435,6 +436,16 @@ class ImagACTrainer:
                     )
                 band_loss = band_penalty.mean()
                 loss = loss + self.band_aux_coef * band_loss
+        if self.execution_aux_coef > 0.0:
+            pred_next_inventory = self.actor.soft_execute_controller(
+                trade_signal=torch.sigmoid(trade_logits),
+                target_inventory=target_mean,
+                band_width=band_width,
+                current_inventory=current_inventory,
+                trade_threshold=0.5,
+            )
+            exec_loss = F.smooth_l1_loss(pred_next_inventory, oracle_overlay)
+            loss = loss + self.execution_aux_coef * exec_loss
         return loss
 
     def _prior_anchor_loss(
@@ -480,14 +491,14 @@ class ImagACTrainer:
             cur_target_inventory = cur_target_mean
             ref_target_inventory = ref_target_mean
             inventory_now = inventory.squeeze(-1) if inventory.ndim > 1 else inventory
-            cur_next_inventory = self.actor.execute_controller(
+            cur_next_inventory = self.actor.soft_execute_controller(
                 trade_signal=cur_trade_prob,
                 target_inventory=cur_target_inventory,
                 band_width=cur_band,
                 current_inventory=inventory_now,
                 trade_threshold=float(getattr(self.actor, "infer_trade_threshold", 0.5)),
             )
-            ref_next_inventory = self.actor_prior.execute_controller(
+            ref_next_inventory = self.actor_prior.soft_execute_controller(
                 trade_signal=ref_trade_prob,
                 target_inventory=ref_target_inventory,
                 band_width=ref_band,

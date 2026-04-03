@@ -316,17 +316,34 @@ class Actor(nn.Module):
         trade_threshold: float = 0.5,
     ) -> torch.Tensor:
         """Greedy rollout では target へ部分調整して threshold 依存を滑らかにする."""
+        return self.soft_execute_controller(
+            trade_signal=trade_signal,
+            target_inventory=target_inventory,
+            band_width=band_width,
+            current_inventory=current_inventory,
+            trade_threshold=trade_threshold,
+        )
+
+    def soft_execute_controller(
+        self,
+        trade_signal: torch.Tensor,
+        target_inventory: torch.Tensor,
+        band_width: torch.Tensor,
+        current_inventory: torch.Tensor,
+        trade_threshold: float = 0.5,
+        band_sharpness: float = 16.0,
+    ) -> torch.Tensor:
+        """微分可能な近似実行則.
+
+        trade gate と band gate を連続化して、BC/AC の補助損失に使う。
+        """
         target_gap = target_inventory - current_inventory
         trade_score = self._trade_score(trade_signal, target_gap, band_width)
-        above_band = torch.abs(target_gap) > band_width
         denom = max(1e-6, 1.0 - trade_threshold)
         trade_frac = ((trade_score - trade_threshold) / denom).clamp(min=0.0, max=1.0)
+        band_frac = torch.sigmoid(band_sharpness * (torch.abs(target_gap) - band_width))
         bounded_step = self._bounded_step(target_gap)
-        next_inventory = torch.where(
-            above_band,
-            current_inventory + trade_frac * bounded_step,
-            current_inventory,
-        )
+        next_inventory = current_inventory + trade_frac * band_frac * bounded_step
         overlay_low, overlay_high = self._overlay_bounds()
         return next_inventory.clamp(min=overlay_low, max=overlay_high)
 

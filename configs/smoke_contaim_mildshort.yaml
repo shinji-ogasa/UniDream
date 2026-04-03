@@ -87,6 +87,7 @@ bc:
   target_aux_coef: 2.00
   trade_aux_coef: 0.60
   band_aux_coef: 0.25
+  execution_aux_coef: 1.00
   soft_trade_targets: true
   trade_target_scale: 0.125
 
@@ -118,6 +119,7 @@ ac:
   target_aux_coef: 1.00
   trade_aux_coef: 0.10
   band_aux_coef: 0.05
+  execution_aux_coef: 0.05
   prior_kl_coef: 0.05
   prior_trade_coef: 0.05
   prior_band_coef: 0.02

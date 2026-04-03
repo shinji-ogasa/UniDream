@@ -89,6 +89,7 @@ class BCPretrainer:
         target_aux_coef: float = 1.0,
         trade_aux_coef: float = 0.5,
         band_aux_coef: float = 0.25,
+        execution_aux_coef: float = 0.0,
         soft_trade_targets: bool = True,
         trade_target_scale: float | None = None,
         device: str = "cpu",
@@ -105,6 +106,7 @@ class BCPretrainer:
         self.target_aux_coef = target_aux_coef
         self.trade_aux_coef = trade_aux_coef
         self.band_aux_coef = band_aux_coef
+        self.execution_aux_coef = execution_aux_coef
         self.soft_trade_targets = soft_trade_targets
         self.trade_target_scale = trade_target_scale
 
@@ -197,6 +199,28 @@ class BCPretrainer:
                 )
                 band_penalty = band_penalty * band_sample_w
             loss_terms = loss_terms + self.band_aux_coef * band_penalty
+
+        if self.execution_aux_coef > 0.0:
+            predicted_next_inventory = self.actor.soft_execute_controller(
+                trade_signal=torch.sigmoid(trade_logits),
+                target_inventory=target_mean,
+                band_width=band_width,
+                current_inventory=current_inventory,
+                trade_threshold=0.5,
+            )
+            execution_loss = F.smooth_l1_loss(
+                predicted_next_inventory,
+                oracle_target,
+                reduction="none",
+            )
+            if trade_pos_weight is not None:
+                exec_w = torch.where(
+                    trade_mask > 0.5,
+                    trade_pos_weight.to(device=execution_loss.device, dtype=execution_loss.dtype),
+                    torch.ones_like(execution_loss),
+                )
+                execution_loss = execution_loss * exec_w
+            loss_terms = loss_terms + self.execution_aux_coef * execution_loss
 
         if weights is not None:
             loss = (weights * loss_terms).mean()
