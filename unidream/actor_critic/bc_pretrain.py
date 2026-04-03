@@ -235,9 +235,8 @@ class BCPretrainer:
         """
         T = min(len(z), len(h), len(oracle_positions))
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
-        inv_all = np.zeros(T, dtype=np.float32)
-        if T > 1:
-            inv_all[1:] = oracle_positions[:T - 1] - benchmark_position
+        state_all = self.actor.controller_states_from_positions(oracle_positions[:T])
+        inv_all = state_all[:, 0]
         trade_mask = (np.abs((oracle_positions[:T] - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
         n_pos = float(trade_mask.sum())
         n_neg = float(T - n_pos)
@@ -255,20 +254,20 @@ class BCPretrainer:
             z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, z_dim)
             h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, h_dim)
             pos_arr = oracle_positions[:T_use].reshape(n_chunks, k)      # (n_chunks, k)
-            inv_arr = inv_all[:T_use].reshape(n_chunks, k)               # (n_chunks, k)
-            cur_abs_arr = inv_arr[:, 0] + benchmark_position             # (n_chunks,)
+            state_arr = state_all[:T_use].reshape(n_chunks, k, -1)       # (n_chunks, k, S)
+            cur_abs_arr = state_arr[:, 0, 0] + benchmark_position        # (n_chunks,)
             switch_mask = np.abs(pos_arr - cur_abs_arr[:, None]) > 1e-8  # (n_chunks, k)
             has_switch = switch_mask.any(axis=1)
             first_switch_idx = switch_mask.argmax(axis=1)
             repr_idx = np.where(has_switch, first_switch_idx, 0)
             repr_pos_arr = pos_arr[np.arange(n_chunks), repr_idx]        # (n_chunks,)
-            repr_inv_arr = inv_arr[:, 0]                                 # (n_chunks,)
+            repr_state_arr = state_arr[:, 0, :]                          # (n_chunks, S)
 
             tensors = [
                 torch.tensor(z_arr, dtype=torch.float32),
                 torch.tensor(h_arr, dtype=torch.float32),
                 torch.tensor(repr_pos_arr, dtype=torch.float32),
-                torch.tensor(repr_inv_arr, dtype=torch.float32),
+                torch.tensor(repr_state_arr, dtype=torch.float32),
             ]
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
@@ -291,7 +290,7 @@ class BCPretrainer:
                     z_b = batch[0].to(self.device)       # (B, z_dim)
                     h_b = batch[1].to(self.device)       # (B, h_dim)
                     a_repr = batch[2].to(self.device)    # (B,)
-                    inv_now = batch[3].to(self.device)   # (B,)
+                    inv_now = batch[3].to(self.device)   # (B, S)
                     bi = 4
                     reg_b = batch[bi].to(self.device) if use_regime else None
                     if use_regime:
@@ -335,7 +334,7 @@ class BCPretrainer:
         z_t = torch.tensor(z[:T], dtype=torch.float32)
         h_t = torch.tensor(h[:T], dtype=torch.float32)
         a_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
-        inv_t = torch.tensor(inv_all[:T], dtype=torch.float32)
+        inv_t = torch.tensor(state_all[:T], dtype=torch.float32)
 
         use_regime = regime_probs is not None
         use_soft = soft_labels is not None

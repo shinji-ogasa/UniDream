@@ -72,6 +72,126 @@ class Actor(nn.Module):
         abs_min, abs_max = self._absolute_bounds()
         return (overlay + self._benchmark_position()).clamp(min=abs_min, max=abs_max)
 
+    def _state_hold_scale(self) -> float:
+        return float(getattr(self, "hold_state_scale", 64.0))
+
+    def _trade_state_eps(self) -> float:
+        return float(getattr(self, "trade_state_eps", 1e-6))
+
+    def _ensure_controller_state(
+        self,
+        inventory: torch.Tensor | None,
+        ref: torch.Tensor,
+    ) -> torch.Tensor:
+        if inventory is None:
+            return torch.zeros(*ref.shape[:-1], self.inventory_dim, dtype=ref.dtype, device=ref.device)
+        if inventory.ndim == ref.ndim - 1:
+            inventory = inventory.unsqueeze(-1)
+        if inventory.shape[-1] == self.inventory_dim:
+            return inventory
+        if inventory.shape[-1] > self.inventory_dim:
+            return inventory[..., :self.inventory_dim]
+        pad_shape = list(inventory.shape)
+        pad_shape[-1] = self.inventory_dim - inventory.shape[-1]
+        pad = torch.zeros(*pad_shape, dtype=inventory.dtype, device=inventory.device)
+        return torch.cat([inventory, pad], dim=-1)
+
+    def _current_inventory_from_state(self, controller_state: torch.Tensor) -> torch.Tensor:
+        if controller_state.ndim == 0:
+            return controller_state
+        if controller_state.shape[-1] == 0:
+            return torch.zeros(*controller_state.shape[:-1], dtype=controller_state.dtype, device=controller_state.device)
+        return controller_state[..., 0]
+
+    def make_controller_state(
+        self,
+        current_inventory: torch.Tensor,
+        prev_delta: torch.Tensor | None = None,
+        hold_feature: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        pieces = [current_inventory]
+        if self.inventory_dim >= 2:
+            if prev_delta is None:
+                prev_delta = torch.zeros_like(current_inventory)
+            pieces.append(prev_delta)
+        if self.inventory_dim >= 3:
+            if hold_feature is None:
+                hold_feature = torch.zeros_like(current_inventory)
+            pieces.append(hold_feature)
+        if self.inventory_dim > len(pieces):
+            for _ in range(self.inventory_dim - len(pieces)):
+                pieces.append(torch.zeros_like(current_inventory))
+        return torch.stack(pieces, dim=-1)
+
+    def update_controller_state(
+        self,
+        controller_state: torch.Tensor | None,
+        next_position: torch.Tensor,
+    ) -> torch.Tensor:
+        next_overlay = self._position_to_overlay(next_position.squeeze(-1) if next_position.ndim > 1 else next_position)
+        state = self._ensure_controller_state(controller_state, next_overlay.unsqueeze(-1))
+        current_inventory = self._current_inventory_from_state(state)
+        next_delta = next_overlay - current_inventory
+        traded = next_delta.abs() > self._trade_state_eps()
+
+        hold_feature = None
+        if self.inventory_dim >= 3:
+            prev_hold = state[..., 2]
+            hold_feature = torch.where(
+                traded,
+                torch.zeros_like(prev_hold),
+                (prev_hold + 1.0 / self._state_hold_scale()).clamp(max=1.0),
+            )
+        return self.make_controller_state(next_overlay, next_delta, hold_feature)
+
+    def controller_states_from_positions(self, positions: np.ndarray) -> np.ndarray:
+        positions = np.asarray(positions, dtype=np.float32)
+        T = len(positions)
+        states = np.zeros((T, self.inventory_dim), dtype=np.float32)
+        if T == 0:
+            return states
+        bench = self._benchmark_position()
+        hold = 0.0
+        hold_step = 1.0 / self._state_hold_scale()
+        for t in range(1, T):
+            prev_overlay = float(positions[t - 1] - bench)
+            states[t, 0] = prev_overlay
+            if self.inventory_dim >= 2:
+                prev_prev_overlay = float(positions[t - 2] - bench) if t > 1 else 0.0
+                prev_delta = prev_overlay - prev_prev_overlay
+                states[t, 1] = prev_delta
+                traded = abs(prev_delta) > self._trade_state_eps()
+            else:
+                traded = abs(prev_overlay) > self._trade_state_eps()
+            if self.inventory_dim >= 3:
+                hold = 0.0 if traded else min(1.0, hold + hold_step)
+                states[t, 2] = hold
+        return states
+
+    def controller_state_from_history(self, positions: torch.Tensor) -> torch.Tensor:
+        if positions.ndim == 1:
+            positions = positions.unsqueeze(0)
+        B, T = positions.shape
+        bench = self._benchmark_position()
+        current_overlay = positions[:, -1] - bench
+        prev_delta = torch.zeros_like(current_overlay)
+        if T >= 2 and self.inventory_dim >= 2:
+            prev_overlay = positions[:, -2] - bench
+            prev_delta = current_overlay - prev_overlay
+        hold_feature = torch.zeros_like(current_overlay)
+        if self.inventory_dim >= 3:
+            eps = self._trade_state_eps()
+            hold_step = 1.0 / self._state_hold_scale()
+            for b in range(B):
+                hold = 0.0
+                for t in range(max(1, T - 256), T):
+                    prev_overlay = float(positions[b, t - 1] - bench)
+                    prev_prev_overlay = float(positions[b, t - 2] - bench) if t > 1 else 0.0
+                    traded = abs(prev_overlay - prev_prev_overlay) > eps
+                    hold = 0.0 if traded else min(1.0, hold + hold_step)
+                hold_feature[b] = hold
+        return self.make_controller_state(current_overlay, prev_delta, hold_feature)
+
     def _prepare_inputs(
         self,
         z: torch.Tensor,
@@ -79,10 +199,7 @@ class Actor(nn.Module):
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        if inventory is None:
-            inventory = torch.zeros(*z.shape[:-1], self.inventory_dim, dtype=z.dtype, device=z.device)
-        elif inventory.ndim == z.ndim - 1:
-            inventory = inventory.unsqueeze(-1)
+        inventory = self._ensure_controller_state(inventory, z)
 
         parts = [z, h, inventory]
         if self.regime_dim > 0:
@@ -116,7 +233,7 @@ class Actor(nn.Module):
             target_dist = Categorical(probs=probs)
         else:
             target_dist = Categorical(logits=target_logits)
-        return trade_logits, target_dist, band_width, inventory_t.squeeze(-1)
+        return trade_logits, target_dist, band_width, self._current_inventory_from_state(inventory_t)
 
     def _target_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         values = getattr(self, "target_values", None)
@@ -287,20 +404,18 @@ class Actor(nn.Module):
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
 
         positions = np.zeros(len(z_np), dtype=np.float32)
-        prev_overlay = torch.zeros(1, 1, dtype=torch.float32, device=dev)
+        controller_state = torch.zeros(1, self.inventory_dim, dtype=torch.float32, device=dev)
         for i in range(len(z_np)):
             reg_t = regime[i:i + 1] if regime is not None else None
             next_position = self.act_greedy(
                 z[i:i + 1],
                 h[i:i + 1],
-                inventory=prev_overlay,
+                inventory=controller_state,
                 regime=reg_t,
             )
             next_position = self._quantize_inference(next_position)
             positions[i] = float(next_position.item())
-            prev_overlay = self._quantize_inference(
-                self._position_to_overlay(next_position).reshape(1, 1)
-            )
+            controller_state = self.update_controller_state(controller_state, next_position)
 
         if was_training:
             self.train()

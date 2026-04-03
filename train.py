@@ -289,6 +289,7 @@ def run_fold(
         n_layers=ac_cfg.get("ac_layers", 2),
         regime_dim=regime_dim,
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
+        inventory_dim=ac_cfg.get("controller_state_dim", 1),
     )
     actor.target_values = oracle_action_values.astype(np.float32)
     actor.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
@@ -302,6 +303,9 @@ def run_fold(
     actor.max_band = ac_cfg.get("max_band", 0.20)
     actor.min_target_std = ac_cfg.get("min_target_std", 0.05)
     actor.max_target_std = ac_cfg.get("max_target_std", 0.35)
+    actor.hold_state_scale = ac_cfg.get("hold_state_scale", 64.0)
+    actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
+    actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC — loading checkpoint: {bc_path}")
@@ -312,6 +316,8 @@ def run_fold(
             target_aux_coef=bc_cfg.get("target_aux_coef", 1.0),
             trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
             band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
+            soft_trade_targets=bc_cfg.get("soft_trade_targets", True),
+            trade_target_scale=bc_cfg.get("trade_target_scale"),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -333,6 +339,8 @@ def run_fold(
                 target_aux_coef=bc_cfg.get("target_aux_coef", 1.0),
                 trade_aux_coef=bc_cfg.get("trade_aux_coef", 0.5),
                 band_aux_coef=bc_cfg.get("band_aux_coef", 0.25),
+                soft_trade_targets=bc_cfg.get("soft_trade_targets", True),
+                trade_target_scale=bc_cfg.get("trade_target_scale"),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_positions))
