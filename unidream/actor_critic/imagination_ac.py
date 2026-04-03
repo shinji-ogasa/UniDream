@@ -391,7 +391,7 @@ class ImagACTrainer:
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
         inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
-        trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
+        trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
             self._oracle_z[idx],
             self._oracle_h[idx],
             inventory=inventory_batch,
@@ -401,9 +401,8 @@ class ImagACTrainer:
         oracle_overlay = oracle_pos - self.benchmark_position
         target_gap = torch.abs(oracle_overlay - current_inventory)
         trade_targets = (target_gap > 1e-8).float()
-        target_indices = self.actor.target_indices(oracle_pos)
-
-        target_loss = -target_dist.log_prob(target_indices)
+        target_dist = self.actor.target_distribution(target_mean, target_std)
+        target_loss = -target_dist.log_prob(oracle_overlay)
         if self._oracle_trade_pos_weight is not None:
             target_w = torch.where(
                 trade_targets > 0.5,
@@ -454,20 +453,19 @@ class ImagACTrainer:
         ):
             return torch.tensor(0.0, device=self.device)
 
-        cur_trade_logits, cur_target_dist, cur_band, _ = self.actor.controller_outputs(
+        cur_trade_logits, cur_target_mean, cur_target_std, cur_band, _ = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         with torch.no_grad():
-            ref_trade_logits, ref_target_dist, ref_band, _ = self.actor_prior.controller_outputs(
+            ref_trade_logits, ref_target_mean, ref_target_std, ref_band, _ = self.actor_prior.controller_outputs(
                 z, h, inventory=inventory, regime=regime
             )
 
         loss = torch.tensor(0.0, device=self.device)
         if self.prior_kl_coef > 0.0:
-            ref_probs = ref_target_dist.probs.clamp_min(1e-8)
-            cur_log_probs = F.log_softmax(cur_target_dist.logits, dim=-1)
-            ref_log_probs = ref_probs.log()
-            target_kl = (ref_probs * (ref_log_probs - cur_log_probs)).sum(dim=-1).mean()
+            cur_target_dist = self.actor.target_distribution(cur_target_mean, cur_target_std)
+            ref_target_dist = self.actor_prior.target_distribution(ref_target_mean, ref_target_std)
+            target_kl = torch.distributions.kl_divergence(ref_target_dist, cur_target_dist).mean()
             loss = loss + self.prior_kl_coef * target_kl
         if self.prior_trade_coef > 0.0:
             ref_trade_prob = torch.sigmoid(ref_trade_logits)
@@ -479,11 +477,8 @@ class ImagACTrainer:
         if self.prior_flow_coef > 0.0:
             cur_trade_prob = torch.sigmoid(cur_trade_logits)
             ref_trade_prob = torch.sigmoid(ref_trade_logits)
-            target_values = self.actor._target_values_tensor(cur_trade_logits.device, inventory.dtype)
-            cur_target_idx = cur_target_dist.probs.argmax(dim=-1)
-            ref_target_idx = ref_target_dist.probs.argmax(dim=-1)
-            cur_target_inventory = target_values[cur_target_idx] - self.benchmark_position
-            ref_target_inventory = target_values[ref_target_idx] - self.benchmark_position
+            cur_target_inventory = cur_target_mean
+            ref_target_inventory = ref_target_mean
             inventory_now = inventory.squeeze(-1) if inventory.ndim > 1 else inventory
             cur_next_inventory = self.actor.execute_controller(
                 trade_signal=cur_trade_prob,

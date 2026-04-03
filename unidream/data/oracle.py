@@ -235,6 +235,41 @@ def oracle_positions(
     return action_values[action_indices]
 
 
+def smooth_aim_positions(
+    target_positions: np.ndarray | pd.Series,
+    max_step: float = 0.25,
+    band: float = 0.0,
+    initial_position: float = 0.0,
+    min_position: float = -1.0,
+    max_position: float = 1.0,
+) -> np.ndarray:
+    """離散 oracle path を滑らかな aim-portfolio path へ変換する.
+
+    各バーで一気に target へ飛ばず、最大 `max_step` だけ部分調整する。
+    `band` 以内のズレは無視して no-trade region を作る。
+    """
+    target_positions = np.asarray(target_positions, dtype=np.float32)
+    if len(target_positions) == 0:
+        return target_positions.copy()
+
+    max_step = float(max(max_step, 1e-6))
+    band = float(max(band, 0.0))
+    aim_positions = np.empty_like(target_positions)
+    current = float(np.clip(initial_position, min_position, max_position))
+
+    for t, target in enumerate(target_positions):
+        target = float(np.clip(target, min_position, max_position))
+        gap = target - current
+        if abs(gap) <= band:
+            next_pos = current
+        else:
+            next_pos = current + float(np.clip(gap, -max_step, max_step))
+        current = float(np.clip(next_pos, min_position, max_position))
+        aim_positions[t] = current
+
+    return aim_positions
+
+
 def oracle_to_dataset(
     returns: np.ndarray | pd.Series,
     features: np.ndarray,

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Bernoulli, Categorical
+from torch.distributions import Bernoulli, Normal
 
 from unidream.data.oracle import N_ACTIONS
 
@@ -45,7 +45,8 @@ class Actor(nn.Module):
                 layers.append(nn.Dropout(dropout_p))
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
-        self.target_head = nn.Linear(hidden_dim, act_dim)
+        self.target_mean_head = nn.Linear(hidden_dim, 1)
+        self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
 
         # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
@@ -216,24 +217,27 @@ class Actor(nn.Module):
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
         temperature: float = 1.0,
-    ) -> tuple[torch.Tensor, Categorical, torch.Tensor, torch.Tensor]:
-        """trade logit, target distribution, band width, current inventory."""
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """adjust logit, target mean/std, band width, current inventory."""
         hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
         trade_logits = self.trade_head(hidden).squeeze(-1)
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
-        if temperature != 1.0:
-            target_logits = self.target_head(hidden) / temperature
-        else:
-            target_logits = self.target_head(hidden)
-        if self.unimix_ratio > 0.0:
-            probs = F.softmax(target_logits, dim=-1)
-            probs = probs * (1.0 - self.unimix_ratio) + self.unimix_ratio / self.act_dim
-            target_dist = Categorical(probs=probs)
-        else:
-            target_dist = Categorical(logits=target_logits)
-        return trade_logits, target_dist, band_width, self._current_inventory_from_state(inventory_t)
+        overlay_low, overlay_high = self._overlay_bounds()
+        overlay_low_t = torch.as_tensor(overlay_low, dtype=hidden.dtype, device=hidden.device)
+        overlay_high_t = torch.as_tensor(overlay_high, dtype=hidden.dtype, device=hidden.device)
+        overlay_center = 0.5 * (overlay_low_t + overlay_high_t)
+        overlay_half_range = 0.5 * (overlay_high_t - overlay_low_t)
+        target_mean = overlay_center + overlay_half_range * torch.tanh(
+            self.target_mean_head(hidden).squeeze(-1) / max(temperature, 1e-6)
+        )
+        min_target_std = float(getattr(self, "min_target_std", 0.05))
+        max_target_std = float(getattr(self, "max_target_std", 0.25))
+        target_std = min_target_std + (max_target_std - min_target_std) * torch.sigmoid(
+            self.target_std_head(hidden).squeeze(-1)
+        )
+        return trade_logits, target_mean, target_std, band_width, self._current_inventory_from_state(inventory_t)
 
     def _target_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         values = getattr(self, "target_values", None)
@@ -245,6 +249,13 @@ class Actor(nn.Module):
     def target_indices(self, absolute_positions: torch.Tensor) -> torch.Tensor:
         target_values = self._target_values_tensor(absolute_positions.device, absolute_positions.dtype)
         return torch.argmin(torch.abs(absolute_positions.unsqueeze(-1) - target_values), dim=-1)
+
+    def target_distribution(
+        self,
+        target_mean: torch.Tensor,
+        target_std: torch.Tensor,
+    ) -> Normal:
+        return Normal(loc=target_mean, scale=target_std.clamp_min(1e-4))
 
     def _bounded_step(self, gap: torch.Tensor) -> torch.Tensor:
         max_position_step = float(getattr(self, "max_position_step", 10.0))
@@ -327,15 +338,15 @@ class Actor(nn.Module):
         regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """executed inventory・log_prob・entropy を返す."""
-        trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         trade_dist = Bernoulli(logits=trade_logits)
+        target_dist = self.target_distribution(target_mean, target_std)
 
         trade_sample = trade_dist.sample()
-        target_idx = target_dist.sample()
-        target_values = self._target_values_tensor(current_inventory.device, current_inventory.dtype)
-        target_inventory = target_values[target_idx] - self._benchmark_position()
+        overlay_low, overlay_high = self._overlay_bounds()
+        target_inventory = target_dist.rsample().clamp(min=overlay_low, max=overlay_high)
 
         next_inventory = self.execute_controller(
             trade_signal=trade_sample,
@@ -345,7 +356,7 @@ class Actor(nn.Module):
             trade_threshold=0.5,
         )
         trade_log_prob = trade_dist.log_prob(trade_sample)
-        target_log_prob = target_dist.log_prob(target_idx) * trade_sample
+        target_log_prob = target_dist.log_prob(target_inventory) * trade_sample
         log_prob = trade_log_prob + target_log_prob
         entropy = trade_dist.entropy() + target_dist.entropy() * trade_dist.probs
         next_position = self._overlay_to_position(next_inventory)
@@ -362,13 +373,11 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         """greedy execution に対応する executed inventory を返す."""
         del temperature
-        trade_logits, target_dist, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_mean, _target_std, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         trade_prob = torch.sigmoid(trade_logits)
-        target_idx = target_dist.probs.argmax(dim=-1)
-        target_values = self._target_values_tensor(current_inventory.device, current_inventory.dtype)
-        target_inventory = target_values[target_idx] - self._benchmark_position()
+        target_inventory = target_mean
         trade_prob = self._quantize_inference(trade_prob)
         band_width = self._quantize_inference(band_width)
         target_inventory = self._quantize_inference(target_inventory)

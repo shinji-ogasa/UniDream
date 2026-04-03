@@ -30,7 +30,7 @@ import yaml
 
 from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetch_open_interest_hist
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
-from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset, ACTIONS as _ACTIONS
+from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset, smooth_aim_positions, ACTIONS as _ACTIONS
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 from unidream.actor_critic.actor import Actor
@@ -244,6 +244,27 @@ def run_fold(
     )
     oracle_positions = oracle_action_values[oracle_actions].astype(np.float32)
     val_oracle_positions = oracle_action_values[val_oracle_actions].astype(np.float32)
+    if oracle_cfg.get("use_aim_targets", False):
+        abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
+        abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
+        oracle_positions = smooth_aim_positions(
+            oracle_positions,
+            max_step=oracle_cfg.get("aim_max_step", 0.25),
+            band=oracle_cfg.get("aim_band", 0.0),
+            initial_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
+            min_position=abs_min,
+            max_position=abs_max,
+        ).astype(np.float32)
+        val_oracle_positions = smooth_aim_positions(
+            val_oracle_positions,
+            max_step=oracle_cfg.get("aim_max_step", 0.25),
+            band=oracle_cfg.get("aim_band", 0.0),
+            initial_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
+            min_position=abs_min,
+            max_position=abs_max,
+        ).astype(np.float32)
+        _aim_s = _action_stats(oracle_positions)
+        print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
     # Actor 生成前に計算して regime_dim を確定する

@@ -132,7 +132,7 @@ class BCPretrainer:
         trade_pos_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
-        trade_logits, target_dist, band_width, current_inventory = self.actor.controller_outputs(
+        trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
@@ -154,17 +154,11 @@ class BCPretrainer:
             trade_targets = (target_gap / float(scale)).clamp(0.0, 1.0)
         else:
             trade_targets = trade_mask
-        target_indices = self.actor.target_indices(oracle_positions)
-
-        if soft_labels is not None:
-            target_probs = soft_labels.to(device=trade_logits.device, dtype=trade_logits.dtype)
-            target_probs = target_probs / target_probs.sum(dim=-1, keepdim=True).clamp_min(1e-8)
-            log_probs = F.log_softmax(target_dist.logits, dim=-1)
-            target_loss = -(target_probs * log_probs).sum(dim=-1)
-        else:
-            target_loss = -target_dist.log_prob(target_indices)
+        target_dist = self.actor.target_distribution(target_mean, target_std)
+        target_loss = -target_dist.log_prob(oracle_target)
 
         if class_weights is not None:
+            target_indices = self.actor.target_indices(oracle_positions)
             sample_class_w = class_weights.to(
                 device=target_loss.device,
                 dtype=target_loss.dtype,
