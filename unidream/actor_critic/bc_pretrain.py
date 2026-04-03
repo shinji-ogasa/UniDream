@@ -237,7 +237,6 @@ class BCPretrainer:
                 target_inventory=target_mean,
                 band_width=band_width,
                 current_inventory=current_inventory,
-                trade_threshold=0.5,
             )
             execution_loss = F.smooth_l1_loss(
                 predicted_next_inventory,

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Bernoulli, Normal
+from torch.distributions import Bernoulli, Normal, RelaxedBernoulli
 
 from unidream.data.oracle import N_ACTIONS
 
@@ -270,25 +270,24 @@ class Actor(nn.Module):
             return x
         return torch.round(x / step) * step
 
-    def _trade_score(
+    def _adjustment_rate(
         self,
         trade_signal: torch.Tensor,
         target_gap: torch.Tensor,
         band_width: torch.Tensor,
     ) -> torch.Tensor:
-        """band を超えた gap が大きいほど発火しやすい score を作る."""
+        """連続 adjustment-rate を返す."""
+        rate_scale = float(getattr(self, "infer_adjust_rate_scale", 1.0))
+        base_rate = (trade_signal * rate_scale).clamp(min=0.0, max=1.0)
         gap_boost = float(getattr(self, "infer_gap_boost", 0.0))
         if gap_boost <= 0.0:
-            return trade_signal
+            return base_rate
 
         gap_excess = (torch.abs(target_gap) - band_width).clamp(min=0.0)
         min_band = float(getattr(self, "min_band", 0.02))
         band_scale = band_width.clamp(min=min_band)
-        # 固定 threshold 一本では fold ごとに no-trade / over-trade が切り替わりやすい。
-        # gap が learned band をどれだけ上回っているかで追加点を与えて、
-        # 明確な de-risk シグナルだけを通しやすくする。
         gap_scale = torch.tanh(gap_excess / band_scale)
-        return (trade_signal + gap_boost * gap_scale).clamp(max=1.0)
+        return (base_rate + gap_boost * gap_scale).clamp(max=1.0)
 
     def execute_controller(
         self,
@@ -296,14 +295,14 @@ class Actor(nn.Module):
         target_inventory: torch.Tensor,
         band_width: torch.Tensor,
         current_inventory: torch.Tensor,
-        trade_threshold: float = 0.5,
+        band_sharpness: float = 32.0,
     ) -> torch.Tensor:
-        """Controller 出力を executed inventory に変換する."""
+        """連続 adjustment-rate で executed inventory に変換する."""
         target_gap = target_inventory - current_inventory
-        trade_score = self._trade_score(trade_signal, target_gap, band_width)
-        will_trade = (trade_score >= trade_threshold) & (torch.abs(target_gap) > band_width)
+        adjustment_rate = self._adjustment_rate(trade_signal, target_gap, band_width)
+        band_frac = torch.sigmoid(band_sharpness * (torch.abs(target_gap) - band_width))
         bounded_step = self._bounded_step(target_gap)
-        next_inventory = torch.where(will_trade, current_inventory + bounded_step, current_inventory)
+        next_inventory = current_inventory + adjustment_rate * band_frac * bounded_step
         overlay_low, overlay_high = self._overlay_bounds()
         return next_inventory.clamp(min=overlay_low, max=overlay_high)
 
@@ -313,15 +312,13 @@ class Actor(nn.Module):
         target_inventory: torch.Tensor,
         band_width: torch.Tensor,
         current_inventory: torch.Tensor,
-        trade_threshold: float = 0.5,
     ) -> torch.Tensor:
-        """Greedy rollout では target へ部分調整して threshold 依存を滑らかにする."""
+        """Greedy rollout でも連続 adjustment-rate をそのまま使う."""
         return self.soft_execute_controller(
             trade_signal=trade_signal,
             target_inventory=target_inventory,
             band_width=band_width,
             current_inventory=current_inventory,
-            trade_threshold=trade_threshold,
         )
 
     def soft_execute_controller(
@@ -330,7 +327,6 @@ class Actor(nn.Module):
         target_inventory: torch.Tensor,
         band_width: torch.Tensor,
         current_inventory: torch.Tensor,
-        trade_threshold: float = 0.5,
         band_sharpness: float = 16.0,
     ) -> torch.Tensor:
         """微分可能な近似実行則.
@@ -338,9 +334,7 @@ class Actor(nn.Module):
         trade gate と band gate を連続化して、BC/AC の補助損失に使う。
         """
         target_gap = target_inventory - current_inventory
-        trade_score = self._trade_score(trade_signal, target_gap, band_width)
-        denom = max(1e-6, 1.0 - trade_threshold)
-        trade_frac = ((trade_score - trade_threshold) / denom).clamp(min=0.0, max=1.0)
+        trade_frac = self._adjustment_rate(trade_signal, target_gap, band_width)
         band_frac = torch.sigmoid(band_sharpness * (torch.abs(target_gap) - band_width))
         bounded_step = self._bounded_step(target_gap)
         next_inventory = current_inventory + trade_frac * band_frac * bounded_step
@@ -358,10 +352,16 @@ class Actor(nn.Module):
         trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime
         )
-        trade_dist = Bernoulli(logits=trade_logits)
+        trade_base = Bernoulli(logits=trade_logits)
+        relax_temp = torch.as_tensor(
+            float(getattr(self, "adjustment_temperature", 0.25)),
+            dtype=trade_logits.dtype,
+            device=trade_logits.device,
+        )
+        trade_dist = RelaxedBernoulli(temperature=relax_temp, logits=trade_logits)
         target_dist = self.target_distribution(target_mean, target_std)
 
-        trade_sample = trade_dist.sample()
+        trade_sample = trade_dist.rsample().clamp(min=1e-5, max=1.0 - 1e-5)
         overlay_low, overlay_high = self._overlay_bounds()
         target_inventory = target_dist.rsample().clamp(min=overlay_low, max=overlay_high)
 
@@ -370,12 +370,11 @@ class Actor(nn.Module):
             target_inventory=target_inventory,
             band_width=band_width,
             current_inventory=current_inventory,
-            trade_threshold=0.5,
         )
         trade_log_prob = trade_dist.log_prob(trade_sample)
-        target_log_prob = target_dist.log_prob(target_inventory) * trade_sample
+        target_log_prob = target_dist.log_prob(target_inventory) * trade_sample.detach()
         log_prob = trade_log_prob + target_log_prob
-        entropy = trade_dist.entropy() + target_dist.entropy() * trade_dist.probs
+        entropy = trade_base.entropy() + target_dist.entropy() * torch.sigmoid(trade_logits)
         next_position = self._overlay_to_position(next_inventory)
         return next_position.unsqueeze(-1), log_prob, entropy
 
@@ -404,7 +403,6 @@ class Actor(nn.Module):
             target_inventory=target_inventory,
             band_width=band_width,
             current_inventory=current_inventory,
-            trade_threshold=float(getattr(self, "infer_trade_threshold", 0.5)),
         )
         next_position = self._overlay_to_position(next_inventory)
         return next_position.unsqueeze(-1)

@@ -346,8 +346,9 @@ def run_fold(
     actor.abs_min_position = ac_cfg.get("abs_min_position", -1.0)
     actor.abs_max_position = ac_cfg.get("abs_max_position", 1.0)
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
-    actor.infer_trade_threshold = ac_cfg.get("infer_trade_threshold", 0.5)
     actor.infer_gap_boost = ac_cfg.get("infer_gap_boost", 0.0)
+    actor.infer_adjust_rate_scale = ac_cfg.get("infer_adjust_rate_scale", 1.0)
+    actor.adjustment_temperature = ac_cfg.get("adjustment_temperature", 0.25)
     actor.max_position_step = ac_cfg.get("max_position_step", 10.0)
     actor.min_band = ac_cfg.get("min_band", 0.02)
     actor.max_band = ac_cfg.get("max_band", 0.20)
@@ -596,18 +597,18 @@ def run_fold(
         print(f"\n[{_ts()}] [Stop] Requested stop after AC")
         return {"fold": fold_idx, "completed_stage": "ac"}
 
-    threshold_grid = ac_cfg.get("val_threshold_grid", [])
-    if len(threshold_grid) > 0:
+    adjust_scale_grid = ac_cfg.get("val_adjust_rate_scale_grid", [])
+    if len(adjust_scale_grid) > 0:
         val_features_arr = wfo_dataset.val_features
         val_returns_arr = wfo_dataset.val_returns
         if len(val_features_arr) > 0:
             enc_val = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
-            best_threshold = float(getattr(actor, "infer_trade_threshold", 0.5))
+            best_scale = float(getattr(actor, "infer_adjust_rate_scale", 1.0))
             best_score = -float("inf")
             best_label = "score=-inf"
-            original_threshold = best_threshold
-            for candidate in threshold_grid:
-                actor.infer_trade_threshold = float(candidate)
+            original_scale = best_scale
+            for candidate in adjust_scale_grid:
+                actor.infer_adjust_rate_scale = float(candidate)
                 pos = actor.predict_positions(
                     enc_val["z"], enc_val["h"], regime_np=val_regime_probs, device=device
                 )
@@ -622,15 +623,15 @@ def run_fold(
                 ).run()
                 stats = _action_stats(pos[:T_min])
                 score, label = _policy_score(metrics, stats)
-                print(f"  [ValThr] thr={float(candidate):.3f} {label}")
+                print(f"  [ValAdj] scale={float(candidate):.3f} {label}")
                 if score > best_score:
                     best_score = score
                     best_label = label
-                    best_threshold = float(candidate)
-            actor.infer_trade_threshold = best_threshold
+                    best_scale = float(candidate)
+            actor.infer_adjust_rate_scale = best_scale
             print(
-                f"  [ValThr] selected thr={best_threshold:.3f} "
-                f"(default={original_threshold:.3f}) {best_label}"
+                f"  [ValAdj] selected scale={best_scale:.3f} "
+                f"(default={original_scale:.3f}) {best_label}"
             )
 
     # --------- Step 5: Test バックテスト ---------

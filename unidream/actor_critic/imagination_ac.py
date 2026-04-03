@@ -451,7 +451,6 @@ class ImagACTrainer:
                 target_inventory=target_mean,
                 band_width=band_width,
                 current_inventory=current_inventory,
-                trade_threshold=0.5,
             )
             exec_loss = F.smooth_l1_loss(pred_next_inventory, oracle_overlay)
             loss = loss + self.execution_aux_coef * exec_loss
@@ -505,14 +504,12 @@ class ImagACTrainer:
                 target_inventory=cur_target_inventory,
                 band_width=cur_band,
                 current_inventory=inventory_now,
-                trade_threshold=float(getattr(self.actor, "infer_trade_threshold", 0.5)),
             )
             ref_next_inventory = self.actor_prior.soft_execute_controller(
                 trade_signal=ref_trade_prob,
                 target_inventory=ref_target_inventory,
                 band_width=ref_band,
                 current_inventory=inventory_now,
-                trade_threshold=float(getattr(self.actor_prior, "infer_trade_threshold", 0.5)),
             )
             cur_flow = cur_next_inventory - inventory_now
             ref_flow = ref_next_inventory - inventory_now

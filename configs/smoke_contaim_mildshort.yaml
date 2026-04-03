@@ -97,9 +97,10 @@ ac:
   ac_layers: 2
   actor_dropout: 0.10
   infer_temperature: 1.0
-  infer_trade_threshold: 0.60
+  infer_adjust_rate_scale: 1.00
+  adjustment_temperature: 0.25
   infer_gap_boost: 0.00
-  val_threshold_grid: [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75]
+  val_adjust_rate_scale_grid: [0.60, 0.80, 1.00, 1.20, 1.40]
   max_position_step: 0.125
   abs_min_position: -0.25
   abs_max_position: 1.0
