@@ -423,11 +423,15 @@ class ImagACTrainer:
 
         loss = self.target_aux_coef * target_loss.mean()
         if self.trade_aux_coef > 0.0:
-            trade_loss = F.binary_cross_entropy_with_logits(
-                trade_logits,
-                trade_targets,
-                pos_weight=self._oracle_trade_pos_weight,
-            )
+            trade_pred = torch.sigmoid(trade_logits)
+            trade_loss = F.smooth_l1_loss(trade_pred, trade_targets)
+            if self._oracle_trade_pos_weight is not None:
+                trade_w = torch.where(
+                    trade_targets > 0.5,
+                    self._oracle_trade_pos_weight.to(device=trade_pred.device, dtype=trade_pred.dtype),
+                    torch.ones_like(trade_pred),
+                )
+                trade_loss = (F.smooth_l1_loss(trade_pred, trade_targets, reduction="none") * trade_w).mean()
             loss = loss + self.trade_aux_coef * trade_loss
             if self.band_aux_coef > 0.0:
                 trade_margin = 0.05

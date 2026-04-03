@@ -205,12 +205,15 @@ class BCPretrainer:
             )
             target_loss = target_loss * target_w
 
-        trade_loss = F.binary_cross_entropy_with_logits(
-            trade_logits,
-            trade_targets,
-            reduction="none",
-            pos_weight=trade_pos_weight,
-        )
+        trade_pred = torch.sigmoid(trade_logits)
+        trade_loss = F.smooth_l1_loss(trade_pred, trade_targets, reduction="none")
+        if trade_pos_weight is not None:
+            trade_w = torch.where(
+                trade_mask > 0.5,
+                trade_pos_weight.to(device=trade_loss.device, dtype=trade_loss.dtype),
+                torch.ones_like(trade_loss),
+            )
+            trade_loss = trade_loss * trade_w
 
         loss_terms = self.target_aux_coef * target_loss
         if self.trade_aux_coef > 0.0:
