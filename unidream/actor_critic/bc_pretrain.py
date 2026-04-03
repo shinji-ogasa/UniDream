@@ -538,6 +538,8 @@ class BCPretrainer:
                 bi = 4
                 reg_b = batch[bi].to(self.device) if use_regime else None
                 if use_regime:
+                    if self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                        reg_b = reg_b[:, 0]
                     bi += 1
                 sl_b = batch[bi].to(self.device) if use_soft else None
 
