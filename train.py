@@ -369,6 +369,9 @@ def run_fold(
             execution_aux_coef=bc_cfg.get("execution_aux_coef", 0.0),
             soft_trade_targets=bc_cfg.get("soft_trade_targets", True),
             trade_target_scale=bc_cfg.get("trade_target_scale"),
+            self_condition_prob=bc_cfg.get("self_condition_prob", 0.0),
+            self_condition_interval=bc_cfg.get("self_condition_interval", 1),
+            self_condition_warmup_epochs=bc_cfg.get("self_condition_warmup_epochs", 0),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -393,6 +396,9 @@ def run_fold(
                 execution_aux_coef=bc_cfg.get("execution_aux_coef", 0.0),
                 soft_trade_targets=bc_cfg.get("soft_trade_targets", True),
                 trade_target_scale=bc_cfg.get("trade_target_scale"),
+                self_condition_prob=bc_cfg.get("self_condition_prob", 0.0),
+                self_condition_interval=bc_cfg.get("self_condition_interval", 1),
+                self_condition_warmup_epochs=bc_cfg.get("self_condition_warmup_epochs", 0),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_positions))

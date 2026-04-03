@@ -92,6 +92,9 @@ class BCPretrainer:
         execution_aux_coef: float = 0.0,
         soft_trade_targets: bool = True,
         trade_target_scale: float | None = None,
+        self_condition_prob: float = 0.0,
+        self_condition_interval: int = 1,
+        self_condition_warmup_epochs: int = 0,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -109,6 +112,9 @@ class BCPretrainer:
         self.execution_aux_coef = execution_aux_coef
         self.soft_trade_targets = soft_trade_targets
         self.trade_target_scale = trade_target_scale
+        self.self_condition_prob = float(self_condition_prob)
+        self.self_condition_interval = max(1, int(self_condition_interval))
+        self.self_condition_warmup_epochs = max(0, int(self_condition_warmup_epochs))
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -120,6 +126,31 @@ class BCPretrainer:
             params = list(actor.parameters())
 
         self.optimizer = torch.optim.Adam(params, lr=lr)
+
+    def _mixed_controller_states(
+        self,
+        z: np.ndarray,
+        h: np.ndarray,
+        oracle_positions: np.ndarray,
+        regime_probs: np.ndarray | None = None,
+        rollout_positions: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray | None]:
+        teacher_states = self.actor.controller_states_from_positions(oracle_positions)
+        if self.self_condition_prob <= 0.0:
+            return teacher_states, rollout_positions
+
+        if rollout_positions is None:
+            rollout_positions = self.actor.predict_positions(
+                z,
+                h,
+                regime_np=regime_probs,
+                device=str(self.device),
+            )
+        rollout_states = self.actor.controller_states_from_positions(rollout_positions)
+        mask = np.random.rand(len(teacher_states)) < self.self_condition_prob
+        mixed_states = teacher_states.copy()
+        mixed_states[mask] = rollout_states[mask]
+        return mixed_states, rollout_positions
 
     def _bc_loss(
         self,
@@ -256,8 +287,8 @@ class BCPretrainer:
         """
         T = min(len(z), len(h), len(oracle_positions))
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
-        state_all = self.actor.controller_states_from_positions(oracle_positions[:T])
-        inv_all = state_all[:, 0]
+        teacher_state_all = self.actor.controller_states_from_positions(oracle_positions[:T])
+        inv_all = teacher_state_all[:, 0]
         trade_mask = (np.abs((oracle_positions[:T] - benchmark_position) - inv_all[:T]) > 1e-8).astype(np.float32)
         n_pos = float(trade_mask.sum())
         n_neg = float(T - n_pos)
@@ -276,43 +307,53 @@ class BCPretrainer:
         # --- Action Chunking: データをチャンク単位に再構築 ---
         k = self.chunk_size
         if k > 1:
-            n_chunks = T // k
-            T_use = n_chunks * k
-
-            # チャンク先頭の (z, h, regime) を取得
-            z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, z_dim)
-            h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]         # (n_chunks, h_dim)
-            pos_arr = oracle_positions[:T_use].reshape(n_chunks, k)      # (n_chunks, k)
-            state_arr = state_all[:T_use].reshape(n_chunks, k, -1)       # (n_chunks, k, S)
-            cur_abs_arr = state_arr[:, 0, 0] + benchmark_position        # (n_chunks,)
-            switch_mask = np.abs(pos_arr - cur_abs_arr[:, None]) > 1e-8  # (n_chunks, k)
-            has_switch = switch_mask.any(axis=1)
-            first_switch_idx = switch_mask.argmax(axis=1)
-            repr_idx = np.where(has_switch, first_switch_idx, 0)
-            repr_pos_arr = pos_arr[np.arange(n_chunks), repr_idx]        # (n_chunks,)
-            repr_state_arr = state_arr[:, 0, :]                          # (n_chunks, S)
-
-            tensors = [
-                torch.tensor(z_arr, dtype=torch.float32),
-                torch.tensor(h_arr, dtype=torch.float32),
-                torch.tensor(repr_pos_arr, dtype=torch.float32),
-                torch.tensor(repr_state_arr, dtype=torch.float32),
-            ]
+            logs = []
+            rollout_positions = None
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
-            if use_regime:
-                r_arr = regime_probs[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
-                tensors.append(torch.tensor(r_arr, dtype=torch.float32))
-            if use_soft:
-                sl_arr = soft_labels[:T_use].reshape(n_chunks, k, -1)   # (n_chunks, k, K)
-                sl_repr_arr = sl_arr[np.arange(n_chunks), repr_idx]
-                tensors.append(torch.tensor(sl_repr_arr, dtype=torch.float32))
-
-            dataset = TensorDataset(*tensors)
-            loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-
-            logs = []
             for epoch in range(self.n_epochs):
+                state_all = teacher_state_all
+                if self.self_condition_prob > 0.0 and epoch >= self.self_condition_warmup_epochs:
+                    if rollout_positions is None or (epoch - self.self_condition_warmup_epochs) % self.self_condition_interval == 0:
+                        rollout_positions = None
+                    state_all, rollout_positions = self._mixed_controller_states(
+                        z[:T],
+                        h[:T],
+                        oracle_positions[:T],
+                        regime_probs=regime_probs[:T] if use_regime else None,
+                        rollout_positions=rollout_positions,
+                    )
+
+                n_chunks = T // k
+                T_use = n_chunks * k
+                z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
+                h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
+                pos_arr = oracle_positions[:T_use].reshape(n_chunks, k)
+                state_arr = state_all[:T_use].reshape(n_chunks, k, -1)
+                cur_abs_arr = state_arr[:, 0, 0] + benchmark_position
+                switch_mask = np.abs(pos_arr - cur_abs_arr[:, None]) > 1e-8
+                has_switch = switch_mask.any(axis=1)
+                first_switch_idx = switch_mask.argmax(axis=1)
+                repr_idx = np.where(has_switch, first_switch_idx, 0)
+                repr_pos_arr = pos_arr[np.arange(n_chunks), repr_idx]
+                repr_state_arr = state_arr[:, 0, :]
+
+                tensors = [
+                    torch.tensor(z_arr, dtype=torch.float32),
+                    torch.tensor(h_arr, dtype=torch.float32),
+                    torch.tensor(repr_pos_arr, dtype=torch.float32),
+                    torch.tensor(repr_state_arr, dtype=torch.float32),
+                ]
+                if use_regime:
+                    r_arr = regime_probs[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
+                    tensors.append(torch.tensor(r_arr, dtype=torch.float32))
+                if use_soft:
+                    sl_arr = soft_labels[:T_use].reshape(n_chunks, k, -1)
+                    sl_repr_arr = sl_arr[np.arange(n_chunks), repr_idx]
+                    tensors.append(torch.tensor(sl_repr_arr, dtype=torch.float32))
+
+                dataset = TensorDataset(*tensors)
+                loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
                 epoch_loss = 0.0
                 count = 0
                 for batch in loader:
@@ -361,23 +402,35 @@ class BCPretrainer:
             return logs
 
         # --- 通常の per-step 学習（chunk_size=1）---
-        z_t = torch.tensor(z[:T], dtype=torch.float32)
-        h_t = torch.tensor(h[:T], dtype=torch.float32)
-        a_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
-        inv_t = torch.tensor(state_all[:T], dtype=torch.float32)
-
         use_regime = regime_probs is not None
         use_soft = soft_labels is not None
-        tensors = [z_t, h_t, a_t, inv_t]
-        if use_regime:
-            tensors.append(torch.tensor(regime_probs[:T], dtype=torch.float32))
-        if use_soft:
-            tensors.append(torch.tensor(soft_labels[:T], dtype=torch.float32))
-        dataset = TensorDataset(*tensors)
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-
         logs = []
+        rollout_positions = None
         for epoch in range(self.n_epochs):
+            state_all = teacher_state_all
+            if self.self_condition_prob > 0.0 and epoch >= self.self_condition_warmup_epochs:
+                if rollout_positions is None or (epoch - self.self_condition_warmup_epochs) % self.self_condition_interval == 0:
+                    rollout_positions = None
+                state_all, rollout_positions = self._mixed_controller_states(
+                    z[:T],
+                    h[:T],
+                    oracle_positions[:T],
+                    regime_probs=regime_probs[:T] if use_regime else None,
+                    rollout_positions=rollout_positions,
+                )
+
+            z_t = torch.tensor(z[:T], dtype=torch.float32)
+            h_t = torch.tensor(h[:T], dtype=torch.float32)
+            a_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
+            inv_t = torch.tensor(state_all[:T], dtype=torch.float32)
+
+            tensors = [z_t, h_t, a_t, inv_t]
+            if use_regime:
+                tensors.append(torch.tensor(regime_probs[:T], dtype=torch.float32))
+            if use_soft:
+                tensors.append(torch.tensor(soft_labels[:T], dtype=torch.float32))
+            dataset = TensorDataset(*tensors)
+            loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
             epoch_loss = 0.0
             count = 0
 
