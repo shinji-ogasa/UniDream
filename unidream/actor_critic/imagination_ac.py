@@ -41,6 +41,7 @@ def _action_stats(positions: np.ndarray) -> dict:
     """ポジション配列の行動分布統計を計算する."""
     total = max(len(positions), 1)
     active_eps = 0.05
+    delta = np.abs(np.diff(positions)) if total > 1 else np.zeros(0, dtype=np.float64)
     counts = {
         "long": int((positions > active_eps).sum()),
         "short": int((positions < -active_eps).sum()),
@@ -50,15 +51,23 @@ def _action_stats(positions: np.ndarray) -> dict:
     short_r = counts["short"] / total
     flat_r  = counts["flat"] / total
     mean_p  = float(np.mean(positions)) if total > 0 else 0.0
-    switches = int((np.abs(np.diff(positions)) > active_eps).sum()) if total > 1 else 0
+    turnover = float(delta.sum()) if delta.size > 0 else 0.0
+    nz_delta = delta[delta > 1e-8]
+    step_ref = float(np.quantile(nz_delta, 0.90)) if nz_delta.size > 0 else active_eps
+    step_ref = max(step_ref, active_eps)
+    hard_switches = int((delta > active_eps).sum()) if delta.size > 0 else 0
+    flow_switches = int(np.rint(turnover / step_ref)) if turnover > 0.0 else 0
+    switches = max(hard_switches, flow_switches)
     avg_hold = total / max(switches, 1)
     return dict(long=long_r, short=short_r, flat=flat_r, mean=mean_p,
-                switches=switches, avg_hold=avg_hold, counts=counts)
+                switches=switches, avg_hold=avg_hold, counts=counts,
+                turnover=turnover, step_ref=step_ref, mean_abs_delta=(turnover / max(total - 1, 1)))
 
 
 def _fmt_action_stats(s: dict) -> str:
     return (f"long={s['long']:.0%} short={s['short']:.0%} flat={s['flat']:.0%} "
-            f"mean={s['mean']:+.3f} switches={s['switches']} avg_hold={s['avg_hold']:.1f}b")
+            f"mean={s['mean']:+.3f} switches={s['switches']} avg_hold={s['avg_hold']:.1f}b "
+            f"turnover={s['turnover']:.2f}")
 
 
 def _ac_alerts(label: str, s: dict, bc_loss: float | None = None) -> None:
