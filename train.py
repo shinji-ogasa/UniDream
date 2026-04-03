@@ -85,6 +85,35 @@ def _benchmark_positions(length: int, cfg: dict) -> np.ndarray:
     return np.full(length, benchmark_pos, dtype=np.float64)
 
 
+def _policy_score(metrics, stats: dict) -> tuple[float, str]:
+    alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
+    sharpe_delta = metrics.sharpe_delta or 0.0
+    score = 2.0 * alpha_excess + 5.0 * sharpe_delta
+    penalty = 0.0
+    if alpha_excess <= 0.0:
+        penalty += 100.0 + 0.5 * abs(alpha_excess)
+    if stats["flat"] >= 0.50:
+        penalty += 30.0
+    if stats["flat"] >= 0.80:
+        penalty += 100.0
+    if stats["long"] >= 0.85:
+        penalty += 120.0
+    if stats["short"] >= 0.85:
+        penalty += 120.0
+    if max(stats["long"], stats["short"], stats["flat"]) >= 0.80:
+        penalty += 200.0
+    if stats["avg_hold"] < 2.0:
+        penalty += 10.0
+    if stats["switches"] == 0:
+        penalty += 25.0
+    score -= penalty
+    label = (
+        f"alpha={alpha_excess:+.2f}pt sharpeΔ={sharpe_delta:+.3f} score={score:.3f} "
+        f"long={stats['long']:.0%} short={stats['short']:.0%} flat={stats['flat']:.0%}"
+    )
+    return score, label
+
+
 def resolve_costs(cfg: dict, cost_profile: str | None = None) -> tuple[dict, str]:
     """Resolve trading costs from either legacy `costs` or named `cost_profiles`."""
     resolved_cfg = dict(cfg)
@@ -434,34 +463,7 @@ def run_fold(
                     benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
                 stats = _action_stats(pos[:T_min])
-
-                alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
-                sharpe_delta = metrics.sharpe_delta or 0.0
-                score = 2.0 * alpha_excess + 5.0 * sharpe_delta
-                penalty = 0.0
-                if alpha_excess <= 0.0:
-                    penalty += 100.0 + 0.5 * abs(alpha_excess)
-                if stats["flat"] >= 0.50:
-                    penalty += 30.0
-                if stats["flat"] >= 0.80:
-                    penalty += 100.0
-                if stats["long"] >= 0.85:
-                    penalty += 120.0
-                if stats["short"] >= 0.85:
-                    penalty += 120.0
-                if max(stats["long"], stats["short"], stats["flat"]) >= 0.80:
-                    penalty += 200.0
-                if stats["avg_hold"] < 2.0:
-                    penalty += 10.0
-                if stats["switches"] == 0:
-                    penalty += 25.0
-
-                score -= penalty
-                label = (
-                    f"alpha={alpha_excess:+.2f}pt sharpeΔ={sharpe_delta:+.3f} score={score:.3f} "
-                    f"long={stats['long']:.0%} short={stats['short']:.0%} flat={stats['flat']:.0%}"
-                )
-                return score, label
+                return _policy_score(metrics, stats)
 
             ac_max_steps = ac_cfg.get("max_steps", 200_000)
             if ac_trainer.global_step >= ac_max_steps:
@@ -564,6 +566,43 @@ def run_fold(
     if stop_after == "ac":
         print(f"\n[{_ts()}] [Stop] Requested stop after AC")
         return {"fold": fold_idx, "completed_stage": "ac"}
+
+    threshold_grid = ac_cfg.get("val_threshold_grid", [])
+    if len(threshold_grid) > 0:
+        val_features_arr = wfo_dataset.val_features
+        val_returns_arr = wfo_dataset.val_returns
+        if len(val_features_arr) > 0:
+            enc_val = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
+            best_threshold = float(getattr(actor, "infer_trade_threshold", 0.5))
+            best_score = -float("inf")
+            best_label = "score=-inf"
+            original_threshold = best_threshold
+            for candidate in threshold_grid:
+                actor.infer_trade_threshold = float(candidate)
+                pos = actor.predict_positions(
+                    enc_val["z"], enc_val["h"], regime_np=val_regime_probs, device=device
+                )
+                T_min = min(len(val_returns_arr), len(pos))
+                metrics = Backtest(
+                    val_returns_arr[:T_min], pos[:T_min],
+                    spread_bps=costs_cfg.get("spread_bps", 5.0),
+                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                    interval=cfg.get("data", {}).get("interval", "15m"),
+                    benchmark_positions=_benchmark_positions(T_min, cfg),
+                ).run()
+                stats = _action_stats(pos[:T_min])
+                score, label = _policy_score(metrics, stats)
+                print(f"  [ValThr] thr={float(candidate):.3f} {label}")
+                if score > best_score:
+                    best_score = score
+                    best_label = label
+                    best_threshold = float(candidate)
+            actor.infer_trade_threshold = best_threshold
+            print(
+                f"  [ValThr] selected thr={best_threshold:.3f} "
+                f"(default={original_threshold:.3f}) {best_label}"
+            )
 
     # --------- Step 5: Test バックテスト ---------
     print(f"\n[{_ts()}] [Step 5] Test Backtest...")

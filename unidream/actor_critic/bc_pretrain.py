@@ -165,8 +165,11 @@ class BCPretrainer:
             target_loss = -target_dist.log_prob(target_indices)
 
         if class_weights is not None:
-            sample_class_w = torch.ones_like(target_loss)
-            weights = weights * sample_class_w if weights is not None else sample_class_w
+            sample_class_w = class_weights.to(
+                device=target_loss.device,
+                dtype=target_loss.dtype,
+            )[target_indices]
+            target_loss = target_loss * sample_class_w
         if trade_pos_weight is not None:
             target_w = torch.where(
                 trade_mask > 0.5,
@@ -243,6 +246,14 @@ class BCPretrainer:
         trade_pos_weight_t = None
         if n_pos > 0 and n_neg > 0:
             trade_pos_weight_t = torch.tensor(n_neg / n_pos, dtype=torch.float32, device=self.device)
+        class_weights_t = None
+        if self.class_balanced:
+            oracle_pos_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
+            target_idx_all = self.actor.target_indices(oracle_pos_t).to(dtype=torch.long)
+            class_counts = torch.bincount(target_idx_all, minlength=self.actor.act_dim).to(dtype=torch.float32)
+            class_weights_t = class_counts.sum() / class_counts.clamp_min(1.0)
+            class_weights_t = class_weights_t / class_weights_t.mean().clamp_min(1e-8)
+            class_weights_t = class_weights_t.to(self.device)
 
         # --- Action Chunking: データをチャンク単位に再構築 ---
         k = self.chunk_size
@@ -310,6 +321,7 @@ class BCPretrainer:
                         weights=sirl_w,
                         regime=reg_b,
                         soft_labels=sl_repr,
+                        class_weights=class_weights_t,
                         trade_pos_weight=trade_pos_weight_t,
                     )
 
@@ -376,6 +388,7 @@ class BCPretrainer:
                     weights=weights,
                     regime=reg_b,
                     soft_labels=sl_b,
+                    class_weights=class_weights_t,
                     trade_pos_weight=trade_pos_weight_t,
                 )
 
