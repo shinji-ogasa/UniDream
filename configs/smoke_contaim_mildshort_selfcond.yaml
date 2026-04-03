@@ -88,6 +88,8 @@ bc:
   trade_aux_coef: 0.60
   band_aux_coef: 0.25
   execution_aux_coef: 1.00
+  path_aux_coef: 1.00
+  path_horizon: 4
   soft_trade_targets: true
   trade_target_scale: 0.125
   self_condition_prob: 0.50

@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from unidream.actor_critic.actor import Actor
 
@@ -53,6 +53,42 @@ class SIRLWeightNet(nn.Module):
         logits = self.net(state).squeeze(-1)  # (B,)
         weights = F.softmax(logits, dim=0) * logits.shape[0]
         return weights
+
+
+class ControllerPathDataset(Dataset):
+    """短い将来 window の controller path を返す dataset."""
+
+    def __init__(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        oracle_positions: torch.Tensor,
+        inventory: torch.Tensor,
+        horizon: int,
+        regime: torch.Tensor | None = None,
+        soft_labels: torch.Tensor | None = None,
+    ):
+        self.z = z
+        self.h = h
+        self.oracle_positions = oracle_positions
+        self.inventory = inventory
+        self.horizon = max(1, int(horizon))
+        self.regime = regime
+        self.soft_labels = soft_labels
+        self.length = max(0, len(z) - self.horizon + 1)
+
+    def __len__(self) -> int:
+        return self.length
+
+    def __getitem__(self, idx: int):
+        s = idx
+        e = idx + self.horizon
+        items = [self.z[s:e], self.h[s:e], self.oracle_positions[s:e], self.inventory[s]]
+        if self.regime is not None:
+            items.append(self.regime[s:e])
+        if self.soft_labels is not None:
+            items.append(self.soft_labels[s:e])
+        return tuple(items)
 
 
 class BCPretrainer:
@@ -90,6 +126,8 @@ class BCPretrainer:
         trade_aux_coef: float = 0.5,
         band_aux_coef: float = 0.25,
         execution_aux_coef: float = 0.0,
+        path_aux_coef: float = 0.0,
+        path_horizon: int = 1,
         soft_trade_targets: bool = True,
         trade_target_scale: float | None = None,
         self_condition_prob: float = 0.0,
@@ -110,6 +148,8 @@ class BCPretrainer:
         self.trade_aux_coef = trade_aux_coef
         self.band_aux_coef = band_aux_coef
         self.execution_aux_coef = execution_aux_coef
+        self.path_aux_coef = path_aux_coef
+        self.path_horizon = max(1, int(path_horizon))
         self.soft_trade_targets = soft_trade_targets
         self.trade_target_scale = trade_target_scale
         self.self_condition_prob = float(self_condition_prob)
@@ -261,6 +301,46 @@ class BCPretrainer:
             loss = loss_terms.mean()
 
         return loss
+
+    def _bc_path_loss(
+        self,
+        z_seq: torch.Tensor,
+        h_seq: torch.Tensor,
+        oracle_positions_seq: torch.Tensor,
+        inventory0: torch.Tensor,
+        regime_seq: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        horizon = z_seq.shape[1]
+        if horizon <= 0:
+            return torch.tensor(0.0, device=self.device)
+
+        state = inventory0
+        step_losses = []
+        benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+        for t in range(horizon):
+            reg_t = regime_seq[:, t] if regime_seq is not None else None
+            trade_logits, target_mean, _target_std, band_width, current_inventory = self.actor.controller_outputs(
+                z_seq[:, t],
+                h_seq[:, t],
+                inventory=state,
+                regime=reg_t,
+            )
+            next_inventory = self.actor.soft_execute_controller(
+                trade_signal=torch.sigmoid(trade_logits),
+                target_inventory=target_mean,
+                band_width=band_width,
+                current_inventory=current_inventory,
+            )
+            pred_abs_position = next_inventory + benchmark_position
+            step_loss = F.smooth_l1_loss(
+                pred_abs_position,
+                oracle_positions_seq[:, t],
+                reduction="none",
+            )
+            step_losses.append(step_loss)
+            state = self.actor.update_controller_state(state, pred_abs_position.unsqueeze(-1))
+
+        return torch.stack(step_losses, dim=0).mean()
 
     def train(
         self,
@@ -426,18 +506,35 @@ class BCPretrainer:
             a_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
             inv_t = torch.tensor(state_all[:T], dtype=torch.float32)
 
-            tensors = [z_t, h_t, a_t, inv_t]
-            if use_regime:
-                tensors.append(torch.tensor(regime_probs[:T], dtype=torch.float32))
-            if use_soft:
-                tensors.append(torch.tensor(soft_labels[:T], dtype=torch.float32))
-            dataset = TensorDataset(*tensors)
+            regime_t = torch.tensor(regime_probs[:T], dtype=torch.float32) if use_regime else None
+            soft_t = torch.tensor(soft_labels[:T], dtype=torch.float32) if use_soft else None
+            if self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                dataset = ControllerPathDataset(
+                    z_t,
+                    h_t,
+                    a_t,
+                    inv_t,
+                    horizon=self.path_horizon,
+                    regime=regime_t,
+                    soft_labels=soft_t,
+                )
+            else:
+                tensors = [z_t, h_t, a_t, inv_t]
+                if use_regime:
+                    tensors.append(regime_t)
+                if use_soft:
+                    tensors.append(soft_t)
+                dataset = TensorDataset(*tensors)
             loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
             epoch_loss = 0.0
             count = 0
 
             for batch in loader:
-                z_b, h_b, a_b, inv_b = batch[0], batch[1], batch[2], batch[3]
+                if self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    z_seq, h_seq, a_seq, inv_b = batch[0], batch[1], batch[2], batch[3]
+                    z_b, h_b, a_b = z_seq[:, 0], h_seq[:, 0], a_seq[:, 0]
+                else:
+                    z_b, h_b, a_b, inv_b = batch[0], batch[1], batch[2], batch[3]
                 bi = 4
                 reg_b = batch[bi].to(self.device) if use_regime else None
                 if use_regime:
@@ -464,6 +561,19 @@ class BCPretrainer:
                     class_weights=class_weights_t,
                     trade_pos_weight=trade_pos_weight_t,
                 )
+                if self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    z_seq = z_seq.to(self.device)
+                    h_seq = h_seq.to(self.device)
+                    a_seq = a_seq.to(self.device)
+                    reg_seq = batch[4].to(self.device) if use_regime else None
+                    path_loss = self._bc_path_loss(
+                        z_seq=z_seq,
+                        h_seq=h_seq,
+                        oracle_positions_seq=a_seq,
+                        inventory0=inv_b,
+                        regime_seq=reg_seq,
+                    )
+                    loss = loss + self.path_aux_coef * path_loss
 
                 self.optimizer.zero_grad()
                 loss.backward()
