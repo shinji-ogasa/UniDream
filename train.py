@@ -29,7 +29,7 @@ import torch
 import yaml
 
 from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetch_open_interest_hist
-from unidream.data.features import compute_features, get_raw_returns
+from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset, ACTIONS as _ACTIONS
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
@@ -733,6 +733,18 @@ def main():
         print(f"  Cached to {cache_dir}")
 
     # --------- WFO 分割 ---------
+    feature_extras_cfg = cfg.get("feature_extras", {})
+    if feature_extras_cfg.get("rebound_v1", False):
+        features_df = augment_with_rebound_features(
+            features_df,
+            raw_returns,
+            zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
+            interval=interval,
+            windows_hours=feature_extras_cfg.get("rebound_windows_hours", [24, 72]),
+        )
+        raw_returns = raw_returns.loc[features_df.index]
+        print(f"[Data] Rebound features added -> {features_df.shape}")
+
     print("[Data] WFO splits...")
     data_cfg = cfg.get("data", {})
     splits = get_wfo_splits(

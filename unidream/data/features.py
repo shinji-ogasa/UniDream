@@ -153,6 +153,43 @@ def compute_realized_vol(
     return df.shift(1)
 
 
+def augment_with_rebound_features(
+    features_df: pd.DataFrame,
+    raw_returns: pd.Series,
+    zscore_window_days: int = 60,
+    interval: str = "15m",
+    windows_hours: list[int] | None = None,
+) -> pd.DataFrame:
+    """既存特徴量に drawdown / rebound 系の補助特徴量を追加する.
+
+    raw_returns から close の対数価格 proxy を再構成し、
+    decision time t で既知の情報のみを使うため shift(1) したうえで
+    recent range 内の位置や直近高値/安値からの距離を計算する。
+    """
+    if windows_hours is None:
+        windows_hours = [24, 72]
+    bars_per_hour = max(1, BARS_PER_DAY.get(interval, 96) // 24)
+    window_bars = days_to_bars(zscore_window_days, interval)
+
+    raw_returns = raw_returns.reindex(features_df.index).astype(np.float64)
+    known_log_price = raw_returns.cumsum().shift(1)
+
+    cols: dict[str, pd.Series] = {}
+    for hours in windows_hours:
+        w = max(2, hours * bars_per_hour)
+        rolling_max = known_log_price.rolling(w, min_periods=w // 3).max()
+        rolling_min = known_log_price.rolling(w, min_periods=w // 3).min()
+        price_range = (rolling_max - rolling_min).clip(lower=1e-8)
+        cols[f"dd_{w}"] = (known_log_price - rolling_max)
+        cols[f"rebound_{w}"] = (known_log_price - rolling_min)
+        cols[f"range_pos_{w}"] = (known_log_price - rolling_min) / price_range
+        cols[f"mom_{w}"] = known_log_price - known_log_price.shift(w)
+
+    derived = pd.DataFrame(cols, index=features_df.index)
+    derived_z = rolling_zscore_df(derived, window_bars=window_bars)
+    return pd.concat([features_df, derived_z], axis=1).dropna()
+
+
 # --- Funding Rate / OI 前処理 ---
 
 def align_funding_rate(
