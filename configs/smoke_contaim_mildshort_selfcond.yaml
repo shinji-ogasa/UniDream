@@ -90,6 +90,8 @@ bc:
   execution_aux_coef: 1.00
   path_aux_coef: 1.00
   path_horizon: 4
+  path_position_coef: 0.50
+  path_turnover_coef: 1.00
   soft_trade_targets: true
   trade_target_scale: 0.125
   self_condition_prob: 0.50
