@@ -735,6 +735,11 @@ def main():
         default=None,
         help="Named cost profile from config cost_profiles (for example: base, stress)",
     )
+    parser.add_argument(
+        "--folds",
+        default=None,
+        help="Comma-separated fold indices to run (for example: 0,1,4)",
+    )
     args = parser.parse_args()
 
     if _stage_idx(args.start_from) > _stage_idx(args.stop_after):
@@ -844,6 +849,23 @@ def main():
     if len(splits) == 0:
         print("ERROR: WFO splits が空です。データ期間が短すぎます。")
         return
+
+    if args.folds:
+        selected_folds = sorted(
+            {
+                int(token.strip())
+                for token in args.folds.split(",")
+                if token.strip()
+            }
+        )
+        if not selected_folds:
+            parser.error("--folds must contain at least one fold index")
+        splits = [split for split in splits if split.fold_idx in selected_folds]
+        if len(splits) == 0:
+            parser.error(
+                f"--folds selected {selected_folds}, but no matching folds were found in this dataset"
+            )
+        print(f"  Running selected folds only: {selected_folds}")
 
     # --------- 各 Fold の学習・評価 ---------
     fold_results = {}
