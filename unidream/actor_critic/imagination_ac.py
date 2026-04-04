@@ -76,9 +76,10 @@ def _fmt_action_stats(s: dict) -> str:
 
 def _ac_alerts(label: str, s: dict, bc_loss: float | None = None) -> None:
     """ポジション偏り・turnover・BC loss の異常を検出してアラートを出す."""
-    if s["long"] > 0.80:
+    directional_collapse = max(s["long"], s["short"]) > 0.80 and s["switches"] <= 5 and s["turnover"] < 1.0
+    if directional_collapse and s["long"] > 0.80:
         print(f"  ⚠️  [{label}] long 比率 {s['long']:.0%} > 80%")
-    if s["short"] > 0.80:
+    if directional_collapse and s["short"] > 0.80:
         print(f"  ⚠️  [{label}] short 比率 {s['short']:.0%} > 80%")
     if s["avg_hold"] < 2.0:
         print(f"  ⚠️  [{label}] avg_hold={s['avg_hold']:.1f}b — 高 turnover")

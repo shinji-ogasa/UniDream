@@ -94,17 +94,22 @@ def _policy_score(metrics, stats: dict) -> tuple[float, str]:
     sharpe_delta = metrics.sharpe_delta or 0.0
     score = 2.0 * alpha_excess + 5.0 * sharpe_delta
     penalty = 0.0
+    directional_collapse = (
+        max(stats["long"], stats["short"]) >= 0.80
+        and stats["switches"] <= 5
+        and stats["turnover"] < 1.0
+    )
     if alpha_excess <= 0.0:
         penalty += 100.0 + 0.5 * abs(alpha_excess)
     if stats["flat"] >= 0.50:
         penalty += 30.0
     if stats["flat"] >= 0.80:
         penalty += 100.0
-    if stats["long"] >= 0.85:
+    if directional_collapse and stats["long"] >= 0.85:
         penalty += 120.0
-    if stats["short"] >= 0.85:
+    if directional_collapse and stats["short"] >= 0.85:
         penalty += 120.0
-    if max(stats["long"], stats["short"], stats["flat"]) >= 0.80:
+    if stats["flat"] >= 0.80 or directional_collapse:
         penalty += 200.0
     if stats["avg_hold"] < 2.0:
         penalty += 10.0
