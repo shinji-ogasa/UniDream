@@ -89,11 +89,12 @@ def _benchmark_position_value(cfg: dict) -> float:
     return float(cfg.get("reward", {}).get("benchmark_position", 1.0))
 
 
-def _policy_score(metrics, stats: dict) -> tuple[float, str]:
+def _policy_score(metrics, stats: dict, benchmark_position: float = 0.0) -> tuple[float, str]:
     alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
     sharpe_delta = metrics.sharpe_delta or 0.0
     score = 2.0 * alpha_excess + 5.0 * sharpe_delta
     penalty = 0.0
+    overlay_mode = abs(float(benchmark_position)) > 1e-8
     directional_collapse = (
         max(stats["long"], stats["short"]) >= 0.80
         and stats["switches"] <= 5
@@ -101,19 +102,19 @@ def _policy_score(metrics, stats: dict) -> tuple[float, str]:
     )
     if alpha_excess <= 0.0:
         penalty += 100.0 + 0.5 * abs(alpha_excess)
-    if stats["flat"] >= 0.50:
+    if not overlay_mode and stats["flat"] >= 0.50:
         penalty += 30.0
-    if stats["flat"] >= 0.80:
+    if not overlay_mode and stats["flat"] >= 0.80:
         penalty += 100.0
     if directional_collapse and stats["long"] >= 0.85:
         penalty += 120.0
     if directional_collapse and stats["short"] >= 0.85:
         penalty += 120.0
-    if stats["flat"] >= 0.80 or directional_collapse:
+    if directional_collapse or (not overlay_mode and stats["flat"] >= 0.80):
         penalty += 200.0
     if stats["avg_hold"] < 2.0:
         penalty += 10.0
-    if stats["switches"] == 0:
+    if not overlay_mode and stats["switches"] == 0:
         penalty += 25.0
     score -= penalty
     label = (
@@ -512,7 +513,11 @@ def run_fold(
                     benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
                 stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
-                return _policy_score(metrics, stats)
+                return _policy_score(
+                    metrics,
+                    stats,
+                    benchmark_position=_benchmark_position_value(cfg),
+                )
 
             ac_max_steps = ac_cfg.get("max_steps", 200_000)
             if ac_trainer.global_step >= ac_max_steps:
@@ -641,7 +646,11 @@ def run_fold(
                     benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
                 stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
-                score, label = _policy_score(metrics, stats)
+                score, label = _policy_score(
+                    metrics,
+                    stats,
+                    benchmark_position=_benchmark_position_value(cfg),
+                )
                 print(f"  [ValAdj] scale={float(candidate):.3f} {label}")
                 if score > best_score:
                     best_score = score
