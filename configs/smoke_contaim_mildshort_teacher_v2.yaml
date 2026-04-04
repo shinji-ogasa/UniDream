@@ -138,6 +138,16 @@ ac:
   turnover_coef: 0.25
   flow_change_coef: 0.10
   positive_advantages: true
+  selector_reject_alpha_floor_pt: -25.0
+  selector_reject_sharpe_floor: -1.0
+  selector_max_turnover: 8.0
+  selector_min_avg_hold: 3.0
+  selector_max_directional_ratio: 0.98
+  selector_confirm_alpha_tol_pt: 5.0
+  selector_confirm_sharpe_tol: 0.20
+  selector_confirm_score_tol: 15.0
+  selector_turnover_score_coef: 3.0
+  selector_maxdd_score_coef: 50.0
   actor_lr: 3.0e-5
   online_wm_interval: 200
   online_wm_window_days: 30

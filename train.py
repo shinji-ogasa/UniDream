@@ -126,6 +126,124 @@ def _policy_score(metrics, stats: dict, benchmark_position: float = 0.0) -> tupl
     return score, label
 
 
+def _selector_cfg(ac_cfg: dict) -> dict:
+    return {
+        "reject_alpha_floor_pt": float(ac_cfg.get("selector_reject_alpha_floor_pt", -25.0)),
+        "reject_sharpe_floor": float(ac_cfg.get("selector_reject_sharpe_floor", -1.0)),
+        "max_turnover": float(ac_cfg.get("selector_max_turnover", 8.0)),
+        "min_avg_hold": float(ac_cfg.get("selector_min_avg_hold", 3.0)),
+        "max_directional_ratio": float(ac_cfg.get("selector_max_directional_ratio", 0.98)),
+        "confirm_alpha_tol_pt": float(ac_cfg.get("selector_confirm_alpha_tol_pt", 5.0)),
+        "confirm_sharpe_tol": float(ac_cfg.get("selector_confirm_sharpe_tol", 0.20)),
+        "confirm_score_tol": float(ac_cfg.get("selector_confirm_score_tol", 15.0)),
+        "turnover_score_coef": float(ac_cfg.get("selector_turnover_score_coef", 3.0)),
+        "maxdd_score_coef": float(ac_cfg.get("selector_maxdd_score_coef", 50.0)),
+    }
+
+
+def _directional_collapse(stats: dict) -> bool:
+    return (
+        max(stats["long"], stats["short"]) >= 0.80
+        and stats["switches"] <= 5
+        and stats["turnover"] < 1.0
+    )
+
+
+def _is_benchmark_hold(stats: dict, benchmark_position: float) -> bool:
+    overlay_mode = abs(float(benchmark_position)) > 1e-8
+    return overlay_mode and stats["flat"] >= 0.95 and stats["switches"] == 0
+
+
+def _selector_candidate(
+    candidate: float,
+    metrics,
+    stats: dict,
+    benchmark_position: float,
+    selector_cfg: dict,
+) -> dict:
+    alpha_excess_pt = 100.0 * float(metrics.alpha_excess or 0.0)
+    sharpe_delta = float(metrics.sharpe_delta or 0.0)
+    max_dd = abs(float(metrics.max_drawdown or 0.0))
+    overlay_mode = abs(float(benchmark_position)) > 1e-8
+    benchmark_hold = _is_benchmark_hold(stats, benchmark_position)
+    directional_ratio = max(stats["long"], stats["short"])
+    directional_collapse = _directional_collapse(stats)
+    reject_reason = None
+
+    if not benchmark_hold:
+        if alpha_excess_pt <= selector_cfg["reject_alpha_floor_pt"]:
+            reject_reason = f"alpha<{selector_cfg['reject_alpha_floor_pt']:.1f}"
+        elif sharpe_delta <= selector_cfg["reject_sharpe_floor"]:
+            reject_reason = f"sharpeΔ<{selector_cfg['reject_sharpe_floor']:.2f}"
+        elif stats["turnover"] > selector_cfg["max_turnover"]:
+            reject_reason = f"turnover>{selector_cfg['max_turnover']:.2f}"
+        elif stats["avg_hold"] < selector_cfg["min_avg_hold"]:
+            reject_reason = f"avg_hold<{selector_cfg['min_avg_hold']:.1f}"
+        elif directional_collapse:
+            reject_reason = "directional_collapse"
+        elif directional_ratio >= selector_cfg["max_directional_ratio"]:
+            reject_reason = f"one_sided>{selector_cfg['max_directional_ratio']:.2f}"
+        elif (not overlay_mode) and stats["flat"] >= 0.80:
+            reject_reason = "flat_collapse"
+
+    score = (
+        2.0 * alpha_excess_pt
+        + 5.0 * sharpe_delta
+        - selector_cfg["turnover_score_coef"] * float(stats["turnover"])
+        - selector_cfg["maxdd_score_coef"] * max_dd
+    )
+    if benchmark_hold:
+        score += 0.5
+    if reject_reason is not None:
+        score -= 500.0
+
+    label = (
+        f"alpha={alpha_excess_pt:+.2f}pt sharpeΔ={sharpe_delta:+.3f} "
+        f"score={score:.3f} long={stats['long']:.0%} short={stats['short']:.0%} "
+        f"flat={stats['flat']:.0%}"
+    )
+    if reject_reason is not None:
+        label += f" reject={reject_reason}"
+
+    return {
+        "candidate": float(candidate),
+        "score": float(score),
+        "label": label,
+        "alpha_excess_pt": alpha_excess_pt,
+        "sharpe_delta": sharpe_delta,
+        "max_drawdown": max_dd,
+        "stats": stats,
+        "reject_reason": reject_reason,
+        "benchmark_hold": benchmark_hold,
+    }
+
+
+def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict:
+    valid = [c for c in candidates if c["reject_reason"] is None]
+    pool = valid if valid else candidates
+    best = max(pool, key=lambda c: c["score"])
+    alpha_floor = best["alpha_excess_pt"] - selector_cfg["confirm_alpha_tol_pt"]
+    sharpe_floor = best["sharpe_delta"] - selector_cfg["confirm_sharpe_tol"]
+    score_floor = best["score"] - selector_cfg["confirm_score_tol"]
+    near_best = [
+        c for c in pool
+        if c["score"] >= score_floor
+        and c["alpha_excess_pt"] >= alpha_floor
+        and c["sharpe_delta"] >= sharpe_floor
+    ]
+    if not near_best:
+        near_best = [best]
+    chosen = min(
+        near_best,
+        key=lambda c: (
+            0 if c["benchmark_hold"] else 1,
+            c["stats"]["turnover"],
+            -c["score"],
+        ),
+    )
+    return chosen
+
+
 def resolve_costs(cfg: dict, cost_profile: str | None = None) -> tuple[dict, str]:
     """Resolve trading costs from either legacy `costs` or named `cost_profiles`."""
     resolved_cfg = dict(cfg)
@@ -636,9 +754,10 @@ def run_fold(
         if len(val_features_arr) > 0:
             enc_val = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
             best_scale = float(getattr(actor, "infer_adjust_rate_scale", 1.0))
-            best_score = -float("inf")
             best_label = "score=-inf"
             original_scale = best_scale
+            selector_cfg = _selector_cfg(ac_cfg)
+            selector_candidates = []
             for candidate in adjust_scale_grid:
                 actor.infer_adjust_rate_scale = float(candidate)
                 pos = actor.predict_positions(
@@ -654,16 +773,18 @@ def run_fold(
                     benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
                 stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
-                score, label = _policy_score(
+                candidate_rec = _selector_candidate(
+                    float(candidate),
                     metrics,
                     stats,
                     benchmark_position=_benchmark_position_value(cfg),
+                    selector_cfg=selector_cfg,
                 )
-                print(f"  [ValAdj] scale={float(candidate):.3f} {label}")
-                if score > best_score:
-                    best_score = score
-                    best_label = label
-                    best_scale = float(candidate)
+                selector_candidates.append(candidate_rec)
+                print(f"  [ValAdj] scale={float(candidate):.3f} {candidate_rec['label']}")
+            chosen = _select_policy_candidate(selector_candidates, selector_cfg)
+            best_scale = float(chosen["candidate"])
+            best_label = chosen["label"]
             actor.infer_adjust_rate_scale = best_scale
             print(
                 f"  [ValAdj] selected scale={best_scale:.3f} "
