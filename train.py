@@ -132,7 +132,9 @@ def _selector_cfg(ac_cfg: dict) -> dict:
         "reject_sharpe_floor": float(ac_cfg.get("selector_reject_sharpe_floor", -1.0)),
         "max_turnover": float(ac_cfg.get("selector_max_turnover", 8.0)),
         "min_avg_hold": float(ac_cfg.get("selector_min_avg_hold", 3.0)),
-        "max_directional_ratio": float(ac_cfg.get("selector_max_directional_ratio", 0.98)),
+        "max_directional_ratio": float(ac_cfg.get("selector_max_directional_ratio", 1.01)),
+        "directional_penalty_coef": float(ac_cfg.get("selector_directional_penalty_coef", 80.0)),
+        "directional_soft_limit": float(ac_cfg.get("selector_directional_soft_limit", 0.90)),
         "confirm_alpha_tol_pt": float(ac_cfg.get("selector_confirm_alpha_tol_pt", 5.0)),
         "confirm_sharpe_tol": float(ac_cfg.get("selector_confirm_sharpe_tol", 0.20)),
         "confirm_score_tol": float(ac_cfg.get("selector_confirm_score_tol", 15.0)),
@@ -186,11 +188,18 @@ def _selector_candidate(
         elif (not overlay_mode) and stats["flat"] >= 0.80:
             reject_reason = "flat_collapse"
 
+    directional_penalty = 0.0
+    if not benchmark_hold:
+        directional_penalty = selector_cfg["directional_penalty_coef"] * max(
+            0.0, directional_ratio - selector_cfg["directional_soft_limit"]
+        )
+
     score = (
         2.0 * alpha_excess_pt
         + 5.0 * sharpe_delta
         - selector_cfg["turnover_score_coef"] * float(stats["turnover"])
         - selector_cfg["maxdd_score_coef"] * max_dd
+        - directional_penalty
     )
     if benchmark_hold:
         score += 0.5
@@ -387,6 +396,7 @@ def run_fold(
             benchmark_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
             underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
             underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
+            underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
         ).astype(np.float32)
         val_oracle_positions = smooth_aim_positions(
             val_oracle_positions,
@@ -398,6 +408,7 @@ def run_fold(
             benchmark_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
             underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
             underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
+            underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
         ).astype(np.float32)
         _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
         print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")

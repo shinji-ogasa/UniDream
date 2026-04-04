@@ -40,6 +40,7 @@ oracle:
   aim_band: 0.02
   aim_underweight_confirm_bars: 8
   aim_underweight_min_scale: 0.25
+  aim_underweight_floor_position: 0.50
 
 reward:
   beta: 0.1
@@ -142,7 +143,9 @@ ac:
   selector_reject_sharpe_floor: -1.0
   selector_max_turnover: 8.0
   selector_min_avg_hold: 3.0
-  selector_max_directional_ratio: 0.98
+  selector_max_directional_ratio: 1.01
+  selector_directional_penalty_coef: 80.0
+  selector_directional_soft_limit: 0.90
   selector_confirm_alpha_tol_pt: 5.0
   selector_confirm_sharpe_tol: 0.20
   selector_confirm_score_tol: 15.0
