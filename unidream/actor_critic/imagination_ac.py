@@ -37,20 +37,24 @@ from unidream.world_model.ensemble import EnsembleWorldModel
 from unidream.world_model.transformer import symlog, symexp, twohot_decode, twohot_encode
 
 
-def _action_stats(positions: np.ndarray) -> dict:
-    """ポジション配列の行動分布統計を計算する."""
+def _action_stats(positions: np.ndarray, benchmark_position: float = 0.0) -> dict:
+    """ポジション配列の行動分布統計を計算する.
+
+    excess_bh では絶対ポジションではなく benchmark からの overlay を見る。
+    """
     total = max(len(positions), 1)
     active_eps = 0.05
-    delta = np.abs(np.diff(positions)) if total > 1 else np.zeros(0, dtype=np.float64)
+    overlay = np.asarray(positions, dtype=np.float64) - float(benchmark_position)
+    delta = np.abs(np.diff(overlay)) if total > 1 else np.zeros(0, dtype=np.float64)
     counts = {
-        "long": int((positions > active_eps).sum()),
-        "short": int((positions < -active_eps).sum()),
-        "flat": int((np.abs(positions) <= active_eps).sum()),
+        "long": int((overlay > active_eps).sum()),
+        "short": int((overlay < -active_eps).sum()),
+        "flat": int((np.abs(overlay) <= active_eps).sum()),
     }
     long_r  = counts["long"] / total
     short_r = counts["short"] / total
     flat_r  = counts["flat"] / total
-    mean_p  = float(np.mean(positions)) if total > 0 else 0.0
+    mean_p  = float(np.mean(overlay)) if total > 0 else 0.0
     turnover = float(delta.sum()) if delta.size > 0 else 0.0
     nz_delta = delta[delta > 1e-8]
     step_ref = float(np.quantile(nz_delta, 0.90)) if nz_delta.size > 0 else active_eps

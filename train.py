@@ -85,6 +85,10 @@ def _benchmark_positions(length: int, cfg: dict) -> np.ndarray:
     return np.full(length, benchmark_pos, dtype=np.float64)
 
 
+def _benchmark_position_value(cfg: dict) -> float:
+    return float(cfg.get("reward", {}).get("benchmark_position", 1.0))
+
+
 def _policy_score(metrics, stats: dict) -> tuple[float, str]:
     alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
     sharpe_delta = metrics.sharpe_delta or 0.0
@@ -227,7 +231,7 @@ def run_fold(
           f"mean value={oracle_values.mean():.4f}")
     print(f"  Oracle objective: {oracle_reward_mode} (benchmark={oracle_benchmark_position:+.2f})")
     _oracle_pos = oracle_action_values[oracle_actions]
-    _oracle_s = _action_stats(_oracle_pos)
+    _oracle_s = _action_stats(_oracle_pos, benchmark_position=_benchmark_position_value(cfg))
     print(f"  Oracle dist: {_fmt_action_stats(_oracle_s)}")
 
     # Val oracle actions（分布比較・WM 学習に使用）
@@ -263,7 +267,7 @@ def run_fold(
             min_position=abs_min,
             max_position=abs_max,
         ).astype(np.float32)
-        _aim_s = _action_stats(oracle_positions)
+        _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
         print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
@@ -500,7 +504,7 @@ def run_fold(
                     interval=cfg.get("data", {}).get("interval", "15m"),
                     benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
-                stats = _action_stats(pos[:T_min])
+                stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
                 return _policy_score(metrics, stats)
 
             ac_max_steps = ac_cfg.get("max_steps", 200_000)
@@ -535,7 +539,7 @@ def run_fold(
                             fee_rate=costs_cfg.get("fee_rate", 0.0004),
                             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
                         )
-                        _bc_s = _action_stats(_bc_pos[:_bc_T])
+                        _bc_s = _action_stats(_bc_pos[:_bc_T], benchmark_position=_benchmark_position_value(cfg))
                         print(f"  BC val dist: {_fmt_action_stats(_bc_s)}")
                         print(f"  BC val: TotalRet={_bc_m.total_return:.3f}  "
                               f"AlphaExcess={100.0 * (_bc_m.alpha_excess or 0.0):+.2f}pt  "
@@ -543,7 +547,7 @@ def run_fold(
                               f"short={_bc_attr['short_gross']:+.4f}  "
                               f"cost={_bc_attr['cost_total']:.4f}")
                         _oracle_val_pos = val_oracle_positions[:_bc_T]
-                        _oracle_val_s = _action_stats(_oracle_val_pos)
+                        _oracle_val_s = _action_stats(_oracle_val_pos, benchmark_position=_benchmark_position_value(cfg))
                         print(f"  Oracle val dist: {_fmt_action_stats(_oracle_val_s)}")
                         _ac_alerts("BC-val", _bc_s)
 
@@ -629,7 +633,7 @@ def run_fold(
                     interval=cfg.get("data", {}).get("interval", "15m"),
                     benchmark_positions=_benchmark_positions(T_min, cfg),
                 ).run()
-                stats = _action_stats(pos[:T_min])
+                stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
                 score, label = _policy_score(metrics, stats)
                 print(f"  [ValAdj] scale={float(candidate):.3f} {label}")
                 if score > best_score:
@@ -673,7 +677,7 @@ def run_fold(
         fee_rate=costs_cfg.get("fee_rate", 0.0004),
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
     )
-    _test_s = _action_stats(positions[:T_min])
+    _test_s = _action_stats(positions[:T_min], benchmark_position=_benchmark_position_value(cfg))
     print(f"  Sharpe:   {metrics.sharpe:.3f}")
     print(f"  Sortino:  {metrics.sortino:.3f}")
     print(f"  MaxDD:    {metrics.max_drawdown:.3f}")
