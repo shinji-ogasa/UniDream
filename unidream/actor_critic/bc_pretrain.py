@@ -130,6 +130,7 @@ class BCPretrainer:
         path_horizon: int = 1,
         path_position_coef: float = 1.0,
         path_turnover_coef: float = 0.0,
+        path_shortfall_coef: float = 0.0,
         soft_trade_targets: bool = True,
         trade_target_scale: float | None = None,
         self_condition_prob: float = 0.0,
@@ -154,6 +155,7 @@ class BCPretrainer:
         self.path_horizon = max(1, int(path_horizon))
         self.path_position_coef = path_position_coef
         self.path_turnover_coef = path_turnover_coef
+        self.path_shortfall_coef = path_shortfall_coef
         self.soft_trade_targets = soft_trade_targets
         self.trade_target_scale = trade_target_scale
         self.self_condition_prob = float(self_condition_prob)
@@ -321,6 +323,7 @@ class BCPretrainer:
         state = inventory0
         pos_losses = []
         turnover_losses = []
+        shortfall_losses = []
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         prev_pred_abs = inventory0[:, 0] + benchmark_position
         prev_oracle_abs = inventory0[:, 0] + benchmark_position
@@ -352,11 +355,15 @@ class BCPretrainer:
                 turnover_losses.append(excess_turnover)
                 prev_pred_abs = pred_abs_position
                 prev_oracle_abs = oracle_positions_seq[:, t]
+            if self.path_shortfall_coef > 0.0:
+                shortfall_losses.append(F.relu(benchmark_position - pred_abs_position))
             state = self.actor.update_controller_state(state, pred_abs_position.unsqueeze(-1))
 
         loss = self.path_position_coef * torch.stack(pos_losses, dim=0).mean()
         if turnover_losses:
             loss = loss + self.path_turnover_coef * torch.stack(turnover_losses, dim=0).mean()
+        if shortfall_losses:
+            loss = loss + self.path_shortfall_coef * torch.stack(shortfall_losses, dim=0).mean()
         return loss
 
     def train(
