@@ -45,7 +45,7 @@ class Actor(nn.Module):
                 layers.append(nn.Dropout(dropout_p))
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
-        self.target_mean_head = nn.Linear(hidden_dim, 1)
+        self.target_logits_head = nn.Linear(hidden_dim, act_dim)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
 
@@ -210,6 +210,41 @@ class Actor(nn.Module):
         x = torch.cat(parts, dim=-1)
         return self.trunk(x), inventory
 
+    def _target_overlay_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        return self._target_values_tensor(device, dtype) - self._benchmark_position()
+
+    def controller_outputs_full(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        temperature: float = 1.0,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """trade logit, target logits/mean/std, band width, current inventory."""
+        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
+        trade_logits = self.trade_head(hidden).squeeze(-1)
+        min_band = float(getattr(self, "min_band", 0.02))
+        max_band = float(getattr(self, "max_band", 0.20))
+        band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
+        target_logits = self.target_logits_head(hidden) / max(temperature, 1e-6)
+        target_probs = F.softmax(target_logits, dim=-1)
+        target_values = self._target_overlay_values_tensor(hidden.device, hidden.dtype)
+        target_mean = (target_probs * target_values).sum(dim=-1)
+        min_target_std = float(getattr(self, "min_target_std", 0.05))
+        max_target_std = float(getattr(self, "max_target_std", 0.25))
+        target_std = min_target_std + (max_target_std - min_target_std) * torch.sigmoid(
+            self.target_std_head(hidden).squeeze(-1)
+        )
+        return (
+            trade_logits,
+            target_logits,
+            target_mean,
+            target_std,
+            band_width,
+            self._current_inventory_from_state(inventory_t),
+        )
+
     def controller_outputs(
         self,
         z: torch.Tensor,
@@ -219,25 +254,16 @@ class Actor(nn.Module):
         temperature: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """adjust logit, target mean/std, band width, current inventory."""
-        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
-        trade_logits = self.trade_head(hidden).squeeze(-1)
-        min_band = float(getattr(self, "min_band", 0.02))
-        max_band = float(getattr(self, "max_band", 0.20))
-        band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
-        overlay_low, overlay_high = self._overlay_bounds()
-        overlay_low_t = torch.as_tensor(overlay_low, dtype=hidden.dtype, device=hidden.device)
-        overlay_high_t = torch.as_tensor(overlay_high, dtype=hidden.dtype, device=hidden.device)
-        overlay_center = 0.5 * (overlay_low_t + overlay_high_t)
-        overlay_half_range = 0.5 * (overlay_high_t - overlay_low_t)
-        target_mean = overlay_center + overlay_half_range * torch.tanh(
-            self.target_mean_head(hidden).squeeze(-1) / max(temperature, 1e-6)
+        trade_logits, _target_logits, target_mean, target_std, band_width, current_inventory = (
+            self.controller_outputs_full(
+                z,
+                h,
+                inventory=inventory,
+                regime=regime,
+                temperature=temperature,
+            )
         )
-        min_target_std = float(getattr(self, "min_target_std", 0.05))
-        max_target_std = float(getattr(self, "max_target_std", 0.25))
-        target_std = min_target_std + (max_target_std - min_target_std) * torch.sigmoid(
-            self.target_std_head(hidden).squeeze(-1)
-        )
-        return trade_logits, target_mean, target_std, band_width, self._current_inventory_from_state(inventory_t)
+        return trade_logits, target_mean, target_std, band_width, current_inventory
 
     def _target_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         values = getattr(self, "target_values", None)
