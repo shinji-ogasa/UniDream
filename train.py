@@ -100,8 +100,10 @@ def _policy_score(metrics, stats: dict, benchmark_position: float = 0.0) -> tupl
         and stats["switches"] <= 5
         and stats["turnover"] < 1.0
     )
-    if alpha_excess <= 0.0:
+    if alpha_excess < 0.0:
         penalty += 100.0 + 0.5 * abs(alpha_excess)
+    if overlay_mode:
+        score -= 5.0 * stats["turnover"]
     if not overlay_mode and stats["flat"] >= 0.50:
         penalty += 30.0
     if not overlay_mode and stats["flat"] >= 0.80:
