@@ -276,6 +276,32 @@ class Actor(nn.Module):
         target_values = self._target_values_tensor(absolute_positions.device, absolute_positions.dtype)
         return torch.argmin(torch.abs(absolute_positions.unsqueeze(-1) - target_values), dim=-1)
 
+    def target_soft_labels(self, absolute_positions: torch.Tensor) -> torch.Tensor:
+        target_values = self._target_values_tensor(absolute_positions.device, absolute_positions.dtype)
+        sorted_values, sort_idx = torch.sort(target_values)
+        flat_pos = absolute_positions.reshape(-1).contiguous()
+        upper = torch.bucketize(flat_pos, sorted_values)
+        upper = upper.clamp(max=len(sorted_values) - 1)
+        lower = (upper - 1).clamp(min=0)
+
+        lower_val = sorted_values[lower]
+        upper_val = sorted_values[upper]
+        denom = (upper_val - lower_val).abs()
+        exact = denom < 1e-8
+        upper_w = torch.where(
+            exact,
+            torch.zeros_like(flat_pos),
+            ((flat_pos - lower_val) / (upper_val - lower_val)).clamp(0.0, 1.0),
+        )
+        lower_w = torch.where(exact, torch.ones_like(flat_pos), 1.0 - upper_w)
+
+        labels_sorted = torch.zeros(flat_pos.shape[0], len(sorted_values), dtype=absolute_positions.dtype, device=absolute_positions.device)
+        labels_sorted.scatter_add_(1, lower.unsqueeze(-1), lower_w.unsqueeze(-1))
+        labels_sorted.scatter_add_(1, upper.unsqueeze(-1), upper_w.unsqueeze(-1))
+        labels = torch.zeros_like(labels_sorted)
+        labels[:, sort_idx] = labels_sorted
+        return labels.reshape(*absolute_positions.shape, len(target_values))
+
     def target_distribution(
         self,
         target_mean: torch.Tensor,

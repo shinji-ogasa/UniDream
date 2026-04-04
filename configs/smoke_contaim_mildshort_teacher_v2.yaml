@@ -102,6 +102,9 @@ bc:
   self_condition_prob: 0.50
   self_condition_interval: 1
   self_condition_warmup_epochs: 2
+  self_condition_blend: 0.35
+  self_condition_max_position_gap: 0.125
+  self_condition_max_underweight_gap: 0.125
 
 ac:
   actor_hidden: 256

@@ -653,6 +653,9 @@ def run_fold(
             self_condition_prob=bc_cfg.get("self_condition_prob", 0.0),
             self_condition_interval=bc_cfg.get("self_condition_interval", 1),
             self_condition_warmup_epochs=bc_cfg.get("self_condition_warmup_epochs", 0),
+            self_condition_blend=bc_cfg.get("self_condition_blend", 0.0),
+            self_condition_max_position_gap=bc_cfg.get("self_condition_max_position_gap"),
+            self_condition_max_underweight_gap=bc_cfg.get("self_condition_max_underweight_gap"),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -685,6 +688,9 @@ def run_fold(
                 self_condition_prob=bc_cfg.get("self_condition_prob", 0.0),
                 self_condition_interval=bc_cfg.get("self_condition_interval", 1),
                 self_condition_warmup_epochs=bc_cfg.get("self_condition_warmup_epochs", 0),
+                self_condition_blend=bc_cfg.get("self_condition_blend", 0.0),
+                self_condition_max_position_gap=bc_cfg.get("self_condition_max_position_gap"),
+                self_condition_max_underweight_gap=bc_cfg.get("self_condition_max_underweight_gap"),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_positions))

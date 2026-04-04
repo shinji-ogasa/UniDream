@@ -136,6 +136,9 @@ class BCPretrainer:
         self_condition_prob: float = 0.0,
         self_condition_interval: int = 1,
         self_condition_warmup_epochs: int = 0,
+        self_condition_blend: float = 0.0,
+        self_condition_max_position_gap: float | None = None,
+        self_condition_max_underweight_gap: float | None = None,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -161,6 +164,15 @@ class BCPretrainer:
         self.self_condition_prob = float(self_condition_prob)
         self.self_condition_interval = max(1, int(self_condition_interval))
         self.self_condition_warmup_epochs = max(0, int(self_condition_warmup_epochs))
+        self.self_condition_blend = float(np.clip(self_condition_blend, 0.0, 1.0))
+        self.self_condition_max_position_gap = (
+            None if self_condition_max_position_gap is None else max(0.0, float(self_condition_max_position_gap))
+        )
+        self.self_condition_max_underweight_gap = (
+            None
+            if self_condition_max_underweight_gap is None
+            else max(0.0, float(self_condition_max_underweight_gap))
+        )
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -192,11 +204,29 @@ class BCPretrainer:
                 regime_np=regime_probs,
                 device=str(self.device),
             )
-        rollout_states = self.actor.controller_states_from_positions(rollout_positions)
+        stabilized_rollout = np.asarray(rollout_positions, dtype=np.float32).copy()
+        if self.self_condition_max_position_gap is not None and self.self_condition_max_position_gap > 0.0:
+            gap = np.full_like(stabilized_rollout, self.self_condition_max_position_gap, dtype=np.float32)
+            stabilized_rollout = np.clip(
+                stabilized_rollout,
+                np.asarray(oracle_positions, dtype=np.float32) - gap,
+                np.asarray(oracle_positions, dtype=np.float32) + gap,
+            )
+        if self.self_condition_max_underweight_gap is not None and self.self_condition_max_underweight_gap > 0.0:
+            benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+            teacher_underweight = np.clip(benchmark_position - np.asarray(oracle_positions, dtype=np.float32), 0.0, None)
+            min_rollout_position = benchmark_position - (teacher_underweight + self.self_condition_max_underweight_gap)
+            stabilized_rollout = np.maximum(stabilized_rollout, min_rollout_position.astype(np.float32))
+        rollout_states = self.actor.controller_states_from_positions(stabilized_rollout)
+        if self.self_condition_blend > 0.0:
+            rollout_states = (
+                (1.0 - self.self_condition_blend) * teacher_states
+                + self.self_condition_blend * rollout_states
+            ).astype(np.float32)
         mask = np.random.rand(len(teacher_states)) < self.self_condition_prob
         mixed_states = teacher_states.copy()
         mixed_states[mask] = rollout_states[mask]
-        return mixed_states, rollout_positions
+        return mixed_states, stabilized_rollout
 
     def _bc_loss(
         self,
@@ -236,16 +266,14 @@ class BCPretrainer:
         else:
             trade_targets = trade_mask
         target_indices = self.actor.target_indices(oracle_positions).to(dtype=torch.long)
+        target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
         if soft_labels is not None and soft_labels.shape[-1] == target_logits.shape[-1]:
-            log_probs = F.log_softmax(target_logits, dim=-1)
-            target_loss = -(soft_labels.to(log_probs.dtype) * log_probs).sum(dim=-1)
-        else:
-            target_loss = F.cross_entropy(
-                target_logits,
-                target_indices,
-                reduction="none",
-                label_smoothing=self.label_smoothing,
-            )
+            provided_soft_labels = soft_labels.to(target_logits.dtype)
+            on_grid = target_soft_labels.max(dim=-1).values > 1.0 - 1e-6
+            blended_soft_labels = 0.5 * provided_soft_labels + 0.5 * target_soft_labels
+            target_soft_labels = torch.where(on_grid.unsqueeze(-1), blended_soft_labels, target_soft_labels)
+        log_probs = F.log_softmax(target_logits, dim=-1)
+        target_loss = -(target_soft_labels * log_probs).sum(dim=-1)
         target_reg_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
         target_loss = target_loss + 0.25 * target_reg_loss
         if class_weights is not None:
@@ -367,7 +395,9 @@ class BCPretrainer:
                 prev_pred_abs = pred_abs_position
                 prev_oracle_abs = oracle_positions_seq[:, t]
             if self.path_shortfall_coef > 0.0:
-                shortfall_losses.append(F.relu(benchmark_position - pred_abs_position))
+                oracle_shortfall = F.relu(benchmark_position - oracle_positions_seq[:, t])
+                pred_shortfall = F.relu(benchmark_position - pred_abs_position)
+                shortfall_losses.append(F.relu(pred_shortfall - oracle_shortfall))
             state = self.actor.update_controller_state(state, pred_abs_position.unsqueeze(-1))
 
         loss = self.path_position_coef * torch.stack(pos_losses, dim=0).mean()
