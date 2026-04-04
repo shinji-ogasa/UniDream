@@ -242,6 +242,9 @@ def smooth_aim_positions(
     initial_position: float = 0.0,
     min_position: float = -1.0,
     max_position: float = 1.0,
+    benchmark_position: float = 0.0,
+    underweight_confirm_bars: int = 0,
+    underweight_min_scale: float = 0.0,
 ) -> np.ndarray:
     """離散 oracle path を滑らかな aim-portfolio path へ変換する.
 
@@ -256,9 +259,20 @@ def smooth_aim_positions(
     band = float(max(band, 0.0))
     aim_positions = np.empty_like(target_positions)
     current = float(np.clip(initial_position, min_position, max_position))
+    benchmark_position = float(benchmark_position)
+    underweight_confirm_bars = int(max(underweight_confirm_bars, 0))
+    underweight_min_scale = float(np.clip(underweight_min_scale, 0.0, 1.0))
+    underweight_streak = 0
 
     for t, target in enumerate(target_positions):
         target = float(np.clip(target, min_position, max_position))
+        if underweight_confirm_bars > 0 and benchmark_position != 0.0 and target < benchmark_position:
+            underweight_streak += 1
+            progress = min(1.0, underweight_streak / float(underweight_confirm_bars))
+            progress = max(progress, underweight_min_scale)
+            target = benchmark_position + (target - benchmark_position) * progress
+        else:
+            underweight_streak = 0
         gap = target - current
         if abs(gap) <= band:
             next_pos = current

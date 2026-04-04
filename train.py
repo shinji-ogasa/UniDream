@@ -266,6 +266,9 @@ def run_fold(
             initial_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
             min_position=abs_min,
             max_position=abs_max,
+            benchmark_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
+            underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
+            underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
         ).astype(np.float32)
         val_oracle_positions = smooth_aim_positions(
             val_oracle_positions,
@@ -274,6 +277,9 @@ def run_fold(
             initial_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
             min_position=abs_min,
             max_position=abs_max,
+            benchmark_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
+            underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
+            underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
         ).astype(np.float32)
         _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
         print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
