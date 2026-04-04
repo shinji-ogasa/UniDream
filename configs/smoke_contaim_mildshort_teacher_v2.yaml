@@ -41,6 +41,7 @@ oracle:
   aim_underweight_confirm_bars: 8
   aim_underweight_min_scale: 0.25
   aim_underweight_floor_position: 0.50
+  aim_underweight_step_scale: 0.35
 
 reward:
   beta: 0.1
@@ -151,6 +152,11 @@ ac:
   selector_confirm_score_tol: 15.0
   selector_turnover_score_coef: 3.0
   selector_maxdd_score_coef: 50.0
+  selector_active_alpha_min_pt: 8.0
+  selector_active_sharpe_min: 0.05
+  selector_active_maxdd_worse_pt: 0.0
+  selector_active_min_win_rate: 0.48
+  selector_active_score_margin: 5.0
   actor_lr: 3.0e-5
   online_wm_interval: 200
   online_wm_window_days: 30

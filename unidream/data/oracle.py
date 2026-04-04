@@ -246,6 +246,7 @@ def smooth_aim_positions(
     underweight_confirm_bars: int = 0,
     underweight_min_scale: float = 0.0,
     underweight_floor_position: float | None = None,
+    underweight_step_scale: float = 1.0,
 ) -> np.ndarray:
     """離散 oracle path を滑らかな aim-portfolio path へ変換する.
 
@@ -263,17 +264,31 @@ def smooth_aim_positions(
     benchmark_position = float(benchmark_position)
     underweight_confirm_bars = int(max(underweight_confirm_bars, 0))
     underweight_min_scale = float(np.clip(underweight_min_scale, 0.0, 1.0))
+    underweight_step_scale = float(np.clip(underweight_step_scale, 0.0, 1.0))
     if underweight_floor_position is not None:
         underweight_floor_position = float(np.clip(underweight_floor_position, min_position, max_position))
     underweight_streak = 0
+    future_underweight_run = np.zeros(len(target_positions), dtype=np.int32)
+    if benchmark_position != 0.0 and underweight_confirm_bars > 0:
+        run = 0
+        for t in range(len(target_positions) - 1, -1, -1):
+            if target_positions[t] < benchmark_position:
+                run += 1
+            else:
+                run = 0
+            future_underweight_run[t] = run
 
     for t, target in enumerate(target_positions):
         target = float(np.clip(target, min_position, max_position))
+        dynamic_max_step = max_step
         if underweight_confirm_bars > 0 and benchmark_position != 0.0 and target < benchmark_position:
             underweight_streak += 1
-            progress = min(1.0, underweight_streak / float(underweight_confirm_bars))
+            observed = underweight_streak / float(underweight_confirm_bars)
+            future = future_underweight_run[t] / float(underweight_confirm_bars)
+            progress = min(1.0, max(observed, future))
             progress = max(progress, underweight_min_scale)
             target = benchmark_position + (target - benchmark_position) * progress
+            dynamic_max_step = max_step * max(progress, underweight_step_scale)
         else:
             underweight_streak = 0
         if (
@@ -286,7 +301,7 @@ def smooth_aim_positions(
         if abs(gap) <= band:
             next_pos = current
         else:
-            next_pos = current + float(np.clip(gap, -max_step, max_step))
+            next_pos = current + float(np.clip(gap, -dynamic_max_step, dynamic_max_step))
         current = float(np.clip(next_pos, min_position, max_position))
         aim_positions[t] = current
 

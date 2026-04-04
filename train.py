@@ -89,6 +89,77 @@ def _benchmark_position_value(cfg: dict) -> float:
     return float(cfg.get("reward", {}).get("benchmark_position", 1.0))
 
 
+def _goal_cfg(cfg: dict) -> dict:
+    targets = cfg.get("targets", {})
+    return {
+        "alpha_excess_pt": float(targets.get("alpha_excess_pt", 5.0)),
+        "sharpe_delta": float(targets.get("sharpe_delta", 0.20)),
+        "maxdd_delta_pt": float(targets.get("maxdd_delta_pt", -10.0)),
+        "win_rate_vs_bh": float(targets.get("win_rate_vs_bh", 0.60)),
+        "stretch_alpha_excess_pt": float(targets.get("stretch_alpha_excess_pt", 8.0)),
+        "stretch_maxdd_delta_pt": float(targets.get("stretch_maxdd_delta_pt", -15.0)),
+    }
+
+
+def _collapse_guard(stats: dict, benchmark_position: float) -> tuple[bool, list[str]]:
+    overlay_mode = abs(float(benchmark_position)) > 1e-8
+    reasons: list[str] = []
+    if _directional_collapse(stats):
+        reasons.append("directional_collapse")
+    if not overlay_mode and stats["flat"] >= 0.80:
+        reasons.append("flat_collapse")
+    return len(reasons) == 0, reasons
+
+
+def _m2_scorecard(metrics, stats: dict, cfg: dict) -> dict:
+    goals = _goal_cfg(cfg)
+    benchmark_position = _benchmark_position_value(cfg)
+    alpha_excess_pt = 100.0 * float(metrics.alpha_excess or 0.0)
+    sharpe_delta = float(metrics.sharpe_delta or 0.0)
+    maxdd_delta_pt = 100.0 * float(metrics.maxdd_delta or 0.0)
+    win_rate_vs_bh = float(metrics.win_rate_vs_bh or 0.0)
+    collapse_pass, collapse_reasons = _collapse_guard(stats, benchmark_position)
+    required = {
+        "alpha_excess": alpha_excess_pt >= goals["alpha_excess_pt"],
+        "sharpe_delta": sharpe_delta >= goals["sharpe_delta"],
+        "maxdd_delta": maxdd_delta_pt <= goals["maxdd_delta_pt"],
+        "win_rate_vs_bh": win_rate_vs_bh >= goals["win_rate_vs_bh"],
+        "collapse_guard": collapse_pass,
+    }
+    stretch = {
+        "alpha_excess": alpha_excess_pt >= goals["stretch_alpha_excess_pt"],
+        "maxdd_delta": maxdd_delta_pt <= goals["stretch_maxdd_delta_pt"],
+    }
+    m2_pass = all(required.values())
+    stretch_hit = any(stretch.values())
+    return {
+        "alpha_excess_pt": alpha_excess_pt,
+        "sharpe_delta": sharpe_delta,
+        "maxdd_delta_pt": maxdd_delta_pt,
+        "win_rate_vs_bh": win_rate_vs_bh,
+        "collapse_guard_pass": collapse_pass,
+        "collapse_guard_reasons": collapse_reasons,
+        "required": required,
+        "stretch": stretch,
+        "m2_pass": m2_pass,
+        "stretch_hit": stretch_hit,
+    }
+
+
+def _format_m2_scorecard(scorecard: dict) -> str:
+    guard = "pass" if scorecard["collapse_guard_pass"] else ",".join(scorecard["collapse_guard_reasons"])
+    m2_state = "PASS" if scorecard["m2_pass"] else "MISS"
+    stretch_state = "hit" if scorecard["stretch_hit"] else "miss"
+    return (
+        f"M2={m2_state} stretch={stretch_state} "
+        f"alpha={scorecard['alpha_excess_pt']:+.2f}pt "
+        f"sharpeΔ={scorecard['sharpe_delta']:+.3f} "
+        f"maxddΔ={scorecard['maxdd_delta_pt']:+.2f}pt "
+        f"win={scorecard['win_rate_vs_bh']:.1%} "
+        f"guard={guard}"
+    )
+
+
 def _policy_score(metrics, stats: dict, benchmark_position: float = 0.0) -> tuple[float, str]:
     alpha_excess = 100.0 * (metrics.alpha_excess or 0.0)
     sharpe_delta = metrics.sharpe_delta or 0.0
@@ -130,6 +201,8 @@ def _selector_cfg(ac_cfg: dict) -> dict:
     return {
         "reject_alpha_floor_pt": float(ac_cfg.get("selector_reject_alpha_floor_pt", -25.0)),
         "reject_sharpe_floor": float(ac_cfg.get("selector_reject_sharpe_floor", -1.0)),
+        "reject_maxdd_worse_pt": float(ac_cfg.get("selector_reject_maxdd_worse_pt", 5.0)),
+        "reject_win_rate_floor": float(ac_cfg.get("selector_reject_win_rate_floor", 0.35)),
         "max_turnover": float(ac_cfg.get("selector_max_turnover", 8.0)),
         "min_avg_hold": float(ac_cfg.get("selector_min_avg_hold", 3.0)),
         "max_directional_ratio": float(ac_cfg.get("selector_max_directional_ratio", 1.01)),
@@ -140,6 +213,16 @@ def _selector_cfg(ac_cfg: dict) -> dict:
         "confirm_score_tol": float(ac_cfg.get("selector_confirm_score_tol", 15.0)),
         "turnover_score_coef": float(ac_cfg.get("selector_turnover_score_coef", 3.0)),
         "maxdd_score_coef": float(ac_cfg.get("selector_maxdd_score_coef", 50.0)),
+        "maxdd_worse_score_coef": float(ac_cfg.get("selector_maxdd_worse_score_coef", 1.5)),
+        "maxdd_improve_score_coef": float(ac_cfg.get("selector_maxdd_improve_score_coef", 0.5)),
+        "win_rate_score_coef": float(ac_cfg.get("selector_win_rate_score_coef", 20.0)),
+        "m2_bonus": float(ac_cfg.get("selector_m2_bonus", 15.0)),
+        "stretch_bonus": float(ac_cfg.get("selector_stretch_bonus", 5.0)),
+        "active_alpha_min_pt": float(ac_cfg.get("selector_active_alpha_min_pt", 8.0)),
+        "active_sharpe_min": float(ac_cfg.get("selector_active_sharpe_min", 0.05)),
+        "active_maxdd_worse_pt": float(ac_cfg.get("selector_active_maxdd_worse_pt", 0.0)),
+        "active_min_win_rate": float(ac_cfg.get("selector_active_min_win_rate", 0.48)),
+        "active_score_margin": float(ac_cfg.get("selector_active_score_margin", 5.0)),
     }
 
 
@@ -162,14 +245,18 @@ def _selector_candidate(
     stats: dict,
     benchmark_position: float,
     selector_cfg: dict,
+    cfg: dict | None = None,
 ) -> dict:
     alpha_excess_pt = 100.0 * float(metrics.alpha_excess or 0.0)
     sharpe_delta = float(metrics.sharpe_delta or 0.0)
     max_dd = abs(float(metrics.max_drawdown or 0.0))
+    maxdd_delta_pt = 100.0 * float(metrics.maxdd_delta or 0.0)
+    win_rate_vs_bh = float(metrics.win_rate_vs_bh or 0.0)
     overlay_mode = abs(float(benchmark_position)) > 1e-8
     benchmark_hold = _is_benchmark_hold(stats, benchmark_position)
     directional_ratio = max(stats["long"], stats["short"])
     directional_collapse = _directional_collapse(stats)
+    scorecard = _m2_scorecard(metrics, stats, cfg or {})
     reject_reason = None
 
     if not benchmark_hold:
@@ -177,12 +264,16 @@ def _selector_candidate(
             reject_reason = f"alpha<{selector_cfg['reject_alpha_floor_pt']:.1f}"
         elif sharpe_delta <= selector_cfg["reject_sharpe_floor"]:
             reject_reason = f"sharpeΔ<{selector_cfg['reject_sharpe_floor']:.2f}"
+        elif maxdd_delta_pt > selector_cfg["reject_maxdd_worse_pt"]:
+            reject_reason = f"maxddΔ>{selector_cfg['reject_maxdd_worse_pt']:.1f}pt"
+        elif win_rate_vs_bh < selector_cfg["reject_win_rate_floor"]:
+            reject_reason = f"win<{selector_cfg['reject_win_rate_floor']:.0%}"
         elif stats["turnover"] > selector_cfg["max_turnover"]:
             reject_reason = f"turnover>{selector_cfg['max_turnover']:.2f}"
         elif stats["avg_hold"] < selector_cfg["min_avg_hold"]:
             reject_reason = f"avg_hold<{selector_cfg['min_avg_hold']:.1f}"
-        elif directional_collapse:
-            reject_reason = "directional_collapse"
+        elif directional_collapse or not scorecard["collapse_guard_pass"]:
+            reject_reason = "collapse_guard"
         elif directional_ratio >= selector_cfg["max_directional_ratio"]:
             reject_reason = f"one_sided>{selector_cfg['max_directional_ratio']:.2f}"
         elif (not overlay_mode) and stats["flat"] >= 0.80:
@@ -199,8 +290,15 @@ def _selector_candidate(
         + 5.0 * sharpe_delta
         - selector_cfg["turnover_score_coef"] * float(stats["turnover"])
         - selector_cfg["maxdd_score_coef"] * max_dd
+        - selector_cfg["maxdd_worse_score_coef"] * max(0.0, maxdd_delta_pt)
+        + selector_cfg["maxdd_improve_score_coef"] * max(0.0, -maxdd_delta_pt)
+        + selector_cfg["win_rate_score_coef"] * (win_rate_vs_bh - 0.5)
         - directional_penalty
     )
+    if scorecard["m2_pass"]:
+        score += selector_cfg["m2_bonus"]
+    elif scorecard["stretch_hit"]:
+        score += selector_cfg["stretch_bonus"]
     if benchmark_hold:
         score += 0.5
     if reject_reason is not None:
@@ -211,6 +309,12 @@ def _selector_candidate(
         f"score={score:.3f} long={stats['long']:.0%} short={stats['short']:.0%} "
         f"flat={stats['flat']:.0%}"
     )
+    label = label.replace(
+        " score=",
+        f" maxddΔ={maxdd_delta_pt:+.2f}pt win={win_rate_vs_bh:.1%} score=",
+        1,
+    )
+    label += f" M2={'pass' if scorecard['m2_pass'] else 'miss'}"
     if reject_reason is not None:
         label += f" reject={reject_reason}"
 
@@ -221,16 +325,36 @@ def _selector_candidate(
         "alpha_excess_pt": alpha_excess_pt,
         "sharpe_delta": sharpe_delta,
         "max_drawdown": max_dd,
+        "maxdd_delta_pt": maxdd_delta_pt,
+        "win_rate_vs_bh": win_rate_vs_bh,
         "stats": stats,
         "reject_reason": reject_reason,
         "benchmark_hold": benchmark_hold,
+        "scorecard": scorecard,
     }
 
 
 def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict:
     valid = [c for c in candidates if c["reject_reason"] is None]
     pool = valid if valid else candidates
+    benchmark_hold = next((c for c in pool if c["benchmark_hold"]), None)
     best = max(pool, key=lambda c: c["score"])
+    if benchmark_hold is not None and not best["benchmark_hold"]:
+        active_is_strong = (
+            best["alpha_excess_pt"] >= selector_cfg["active_alpha_min_pt"]
+            and best["maxdd_delta_pt"] <= selector_cfg["active_maxdd_worse_pt"]
+            and best["win_rate_vs_bh"] >= selector_cfg["active_min_win_rate"]
+            and best["score"] >= benchmark_hold["score"] + selector_cfg["active_score_margin"]
+            and (
+                best["scorecard"]["m2_pass"]
+                or (
+                    best["scorecard"]["stretch_hit"]
+                    and best["sharpe_delta"] >= selector_cfg["active_sharpe_min"]
+                )
+            )
+        )
+        if not active_is_strong:
+            return benchmark_hold
     alpha_floor = best["alpha_excess_pt"] - selector_cfg["confirm_alpha_tol_pt"]
     sharpe_floor = best["sharpe_delta"] - selector_cfg["confirm_sharpe_tol"]
     score_floor = best["score"] - selector_cfg["confirm_score_tol"]
@@ -247,6 +371,8 @@ def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict
         key=lambda c: (
             0 if c["benchmark_hold"] else 1,
             c["stats"]["turnover"],
+            c["maxdd_delta_pt"],
+            -c["win_rate_vs_bh"],
             -c["score"],
         ),
     )
@@ -397,6 +523,7 @@ def run_fold(
             underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
             underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
             underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
+            underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
         ).astype(np.float32)
         val_oracle_positions = smooth_aim_positions(
             val_oracle_positions,
@@ -409,6 +536,7 @@ def run_fold(
             underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
             underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
             underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
+            underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
         ).astype(np.float32)
         _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
         print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
@@ -438,7 +566,7 @@ def run_fold(
     wm_trainer = WorldModelTrainer(ensemble, cfg, device=device)
 
     if has_wm:
-        print(f"\n[{_ts()}] [Step 2] World Model — loading checkpoint: {wm_path}")
+        print(f"\n[{_ts()}] [Step 2] World Model - loading checkpoint: {wm_path}")
         wm_trainer.load(wm_path)
     else:
         print(f"\n[{_ts()}] [Step 2] World Model Training...")
@@ -506,7 +634,7 @@ def run_fold(
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
 
     if has_bc:
-        print(f"\n[{_ts()}] [Step 3] BC — loading checkpoint: {bc_path}")
+        print(f"\n[{_ts()}] [Step 3] BC - loading checkpoint: {bc_path}")
         bc_trainer = BCPretrainer(
             actor=actor,
             z_dim=ensemble.get_z_dim(),
@@ -569,7 +697,7 @@ def run_fold(
             )
             bc_trainer.save(bc_path)
         else:
-            print(f"\n[{_ts()}] [Step 3] BC — skipped (AC checkpoint will provide actor weights)")
+            print(f"\n[{_ts()}] [Step 3] BC - skipped (AC checkpoint will provide actor weights)")
 
     if stop_after == "bc":
         print(f"\n[{_ts()}] [Stop] Requested stop after BC")
@@ -633,7 +761,7 @@ def run_fold(
             else:
                 z_val_fixed = h_val_fixed = None
 
-            # Val backtest function — used for AC checkpoint selection
+            # Val backtest function - used for AC checkpoint selection
             def _val_eval() -> tuple[float, str]:
                 if z_val_fixed is None:
                     return -float("inf"), "raw=-inf score=-inf"
@@ -658,11 +786,11 @@ def run_fold(
 
             ac_max_steps = ac_cfg.get("max_steps", 200_000)
             if ac_trainer.global_step >= ac_max_steps:
-                print(f"\n[{_ts()}] [Step 4] AC — already complete (step={ac_trainer.global_step})")
+                print(f"\n[{_ts()}] [Step 4] AC - already complete (step={ac_trainer.global_step})")
             else:
                 bc_val_sharpe = -float("inf")
                 if has_ac:
-                    print(f"\n[{_ts()}] [Step 4] AC — resuming from step {ac_trainer.global_step}/{ac_max_steps}")
+                    print(f"\n[{_ts()}] [Step 4] AC - resuming from step {ac_trainer.global_step}/{ac_max_steps}")
                 else:
                     print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
 
@@ -752,7 +880,7 @@ def run_fold(
                 )
                 ac_trainer.save(ac_path)
         else:
-            print(f"\n[{_ts()}] [Step 4] AC — skipped (BC actor only for test)")
+            print(f"\n[{_ts()}] [Step 4] AC - skipped (BC actor only for test)")
 
     if stop_after == "ac":
         print(f"\n[{_ts()}] [Stop] Requested stop after AC")
@@ -790,6 +918,7 @@ def run_fold(
                     stats,
                     benchmark_position=_benchmark_position_value(cfg),
                     selector_cfg=selector_cfg,
+                    cfg=cfg,
                 )
                 selector_candidates.append(candidate_rec)
                 print(f"  [ValAdj] scale={float(candidate):.3f} {candidate_rec['label']}")
@@ -834,6 +963,7 @@ def run_fold(
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
     )
     _test_s = _action_stats(positions[:T_min], benchmark_position=_benchmark_position_value(cfg))
+    _test_scorecard = _m2_scorecard(metrics, _test_s, cfg)
     print(f"  Sharpe:   {metrics.sharpe:.3f}")
     print(f"  Sortino:  {metrics.sortino:.3f}")
     print(f"  MaxDD:    {metrics.max_drawdown:.3f}")
@@ -842,6 +972,10 @@ def run_fold(
     if metrics.alpha_excess is not None:
         print(f"  AlphaEx:  {100.0 * metrics.alpha_excess:+.2f} pt/yr")
         print(f"  SharpeΔ:  {(metrics.sharpe_delta or 0.0):+.3f}")
+    if metrics.alpha_excess is not None:
+        print(f"  MaxDDΔ:   {100.0 * (metrics.maxdd_delta or 0.0):+.2f} pt")
+        print(f"  WinRate:  {(metrics.win_rate_vs_bh or 0.0):.1%}")
+        print(f"  Score:    {_format_m2_scorecard(_test_scorecard)}")
     print(f"  PnL attr: long={_test_attr['long_gross']:+.4f}  "
           f"short={_test_attr['short_gross']:+.4f}  "
           f"cost={_test_attr['cost_total']:.4f}  "
@@ -852,6 +986,7 @@ def run_fold(
     return {
         "fold": fold_idx,
         "metrics": metrics,
+        "scorecard": _test_scorecard,
         "positions": positions[:T_min],
         "test_returns": test_returns[:T_min],
         "completed_stage": "test",
@@ -1094,14 +1229,45 @@ def main():
         print(f"  Regime analysis skipped: {e}")
 
     # --------- サマリー ---------
+    scorecards = [r["scorecard"] for r in fold_results.values() if "scorecard" in r]
+    aggregate_scorecard = None
+    if scorecards:
+        aggregate_scorecard = {
+            "alpha_excess_pt": float(np.mean([s["alpha_excess_pt"] for s in scorecards])),
+            "sharpe_delta": float(np.mean([s["sharpe_delta"] for s in scorecards])),
+            "maxdd_delta_pt": float(np.mean([s["maxdd_delta_pt"] for s in scorecards])),
+            "win_rate_vs_bh": float(np.mean([s["win_rate_vs_bh"] for s in scorecards])),
+            "collapse_guard_pass": all(s["collapse_guard_pass"] for s in scorecards),
+            "collapse_guard_reasons": sorted(
+                {reason for s in scorecards for reason in s["collapse_guard_reasons"]}
+            ),
+            "required": {
+                "alpha_excess": all(s["required"]["alpha_excess"] for s in scorecards),
+                "sharpe_delta": all(s["required"]["sharpe_delta"] for s in scorecards),
+                "maxdd_delta": all(s["required"]["maxdd_delta"] for s in scorecards),
+                "win_rate_vs_bh": all(s["required"]["win_rate_vs_bh"] for s in scorecards),
+                "collapse_guard": all(s["required"]["collapse_guard"] for s in scorecards),
+            },
+            "stretch": {
+                "alpha_excess": any(s["stretch"]["alpha_excess"] for s in scorecards),
+                "maxdd_delta": any(s["stretch"]["maxdd_delta"] for s in scorecards),
+            },
+        }
+        aggregate_scorecard["m2_pass"] = all(aggregate_scorecard["required"].values())
+        aggregate_scorecard["stretch_hit"] = any(aggregate_scorecard["stretch"].values())
+
     print("\n" + "="*60)
     print("Summary")
     print("="*60)
     for fold_idx, r in fold_results.items():
         m = r["metrics"]
+        scorecard = r.get("scorecard")
+        extra = f" | {_format_m2_scorecard(scorecard)}" if scorecard is not None else ""
         print(f"  Fold {fold_idx}: Sharpe={m.sharpe:.3f}, MaxDD={m.max_drawdown:.3f}, "
-              f"Calmar={m.calmar:.3f}, TotalRet={m.total_return:.4f}")
+              f"Calmar={m.calmar:.3f}, TotalRet={m.total_return:.4f}{extra}")
     print(f"  Mean Sharpe: {np.mean(all_sharpes):.3f}")
+    if aggregate_scorecard is not None:
+        print(f"  Aggregate M2: {_format_m2_scorecard(aggregate_scorecard)}")
     dsr_summary = f"{dsr:.4f}" if np.isfinite(dsr) else "N/A"
     print(f"  PBO (simplified): {pbo:.4f} | Sharpe t-stat: {dsr_summary}")
 
