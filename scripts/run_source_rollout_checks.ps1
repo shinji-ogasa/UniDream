@@ -16,6 +16,7 @@ Write-Host "[2/5] Py-compile"
 & $Python -m py_compile `
   source_rollout_plan.py `
   check_config_source_requirements.py `
+  validate_source_rollout_suite.py `
   build_source_cache_from_manifest.py `
   build_coinmetrics_source_cache.py `
   build_glassnode_source_cache.py `
@@ -23,14 +24,19 @@ Write-Host "[2/5] Py-compile"
   tests\test_source_rollout_helpers.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "[3/5] Rollout diagnosis"
+Write-Host "[3/6] Validate suite YAML"
+& $Python validate_source_rollout_suite.py `
+  --suite-config $SuiteConfig
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "[4/6] Rollout diagnosis"
 powershell -ExecutionPolicy Bypass -File .\scripts\diagnose_source_rollout.ps1 `
   -CacheDir $CacheDir `
   -CacheTag $CacheTag `
   -SuiteConfig $SuiteConfig
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "[4/5] Next-stage planning"
+Write-Host "[5/6] Next-stage planning"
 powershell -ExecutionPolicy Bypass -File .\scripts\plan_next_source_rollout.ps1 `
   -CacheDir $CacheDir `
   -CacheTag $CacheTag `
@@ -39,7 +45,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\plan_next_source_rollout.ps1 
   -Python $Python
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "[5/5] Remote manifest dry-run"
+Write-Host "[6/6] Remote manifest dry-run"
 & $Python build_source_cache_from_manifest.py `
   --manifest $Manifest `
   --dry-run
