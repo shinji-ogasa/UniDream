@@ -68,6 +68,7 @@ class ControllerPathDataset(Dataset):
         horizon: int,
         regime: torch.Tensor | None = None,
         soft_labels: torch.Tensor | None = None,
+        sample_quality: torch.Tensor | None = None,
     ):
         self.z = z
         self.h = h
@@ -76,6 +77,7 @@ class ControllerPathDataset(Dataset):
         self.horizon = max(1, int(horizon))
         self.regime = regime
         self.soft_labels = soft_labels
+        self.sample_quality = sample_quality
         self.length = max(0, len(z) - self.horizon + 1)
 
     def __len__(self) -> int:
@@ -89,6 +91,8 @@ class ControllerPathDataset(Dataset):
             items.append(self.regime[s:e])
         if self.soft_labels is not None:
             items.append(self.soft_labels[s:e])
+        if self.sample_quality is not None:
+            items.append(self.sample_quality[s:e])
         return tuple(items)
 
 
@@ -152,6 +156,10 @@ class BCPretrainer:
         relabel_underweight_min_scale: float = 0.0,
         relabel_underweight_floor_position: float | None = None,
         relabel_underweight_step_scale: float = 1.0,
+        residual_target_coef: float = 1.0,
+        residual_aux_ce_coef: float = 0.0,
+        sample_quality_coef: float = 0.0,
+        sample_quality_clip: float = 4.0,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -202,6 +210,10 @@ class BCPretrainer:
             None if relabel_underweight_floor_position is None else float(relabel_underweight_floor_position)
         )
         self.relabel_underweight_step_scale = float(np.clip(relabel_underweight_step_scale, 0.0, 1.0))
+        self.residual_target_coef = float(max(residual_target_coef, 0.0))
+        self.residual_aux_ce_coef = float(max(residual_aux_ce_coef, 0.0))
+        self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
+        self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -302,6 +314,7 @@ class BCPretrainer:
         soft_labels: Optional[torch.Tensor] = None,
         class_weights: Optional[torch.Tensor] = None,
         trade_pos_weight: Optional[torch.Tensor] = None,
+        sample_quality: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
         trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = (
@@ -328,23 +341,35 @@ class BCPretrainer:
             trade_targets = (target_gap / float(scale)).clamp(0.0, 1.0)
         else:
             trade_targets = trade_mask
-        target_indices = self.actor.target_indices(oracle_positions).to(dtype=torch.long)
-        target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
-        if soft_labels is not None and soft_labels.shape[-1] == target_logits.shape[-1]:
-            provided_soft_labels = soft_labels.to(target_logits.dtype)
-            on_grid = target_soft_labels.max(dim=-1).values > 1.0 - 1e-6
-            blended_soft_labels = 0.5 * provided_soft_labels + 0.5 * target_soft_labels
-            target_soft_labels = torch.where(on_grid.unsqueeze(-1), blended_soft_labels, target_soft_labels)
-        log_probs = F.log_softmax(target_logits, dim=-1)
-        target_loss = -(target_soft_labels * log_probs).sum(dim=-1)
         target_reg_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
-        target_loss = target_loss + 0.25 * target_reg_loss
-        if class_weights is not None:
-            sample_class_w = class_weights.to(
-                device=target_loss.device,
-                dtype=target_loss.dtype,
-            )[target_indices]
-            target_loss = target_loss * sample_class_w
+        if self.actor._use_residual_controller():
+            target_loss = self.residual_target_coef * target_reg_loss
+            if self.residual_aux_ce_coef > 0.0:
+                target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
+                if soft_labels is not None and soft_labels.shape[-1] == target_logits.shape[-1]:
+                    provided_soft_labels = soft_labels.to(target_logits.dtype)
+                    on_grid = target_soft_labels.max(dim=-1).values > 1.0 - 1e-6
+                    blended_soft_labels = 0.5 * provided_soft_labels + 0.5 * target_soft_labels
+                    target_soft_labels = torch.where(on_grid.unsqueeze(-1), blended_soft_labels, target_soft_labels)
+                log_probs = F.log_softmax(target_logits, dim=-1)
+                target_ce_loss = -(target_soft_labels * log_probs).sum(dim=-1)
+                target_loss = target_loss + self.residual_aux_ce_coef * target_ce_loss
+        else:
+            target_indices = self.actor.target_indices(oracle_positions).to(dtype=torch.long)
+            target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
+            if soft_labels is not None and soft_labels.shape[-1] == target_logits.shape[-1]:
+                provided_soft_labels = soft_labels.to(target_logits.dtype)
+                on_grid = target_soft_labels.max(dim=-1).values > 1.0 - 1e-6
+                blended_soft_labels = 0.5 * provided_soft_labels + 0.5 * target_soft_labels
+                target_soft_labels = torch.where(on_grid.unsqueeze(-1), blended_soft_labels, target_soft_labels)
+            log_probs = F.log_softmax(target_logits, dim=-1)
+            target_loss = -(target_soft_labels * log_probs).sum(dim=-1) + 0.25 * target_reg_loss
+            if class_weights is not None:
+                sample_class_w = class_weights.to(
+                    device=target_loss.device,
+                    dtype=target_loss.dtype,
+                )[target_indices]
+                target_loss = target_loss * sample_class_w
         if trade_pos_weight is not None:
             target_w = torch.where(
                 trade_mask > 0.5,
@@ -402,6 +427,14 @@ class BCPretrainer:
                 )
                 execution_loss = execution_loss * exec_w
             loss_terms = loss_terms + self.execution_aux_coef * execution_loss
+
+        if sample_quality is not None and self.sample_quality_coef > 0.0:
+            quality_weights = sample_quality.to(device=loss_terms.device, dtype=loss_terms.dtype)
+            quality_weights = 1.0 + self.sample_quality_coef * quality_weights.clamp(
+                min=0.0,
+                max=self.sample_quality_clip,
+            )
+            weights = quality_weights if weights is None else weights * quality_weights
 
         if weights is not None:
             loss = (weights * loss_terms).mean()
@@ -478,6 +511,7 @@ class BCPretrainer:
         verbose: bool = True,
         regime_probs: "np.ndarray | None" = None,
         soft_labels: "np.ndarray | None" = None,
+        sample_quality: "np.ndarray | None" = None,
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
@@ -562,6 +596,10 @@ class BCPretrainer:
                     sl_arr = soft_labels[:T_use].reshape(n_chunks, k, -1)
                     sl_repr_arr = sl_arr[np.arange(n_chunks), repr_idx]
                     tensors.append(torch.tensor(sl_repr_arr, dtype=torch.float32))
+                if sample_quality is not None:
+                    q_arr = np.asarray(sample_quality[:T_use], dtype=np.float32).reshape(n_chunks, k)
+                    q_repr_arr = q_arr[np.arange(n_chunks), repr_idx]
+                    tensors.append(torch.tensor(q_repr_arr, dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)
                 loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
@@ -577,6 +615,9 @@ class BCPretrainer:
                     if use_regime:
                         bi += 1
                     sl_repr = batch[bi].to(self.device) if use_soft else None
+                    if use_soft:
+                        bi += 1
+                    q_repr = batch[bi].to(self.device) if sample_quality is not None else None
 
                     if self.use_sirl:
                         state = torch.cat([z_b, h_b], dim=-1)
@@ -593,6 +634,7 @@ class BCPretrainer:
                         soft_labels=sl_repr,
                         class_weights=class_weights_t,
                         trade_pos_weight=trade_pos_weight_t,
+                        sample_quality=q_repr,
                     )
 
                     self.optimizer.zero_grad()
@@ -638,6 +680,7 @@ class BCPretrainer:
 
             regime_t = torch.tensor(regime_probs[:T], dtype=torch.float32) if use_regime else None
             soft_t = torch.tensor(soft_labels[:T], dtype=torch.float32) if use_soft else None
+            quality_t = torch.tensor(sample_quality[:T], dtype=torch.float32) if sample_quality is not None else None
             if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                 dataset = ControllerPathDataset(
                     z_t,
@@ -647,6 +690,7 @@ class BCPretrainer:
                     horizon=self.path_horizon,
                     regime=regime_t,
                     soft_labels=soft_t,
+                    sample_quality=quality_t,
                 )
             else:
                 tensors = [z_t, h_t, a_t, inv_t]
@@ -654,6 +698,8 @@ class BCPretrainer:
                     tensors.append(regime_t)
                 if use_soft:
                     tensors.append(soft_t)
+                if quality_t is not None:
+                    tensors.append(quality_t)
                 dataset = TensorDataset(*tensors)
             loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
             epoch_loss = 0.0
@@ -674,6 +720,11 @@ class BCPretrainer:
                 sl_b = batch[bi].to(self.device) if use_soft else None
                 if use_soft and self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     sl_b = sl_b[:, 0]
+                if use_soft:
+                    bi += 1
+                q_b = batch[bi].to(self.device) if sample_quality is not None else None
+                if q_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    q_b = q_b[:, 0]
 
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
@@ -694,6 +745,7 @@ class BCPretrainer:
                     soft_labels=sl_b,
                     class_weights=class_weights_t,
                     trade_pos_weight=trade_pos_weight_t,
+                    sample_quality=q_b,
                 )
                 if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     z_seq = z_seq.to(self.device)

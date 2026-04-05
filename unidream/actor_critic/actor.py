@@ -46,6 +46,7 @@ class Actor(nn.Module):
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
         self.target_logits_head = nn.Linear(hidden_dim, act_dim)
+        self.residual_head = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
 
@@ -78,6 +79,9 @@ class Actor(nn.Module):
 
     def _trade_state_eps(self) -> float:
         return float(getattr(self, "trade_state_eps", 1e-6))
+
+    def _use_residual_controller(self) -> bool:
+        return bool(getattr(self, "use_residual_controller", False))
 
     def _ensure_controller_state(
         self,
@@ -227,15 +231,29 @@ class Actor(nn.Module):
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
-        target_logits = self.target_logits_head(hidden) / max(temperature, 1e-6)
-        target_probs = F.softmax(target_logits, dim=-1)
-        target_values = self._target_overlay_values_tensor(hidden.device, hidden.dtype)
-        target_mean = (target_probs * target_values).sum(dim=-1)
         min_target_std = float(getattr(self, "min_target_std", 0.05))
         max_target_std = float(getattr(self, "max_target_std", 0.25))
         target_std = min_target_std + (max_target_std - min_target_std) * torch.sigmoid(
             self.target_std_head(hidden).squeeze(-1)
         )
+        target_values = self._target_overlay_values_tensor(hidden.device, hidden.dtype)
+        if self._use_residual_controller():
+            overlay_low, overlay_high = self._overlay_bounds()
+            residual_min = float(getattr(self, "residual_min_overlay", overlay_low))
+            residual_max = float(getattr(self, "residual_max_overlay", overlay_high))
+            residual_min = max(overlay_low, residual_min)
+            residual_max = min(overlay_high, residual_max)
+            if residual_max <= residual_min + 1e-6:
+                target_mean = torch.full_like(trade_logits, residual_max)
+            else:
+                residual_frac = torch.sigmoid(self.residual_head(hidden).squeeze(-1))
+                target_mean = residual_min + (residual_max - residual_min) * residual_frac
+            logit_scale = target_std.clamp_min(1e-4).unsqueeze(-1) * max(temperature, 1e-6)
+            target_logits = -0.5 * ((target_values.unsqueeze(0) - target_mean.unsqueeze(-1)) / logit_scale) ** 2
+        else:
+            target_logits = self.target_logits_head(hidden) / max(temperature, 1e-6)
+            target_probs = F.softmax(target_logits, dim=-1)
+            target_mean = (target_probs * target_values).sum(dim=-1)
         return (
             trade_logits,
             target_logits,

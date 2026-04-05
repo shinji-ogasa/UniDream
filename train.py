@@ -677,6 +677,12 @@ def run_fold(
     actor.hold_state_scale = ac_cfg.get("hold_state_scale", 64.0)
     actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
+    actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
+    actor.residual_min_overlay = ac_cfg.get(
+        "residual_min_overlay",
+        ac_cfg.get("abs_min_position", -1.0) - reward_cfg.get("benchmark_position", 1.0),
+    )
+    actor.residual_max_overlay = ac_cfg.get("residual_max_overlay", 0.0)
     actor.infer_bootstrap_target_prob = ac_cfg.get("infer_bootstrap_target_prob", 0.0)
     actor.infer_bootstrap_target_std = ac_cfg.get("infer_bootstrap_target_std", 0.0)
     actor.infer_bootstrap_trade_signal = ac_cfg.get("infer_bootstrap_trade_signal", 0.0)
@@ -688,6 +694,15 @@ def run_fold(
     actor.infer_min_trade_gap = ac_cfg.get("infer_min_trade_gap", 0.0)
     actor.infer_min_trade_scale = ac_cfg.get("infer_min_trade_scale", 0.0)
     actor.support_transition_counts = None
+    if actor.use_residual_controller:
+        residual_min = float(actor.residual_min_overlay)
+        residual_max = float(actor.residual_max_overlay)
+        init_overlay = float(ac_cfg.get("residual_init_overlay", 0.0))
+        if residual_max > residual_min + 1e-6:
+            init_frac = np.clip((init_overlay - residual_min) / (residual_max - residual_min), 1e-4, 1.0 - 1e-4)
+            residual_bias = float(np.log(init_frac / (1.0 - init_frac)))
+            torch.nn.init.constant_(actor.residual_head.bias, residual_bias)
+            torch.nn.init.zeros_(actor.residual_head.weight)
     try:
         current_abs_positions = np.empty_like(oracle_positions)
         current_abs_positions[0] = reward_cfg.get("benchmark_position", 1.0)
@@ -706,6 +721,10 @@ def run_fold(
         actor.support_transition_counts = support_counts
     except Exception as e:
         print(f"[SPIBB] support table skipped: {e}")
+
+    bc_sample_quality = None
+    if oracle_teacher_mode == "signal_aim":
+        bc_sample_quality = np.abs(np.asarray(oracle_values, dtype=np.float32))
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC - loading checkpoint: {bc_path}")
@@ -742,6 +761,10 @@ def run_fold(
             relabel_underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
             relabel_underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
             relabel_underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
+            residual_target_coef=bc_cfg.get("residual_target_coef", 1.0),
+            residual_aux_ce_coef=bc_cfg.get("residual_aux_ce_coef", 0.0),
+            sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
+            sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -789,6 +812,10 @@ def run_fold(
                 relabel_underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
                 relabel_underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
                 relabel_underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
+                residual_target_coef=bc_cfg.get("residual_target_coef", 1.0),
+                residual_aux_ce_coef=bc_cfg.get("residual_aux_ce_coef", 0.0),
+                sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
+                sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_positions))
@@ -798,6 +825,7 @@ def run_fold(
                 oracle_positions=oracle_positions[:T_enc],
                 regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
                 soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
+                sample_quality=bc_sample_quality[:T_enc] if bc_sample_quality is not None else None,
             )
             bc_trainer.save(bc_path)
         else:
