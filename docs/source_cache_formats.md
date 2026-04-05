@@ -319,6 +319,14 @@ To get the next raw sources to fetch in rollout order:
   -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
 ```
 
+To get concrete fetch/import command hints for that next blocked stage:
+
+```powershell
+.\scripts\recommend_source_fetch_commands.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 That script:
 
 1. Builds raw source cache
