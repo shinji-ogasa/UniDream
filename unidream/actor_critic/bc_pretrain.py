@@ -282,6 +282,28 @@ class BCPretrainer:
                 underweight_step_scale=self.relabel_underweight_step_scale,
             ).astype(np.float32)
             return rollout_states.astype(np.float32), stabilized_rollout, relabeled_targets
+        if self.self_condition_mode == "dagger":
+            use_rollout = np.random.rand() < self.self_condition_prob
+            if not use_rollout:
+                return teacher_states, stabilized_rollout, np.asarray(oracle_positions, dtype=np.float32)
+            benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+            min_position = float(getattr(self.actor, "abs_min_position", -1.0))
+            max_position = float(getattr(self.actor, "abs_max_position", 1.0))
+            current_positions = rollout_states[:, 0] + benchmark_position
+            relabel_step = self.self_condition_relabel_step
+            if relabel_step is None:
+                relabel_step = float(getattr(self.actor, "max_position_step", 0.125))
+            relabel_step = max(0.0, relabel_step)
+            relabel_gap = np.asarray(oracle_positions, dtype=np.float32) - current_positions
+            relabeled_targets = current_positions + np.clip(relabel_gap, -relabel_step, relabel_step)
+            if self.self_condition_relabel_band > 0.0:
+                relabeled_targets = np.where(
+                    np.abs(relabel_gap) <= self.self_condition_relabel_band,
+                    current_positions,
+                    relabeled_targets,
+                )
+            relabeled_targets = np.clip(relabeled_targets, min_position, max_position).astype(np.float32)
+            return rollout_states.astype(np.float32), stabilized_rollout, relabeled_targets
         mask = np.random.rand(len(teacher_states)) < self.self_condition_prob
         mixed_states = teacher_states.copy()
         mixed_states[mask] = rollout_states[mask]
