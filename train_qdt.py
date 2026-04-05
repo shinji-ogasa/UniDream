@@ -7,7 +7,7 @@ Usage:
     python train_qdt.py --config configs/trading.yaml --start 2018-01-01 --end 2024-01-01
 """
 from __future__ import annotations
-import argparse, os, random
+import argparse, glob, os, random
 import numpy as np
 import pandas as pd
 import torch
@@ -32,6 +32,19 @@ def _cache_is_fresh(path, stale_days=_CACHE_STALE_DAYS):
         return False
     import time
     return (time.time() - os.path.getmtime(path)) / 86400 < stale_days
+
+
+def _resolve_cache_pair(cache_dir: str, cache_tag: str) -> tuple[str, str]:
+    features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
+    returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
+    if os.path.exists(features_cache) and os.path.exists(returns_cache):
+        return features_cache, returns_cache
+
+    feature_candidates = sorted(glob.glob(os.path.join(cache_dir, f"{cache_tag}*_features.parquet")))
+    return_candidates = sorted(glob.glob(os.path.join(cache_dir, f"{cache_tag}*_returns.parquet")))
+    if feature_candidates and return_candidates:
+        return feature_candidates[0], return_candidates[0]
+    return features_cache, returns_cache
 
 
 def set_seed(seed):
@@ -201,6 +214,7 @@ def main():
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/qdt")
+    parser.add_argument("--folds", default=None)
     parser.add_argument("--cost-profile", default=None,
                         help="Named cost profile from config cost_profiles")
     parser.add_argument("--data_cache_dir", default="checkpoints/data_cache",
@@ -238,8 +252,7 @@ def main():
     cache_dir = args.data_cache_dir
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
-    features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
-    returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
+    features_cache, returns_cache = _resolve_cache_pair(cache_dir, cache_tag)
 
     if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
         print("[Data] Loading cached features...")
@@ -267,6 +280,15 @@ def main():
         val_months=data_cfg.get("val_months", 3),
         test_months=data_cfg.get("test_months", 3),
     )
+    if args.folds:
+        selected_folds = sorted(
+            {
+                int(token.strip())
+                for token in args.folds.split(",")
+                if token.strip()
+            }
+        )
+        splits = [split for split in splits if split.fold_idx in selected_folds]
     print(f"[Data] {len(splits)} WFO folds")
 
     fold_results = {}
@@ -319,10 +341,19 @@ def main():
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
             interval=interval,
+            benchmark_positions=np.full(
+                T_min,
+                cfg.get("reward", {}).get("benchmark_position", 1.0),
+                dtype=np.float64,
+            ),
         )
         metrics = bt.run()
         fold_results[split.fold_idx] = {"metrics": metrics}
-        print(f"  Sharpe={metrics.sharpe:.3f} | MaxDD={metrics.max_drawdown:.3f} | Calmar={metrics.calmar:.3f}")
+        print(
+            f"  Sharpe={metrics.sharpe:.3f} | MaxDD={metrics.max_drawdown:.3f} | "
+            f"AlphaEx={100.0 * (metrics.alpha_excess or 0.0):+.2f}pt | "
+            f"SharpeΔ={(metrics.sharpe_delta or 0.0):+.3f}"
+        )
 
     print("\n" + "="*60)
     print("QDT Summary")
