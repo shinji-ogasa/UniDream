@@ -161,6 +161,8 @@ class ImagACTrainer:
         self.active_deviation_coef = ac_cfg.get("active_deviation_coef", 0.0)
         self.underweight_exposure_coef = ac_cfg.get("underweight_exposure_coef", 0.0)
         self.underweight_floor = ac_cfg.get("underweight_floor", 0.0)
+        self.upside_miss_coef = ac_cfg.get("upside_miss_coef", 0.0)
+        self.downside_hedge_coef = ac_cfg.get("downside_hedge_coef", 0.0)
         self.nn_anchor_coef = ac_cfg.get("nn_anchor_coef", 0.0)
         self.nn_anchor_flow_coef = ac_cfg.get("nn_anchor_flow_coef", 0.0)
         self.nn_anchor_bank_size = ac_cfg.get("nn_anchor_bank_size", 4096)
@@ -662,6 +664,8 @@ class ImagACTrainer:
         last_h = rollout["last_h"]
 
         # --- 報酬計算 ---
+        self.reward_ema.update(net_returns)
+        rewards_norm = net_returns / self.reward_ema.scale
         if self.use_dsr:
             rewards_for_ac = self._compute_dsr_rewards(net_returns)
         else:
@@ -680,6 +684,14 @@ class ImagACTrainer:
         if self.underweight_exposure_coef > 0.0:
             underweight_excess = F.relu((-next_inventory) - float(self.underweight_floor))
             rewards_for_ac = rewards_for_ac - self.underweight_exposure_coef * underweight_excess
+        if self.upside_miss_coef > 0.0 or self.downside_hedge_coef > 0.0:
+            underweight_size = F.relu(-next_inventory)
+            upside_returns = F.relu(rewards_norm)
+            downside_returns = F.relu(-rewards_norm)
+            if self.upside_miss_coef > 0.0:
+                rewards_for_ac = rewards_for_ac - self.upside_miss_coef * upside_returns * underweight_size
+            if self.downside_hedge_coef > 0.0:
+                rewards_for_ac = rewards_for_ac + self.downside_hedge_coef * downside_returns * underweight_size
 
         # --- Slow Critic の value 推定（原スケール）---
         zs_flat = zs.reshape(B * self.horizon, -1)
