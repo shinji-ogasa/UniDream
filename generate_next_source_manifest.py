@@ -6,24 +6,7 @@ from pathlib import Path
 import yaml
 
 from check_config_source_requirements import collect_missing_requirements
-
-
-def _dedupe_targets(missing: list[str]) -> list[str]:
-    out: list[str] = []
-    seen: set[str] = set()
-    for item in missing:
-        target = item.split("missing ", 1)[-1]
-        if target not in seen:
-            out.append(target)
-            seen.add(target)
-    return out
-
-
-def _parse_cache_tag(cache_tag: str) -> tuple[str, str, str, str]:
-    parts = cache_tag.split("_")
-    if len(parts) < 5:
-        return ("BTCUSDT", "15m", "2021-01-01", "2023-06-01")
-    return (parts[0], parts[1], parts[2], parts[3])
+from source_rollout_plan import dedupe_missing_targets, parse_cache_tag
 
 
 def main() -> None:
@@ -34,7 +17,7 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    symbol, interval, start, end = _parse_cache_tag(args.cache_tag)
+    symbol, interval, start, end = parse_cache_tag(args.cache_tag)
 
     next_name = None
     next_targets: list[str] = []
@@ -42,7 +25,7 @@ def main() -> None:
         missing = collect_missing_requirements(args.cache_dir, args.cache_tag, config_path)
         if missing:
             next_name = Path(config_path).name
-            next_targets = _dedupe_targets(missing)
+            next_targets = dedupe_missing_targets(missing)
             break
 
     if next_name is None:

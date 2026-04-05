@@ -4,44 +4,7 @@ import argparse
 from pathlib import Path
 
 from check_config_source_requirements import collect_missing_requirements
-
-
-def _dedupe_targets(missing: list[str]) -> list[str]:
-    out: list[str] = []
-    seen: set[str] = set()
-    for item in missing:
-        target = item.split("missing ", 1)[-1]
-        if target not in seen:
-            out.append(target)
-            seen.add(target)
-    return out
-
-
-def _fetch_hint(cache_dir: str, cache_tag: str, target: str) -> str:
-    if target.endswith("_series_signed_order_flow.parquet") or target.endswith("_series_taker_imbalance.parquet"):
-        return (
-            f"`./.venv/Scripts/python.exe build_binance_source_cache.py --cache-dir {cache_dir} "
-            f"--cache-tag {cache_tag} --symbol BTCUSDT --interval 15m --start 2021-01-01 --end 2023-06-01`"
-        )
-    if target.endswith("_series_exchange_netflow.parquet"):
-        return (
-            f"`./.venv/Scripts/python.exe build_glassnode_source_cache.py --cache-dir {cache_dir} "
-            f"--cache-tag {cache_tag} --asset BTC --start 2021-01-01 --end 2023-06-01 "
-            f"--pit --interval 1h --api-key <glassnode_key> "
-            f"--metric exchange_netflow=transactions/transfers_volume_exchanges_net`"
-        )
-    if target.endswith("_series_active_address_growth.parquet"):
-        return (
-            f"`./.venv/Scripts/python.exe build_coinmetrics_source_cache.py --cache-dir {cache_dir} "
-            f"--cache-tag {cache_tag} --asset btc --start 2021-01-01 --end 2023-06-01 "
-            f"--frequency 1h --metric active_address_growth=AdrActCnt:logdiff`"
-        )
-    if target.endswith("_series_stablecoin_inflow.parquet"):
-        return (
-            f"`./.venv/Scripts/python.exe build_aux_source_cache.py --cache-dir {cache_dir} "
-            f"--cache-tag {cache_tag} --extra-series stablecoin_inflow=path/to/stablecoin_inflow.csv:stablecoin_inflow`"
-        )
-    return ""
+from source_rollout_plan import dedupe_missing_targets, fetch_command_hint
 
 
 def main() -> None:
@@ -89,11 +52,11 @@ def main() -> None:
         next_name, next_missing = blocked[0]
         lines.append("## Next Stage")
         lines.append(f"- Next blocked config: `{next_name}`")
-        for target in _dedupe_targets(next_missing):
+        for target in dedupe_missing_targets(next_missing):
             lines.append(f"- Needed raw source: `{target}`")
-            hint = _fetch_hint(args.cache_dir, args.cache_tag, target)
+            hint = fetch_command_hint(args.cache_dir, args.cache_tag, target)
             if hint:
-                lines.append(f"  - Fetch hint: {hint}")
+                lines.append(f"  - Fetch hint: `{hint}`")
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
