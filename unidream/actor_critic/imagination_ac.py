@@ -161,6 +161,9 @@ class ImagACTrainer:
         self.active_deviation_coef = ac_cfg.get("active_deviation_coef", 0.0)
         self.underweight_exposure_coef = ac_cfg.get("underweight_exposure_coef", 0.0)
         self.underweight_floor = ac_cfg.get("underweight_floor", 0.0)
+        self.nn_anchor_coef = ac_cfg.get("nn_anchor_coef", 0.0)
+        self.nn_anchor_flow_coef = ac_cfg.get("nn_anchor_flow_coef", 0.0)
+        self.nn_anchor_bank_size = ac_cfg.get("nn_anchor_bank_size", 4096)
         self.positive_advantages = ac_cfg.get("positive_advantages", False)
 
         # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
@@ -202,6 +205,10 @@ class ImagACTrainer:
         self._oracle_positions: Optional[torch.Tensor] = None
         self._oracle_inventory: Optional[torch.Tensor] = None
         self._oracle_trade_pos_weight: Optional[torch.Tensor] = None
+        self._oracle_anchor_h: Optional[torch.Tensor] = None
+        self._oracle_anchor_inventory: Optional[torch.Tensor] = None
+        self._oracle_anchor_regime: Optional[torch.Tensor] = None
+        self._oracle_anchor_overlay: Optional[torch.Tensor] = None
 
         # DSR EMA trackers
         self._dsr_A: float = 0.0    # EMA of reward (running mean)
@@ -264,6 +271,28 @@ class ImagACTrainer:
             )
         else:
             self._oracle_regime = None
+
+        bank_size = int(self.nn_anchor_bank_size)
+        if bank_size > 0 and T > 0:
+            if T <= bank_size:
+                anchor_idx = np.arange(T, dtype=np.int64)
+            else:
+                anchor_idx = np.linspace(0, T - 1, num=bank_size, dtype=np.int64)
+            anchor_idx_t = torch.tensor(anchor_idx, dtype=torch.long, device=self.device)
+            self._oracle_anchor_h = self._oracle_h.index_select(0, anchor_idx_t)
+            self._oracle_anchor_inventory = self._oracle_inventory.index_select(0, anchor_idx_t)
+            self._oracle_anchor_overlay = (
+                self._oracle_positions.index_select(0, anchor_idx_t) - self.benchmark_position
+            )
+            if self._oracle_regime is not None:
+                self._oracle_anchor_regime = self._oracle_regime.index_select(0, anchor_idx_t)
+            else:
+                self._oracle_anchor_regime = None
+        else:
+            self._oracle_anchor_h = None
+            self._oracle_anchor_inventory = None
+            self._oracle_anchor_overlay = None
+            self._oracle_anchor_regime = None
 
     def _get_alpha(self) -> float:
         """現在の BC/AC 混合比率 α を返す（単調非増加で線形減衰: alpha_init→alpha_final）.
@@ -542,6 +571,59 @@ class ImagACTrainer:
             loss = loss + self.prior_flow_coef * flow_anchor
         return loss
 
+    def _nearest_oracle_anchor_loss(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor,
+        regime: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Nearest-dataset action anchor, inspired by dataset-constrained offline RL."""
+        if (
+            (self.nn_anchor_coef <= 0.0 and self.nn_anchor_flow_coef <= 0.0)
+            or self._oracle_anchor_h is None
+            or self._oracle_anchor_inventory is None
+            or self._oracle_anchor_overlay is None
+        ):
+            return torch.tensor(0.0, device=self.device)
+
+        cur_trade_logits, cur_target_mean, _, cur_band, _ = self.actor.controller_outputs(
+            z, h, inventory=inventory, regime=regime
+        )
+
+        query_parts = [F.normalize(h, dim=-1), inventory]
+        bank_parts = [
+            F.normalize(self._oracle_anchor_h, dim=-1),
+            self._oracle_anchor_inventory.unsqueeze(-1),
+        ]
+        if regime is not None and self._oracle_anchor_regime is not None:
+            query_parts.append(regime)
+            bank_parts.append(self._oracle_anchor_regime)
+        query = torch.cat(query_parts, dim=-1)
+        bank = torch.cat(bank_parts, dim=-1)
+
+        with torch.no_grad():
+            dist = torch.cdist(query, bank)
+            nn_idx = dist.argmin(dim=-1)
+            anchor_overlay = self._oracle_anchor_overlay.index_select(0, nn_idx)
+
+        loss = torch.tensor(0.0, device=self.device)
+        if self.nn_anchor_coef > 0.0:
+            target_anchor = F.smooth_l1_loss(cur_target_mean, anchor_overlay)
+            loss = loss + self.nn_anchor_coef * target_anchor
+        if self.nn_anchor_flow_coef > 0.0:
+            cur_trade_prob = torch.sigmoid(cur_trade_logits)
+            inventory_now = inventory.squeeze(-1) if inventory.ndim > 1 else inventory
+            cur_next_inventory = self.actor.soft_execute_controller(
+                trade_signal=cur_trade_prob,
+                target_inventory=cur_target_mean,
+                band_width=cur_band,
+                current_inventory=inventory_now,
+            )
+            flow_anchor = F.smooth_l1_loss(cur_next_inventory, anchor_overlay)
+            loss = loss + self.nn_anchor_flow_coef * flow_anchor
+        return loss
+
     def train_step(
         self,
         z0: torch.Tensor,
@@ -649,8 +731,9 @@ class ImagACTrainer:
         pg_advantage = F.relu(advantage) if self.positive_advantages else advantage
         ac_loss = -(norm_q * pg_advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
         prior_loss = self._prior_anchor_loss(z0, h0, inventory0, regime=regime0)
+        nn_anchor_loss = self._nearest_oracle_anchor_loss(z0, h0, inventory0, regime=regime0)
         bc_loss = self._bc_loss_batch()
-        actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss + prior_loss
+        actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss + prior_loss + nn_anchor_loss
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -664,6 +747,7 @@ class ImagACTrainer:
             "ac_loss": ac_loss.item(),
             "bc_loss": bc_loss.item() if isinstance(bc_loss, torch.Tensor) else float(bc_loss),
             "prior_loss": prior_loss.item() if isinstance(prior_loss, torch.Tensor) else float(prior_loss),
+            "nn_anchor_loss": nn_anchor_loss.item() if isinstance(nn_anchor_loss, torch.Tensor) else float(nn_anchor_loss),
             "critic_loss": critic_loss.item(),
             "entropy": entropies.mean().item(),
             "alpha": alpha,

@@ -560,6 +560,16 @@ class Actor(nn.Module):
                         torch.maximum(trade_prob, bootstrap_signal),
                         trade_prob,
                     )
+        regime_active_threshold = float(getattr(self, "infer_regime_active_threshold", 0.0))
+        regime_active_state = int(getattr(self, "infer_regime_active_state", 0))
+        if regime is not None and regime_active_threshold > 0.0 and regime.shape[-1] > 0:
+            regime_idx = max(0, min(regime.shape[-1] - 1, regime_active_state))
+            allow_active = regime[:, regime_idx] >= regime_active_threshold
+            target_inventory = torch.where(
+                (target_inventory < 0.0) & (~allow_active),
+                torch.zeros_like(target_inventory),
+                target_inventory,
+            )
         underweight_adjust_scale = float(getattr(self, "infer_underweight_adjust_scale", 1.0))
         if underweight_adjust_scale < 1.0:
             more_underweight = (target_inventory < 0.0) & (target_inventory < current_inventory)

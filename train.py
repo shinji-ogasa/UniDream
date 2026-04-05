@@ -748,6 +748,8 @@ def run_fold(
     actor.infer_bootstrap_target_std = ac_cfg.get("infer_bootstrap_target_std", 0.0)
     actor.infer_bootstrap_trade_signal = ac_cfg.get("infer_bootstrap_trade_signal", 0.0)
     actor.infer_bootstrap_baseline_margin = ac_cfg.get("infer_bootstrap_baseline_margin", 0.0)
+    actor.infer_regime_active_threshold = ac_cfg.get("infer_regime_active_threshold", 0.0)
+    actor.infer_regime_active_state = ac_cfg.get("infer_regime_active_state", 0)
     actor.infer_underweight_adjust_scale = ac_cfg.get("infer_underweight_adjust_scale", 1.0)
     actor.infer_support_min_count = ac_cfg.get("infer_support_min_count", 0.0)
     actor.infer_support_min_ratio = ac_cfg.get("infer_support_min_ratio", 0.0)
