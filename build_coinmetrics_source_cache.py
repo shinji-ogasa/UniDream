@@ -71,6 +71,7 @@ def main() -> None:
     parser.add_argument("--end", required=True)
     parser.add_argument("--frequency", default="1h")
     parser.add_argument("--api-key", default=None)
+    parser.add_argument("--input-file", default=None, help="Optional local JSON/CSV/Parquet export to import instead of API fetch")
     parser.add_argument(
         "--metric",
         action="append",
@@ -88,14 +89,28 @@ def main() -> None:
             metric, transform = rhs.rsplit(":", 1)
         else:
             metric, transform = rhs, None
-        df = _fetch_coinmetrics_metric(
-            asset=args.asset,
-            metric=metric,
-            start=args.start,
-            end=args.end,
-            frequency=args.frequency,
-            api_key=args.api_key,
-        ).rename(columns={metric: alias})
+        if args.input_file:
+            lower = args.input_file.lower()
+            if lower.endswith(".parquet"):
+                raw = pd.read_parquet(args.input_file)
+            elif lower.endswith(".json"):
+                raw = pd.read_json(args.input_file)
+            else:
+                raw = pd.read_csv(args.input_file)
+            if "data" in raw.columns and len(raw.columns) == 1:
+                raw = pd.DataFrame(raw["data"].tolist())
+            raw["time"] = pd.to_datetime(raw["time"], utc=False)
+            raw[metric] = pd.to_numeric(raw[metric], errors="coerce")
+            df = raw.set_index("time")[[metric]].sort_index().rename(columns={metric: alias})
+        else:
+            df = _fetch_coinmetrics_metric(
+                asset=args.asset,
+                metric=metric,
+                start=args.start,
+                end=args.end,
+                frequency=args.frequency,
+                api_key=args.api_key,
+            ).rename(columns={metric: alias})
         df = _apply_transform(df, alias, transform)
         out_path = os.path.join(args.cache_dir, f"{args.cache_tag}_series_{alias}.parquet")
         df.to_parquet(out_path)
