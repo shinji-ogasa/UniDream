@@ -373,6 +373,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\diagnose_source_rollout.ps1 `
   -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
 ```
 
+To save the rollout status as markdown:
+
+```powershell
+.\scripts\write_source_rollout_report.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 That script:
 
 1. Builds raw source cache
