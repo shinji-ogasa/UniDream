@@ -6,7 +6,9 @@ param(
   [string[]]$Configs = @(
     "configs\\smoke_risk_controller_v5_basis.yaml",
     "configs\\smoke_risk_controller_v8_orderflow_ctx.yaml",
-    "configs\\smoke_risk_controller_v9_onchain_ctx.yaml"
+    "configs\\smoke_risk_controller_v9_onchain_ctx.yaml",
+    "configs\\smoke_risk_controller_v10_hybrid_ctx.yaml",
+    "configs\\smoke_risk_controller_v11_hybrid_linear.yaml"
   ),
   [string]$SuiteDir = "checkpoints\\source_family_suite"
 )

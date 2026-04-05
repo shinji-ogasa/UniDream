@@ -220,6 +220,9 @@ This runs the basis / orderflow / on-chain probes and writes:
 - `checkpoints\source_family_suite\<config>\risk_controller_summary.csv`
 - `checkpoints\source_family_suite\suite_summary.csv`
 
+The default suite now also includes a hybrid config that combines basis,
+order-flow, and on-chain context features.
+
 That script:
 
 1. Builds raw source cache
