@@ -191,6 +191,37 @@ This builder now also writes, when available:
 - `<cache_tag>_series_taker_imbalance.parquet`
 - `<cache_tag>_series_buy_sell_ratio.parquet`
 
+### Download from Coin Metrics
+
+Use:
+
+```powershell
+.\.venv\Scripts\python.exe build_coinmetrics_source_cache.py `
+  --cache-dir checkpoints\basis_source_cache `
+  --cache-tag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2 `
+  --asset btc `
+  --start 2021-01-01 `
+  --end 2023-06-01 `
+  --frequency 1h `
+  --metric active_address_growth=AdrActCnt
+```
+
+### Download from Glassnode
+
+Use:
+
+```powershell
+.\.venv\Scripts\python.exe build_glassnode_source_cache.py `
+  --cache-dir checkpoints\basis_source_cache `
+  --cache-tag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2 `
+  --asset BTC `
+  --start 2021-01-01 `
+  --end 2023-06-01 `
+  --interval 1h `
+  --api-key <glassnode_key> `
+  --metric exchange_netflow=transactions/transfers_volume_exchanges_net
+```
+
 ## Offline Runners
 
 After caches exist, run:
