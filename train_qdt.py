@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import yaml
 
 from unidream.data.download import fetch_binance_ohlcv
-from unidream.data.features import compute_features, get_raw_returns
+from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.dataset import get_wfo_splits, WFODataset
 from unidream.data.oracle import hindsight_oracle_dp, ACTIONS as _ACTIONS
 from unidream.eval.backtest import Backtest
@@ -272,6 +272,18 @@ def main():
         raw_returns.to_frame().to_parquet(returns_cache)
         print(f"  Cached to {cache_dir}")
 
+    obs_dim = features_df.shape[1]
+    feature_extras_cfg = cfg.get("feature_extras", {})
+    if feature_extras_cfg.get("rebound_v1", False):
+        features_df = augment_with_rebound_features(
+            features_df,
+            raw_returns,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            windows_hours=feature_extras_cfg.get("rebound_windows_hours", [24, 72]),
+        )
+        raw_returns = raw_returns.loc[features_df.index]
+        print(f"[Data] Rebound features added -> {features_df.shape}")
     obs_dim = features_df.shape[1]
 
     splits = get_wfo_splits(
