@@ -31,3 +31,9 @@ Expected local inputs:
 
 - `raw\binance_klines\BTCUSDT-15m-YYYY-MM.zip`
 - `raw\coinmetrics\btc_adractcnt.json`
+
+Before importing, you can inspect local inputs with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_free_manual_inputs.ps1
+```
