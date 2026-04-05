@@ -34,7 +34,7 @@ def main() -> None:
     ohlcv.to_parquet(ohlcv_path)
     print(f"[SRC] Wrote {ohlcv_path} ({len(ohlcv)} rows)")
 
-    if not args.skip-funding:
+    if not args.skip_funding:
         try:
             print("[SRC] Fetching funding rate...")
             funding = fetch_funding_rate(args.symbol, args.start, args.end)
@@ -44,7 +44,7 @@ def main() -> None:
         except Exception as e:
             print(f"[SRC] Funding skipped: {e}")
 
-    if not args.skip-oi:
+    if not args.skip_oi:
         try:
             print("[SRC] Fetching open interest...")
             oi = fetch_open_interest_hist(args.symbol, args.interval, args.start, args.end)
@@ -54,7 +54,7 @@ def main() -> None:
         except Exception as e:
             print(f"[SRC] OI skipped: {e}")
 
-    if not args.skip-mark:
+    if not args.skip_mark:
         try:
             print("[SRC] Fetching mark price...")
             mark = fetch_mark_price_klines(args.symbol, args.interval, args.start, args.end)
