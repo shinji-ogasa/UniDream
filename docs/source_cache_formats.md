@@ -342,6 +342,14 @@ To generate a manifest stub for that next blocked stage:
   -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
 ```
 
+To run the full planning loop in one step:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\plan_next_source_rollout.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 To print the full rollout diagnosis in one step:
 
 ```powershell
