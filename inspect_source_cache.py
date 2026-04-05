@@ -34,6 +34,32 @@ def _read_extra_series(cache_dir: str, cache_tag: str) -> dict[str, pd.Series]:
     return out
 
 
+def _coverage_summary(name: str, obj: pd.DataFrame | pd.Series | None, target_index: pd.DatetimeIndex) -> str:
+    if obj is None:
+        return f"{name}: missing"
+    if isinstance(obj, pd.DataFrame):
+        if obj.empty:
+            return f"{name}: empty"
+        aligned = obj.reindex(target_index, method="ffill")
+        any_valid = aligned.notna().any(axis=1)
+        first = obj.index.min()
+        last = obj.index.max()
+        rows = len(obj)
+    else:
+        if obj.empty:
+            return f"{name}: empty"
+        aligned = obj.reindex(target_index, method="ffill")
+        any_valid = aligned.notna()
+        first = obj.index.min()
+        last = obj.index.max()
+        rows = len(obj)
+    coverage = float(any_valid.mean()) if len(any_valid) else 0.0
+    return (
+        f"{name}: rows={rows} first={first} last={last} "
+        f"aligned_coverage={coverage:.1%}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect offline source cache completeness")
     parser.add_argument("--cache-dir", required=True)
@@ -59,6 +85,14 @@ def main() -> None:
     if ohlcv is None:
         print("[INSPECT] No OHLCV cache. Cannot rebuild features.")
         return
+
+    print("[INSPECT] Coverage audit")
+    print("  " + _coverage_summary("ohlcv", ohlcv, ohlcv.index))
+    print("  " + _coverage_summary("funding", _read_optional_parquet(funding_path), ohlcv.index))
+    print("  " + _coverage_summary("oi", _read_optional_parquet(oi_path), ohlcv.index))
+    print("  " + _coverage_summary("mark", _read_optional_parquet(mark_path), ohlcv.index))
+    for name, series in extra_series.items():
+        print("  " + _coverage_summary(name, series, ohlcv.index))
 
     try:
         features = compute_features(
