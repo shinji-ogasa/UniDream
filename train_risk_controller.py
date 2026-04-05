@@ -328,6 +328,17 @@ def main() -> None:
         train_x = wfo_ds.train_features.astype(np.float32)
         val_x = wfo_ds.val_features.astype(np.float32)
         test_x = wfo_ds.test_features.astype(np.float32)
+        feature_subset = rcfg.get("feature_subset")
+        if feature_subset:
+            name_to_idx = {name: idx for idx, name in enumerate(wfo_ds.feature_columns)}
+            keep = [name_to_idx[name] for name in feature_subset if name in name_to_idx]
+            if not keep:
+                raise RuntimeError("Configured feature_subset did not match any feature columns")
+            train_x = train_x[:, keep]
+            val_x = val_x[:, keep]
+            test_x = test_x[:, keep]
+            kept_names = [wfo_ds.feature_columns[idx] for idx in keep]
+            print(f"[RISK] Feature subset ({len(keep)}): {kept_names}")
         train_ret = wfo_ds.train_returns.astype(np.float32)
         val_ret = wfo_ds.val_returns.astype(np.float32)
         test_ret = wfo_ds.test_returns.astype(np.float32)
