@@ -5,6 +5,7 @@ import glob
 import os
 
 import pandas as pd
+import yaml
 
 from unidream.data.features import compute_features, get_raw_returns
 
@@ -39,6 +40,7 @@ def main() -> None:
     parser.add_argument("--cache-tag", required=True)
     parser.add_argument("--interval", default="15m")
     parser.add_argument("--zscore-window-days", type=int, default=60)
+    parser.add_argument("--config", help="Optional YAML config with risk_controller.feature_subset")
     args = parser.parse_args()
 
     ohlcv_path = os.path.join(args.cache_dir, f"{args.cache_tag}_ohlcv.parquet")
@@ -76,6 +78,25 @@ def main() -> None:
 
     print(f"[INSPECT] Rebuilt features -> shape={features.shape}")
     print(f"[INSPECT] Returns aligned -> {raw_returns.shape[0]} rows")
+    if args.config:
+        with open(args.config, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        feature_subset = ((cfg.get("risk_controller") or {}).get("feature_subset")) or []
+        if feature_subset:
+            present = [name for name in feature_subset if name in features.columns]
+            missing = [name for name in feature_subset if name not in features.columns]
+            print(
+                "[INSPECT] Config feature_subset -> "
+                f"present={len(present)} missing={len(missing)}"
+            )
+            if present:
+                print("  present:")
+                for name in present:
+                    print(f"    {name}")
+            if missing:
+                print("  missing:")
+                for name in missing:
+                    print(f"    {name}")
     print("[INSPECT] Feature columns:")
     for col in features.columns:
         print(f"  {col}")

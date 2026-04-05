@@ -17,7 +17,8 @@ Write-Host "[1/2] Inspecting source cache..."
   --cache-dir $CacheDir `
   --cache-tag $CacheTag `
   --interval $Interval `
-  --zscore-window-days 60
+  --zscore-window-days 60 `
+  --config $RiskConfig
 
 Write-Host "[2/2] Running external-series risk probe..."
 & $Python train_risk_controller.py `
