@@ -297,6 +297,12 @@ This runs, in order:
 3. on-chain
 4. hybrid
 
+To generate a config-to-source requirement matrix:
+
+```powershell
+.\scripts\generate_source_requirements_matrix.ps1
+```
+
 That script:
 
 1. Builds raw source cache
