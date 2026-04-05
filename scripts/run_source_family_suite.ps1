@@ -4,19 +4,21 @@ param(
   [string]$Interval = "15m",
   [string]$Folds = "4",
   [bool]$SkipMissing = $true,
-  [string[]]$Configs = @(
-    "configs\\smoke_risk_controller_v5_basis.yaml",
-    "configs\\smoke_risk_controller_v8_orderflow_ctx.yaml",
-    "configs\\smoke_risk_controller_v9_onchain_ctx.yaml",
-    "configs\\smoke_risk_controller_v10_hybrid_ctx.yaml",
-    "configs\\smoke_risk_controller_v11_hybrid_linear.yaml"
-  ),
+  [string]$SuiteConfig = "configs\\source_rollout_suite.yaml",
+  [string[]]$Configs = @(),
   [string]$SuiteDir = "checkpoints\\source_family_suite"
 )
 
 $ErrorActionPreference = "Stop"
 $Python = ".\\.venv\\Scripts\\python.exe"
 New-Item -ItemType Directory -Force -Path $SuiteDir | Out-Null
+
+if (($Configs.Count -eq 0) -and (Test-Path $SuiteConfig)) {
+  $SuiteYaml = (& $Python yaml_to_json.py --file $SuiteConfig) | ConvertFrom-Json
+  if ($SuiteYaml.ordered_configs) {
+    $Configs = @($SuiteYaml.ordered_configs)
+  }
+}
 
 foreach ($Config in $Configs) {
   $Stem = [System.IO.Path]::GetFileNameWithoutExtension($Config)

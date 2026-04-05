@@ -286,6 +286,8 @@ This runs the basis / orderflow / on-chain probes and writes:
 The default suite now also includes a hybrid config that combines basis,
 order-flow, and on-chain context features.
 By default, configs whose raw source dependencies are still missing are skipped.
+The rollout order and default config list are centralized in
+[source_rollout_suite.yaml](/C:/Users/Sophie/Documents/UniDream/UniDream/configs/source_rollout_suite.yaml).
 
 To generate a manifest stub from those suite configs:
 
