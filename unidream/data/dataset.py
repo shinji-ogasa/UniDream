@@ -156,6 +156,7 @@ class WFODataset:
         """
         self.split = split
         self.seq_len = seq_len
+        self._feature_columns = list(features_df.columns)
 
         # 各 split のデータを切り出す（境界バーの重複を防ぐため右端は exclusive）
         def _slice(start, end, right_inclusive=False):
@@ -215,3 +216,7 @@ class WFODataset:
     @property
     def obs_dim(self) -> int:
         return self._train_feat.shape[1]
+
+    @property
+    def feature_columns(self) -> list[str]:
+        return self._feature_columns

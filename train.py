@@ -32,6 +32,7 @@ from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetc
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.oracle import (
     _forward_window_stats,
+    feature_stress_teacher,
     hindsight_oracle_dp,
     hindsight_signal_teacher,
     oracle_to_dataset,
@@ -476,12 +477,14 @@ def run_fold(
     wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
     bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
     ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
+    ac_max_steps_cfg = int(ac_cfg.get("max_steps", 200_000))
+    ignore_ac_ckpt = bool(ac_cfg.get("ignore_ac_checkpoint", False)) or ac_max_steps_cfg <= 0
 
     start_idx = _stage_idx(start_from)
     stop_idx = _stage_idx(stop_after)
     has_wm_ckpt = os.path.exists(wm_path)
     has_bc_ckpt = os.path.exists(bc_path)
-    has_ac_ckpt = os.path.exists(ac_path)
+    has_ac_ckpt = os.path.exists(ac_path) and not ignore_ac_ckpt
     has_wm = has_wm_ckpt and (resume or start_idx > _stage_idx("wm"))
     has_bc = has_bc_ckpt and (resume or start_idx > _stage_idx("bc"))
     has_ac = has_ac_ckpt and (resume or start_idx > _stage_idx("ac"))
@@ -582,6 +585,73 @@ def run_fold(
             "  Signal teacher: "
             f"horizons={teacher_horizons} floor={oracle_cfg.get('signal_floor_position', abs_min):+.2f} "
             f"scale={oracle_cfg.get('signal_scale', 1.5):.2f}"
+        )
+    elif oracle_teacher_mode == "feature_stress":
+        abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
+        abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
+        teacher_columns = tuple(getattr(wfo_dataset, "feature_columns", []))
+        oracle_positions, oracle_signal = feature_stress_teacher(
+            wfo_dataset.train_features,
+            feature_columns=teacher_columns,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("stress_floor_position", abs_min),
+            max_position=oracle_cfg.get("stress_ceiling_position", abs_max),
+            fast_vol_col=oracle_cfg.get("stress_fast_vol_col", "rv_16"),
+            slow_vol_col=oracle_cfg.get("stress_slow_vol_col", "rv_96"),
+            shock_col=oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
+            drift_col=oracle_cfg.get("stress_drift_col", "open_ret"),
+            macd_col=oracle_cfg.get("stress_macd_col", "macd"),
+            macd_signal_col=oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
+            funding_col=oracle_cfg.get("stress_funding_col", "funding_rate"),
+            fast_vol_threshold=oracle_cfg.get("stress_fast_vol_threshold", 0.8),
+            slow_vol_threshold=oracle_cfg.get("stress_slow_vol_threshold", 0.8),
+            shock_threshold=oracle_cfg.get("stress_shock_threshold", 0.8),
+            drift_threshold=oracle_cfg.get("stress_drift_threshold", 0.2),
+            trend_threshold=oracle_cfg.get("stress_trend_threshold", 0.1),
+            funding_threshold=oracle_cfg.get("stress_funding_threshold", -0.5),
+            fast_vol_weight=oracle_cfg.get("stress_fast_vol_weight", 0.45),
+            slow_vol_weight=oracle_cfg.get("stress_slow_vol_weight", 0.25),
+            shock_weight=oracle_cfg.get("stress_shock_weight", 0.20),
+            drift_weight=oracle_cfg.get("stress_drift_weight", 0.10),
+            trend_weight=oracle_cfg.get("stress_trend_weight", 0.15),
+            funding_weight=oracle_cfg.get("stress_funding_weight", 0.05),
+            entry_threshold=oracle_cfg.get("stress_entry_threshold", 0.15),
+            signal_scale=oracle_cfg.get("stress_signal_scale", 1.0),
+        )
+        val_oracle_positions, val_oracle_signal = feature_stress_teacher(
+            wfo_dataset.val_features,
+            feature_columns=teacher_columns,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("stress_floor_position", abs_min),
+            max_position=oracle_cfg.get("stress_ceiling_position", abs_max),
+            fast_vol_col=oracle_cfg.get("stress_fast_vol_col", "rv_16"),
+            slow_vol_col=oracle_cfg.get("stress_slow_vol_col", "rv_96"),
+            shock_col=oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
+            drift_col=oracle_cfg.get("stress_drift_col", "open_ret"),
+            macd_col=oracle_cfg.get("stress_macd_col", "macd"),
+            macd_signal_col=oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
+            funding_col=oracle_cfg.get("stress_funding_col", "funding_rate"),
+            fast_vol_threshold=oracle_cfg.get("stress_fast_vol_threshold", 0.8),
+            slow_vol_threshold=oracle_cfg.get("stress_slow_vol_threshold", 0.8),
+            shock_threshold=oracle_cfg.get("stress_shock_threshold", 0.8),
+            drift_threshold=oracle_cfg.get("stress_drift_threshold", 0.2),
+            trend_threshold=oracle_cfg.get("stress_trend_threshold", 0.1),
+            funding_threshold=oracle_cfg.get("stress_funding_threshold", -0.5),
+            fast_vol_weight=oracle_cfg.get("stress_fast_vol_weight", 0.45),
+            slow_vol_weight=oracle_cfg.get("stress_slow_vol_weight", 0.25),
+            shock_weight=oracle_cfg.get("stress_shock_weight", 0.20),
+            drift_weight=oracle_cfg.get("stress_drift_weight", 0.10),
+            trend_weight=oracle_cfg.get("stress_trend_weight", 0.15),
+            funding_weight=oracle_cfg.get("stress_funding_weight", 0.05),
+            entry_threshold=oracle_cfg.get("stress_entry_threshold", 0.15),
+            signal_scale=oracle_cfg.get("stress_signal_scale", 1.0),
+        )
+        oracle_values = oracle_signal.astype(np.float32)
+        print(
+            "  Feature stress teacher: "
+            f"floor={oracle_cfg.get('stress_floor_position', abs_min):+.2f} "
+            f"entry={oracle_cfg.get('stress_entry_threshold', 0.15):.2f} "
+            f"scale={oracle_cfg.get('stress_signal_scale', 1.0):.2f}"
         )
     if oracle_cfg.get("use_aim_targets", False):
         abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
@@ -955,7 +1025,7 @@ def run_fold(
     # 異なる h 分布上で計算されて矛盾した gradient が生じる。
     # no-action h に統一することで BC train/AC train/val/test が一貫する。
 
-    ac_requested = stop_idx >= _stage_idx("ac") or has_ac
+    ac_requested = ((stop_idx >= _stage_idx("ac")) and ac_max_steps_cfg > 0) or has_ac
     if ac_requested:
         critic = Critic(
             z_dim=ensemble.get_z_dim(),

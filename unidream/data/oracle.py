@@ -399,6 +399,89 @@ def hindsight_signal_teacher(
     return target, signal.astype(np.float32)
 
 
+def feature_stress_teacher(
+    features: np.ndarray | pd.DataFrame,
+    feature_columns: list[str] | tuple[str, ...] | None = None,
+    benchmark_position: float = 1.0,
+    min_position: float = 0.75,
+    max_position: float = 1.0,
+    fast_vol_col: str = "rv_16",
+    slow_vol_col: str = "rv_96",
+    shock_col: str = "atr_norm_ret",
+    drift_col: str = "open_ret",
+    macd_col: str = "macd",
+    macd_signal_col: str = "macd_signal",
+    funding_col: str = "funding_rate",
+    fast_vol_threshold: float = 0.8,
+    slow_vol_threshold: float = 0.8,
+    shock_threshold: float = 0.8,
+    drift_threshold: float = 0.2,
+    trend_threshold: float = 0.1,
+    funding_threshold: float = -0.5,
+    fast_vol_weight: float = 0.45,
+    slow_vol_weight: float = 0.25,
+    shock_weight: float = 0.20,
+    drift_weight: float = 0.10,
+    trend_weight: float = 0.15,
+    funding_weight: float = 0.05,
+    entry_threshold: float = 0.15,
+    signal_scale: float = 1.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build a sparse downside hedge teacher from current feature state.
+
+    The signal is intentionally state-driven rather than hindsight-only:
+    elevated realized volatility and shock features open a small hedge, while
+    recent downside drift / bearish MACD alignment only modulate the strength.
+    """
+    if isinstance(features, pd.DataFrame):
+        feat_arr = features.to_numpy(dtype=np.float32, copy=False)
+        columns = list(features.columns)
+    else:
+        feat_arr = np.asarray(features, dtype=np.float32)
+        columns = list(feature_columns or [])
+    if feat_arr.ndim != 2:
+        raise ValueError("features must be a 2D array or DataFrame")
+
+    T = len(feat_arr)
+    if T == 0:
+        return np.zeros(0, dtype=np.float32), np.zeros(0, dtype=np.float32)
+
+    col_to_idx = {name: idx for idx, name in enumerate(columns)}
+
+    def _get(name: str, default: float = 0.0) -> np.ndarray:
+        idx = col_to_idx.get(name)
+        if idx is None:
+            return np.full(T, default, dtype=np.float32)
+        return feat_arr[:, idx].astype(np.float32, copy=False)
+
+    rv_fast = _get(fast_vol_col)
+    rv_slow = _get(slow_vol_col)
+    shock = np.abs(_get(shock_col))
+    drift = -_get(drift_col)
+    macd_gap = _get(macd_signal_col) - _get(macd_col)
+    funding_neg = -_get(funding_col)
+
+    stress_core = (
+        float(fast_vol_weight) * np.maximum(0.0, rv_fast - float(fast_vol_threshold))
+        + float(slow_vol_weight) * np.maximum(0.0, rv_slow - float(slow_vol_threshold))
+        + float(shock_weight) * np.maximum(0.0, shock - float(shock_threshold))
+    )
+    direction_boost = (
+        float(drift_weight) * np.maximum(0.0, drift - float(drift_threshold))
+        + float(trend_weight) * np.maximum(0.0, macd_gap - float(trend_threshold))
+        + float(funding_weight) * np.maximum(0.0, funding_neg - float(funding_threshold))
+    )
+    signal = np.clip(stress_core + direction_boost, 0.0, None).astype(np.float32)
+    gated = np.maximum(0.0, signal - float(entry_threshold))
+    strength = 1.0 - np.exp(-gated / max(float(signal_scale), 1e-6))
+    benchmark_position = float(benchmark_position)
+    min_position = float(min_position)
+    max_position = float(max_position)
+    target = benchmark_position - (benchmark_position - min_position) * strength
+    target = np.clip(target, min_position, max_position).astype(np.float32)
+    return target, signal
+
+
 def oracle_to_dataset(
     returns: np.ndarray | pd.Series,
     features: np.ndarray,
