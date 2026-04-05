@@ -945,6 +945,8 @@ def run_fold(
     actor.infer_event_trade_prob = ac_cfg.get("infer_event_trade_prob", 0.0)
     actor.infer_event_target_overlay = ac_cfg.get("infer_event_target_overlay")
     actor.infer_event_min_hold_bars = ac_cfg.get("infer_event_min_hold_bars", 0.0)
+    actor.infer_target_from_logits = ac_cfg.get("infer_target_from_logits", False)
+    actor.infer_logits_target_blend = ac_cfg.get("infer_logits_target_blend", 1.0)
     actor.infer_direct_target_track = ac_cfg.get("infer_direct_target_track", False)
     actor.infer_direct_track_scale = ac_cfg.get("infer_direct_track_scale", 1.0)
     actor.infer_underweight_adjust_scale = ac_cfg.get("infer_underweight_adjust_scale", 1.0)

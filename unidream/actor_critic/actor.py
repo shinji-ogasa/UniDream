@@ -512,6 +512,11 @@ class Actor(nn.Module):
         baseline_target_idx = int(getattr(self, "baseline_target_index", self.act_dim - 1))
         selected_target_idx = target_probs.argmax(dim=-1)
         baseline_target_prob = target_probs[..., baseline_target_idx]
+        if bool(getattr(self, "infer_target_from_logits", False)):
+            target_overlays = self._target_overlay_values_tensor(target_logits.device, target_logits.dtype)
+            modal_target = target_overlays[selected_target_idx]
+            blend = float(getattr(self, "infer_logits_target_blend", 1.0))
+            target_inventory = (1.0 - blend) * target_inventory + blend * modal_target
         bootstrap_prob = float(getattr(self, "infer_bootstrap_target_prob", 0.0))
         bootstrap_std = float(getattr(self, "infer_bootstrap_target_std", 0.0))
         bootstrap_trade_signal = float(getattr(self, "infer_bootstrap_trade_signal", 0.0))
