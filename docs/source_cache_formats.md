@@ -327,6 +327,22 @@ To get concrete fetch/import command hints for that next blocked stage:
   -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
 ```
 
+To print the full rollout diagnosis in one step:
+
+```powershell
+.\scripts\diagnose_source_rollout.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
+If PowerShell script execution is blocked, call wrappers as:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\diagnose_source_rollout.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 That script:
 
 1. Builds raw source cache
