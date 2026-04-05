@@ -11,6 +11,7 @@ import yaml
 from build_coinmetrics_source_cache import _apply_transform as apply_coinmetrics_transform
 from check_config_source_requirements import collect_missing_requirements
 from source_rollout_plan import dedupe_missing_targets, fetch_command_hint, parse_cache_tag
+from validate_source_rollout_suite import validate_suite
 
 
 class SourceRolloutHelperTests(unittest.TestCase):
@@ -79,6 +80,43 @@ class SourceRolloutHelperTests(unittest.TestCase):
         cmd = fetch_command_hint("checkpoints\\x", "TAG", "TAG_series_exchange_netflow.parquet")
         self.assertIn("build_glassnode_source_cache.py", cmd)
         self.assertIn("--pit", cmd)
+
+    def test_validate_suite_accepts_consistent_layout(self) -> None:
+        cfg_dir = self._test_root / "configs"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("a.yaml", "b.yaml"):
+            (cfg_dir / name).write_text("{}", encoding="utf-8")
+
+        suite_path = cfg_dir / "suite.yaml"
+        suite = {
+            "ordered_configs": [
+                "configs\\a.yaml",
+                "configs\\b.yaml",
+            ],
+            "stages": [
+                {"name": "stage1", "configs": ["configs\\a.yaml"]},
+                {"name": "stage2", "configs": ["configs\\b.yaml"]},
+            ],
+        }
+        suite_path.write_text(yaml.safe_dump(suite), encoding="utf-8")
+        self.assertEqual(validate_suite(str(suite_path)), [])
+
+    def test_validate_suite_rejects_stage_mismatch(self) -> None:
+        cfg_dir = self._test_root / "configs"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        (cfg_dir / "a.yaml").write_text("{}", encoding="utf-8")
+
+        suite_path = cfg_dir / "suite.yaml"
+        suite = {
+            "ordered_configs": ["configs\\a.yaml"],
+            "stages": [
+                {"name": "stage1", "configs": ["configs\\missing.yaml"]},
+            ],
+        }
+        suite_path.write_text(yaml.safe_dump(suite), encoding="utf-8")
+        errors = validate_suite(str(suite_path))
+        self.assertIn("ordered config missing from stages: configs\\a.yaml", errors)
+        self.assertIn("stage config missing from ordered_configs: configs\\missing.yaml", errors)
 
 
 if __name__ == "__main__":
