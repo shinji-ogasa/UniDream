@@ -170,6 +170,13 @@ Use:
 ```
 
 This is the shortest path when you have multiple market and external-source files.
+To validate a manifest without fetching or writing files:
+
+```powershell
+.\.venv\Scripts\python.exe build_source_cache_from_manifest.py `
+  --manifest configs\source_manifest_remote_example.yaml `
+  --dry-run
+```
 
 The same manifest builder also supports remote provider sections:
 

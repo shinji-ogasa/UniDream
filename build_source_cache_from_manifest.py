@@ -61,6 +61,7 @@ def _parse_series_specs(raw_specs) -> list[tuple[str, str, str | None]]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build source cache from a YAML manifest")
     parser.add_argument("--manifest", required=True)
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     with open(args.manifest, "r", encoding="utf-8") as f:
@@ -72,6 +73,69 @@ def main() -> None:
         raise ValueError("Manifest must define cache_dir and cache_tag")
 
     os.makedirs(cache_dir, exist_ok=True)
+    plan: list[str] = []
+
+    if manifest.get("spot_file"):
+        plan.append(f"import local spot_file -> {manifest['spot_file']}")
+    if manifest.get("mark_file"):
+        plan.append(f"import local mark_file -> {manifest['mark_file']}")
+    if manifest.get("funding_file"):
+        plan.append(f"import local funding_file -> {manifest['funding_file']}")
+    if manifest.get("oi_file"):
+        plan.append(f"import local oi_file -> {manifest['oi_file']}")
+    for name, path, column in _parse_series_specs(manifest.get("extra_series")):
+        suffix = f":{column}" if column else ""
+        plan.append(f"import local extra_series {name} -> {path}{suffix}")
+
+    binance_cfg = manifest.get("binance") or {}
+    if binance_cfg:
+        for key in ["symbol", "interval", "start", "end"]:
+            if key not in binance_cfg:
+                raise ValueError(f"binance section is missing '{key}'")
+        plan.append(
+            f"fetch binance spot/basis inputs -> symbol={binance_cfg['symbol']} interval={binance_cfg['interval']} "
+            f"start={binance_cfg['start']} end={binance_cfg['end']}"
+        )
+        if binance_cfg.get("mark", False):
+            plan.append("  include mark price")
+        if binance_cfg.get("funding", False):
+            plan.append("  include funding")
+        if binance_cfg.get("oi", False):
+            plan.append("  include open interest")
+        if binance_cfg.get("taker_flow", False):
+            plan.append("  include taker buy/sell flow")
+
+    coinmetrics_cfg = manifest.get("coinmetrics") or {}
+    if coinmetrics_cfg:
+        for key in ["asset", "start", "end"]:
+            if key not in coinmetrics_cfg:
+                raise ValueError(f"coinmetrics section is missing '{key}'")
+        metrics = coinmetrics_cfg.get("metrics") or {}
+        if not metrics:
+            raise ValueError("coinmetrics section must define metrics")
+        plan.append(
+            f"fetch coinmetrics metrics -> asset={coinmetrics_cfg['asset']} "
+            f"freq={coinmetrics_cfg.get('frequency', '1h')} metrics={list(metrics.keys())}"
+        )
+
+    glassnode_cfg = manifest.get("glassnode") or {}
+    if glassnode_cfg:
+        for key in ["asset", "api_key"]:
+            if key not in glassnode_cfg:
+                raise ValueError(f"glassnode section is missing '{key}'")
+        metrics = glassnode_cfg.get("metrics") or {}
+        if not metrics:
+            raise ValueError("glassnode section must define metrics")
+        plan.append(
+            f"fetch glassnode metrics -> asset={glassnode_cfg['asset']} "
+            f"interval={glassnode_cfg.get('interval', '1h')} metrics={list(metrics.keys())}"
+        )
+
+    if args.dry_run:
+        print("[MANIFEST] Dry run plan")
+        for item in plan:
+            print(f"  - {item}")
+        return
 
     if manifest.get("spot_file"):
         _write_optional(cache_dir, cache_tag, "ohlcv", _prepare_spot_ohlcv(_load_any(manifest["spot_file"])))
@@ -88,7 +152,6 @@ def main() -> None:
         series_df.to_parquet(out_path)
         print(f"[MANIFEST] Wrote series cache -> {out_path} ({len(series_df)} rows) from {Path(path).name}")
 
-    binance_cfg = manifest.get("binance") or {}
     if binance_cfg:
         symbol = binance_cfg["symbol"]
         interval = binance_cfg["interval"]
@@ -110,7 +173,6 @@ def main() -> None:
                 taker[[col]].to_parquet(out_path)
                 print(f"[MANIFEST] Wrote series cache -> {out_path} ({len(taker)} rows)")
 
-    coinmetrics_cfg = manifest.get("coinmetrics") or {}
     if coinmetrics_cfg:
         asset = coinmetrics_cfg["asset"]
         start = coinmetrics_cfg["start"]
@@ -130,7 +192,6 @@ def main() -> None:
             df.to_parquet(out_path)
             print(f"[MANIFEST] Wrote series cache -> {out_path} ({len(df)} rows) metric={metric}")
 
-    glassnode_cfg = manifest.get("glassnode") or {}
     if glassnode_cfg:
         asset = glassnode_cfg["asset"]
         start = glassnode_cfg.get("start")
