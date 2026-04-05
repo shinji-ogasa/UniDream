@@ -311,6 +311,14 @@ To see which stages are unlocked by the current cache:
   -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
 ```
 
+To get the next raw sources to fetch in rollout order:
+
+```powershell
+.\scripts\recommend_next_source_step.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 That script:
 
 1. Builds raw source cache
