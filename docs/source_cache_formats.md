@@ -249,6 +249,13 @@ Or, if you are importing from a manifest and want the external-series probe in o
   -RiskConfig configs\smoke_risk_controller_v8_orderflow_ctx.yaml
 ```
 
+To build from a manifest and then compare source families in one step:
+
+```powershell
+.\scripts\run_manifest_source_family_suite.ps1 `
+  -Manifest configs\source_manifest_remote_example.yaml
+```
+
 To compare source families side by side after caches exist:
 
 ```powershell
