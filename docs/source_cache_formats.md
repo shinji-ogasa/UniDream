@@ -171,6 +171,17 @@ Use:
 
 This is the shortest path when you have multiple market and external-source files.
 
+The same manifest builder also supports remote provider sections:
+
+- `binance`
+- `coinmetrics`
+- `glassnode`
+
+See:
+
+- [source_manifest_example.yaml](/C:/Users/Sophie/Documents/UniDream/UniDream/configs/source_manifest_example.yaml)
+- [source_manifest_remote_example.yaml](/C:/Users/Sophie/Documents/UniDream/UniDream/configs/source_manifest_remote_example.yaml)
+
 ### Download from Binance
 
 Use:

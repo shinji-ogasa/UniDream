@@ -1,0 +1,29 @@
+cache_dir: "checkpoints/basis_source_cache"
+cache_tag: "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2"
+
+binance:
+  symbol: "BTCUSDT"
+  interval: "15m"
+  start: "2021-01-01"
+  end: "2023-06-01"
+  mark: true
+  funding: true
+  oi: true
+  taker_flow: true
+
+coinmetrics:
+  asset: "btc"
+  start: "2021-01-01"
+  end: "2023-06-01"
+  frequency: "1h"
+  metrics:
+    active_address_growth: "AdrActCnt"
+
+glassnode:
+  asset: "BTC"
+  start: "2021-01-01"
+  end: "2023-06-01"
+  interval: "1h"
+  api_key: "<glassnode_api_key>"
+  metrics:
+    exchange_netflow: "transactions/transfers_volume_exchanges_net"
