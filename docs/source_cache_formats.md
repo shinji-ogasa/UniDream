@@ -100,6 +100,15 @@ Accepted alternatives:
 Index or time column:
 
 - Datetime index, or one of `time`, `timestamp`
+- `t` is also accepted for Glassnode-style exports (unix seconds or milliseconds)
+
+Value column detection:
+
+- explicit `name=path:column`
+- otherwise a numeric column named `<name>`
+- otherwise `v`
+- otherwise `value`
+- otherwise the single numeric column in the file
 
 ### Generic External Series
 

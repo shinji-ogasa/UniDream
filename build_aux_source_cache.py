@@ -8,8 +8,11 @@ import pandas as pd
 
 
 def _load_any(path: str) -> pd.DataFrame:
-    if path.lower().endswith(".parquet"):
+    lower = path.lower()
+    if lower.endswith(".parquet"):
         df = pd.read_parquet(path)
+    elif lower.endswith(".json"):
+        df = pd.read_json(path)
     else:
         df = pd.read_csv(path)
     if isinstance(df, pd.Series):
@@ -18,14 +21,22 @@ def _load_any(path: str) -> pd.DataFrame:
 
 
 def _normalize_time_index(df: pd.DataFrame) -> pd.DataFrame:
-    time_candidates = ["time", "open_time", "timestamp", "fundingTime"]
+    time_candidates = ["time", "open_time", "timestamp", "fundingTime", "t"]
     if isinstance(df.index, pd.DatetimeIndex):
         out = df.copy()
     else:
         for col in time_candidates:
             if col in df.columns:
                 out = df.copy()
-                out[col] = pd.to_datetime(out[col], utc=False)
+                if pd.api.types.is_numeric_dtype(out[col]):
+                    non_na = out[col].dropna()
+                    if len(non_na) == 0:
+                        raise ValueError(f"Time column '{col}' is empty")
+                    sample = float(non_na.iloc[0])
+                    unit = "ms" if abs(sample) >= 1.0e12 else "s"
+                    out[col] = pd.to_datetime(out[col], unit=unit, utc=False)
+                else:
+                    out[col] = pd.to_datetime(out[col], utc=False)
                 out = out.set_index(col)
                 break
         else:
@@ -73,12 +84,18 @@ def _prepare_generic_series(df: pd.DataFrame, name: str, value_col: str | None =
     if value_col and value_col in df.columns:
         col = value_col
     else:
-        numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-        if len(numeric_cols) != 1:
-            raise ValueError(
-                f"Series '{name}' must have exactly one numeric column when value_col is omitted, got {numeric_cols}"
-            )
-        col = numeric_cols[0]
+        preferred = [name, "v", "value"]
+        for candidate in preferred:
+            if candidate in df.columns and pd.api.types.is_numeric_dtype(df[candidate]):
+                col = candidate
+                break
+        else:
+            numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+            if len(numeric_cols) != 1:
+                raise ValueError(
+                    f"Series '{name}' must have exactly one numeric column when value_col is omitted, got {numeric_cols}"
+                )
+            col = numeric_cols[0]
     return df[[col]].rename(columns={col: name}).astype(float)
 
 
