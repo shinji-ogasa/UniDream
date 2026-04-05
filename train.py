@@ -32,7 +32,10 @@ from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetc
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.oracle import (
     _forward_window_stats,
+    feature_dual_teacher,
+    feature_linear_teacher,
     feature_stress_teacher,
+    fit_linear_future_signal,
     hindsight_oracle_dp,
     hindsight_signal_teacher,
     oracle_to_dataset,
@@ -652,6 +655,121 @@ def run_fold(
             f"floor={oracle_cfg.get('stress_floor_position', abs_min):+.2f} "
             f"entry={oracle_cfg.get('stress_entry_threshold', 0.15):.2f} "
             f"scale={oracle_cfg.get('stress_signal_scale', 1.0):.2f}"
+        )
+    elif oracle_teacher_mode == "feature_dual":
+        abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
+        abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
+        teacher_columns = tuple(getattr(wfo_dataset, "feature_columns", []))
+        oracle_positions, oracle_signal = feature_dual_teacher(
+            wfo_dataset.train_features,
+            feature_columns=teacher_columns,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("dual_floor_position", abs_min),
+            max_position=oracle_cfg.get("dual_ceiling_position", abs_max),
+            fast_vol_col=oracle_cfg.get("dual_fast_vol_col", "rv_16"),
+            slow_vol_col=oracle_cfg.get("dual_slow_vol_col", "rv_96"),
+            shock_col=oracle_cfg.get("dual_shock_col", "atr_norm_ret"),
+            drift_col=oracle_cfg.get("dual_drift_col", "open_ret"),
+            rsi_col=oracle_cfg.get("dual_rsi_col", "RSI_14"),
+            macd_col=oracle_cfg.get("dual_macd_col", "macd"),
+            macd_signal_col=oracle_cfg.get("dual_macd_signal_col", "macd_signal"),
+            funding_col=oracle_cfg.get("dual_funding_col", "funding_rate"),
+            short_fast_vol_threshold=oracle_cfg.get("dual_short_fast_vol_threshold", 0.8),
+            short_slow_vol_threshold=oracle_cfg.get("dual_short_slow_vol_threshold", 0.8),
+            short_shock_threshold=oracle_cfg.get("dual_short_shock_threshold", 0.8),
+            short_drift_threshold=oracle_cfg.get("dual_short_drift_threshold", 0.2),
+            short_trend_threshold=oracle_cfg.get("dual_short_trend_threshold", 0.1),
+            long_slow_vol_threshold=oracle_cfg.get("dual_long_slow_vol_threshold", -0.6),
+            long_rsi_threshold=oracle_cfg.get("dual_long_rsi_threshold", 0.8),
+            long_macd_threshold=oracle_cfg.get("dual_long_macd_threshold", 0.8),
+            long_drift_threshold=oracle_cfg.get("dual_long_drift_threshold", 0.8),
+            long_funding_threshold=oracle_cfg.get("dual_long_funding_threshold", 0.5),
+            short_scale=oracle_cfg.get("dual_short_scale", 0.75),
+            long_scale=oracle_cfg.get("dual_long_scale", 0.75),
+            short_entry_threshold=oracle_cfg.get("dual_short_entry_threshold", 0.25),
+            long_entry_threshold=oracle_cfg.get("dual_long_entry_threshold", 0.20),
+        )
+        val_oracle_positions, val_oracle_signal = feature_dual_teacher(
+            wfo_dataset.val_features,
+            feature_columns=teacher_columns,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("dual_floor_position", abs_min),
+            max_position=oracle_cfg.get("dual_ceiling_position", abs_max),
+            fast_vol_col=oracle_cfg.get("dual_fast_vol_col", "rv_16"),
+            slow_vol_col=oracle_cfg.get("dual_slow_vol_col", "rv_96"),
+            shock_col=oracle_cfg.get("dual_shock_col", "atr_norm_ret"),
+            drift_col=oracle_cfg.get("dual_drift_col", "open_ret"),
+            rsi_col=oracle_cfg.get("dual_rsi_col", "RSI_14"),
+            macd_col=oracle_cfg.get("dual_macd_col", "macd"),
+            macd_signal_col=oracle_cfg.get("dual_macd_signal_col", "macd_signal"),
+            funding_col=oracle_cfg.get("dual_funding_col", "funding_rate"),
+            short_fast_vol_threshold=oracle_cfg.get("dual_short_fast_vol_threshold", 0.8),
+            short_slow_vol_threshold=oracle_cfg.get("dual_short_slow_vol_threshold", 0.8),
+            short_shock_threshold=oracle_cfg.get("dual_short_shock_threshold", 0.8),
+            short_drift_threshold=oracle_cfg.get("dual_short_drift_threshold", 0.2),
+            short_trend_threshold=oracle_cfg.get("dual_short_trend_threshold", 0.1),
+            long_slow_vol_threshold=oracle_cfg.get("dual_long_slow_vol_threshold", -0.6),
+            long_rsi_threshold=oracle_cfg.get("dual_long_rsi_threshold", 0.8),
+            long_macd_threshold=oracle_cfg.get("dual_long_macd_threshold", 0.8),
+            long_drift_threshold=oracle_cfg.get("dual_long_drift_threshold", 0.8),
+            long_funding_threshold=oracle_cfg.get("dual_long_funding_threshold", 0.5),
+            short_scale=oracle_cfg.get("dual_short_scale", 0.75),
+            long_scale=oracle_cfg.get("dual_long_scale", 0.75),
+            short_entry_threshold=oracle_cfg.get("dual_short_entry_threshold", 0.25),
+            long_entry_threshold=oracle_cfg.get("dual_long_entry_threshold", 0.20),
+        )
+        oracle_values = oracle_signal.astype(np.float32)
+        print(
+            "  Feature dual teacher: "
+            f"range=[{oracle_cfg.get('dual_floor_position', abs_min):+.2f},"
+            f"{oracle_cfg.get('dual_ceiling_position', abs_max):+.2f}] "
+            f"entries(short={oracle_cfg.get('dual_short_entry_threshold', 0.25):.2f},"
+            f" long={oracle_cfg.get('dual_long_entry_threshold', 0.20):.2f})"
+        )
+    elif oracle_teacher_mode == "feature_ridge":
+        abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
+        abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
+        ridge_horizons = tuple(oracle_cfg.get("ridge_horizons", [4, 16, 64]))
+        ridge_weights = tuple(oracle_cfg.get("ridge_horizon_weights", [0.2, 0.3, 0.5]))
+        signal_model = fit_linear_future_signal(
+            wfo_dataset.train_features,
+            train_returns,
+            horizons=ridge_horizons,
+            horizon_weights=ridge_weights,
+            ridge_alpha=oracle_cfg.get("ridge_alpha", 1.0),
+            feature_clip=oracle_cfg.get("ridge_feature_clip", 5.0),
+            signal_clip=oracle_cfg.get("ridge_signal_clip", 4.0),
+        )
+        oracle_positions, oracle_signal = feature_linear_teacher(
+            wfo_dataset.train_features,
+            signal_model,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("ridge_floor_position", abs_min),
+            max_position=oracle_cfg.get("ridge_ceiling_position", abs_max),
+            pos_deadzone=oracle_cfg.get("ridge_pos_deadzone", 0.10),
+            neg_deadzone=oracle_cfg.get("ridge_neg_deadzone", 0.10),
+            pos_scale=oracle_cfg.get("ridge_pos_scale", 1.0),
+            neg_scale=oracle_cfg.get("ridge_neg_scale", 1.0),
+            feature_clip=oracle_cfg.get("ridge_feature_clip", 5.0),
+        )
+        val_oracle_positions, val_oracle_signal = feature_linear_teacher(
+            wfo_dataset.val_features,
+            signal_model,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("ridge_floor_position", abs_min),
+            max_position=oracle_cfg.get("ridge_ceiling_position", abs_max),
+            pos_deadzone=oracle_cfg.get("ridge_pos_deadzone", 0.10),
+            neg_deadzone=oracle_cfg.get("ridge_neg_deadzone", 0.10),
+            pos_scale=oracle_cfg.get("ridge_pos_scale", 1.0),
+            neg_scale=oracle_cfg.get("ridge_neg_scale", 1.0),
+            feature_clip=oracle_cfg.get("ridge_feature_clip", 5.0),
+        )
+        oracle_values = oracle_signal.astype(np.float32)
+        print(
+            "  Feature ridge teacher: "
+            f"range=[{oracle_cfg.get('ridge_floor_position', abs_min):+.2f},"
+            f"{oracle_cfg.get('ridge_ceiling_position', abs_max):+.2f}] "
+            f"ridge={oracle_cfg.get('ridge_alpha', 1.0):.2f}"
         )
     if oracle_cfg.get("use_aim_targets", False):
         abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
