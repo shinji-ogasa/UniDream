@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from check_config_source_requirements import collect_missing_requirements
+
 
 def dedupe_missing_targets(missing: list[str]) -> list[str]:
     out: list[str] = []
@@ -54,3 +58,45 @@ def fetch_command_hint(cache_dir: str, cache_tag: str, target: str) -> str:
             "--extra-series stablecoin_inflow=path/to/stablecoin_inflow.csv:stablecoin_inflow"
         )
     return f"# No built-in fetch hint for {target}"
+
+
+def build_rollout_snapshot(cache_dir: str, cache_tag: str, config_paths: list[str]) -> dict:
+    unlocked: list[str] = []
+    blocked: list[dict] = []
+
+    for config_path in config_paths:
+        missing = collect_missing_requirements(cache_dir, cache_tag, config_path)
+        config_name = Path(config_path).name
+        if missing:
+            blocked.append(
+                {
+                    "config": config_name,
+                    "path": config_path,
+                    "missing": missing,
+                    "missing_targets": dedupe_missing_targets(missing),
+                }
+            )
+        else:
+            unlocked.append(config_name)
+
+    next_stage = None
+    if blocked:
+        first = blocked[0]
+        next_stage = {
+            "config": first["config"],
+            "path": first["path"],
+            "missing": first["missing"],
+            "missing_targets": first["missing_targets"],
+            "fetch_hints": {
+                target: fetch_command_hint(cache_dir, cache_tag, target)
+                for target in first["missing_targets"]
+            },
+        }
+
+    return {
+        "cache_dir": cache_dir,
+        "cache_tag": cache_tag,
+        "unlocked": unlocked,
+        "blocked": blocked,
+        "next_stage": next_stage,
+    }

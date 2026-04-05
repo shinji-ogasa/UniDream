@@ -3,6 +3,7 @@ param(
   [string]$CacheTag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
   [string]$SuiteConfig = "configs\\source_rollout_suite.yaml",
   [string]$Manifest = "configs\\source_manifest_remote_example.yaml",
+  [string]$SnapshotOutput = "checkpoints\\source_rollout_snapshot.json",
   [string]$Python = ".\\.venv\\Scripts\\python.exe"
 )
 
@@ -51,8 +52,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\plan_next_source_rollout.ps1 
   -Python $Python
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "[7/7] Remote manifest dry-run"
+Write-Host "[7/8] Remote manifest dry-run"
 & $Python build_source_cache_from_manifest.py `
   --manifest $Manifest `
   --dry-run
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "[8/8] Write rollout snapshot"
+powershell -ExecutionPolicy Bypass -File .\scripts\write_source_rollout_snapshot.ps1 `
+  -CacheDir $CacheDir `
+  -CacheTag $CacheTag `
+  -SuiteConfig $SuiteConfig `
+  -Output $SnapshotOutput
 exit $LASTEXITCODE

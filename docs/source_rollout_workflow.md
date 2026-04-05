@@ -21,6 +21,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_source_rollout_checks.ps1
   -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
 ```
 
+This writes a JSON snapshot to `checkpoints\source_rollout_snapshot.json` by default.
+
 ### 1. Diagnose current cache
 
 ```powershell

@@ -10,7 +10,12 @@ import yaml
 
 from build_coinmetrics_source_cache import _apply_transform as apply_coinmetrics_transform
 from check_config_source_requirements import collect_missing_requirements
-from source_rollout_plan import dedupe_missing_targets, fetch_command_hint, parse_cache_tag
+from source_rollout_plan import (
+    build_rollout_snapshot,
+    dedupe_missing_targets,
+    fetch_command_hint,
+    parse_cache_tag,
+)
 from validate_source_manifest import validate_manifest
 from validate_source_rollout_suite import validate_suite
 
@@ -175,6 +180,35 @@ class SourceRolloutHelperTests(unittest.TestCase):
         self.assertIn(
             "coinmetrics.metrics.active_address_growth.transform is unsupported: bad_transform",
             errors,
+        )
+
+    def test_build_rollout_snapshot_reports_next_stage(self) -> None:
+        cache_dir = self._test_root
+        cache_tag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2"
+        (cache_dir / f"{cache_tag}_mark.parquet").write_text("", encoding="utf-8")
+        (cache_dir / f"{cache_tag}_funding.parquet").write_text("", encoding="utf-8")
+
+        cfg_a = cache_dir / "a.yaml"
+        cfg_a.write_text(
+            yaml.safe_dump({"risk_controller": {"feature_subset": ["basis", "funding_rate"]}}),
+            encoding="utf-8",
+        )
+        cfg_b = cache_dir / "b.yaml"
+        cfg_b.write_text(
+            yaml.safe_dump({"risk_controller": {"feature_subset": ["signed_order_flow_z_96"]}}),
+            encoding="utf-8",
+        )
+
+        snapshot = build_rollout_snapshot(
+            str(cache_dir),
+            cache_tag,
+            [str(cfg_a), str(cfg_b)],
+        )
+        self.assertEqual(snapshot["unlocked"], ["a.yaml"])
+        self.assertEqual(snapshot["next_stage"]["config"], "b.yaml")
+        self.assertEqual(
+            snapshot["next_stage"]["missing_targets"],
+            [f"{cache_tag}_series_signed_order_flow.parquet"],
         )
 
 
