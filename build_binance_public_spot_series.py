@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import io
 import os
+from pathlib import Path
 import zipfile
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -55,6 +55,31 @@ def _download_month(symbol: str, interval: str, month: pd.Timestamp) -> pd.DataF
     return df
 
 
+def _read_month_from_zip(zip_path: str) -> pd.DataFrame:
+    with zipfile.ZipFile(zip_path) as zf:
+        inner = zf.namelist()[0]
+        with zf.open(inner) as fh:
+            df = pd.read_csv(
+                fh,
+                header=None,
+                names=[
+                    "open_time",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                    "close_time",
+                    "quote_volume",
+                    "n_trades",
+                    "taker_buy_base",
+                    "taker_buy_quote",
+                    "ignore",
+                ],
+            )
+    return df
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build free order-flow proxy series from Binance public spot klines")
     parser.add_argument("--cache-dir", required=True)
@@ -64,6 +89,7 @@ def main() -> None:
     parser.add_argument("--start", required=True, help="YYYY-MM-DD")
     parser.add_argument("--end", required=True, help="YYYY-MM-DD, exclusive")
     parser.add_argument("--write-buy-sell-ratio", action="store_true")
+    parser.add_argument("--zip-dir", default=None, help="Optional local directory of Binance monthly zip files")
     args = parser.parse_args()
 
     start = pd.Timestamp(args.start, tz="UTC")
@@ -74,8 +100,15 @@ def main() -> None:
     months = _month_starts(start, end)
     for month in months:
         month_str = month.strftime("%Y-%m")
-        print(f"[PUB] Fetching {args.symbol} {args.interval} {month_str}...")
-        parts.append(_download_month(args.symbol, args.interval, month))
+        if args.zip_dir:
+            zip_path = Path(args.zip_dir) / f"{args.symbol}-{args.interval}-{month_str}.zip"
+            if not zip_path.exists():
+                raise FileNotFoundError(f"Missing local zip: {zip_path}")
+            print(f"[PUB] Reading local {zip_path.name}...")
+            parts.append(_read_month_from_zip(str(zip_path)))
+        else:
+            print(f"[PUB] Fetching {args.symbol} {args.interval} {month_str}...")
+            parts.append(_download_month(args.symbol, args.interval, month))
 
     if not parts:
         raise RuntimeError("No monthly public kline files fetched")

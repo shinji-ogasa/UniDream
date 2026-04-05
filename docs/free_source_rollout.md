@@ -20,3 +20,14 @@ This performs:
 4. Write a rollout snapshot into `checkpoints\source_family_suite_free\free_source_rollout_snapshot.json`
 
 If Coin Metrics fetch fails via Python, the fetch path falls back to PowerShell download plus local import.
+
+If remote fetch is blocked but you have local downloads, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\import_free_manual_source_rollout.ps1
+```
+
+Expected local inputs:
+
+- `raw\binance_klines\BTCUSDT-15m-YYYY-MM.zip`
+- `raw\coinmetrics\btc_adractcnt.json`
