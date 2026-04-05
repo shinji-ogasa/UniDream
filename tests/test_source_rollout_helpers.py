@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import shutil
+import unittest
+import uuid
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+from build_coinmetrics_source_cache import _apply_transform as apply_coinmetrics_transform
+from check_config_source_requirements import collect_missing_requirements
+from source_rollout_plan import dedupe_missing_targets, fetch_command_hint, parse_cache_tag
+
+
+class SourceRolloutHelperTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._test_root = Path("checkpoints") / "_test_source_rollout_helpers" / uuid.uuid4().hex
+        self._test_root.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self) -> None:
+        if self._test_root.exists():
+            shutil.rmtree(self._test_root, ignore_errors=True)
+
+    def test_dedupe_missing_targets(self) -> None:
+        missing = [
+            "a -> missing TAG_series_signed_order_flow.parquet",
+            "b -> missing TAG_series_signed_order_flow.parquet",
+            "c -> missing TAG_series_exchange_netflow.parquet",
+        ]
+        self.assertEqual(
+            dedupe_missing_targets(missing),
+            [
+                "TAG_series_signed_order_flow.parquet",
+                "TAG_series_exchange_netflow.parquet",
+            ],
+        )
+
+    def test_parse_cache_tag(self) -> None:
+        self.assertEqual(
+            parse_cache_tag("BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2"),
+            ("BTCUSDT", "15m", "2021-01-01", "2023-06-01"),
+        )
+
+    def test_coinmetrics_logdiff_transform(self) -> None:
+        idx = pd.date_range("2024-01-01", periods=4, freq="D")
+        df = pd.DataFrame({"active_address_growth": [100.0, 110.0, 121.0, 133.1]}, index=idx)
+        out = apply_coinmetrics_transform(df, "active_address_growth", "logdiff")
+        values = out["active_address_growth"].round(6).tolist()
+        self.assertTrue(pd.isna(values[0]))
+        self.assertAlmostEqual(values[1], 0.09531, places=5)
+        self.assertAlmostEqual(values[2], 0.09531, places=5)
+        self.assertAlmostEqual(values[3], 0.09531, places=5)
+
+    def test_collect_missing_requirements(self) -> None:
+        cache_dir = self._test_root
+        cache_tag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2"
+        (cache_dir / f"{cache_tag}_mark.parquet").write_text("", encoding="utf-8")
+        (cache_dir / f"{cache_tag}_funding.parquet").write_text("", encoding="utf-8")
+
+        config_path = cache_dir / "cfg.yaml"
+        cfg = {
+            "risk_controller": {
+                "feature_subset": [
+                    "basis",
+                    "funding_rate",
+                    "signed_order_flow_z_96",
+                ]
+            }
+        }
+        config_path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+        missing = collect_missing_requirements(str(cache_dir), cache_tag, str(config_path))
+        self.assertEqual(
+            missing,
+            [f"signed_order_flow_z_96 -> missing {cache_tag}_series_signed_order_flow.parquet"],
+        )
+
+    def test_fetch_command_hint(self) -> None:
+        cmd = fetch_command_hint("checkpoints\\x", "TAG", "TAG_series_exchange_netflow.parquet")
+        self.assertIn("build_glassnode_source_cache.py", cmd)
+        self.assertIn("--pit", cmd)
+
+
+if __name__ == "__main__":
+    unittest.main()
