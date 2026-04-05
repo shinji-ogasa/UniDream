@@ -502,8 +502,9 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         """greedy execution に対応する executed inventory を返す."""
         del temperature
+        inventory_state = self._ensure_controller_state(inventory, z)
         trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs_full(
-            z, h, inventory=inventory, regime=regime, advantage=advantage
+            z, h, inventory=inventory_state, regime=regime, advantage=advantage
         )
         trade_prob = torch.sigmoid(trade_logits)
         target_inventory = target_mean
@@ -585,6 +586,42 @@ class Actor(nn.Module):
                 (target_inventory != 0.0) & (signal_z < active_zscore_min),
                 torch.zeros_like(target_inventory),
                 target_inventory,
+            )
+        event_entry_gap = float(getattr(self, "infer_event_entry_gap", 0.0))
+        event_exit_gap = float(getattr(self, "infer_event_exit_gap", 0.0))
+        event_trade_prob = float(getattr(self, "infer_event_trade_prob", 0.0))
+        event_target_overlay = getattr(self, "infer_event_target_overlay", None)
+        event_min_hold_bars = float(getattr(self, "infer_event_min_hold_bars", 0.0))
+        if event_entry_gap > 0.0 or event_exit_gap > 0.0:
+            hold_feature = (
+                inventory_state[..., 2]
+                if self.inventory_dim >= 3 and inventory_state.shape[-1] >= 3
+                else torch.zeros_like(current_inventory)
+            )
+            min_hold_progress = event_min_hold_bars / max(self._state_hold_scale(), 1.0)
+            hold_ready = hold_feature >= min_hold_progress
+            in_hedge = current_inventory < -self._trade_state_eps()
+            entry_signal = target_inventory <= -event_entry_gap
+            if event_trade_prob > 0.0:
+                entry_signal = entry_signal & (trade_prob >= event_trade_prob)
+            fixed_overlay = (
+                torch.full_like(target_inventory, float(event_target_overlay))
+                if event_target_overlay is not None
+                else target_inventory
+            )
+            stay_hedged = (~hold_ready) | (target_inventory <= -event_exit_gap)
+            target_inventory = torch.where(
+                in_hedge,
+                torch.where(
+                    stay_hedged,
+                    torch.minimum(current_inventory, fixed_overlay),
+                    torch.zeros_like(target_inventory),
+                ),
+                torch.where(
+                    entry_signal,
+                    torch.minimum(fixed_overlay, torch.zeros_like(target_inventory)),
+                    torch.zeros_like(target_inventory),
+                ),
             )
         underweight_adjust_scale = float(getattr(self, "infer_underweight_adjust_scale", 1.0))
         if underweight_adjust_scale < 1.0:
