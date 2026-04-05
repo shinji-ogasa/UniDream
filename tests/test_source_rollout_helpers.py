@@ -11,6 +11,7 @@ import yaml
 from build_coinmetrics_source_cache import _apply_transform as apply_coinmetrics_transform
 from check_config_source_requirements import collect_missing_requirements
 from source_rollout_plan import dedupe_missing_targets, fetch_command_hint, parse_cache_tag
+from validate_source_manifest import validate_manifest
 from validate_source_rollout_suite import validate_suite
 
 
@@ -117,6 +118,64 @@ class SourceRolloutHelperTests(unittest.TestCase):
         errors = validate_suite(str(suite_path))
         self.assertIn("ordered config missing from stages: configs\\a.yaml", errors)
         self.assertIn("stage config missing from ordered_configs: configs\\missing.yaml", errors)
+
+    def test_validate_manifest_accepts_remote_example_shape(self) -> None:
+        manifest_path = self._test_root / "manifest.yaml"
+        manifest = {
+            "cache_dir": "checkpoints/basis_source_cache",
+            "cache_tag": "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
+            "binance": {
+                "symbol": "BTCUSDT",
+                "interval": "15m",
+                "start": "2021-01-01",
+                "end": "2023-06-01",
+                "taker_flow": True,
+            },
+            "coinmetrics": {
+                "asset": "btc",
+                "start": "2021-01-01",
+                "end": "2023-06-01",
+                "metrics": {
+                    "active_address_growth": {
+                        "metric": "AdrActCnt",
+                        "transform": "logdiff",
+                    }
+                },
+            },
+            "glassnode": {
+                "asset": "BTC",
+                "api_key": "<glassnode_api_key>",
+                "metrics": {
+                    "exchange_netflow": "transactions/transfers_volume_exchanges_net",
+                },
+            },
+        }
+        manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+        self.assertEqual(validate_manifest(str(manifest_path)), [])
+
+    def test_validate_manifest_rejects_bad_transform(self) -> None:
+        manifest_path = self._test_root / "bad_manifest.yaml"
+        manifest = {
+            "cache_dir": "checkpoints/basis_source_cache",
+            "cache_tag": "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
+            "coinmetrics": {
+                "asset": "btc",
+                "start": "2021-01-01",
+                "end": "2023-06-01",
+                "metrics": {
+                    "active_address_growth": {
+                        "metric": "AdrActCnt",
+                        "transform": "bad_transform",
+                    }
+                },
+            },
+        }
+        manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+        errors = validate_manifest(str(manifest_path))
+        self.assertIn(
+            "coinmetrics.metrics.active_address_growth.transform is unsupported: bad_transform",
+            errors,
+        )
 
 
 if __name__ == "__main__":
