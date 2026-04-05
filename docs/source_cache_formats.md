@@ -160,6 +160,17 @@ Use:
   --extra-series exchange_netflow=path\to\netflow.csv:netflow
 ```
 
+### Build from a Manifest
+
+Use:
+
+```powershell
+.\.venv\Scripts\python.exe build_source_cache_from_manifest.py `
+  --manifest configs\source_manifest_example.yaml
+```
+
+This is the shortest path when you have multiple market and external-source files.
+
 ### Download from Binance
 
 Use:
@@ -180,6 +191,14 @@ After caches exist, run:
 
 ```powershell
 .\scripts\run_basis_source_probe.ps1
+```
+
+Or, if you are importing from a manifest and want the external-series probe in one step:
+
+```powershell
+.\scripts\run_manifest_external_probes.ps1 `
+  -Manifest configs\source_manifest_example.yaml `
+  -RiskConfig configs\smoke_risk_controller_v8_orderflow_ctx.yaml
 ```
 
 That script:
