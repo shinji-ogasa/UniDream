@@ -733,6 +733,7 @@ def run_fold(
         ac_cfg.get("abs_min_position", -1.0) - reward_cfg.get("benchmark_position", 1.0),
     )
     actor.residual_max_overlay = ac_cfg.get("residual_max_overlay", 0.0)
+    actor.regime_overlay_caps = ac_cfg.get("regime_overlay_caps")
     actor.infer_bootstrap_target_prob = ac_cfg.get("infer_bootstrap_target_prob", 0.0)
     actor.infer_bootstrap_target_std = ac_cfg.get("infer_bootstrap_target_std", 0.0)
     actor.infer_bootstrap_trade_signal = ac_cfg.get("infer_bootstrap_trade_signal", 0.0)

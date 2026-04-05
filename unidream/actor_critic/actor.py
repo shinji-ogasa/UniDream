@@ -248,6 +248,12 @@ class Actor(nn.Module):
             else:
                 residual_frac = torch.sigmoid(self.residual_head(hidden).squeeze(-1))
                 target_mean = residual_min + (residual_max - residual_min) * residual_frac
+            regime_caps = getattr(self, "regime_overlay_caps", None)
+            if regime_caps is not None and regime is not None and regime.shape[-1] > 0:
+                cap_tensor = torch.as_tensor(regime_caps, dtype=target_mean.dtype, device=target_mean.device)
+                cap_tensor = cap_tensor[:regime.shape[-1]]
+                dynamic_min = (regime[..., : cap_tensor.shape[0]] * cap_tensor).sum(dim=-1)
+                target_mean = torch.maximum(target_mean, dynamic_min)
             logit_scale = target_std.clamp_min(1e-4).unsqueeze(-1) * max(temperature, 1e-6)
             target_logits = -0.5 * ((target_values.unsqueeze(0) - target_mean.unsqueeze(-1)) / logit_scale) ** 2
         else:
