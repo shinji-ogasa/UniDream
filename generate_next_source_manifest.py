@@ -75,7 +75,15 @@ def main() -> None:
         elif target.endswith("_series_exchange_netflow.parquet"):
             glassnode = manifest.setdefault(
                 "glassnode",
-                {"asset": "BTC", "start": start, "end": end, "interval": "1h", "api_key": "<glassnode_api_key>", "metrics": {}},
+                {
+                    "asset": "BTC",
+                    "start": start,
+                    "end": end,
+                    "interval": "1h",
+                    "pit": True,
+                    "api_key": "<glassnode_api_key>",
+                    "metrics": {},
+                },
             )
             glassnode["metrics"]["exchange_netflow"] = "transactions/transfers_volume_exchanges_net"
         elif target.endswith("_series_active_address_growth.parquet"):

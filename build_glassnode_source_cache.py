@@ -15,8 +15,11 @@ def _fetch_glassnode_metric(
     end: str | None,
     interval: str,
     api_key: str,
+    pit: bool = False,
     base_url: str = "https://api.glassnode.com/v1/metrics",
 ) -> pd.DataFrame:
+    if pit and not metric_path.endswith("_pit"):
+        metric_path = f"{metric_path}_pit"
     params: dict[str, str | int] = {"a": asset, "i": interval, "api_key": api_key}
     if start:
         params["s"] = int(pd.Timestamp(start, tz="UTC").timestamp())
@@ -45,6 +48,7 @@ def main() -> None:
     parser.add_argument("--end", default=None)
     parser.add_argument("--interval", default="10m")
     parser.add_argument("--api-key", required=True)
+    parser.add_argument("--pit", action="store_true", help="Use Point-in-Time variants when available")
     parser.add_argument(
         "--metric",
         action="append",
@@ -65,10 +69,12 @@ def main() -> None:
             end=args.end,
             interval=args.interval,
             api_key=args.api_key,
+            pit=args.pit,
         ).rename(columns={"value": alias})
         out_path = os.path.join(args.cache_dir, f"{args.cache_tag}_series_{alias}.parquet")
         df.to_parquet(out_path)
-        print(f"[GN] Wrote {out_path} ({len(df)} rows) metric={metric_path}")
+        suffix = "_pit" if args.pit and not metric_path.endswith("_pit") else ""
+        print(f"[GN] Wrote {out_path} ({len(df)} rows) metric={metric_path}{suffix}")
 
 
 if __name__ == "__main__":

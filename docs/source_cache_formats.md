@@ -235,6 +235,7 @@ Use:
   --asset BTC `
   --start 2021-01-01 `
   --end 2023-06-01 `
+  --pit `
   --interval 1h `
   --api-key <glassnode_key> `
   --metric exchange_netflow=transactions/transfers_volume_exchanges_net

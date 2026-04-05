@@ -24,6 +24,7 @@ glassnode:
   start: "2021-01-01"
   end: "2023-06-01"
   interval: "1h"
+  pit: true
   api_key: "<glassnode_api_key>"
   metrics:
     exchange_netflow: "transactions/transfers_volume_exchanges_net"

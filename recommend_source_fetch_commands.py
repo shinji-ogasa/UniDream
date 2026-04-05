@@ -34,7 +34,7 @@ def _command_hint(cache_dir: str, cache_tag: str, target: str) -> str:
         return (
             ".\\.venv\\Scripts\\python.exe build_glassnode_source_cache.py "
             f"--cache-dir {cache_dir} --cache-tag {cache_tag} "
-            "--asset BTC --start 2021-01-01 --end 2023-06-01 "
+            "--asset BTC --start 2021-01-01 --end 2023-06-01 --pit "
             "--interval 1h --api-key <glassnode_key> "
             "--metric exchange_netflow=transactions/transfers_volume_exchanges_net"
         )

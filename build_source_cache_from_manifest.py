@@ -198,6 +198,7 @@ def main() -> None:
         end = glassnode_cfg.get("end")
         interval = glassnode_cfg.get("interval", "1h")
         api_key = glassnode_cfg["api_key"]
+        pit = bool(glassnode_cfg.get("pit", False))
         for alias, metric_path in (glassnode_cfg.get("metrics") or {}).items():
             df = _fetch_glassnode_metric(
                 asset=asset,
@@ -206,6 +207,7 @@ def main() -> None:
                 end=end,
                 interval=interval,
                 api_key=api_key,
+                pit=pit,
             ).rename(columns={"value": alias})
             out_path = os.path.join(cache_dir, f"{cache_tag}_series_{alias}.parquet")
             df.to_parquet(out_path)
