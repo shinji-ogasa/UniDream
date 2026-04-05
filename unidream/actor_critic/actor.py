@@ -441,11 +441,72 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         """greedy execution に対応する executed inventory を返す."""
         del temperature
-        trade_logits, target_mean, _target_std, band_width, current_inventory = self.controller_outputs(
+        trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs_full(
             z, h, inventory=inventory, regime=regime
         )
         trade_prob = torch.sigmoid(trade_logits)
         target_inventory = target_mean
+        target_probs = F.softmax(target_logits, dim=-1)
+        baseline_target_idx = int(getattr(self, "baseline_target_index", self.act_dim - 1))
+        selected_target_idx = target_probs.argmax(dim=-1)
+        baseline_target_prob = target_probs[..., baseline_target_idx]
+        bootstrap_prob = float(getattr(self, "infer_bootstrap_target_prob", 0.0))
+        bootstrap_std = float(getattr(self, "infer_bootstrap_target_std", 0.0))
+        bootstrap_trade_signal = float(getattr(self, "infer_bootstrap_trade_signal", 0.0))
+        baseline_margin = float(getattr(self, "infer_bootstrap_baseline_margin", 0.0))
+        support_min_count = float(getattr(self, "infer_support_min_count", 0.0))
+        support_min_ratio = float(getattr(self, "infer_support_min_ratio", 0.0))
+        current_abs_position = self._overlay_to_position(current_inventory)
+        current_target_idx = self.target_indices(current_abs_position)
+        support_bootstrap = torch.zeros_like(target_inventory, dtype=torch.bool)
+        support_counts = getattr(self, "support_transition_counts", None)
+        if support_counts is not None and (support_min_count > 0.0 or support_min_ratio > 0.0):
+            support_tensor = torch.as_tensor(
+                support_counts,
+                dtype=target_probs.dtype,
+                device=target_probs.device,
+            )
+            if regime is not None and regime.shape[-1] > 0:
+                regime_idx = regime.argmax(dim=-1).to(dtype=torch.long)
+            else:
+                regime_idx = torch.zeros_like(selected_target_idx, dtype=torch.long)
+            regime_idx = regime_idx.clamp(min=0, max=support_tensor.shape[0] - 1)
+            current_target_idx = current_target_idx.to(dtype=torch.long).clamp(min=0, max=support_tensor.shape[1] - 1)
+            selected_target_idx = selected_target_idx.to(dtype=torch.long).clamp(min=0, max=support_tensor.shape[2] - 1)
+            support_count = support_tensor[regime_idx, current_target_idx, selected_target_idx]
+            support_total = support_tensor[regime_idx, current_target_idx].sum(dim=-1).clamp_min(1.0)
+            support_ratio = support_count / support_total
+            support_bootstrap = (support_count < support_min_count) | (support_ratio < support_min_ratio)
+        if bootstrap_prob > 0.0 or bootstrap_std > 0.0:
+            top_prob = target_probs.max(dim=-1).values
+            should_bootstrap = target_inventory < 0.0
+            if bootstrap_prob > 0.0:
+                should_bootstrap = should_bootstrap & (top_prob < bootstrap_prob)
+            if bootstrap_std > 0.0:
+                should_bootstrap = should_bootstrap & (target_std > bootstrap_std)
+            if baseline_margin > 0.0:
+                selected_prob = target_probs.gather(-1, selected_target_idx.unsqueeze(-1)).squeeze(-1)
+                should_bootstrap = should_bootstrap | (
+                    (target_inventory < 0.0) & ((selected_prob - baseline_target_prob) < baseline_margin)
+                )
+            should_bootstrap = should_bootstrap | ((target_inventory < 0.0) & support_bootstrap)
+            if should_bootstrap.any():
+                target_inventory = torch.where(should_bootstrap, torch.zeros_like(target_inventory), target_inventory)
+                if bootstrap_trade_signal > 0.0:
+                    bootstrap_signal = torch.full_like(trade_prob, bootstrap_trade_signal)
+                    trade_prob = torch.where(
+                        should_bootstrap,
+                        torch.maximum(trade_prob, bootstrap_signal),
+                        trade_prob,
+                    )
+        underweight_adjust_scale = float(getattr(self, "infer_underweight_adjust_scale", 1.0))
+        if underweight_adjust_scale < 1.0:
+            more_underweight = (target_inventory < 0.0) & (target_inventory < current_inventory)
+            trade_prob = torch.where(
+                more_underweight,
+                trade_prob * underweight_adjust_scale,
+                trade_prob,
+            )
         trade_prob = self._quantize_inference(trade_prob)
         band_width = self._quantize_inference(band_width)
         target_inventory = self._quantize_inference(target_inventory)

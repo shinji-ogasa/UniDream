@@ -618,6 +618,7 @@ def run_fold(
     )
     actor.target_values = oracle_action_values.astype(np.float32)
     actor.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
+    actor.baseline_target_index = int(np.argmin(np.abs(oracle_action_values - reward_cfg.get("benchmark_position", 1.0))))
     actor.abs_min_position = ac_cfg.get("abs_min_position", -1.0)
     actor.abs_max_position = ac_cfg.get("abs_max_position", 1.0)
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
@@ -632,6 +633,32 @@ def run_fold(
     actor.hold_state_scale = ac_cfg.get("hold_state_scale", 64.0)
     actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
+    actor.infer_bootstrap_target_prob = ac_cfg.get("infer_bootstrap_target_prob", 0.0)
+    actor.infer_bootstrap_target_std = ac_cfg.get("infer_bootstrap_target_std", 0.0)
+    actor.infer_bootstrap_trade_signal = ac_cfg.get("infer_bootstrap_trade_signal", 0.0)
+    actor.infer_bootstrap_baseline_margin = ac_cfg.get("infer_bootstrap_baseline_margin", 0.0)
+    actor.infer_underweight_adjust_scale = ac_cfg.get("infer_underweight_adjust_scale", 1.0)
+    actor.infer_support_min_count = ac_cfg.get("infer_support_min_count", 0.0)
+    actor.infer_support_min_ratio = ac_cfg.get("infer_support_min_ratio", 0.0)
+    actor.support_transition_counts = None
+    try:
+        current_abs_positions = np.empty_like(oracle_positions)
+        current_abs_positions[0] = reward_cfg.get("benchmark_position", 1.0)
+        if len(oracle_positions) > 1:
+            current_abs_positions[1:] = oracle_positions[:-1]
+        current_idx = actor.target_indices(torch.tensor(current_abs_positions, dtype=torch.float32)).cpu().numpy()
+        next_idx = actor.target_indices(torch.tensor(oracle_positions, dtype=torch.float32)).cpu().numpy()
+        if train_regime_probs is not None:
+            regime_idx = np.argmax(train_regime_probs[:len(next_idx)], axis=1).astype(np.int64)
+            n_regimes = train_regime_probs.shape[1]
+        else:
+            regime_idx = np.zeros(len(next_idx), dtype=np.int64)
+            n_regimes = 1
+        support_counts = np.zeros((n_regimes, len(oracle_action_values), len(oracle_action_values)), dtype=np.float32)
+        np.add.at(support_counts, (regime_idx, current_idx, next_idx), 1.0)
+        actor.support_transition_counts = support_counts
+    except Exception as e:
+        print(f"[SPIBB] support table skipped: {e}")
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC - loading checkpoint: {bc_path}")
@@ -653,9 +680,21 @@ def run_fold(
             self_condition_prob=bc_cfg.get("self_condition_prob", 0.0),
             self_condition_interval=bc_cfg.get("self_condition_interval", 1),
             self_condition_warmup_epochs=bc_cfg.get("self_condition_warmup_epochs", 0),
+            self_condition_mode=bc_cfg.get("self_condition_mode", "mix"),
             self_condition_blend=bc_cfg.get("self_condition_blend", 0.0),
             self_condition_max_position_gap=bc_cfg.get("self_condition_max_position_gap"),
             self_condition_max_underweight_gap=bc_cfg.get("self_condition_max_underweight_gap"),
+            self_condition_relabel_step=bc_cfg.get("self_condition_relabel_step"),
+            self_condition_relabel_band=bc_cfg.get("self_condition_relabel_band", 0.0),
+            relabel_aim_max_step=oracle_cfg.get("aim_max_step", 0.125),
+            relabel_aim_band=oracle_cfg.get("aim_band", 0.0),
+            relabel_min_position=ac_cfg.get("abs_min_position", -1.0),
+            relabel_max_position=ac_cfg.get("abs_max_position", 1.0),
+            relabel_benchmark_position=reward_cfg.get("benchmark_position", 0.0),
+            relabel_underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
+            relabel_underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
+            relabel_underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
+            relabel_underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
             device=device,
         )
         bc_trainer.load(bc_path)
@@ -688,9 +727,21 @@ def run_fold(
                 self_condition_prob=bc_cfg.get("self_condition_prob", 0.0),
                 self_condition_interval=bc_cfg.get("self_condition_interval", 1),
                 self_condition_warmup_epochs=bc_cfg.get("self_condition_warmup_epochs", 0),
+                self_condition_mode=bc_cfg.get("self_condition_mode", "mix"),
                 self_condition_blend=bc_cfg.get("self_condition_blend", 0.0),
                 self_condition_max_position_gap=bc_cfg.get("self_condition_max_position_gap"),
                 self_condition_max_underweight_gap=bc_cfg.get("self_condition_max_underweight_gap"),
+                self_condition_relabel_step=bc_cfg.get("self_condition_relabel_step"),
+                self_condition_relabel_band=bc_cfg.get("self_condition_relabel_band", 0.0),
+                relabel_aim_max_step=oracle_cfg.get("aim_max_step", 0.125),
+                relabel_aim_band=oracle_cfg.get("aim_band", 0.0),
+                relabel_min_position=ac_cfg.get("abs_min_position", -1.0),
+                relabel_max_position=ac_cfg.get("abs_max_position", 1.0),
+                relabel_benchmark_position=reward_cfg.get("benchmark_position", 0.0),
+                relabel_underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
+                relabel_underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
+                relabel_underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
+                relabel_underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
                 device=device,
             )
             T_enc = min(len(z_train), len(oracle_positions))

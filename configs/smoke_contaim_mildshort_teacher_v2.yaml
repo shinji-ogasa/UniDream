@@ -102,9 +102,12 @@ bc:
   self_condition_prob: 0.50
   self_condition_interval: 1
   self_condition_warmup_epochs: 2
+  self_condition_mode: trajectory
   self_condition_blend: 0.35
   self_condition_max_position_gap: 0.125
   self_condition_max_underweight_gap: 0.125
+  self_condition_relabel_step: 0.125
+  self_condition_relabel_band: 0.02
 
 ac:
   actor_hidden: 256
@@ -115,6 +118,13 @@ ac:
   infer_adjust_rate_scale: 0.05
   adjustment_temperature: 0.25
   infer_gap_boost: 0.00
+  infer_bootstrap_target_prob: 0.60
+  infer_bootstrap_target_std: 0.12
+  infer_bootstrap_trade_signal: 0.35
+  infer_bootstrap_baseline_margin: 0.05
+  infer_underweight_adjust_scale: 0.25
+  infer_support_min_count: 64
+  infer_support_min_ratio: 0.05
   val_adjust_rate_scale_grid: [0.00, 0.01, 0.02, 0.03, 0.05, 0.10, 0.20, 0.40]
   max_position_step: 0.125
   abs_min_position: -0.25

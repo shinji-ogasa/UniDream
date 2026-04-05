@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from unidream.actor_critic.actor import Actor
+from unidream.data.oracle import smooth_aim_positions
 
 class SIRLWeightNet(nn.Module):
     """状態依存 BC 重み w(s) を出力するネットワーク（SIRL）.
@@ -136,9 +137,21 @@ class BCPretrainer:
         self_condition_prob: float = 0.0,
         self_condition_interval: int = 1,
         self_condition_warmup_epochs: int = 0,
+        self_condition_mode: str = "mix",
         self_condition_blend: float = 0.0,
         self_condition_max_position_gap: float | None = None,
         self_condition_max_underweight_gap: float | None = None,
+        self_condition_relabel_step: float | None = None,
+        self_condition_relabel_band: float = 0.0,
+        relabel_aim_max_step: float = 0.125,
+        relabel_aim_band: float = 0.0,
+        relabel_min_position: float = -1.0,
+        relabel_max_position: float = 1.0,
+        relabel_benchmark_position: float = 0.0,
+        relabel_underweight_confirm_bars: int = 0,
+        relabel_underweight_min_scale: float = 0.0,
+        relabel_underweight_floor_position: float | None = None,
+        relabel_underweight_step_scale: float = 1.0,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -164,6 +177,7 @@ class BCPretrainer:
         self.self_condition_prob = float(self_condition_prob)
         self.self_condition_interval = max(1, int(self_condition_interval))
         self.self_condition_warmup_epochs = max(0, int(self_condition_warmup_epochs))
+        self.self_condition_mode = str(self_condition_mode)
         self.self_condition_blend = float(np.clip(self_condition_blend, 0.0, 1.0))
         self.self_condition_max_position_gap = (
             None if self_condition_max_position_gap is None else max(0.0, float(self_condition_max_position_gap))
@@ -173,6 +187,21 @@ class BCPretrainer:
             if self_condition_max_underweight_gap is None
             else max(0.0, float(self_condition_max_underweight_gap))
         )
+        self.self_condition_relabel_step = (
+            None if self_condition_relabel_step is None else max(0.0, float(self_condition_relabel_step))
+        )
+        self.self_condition_relabel_band = max(0.0, float(self_condition_relabel_band))
+        self.relabel_aim_max_step = float(max(relabel_aim_max_step, 1e-6))
+        self.relabel_aim_band = float(max(relabel_aim_band, 0.0))
+        self.relabel_min_position = float(relabel_min_position)
+        self.relabel_max_position = float(relabel_max_position)
+        self.relabel_benchmark_position = float(relabel_benchmark_position)
+        self.relabel_underweight_confirm_bars = int(max(relabel_underweight_confirm_bars, 0))
+        self.relabel_underweight_min_scale = float(np.clip(relabel_underweight_min_scale, 0.0, 1.0))
+        self.relabel_underweight_floor_position = (
+            None if relabel_underweight_floor_position is None else float(relabel_underweight_floor_position)
+        )
+        self.relabel_underweight_step_scale = float(np.clip(relabel_underweight_step_scale, 0.0, 1.0))
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
@@ -192,10 +221,10 @@ class BCPretrainer:
         oracle_positions: np.ndarray,
         regime_probs: np.ndarray | None = None,
         rollout_positions: np.ndarray | None = None,
-    ) -> tuple[np.ndarray, np.ndarray | None]:
+    ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
         teacher_states = self.actor.controller_states_from_positions(oracle_positions)
         if self.self_condition_prob <= 0.0:
-            return teacher_states, rollout_positions
+            return teacher_states, rollout_positions, np.asarray(oracle_positions, dtype=np.float32)
 
         if rollout_positions is None:
             rollout_positions = self.actor.predict_positions(
@@ -223,10 +252,44 @@ class BCPretrainer:
                 (1.0 - self.self_condition_blend) * teacher_states
                 + self.self_condition_blend * rollout_states
             ).astype(np.float32)
+        if self.self_condition_mode == "trajectory":
+            use_rollout = np.random.rand() < self.self_condition_prob
+            if not use_rollout:
+                return teacher_states, stabilized_rollout, np.asarray(oracle_positions, dtype=np.float32)
+            relabeled_targets = smooth_aim_positions(
+                np.asarray(oracle_positions, dtype=np.float32),
+                max_step=self.relabel_aim_max_step,
+                band=self.relabel_aim_band,
+                initial_position=float(stabilized_rollout[0]),
+                min_position=self.relabel_min_position,
+                max_position=self.relabel_max_position,
+                benchmark_position=self.relabel_benchmark_position,
+                underweight_confirm_bars=self.relabel_underweight_confirm_bars,
+                underweight_min_scale=self.relabel_underweight_min_scale,
+                underweight_floor_position=self.relabel_underweight_floor_position,
+                underweight_step_scale=self.relabel_underweight_step_scale,
+            ).astype(np.float32)
+            return rollout_states.astype(np.float32), stabilized_rollout, relabeled_targets
         mask = np.random.rand(len(teacher_states)) < self.self_condition_prob
         mixed_states = teacher_states.copy()
         mixed_states[mask] = rollout_states[mask]
-        return mixed_states, stabilized_rollout
+        mixed_targets = np.asarray(oracle_positions, dtype=np.float32).copy()
+        relabel_step = self.self_condition_relabel_step
+        if relabel_step is None:
+            relabel_step = float(getattr(self.actor, "max_position_step", 0.125))
+        relabel_step = max(0.0, relabel_step)
+        if relabel_step > 0.0 and mask.any():
+            benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
+            min_position = float(getattr(self.actor, "abs_min_position", -1.0))
+            max_position = float(getattr(self.actor, "abs_max_position", 1.0))
+            current_positions = mixed_states[:, 0] + benchmark_position
+            relabel_gap = mixed_targets[mask] - current_positions[mask]
+            relabeled = current_positions[mask] + np.clip(relabel_gap, -relabel_step, relabel_step)
+            if self.self_condition_relabel_band > 0.0:
+                keep_current = np.abs(relabel_gap) <= self.self_condition_relabel_band
+                relabeled = np.where(keep_current, current_positions[mask], relabeled)
+            mixed_targets[mask] = np.clip(relabeled, min_position, max_position).astype(np.float32)
+        return mixed_states, stabilized_rollout, mixed_targets
 
     def _bc_loss(
         self,
@@ -460,10 +523,11 @@ class BCPretrainer:
             use_soft = soft_labels is not None
             for epoch in range(self.n_epochs):
                 state_all = teacher_state_all
+                target_all = np.asarray(oracle_positions[:T], dtype=np.float32)
                 if self.self_condition_prob > 0.0 and epoch >= self.self_condition_warmup_epochs:
                     if rollout_positions is None or (epoch - self.self_condition_warmup_epochs) % self.self_condition_interval == 0:
                         rollout_positions = None
-                    state_all, rollout_positions = self._mixed_controller_states(
+                    state_all, rollout_positions, target_all = self._mixed_controller_states(
                         z[:T],
                         h[:T],
                         oracle_positions[:T],
@@ -475,7 +539,7 @@ class BCPretrainer:
                 T_use = n_chunks * k
                 z_arr = z[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
                 h_arr = h[:T_use].reshape(n_chunks, k, -1)[:, 0, :]
-                pos_arr = oracle_positions[:T_use].reshape(n_chunks, k)
+                pos_arr = target_all[:T_use].reshape(n_chunks, k)
                 state_arr = state_all[:T_use].reshape(n_chunks, k, -1)
                 cur_abs_arr = state_arr[:, 0, 0] + benchmark_position
                 switch_mask = np.abs(pos_arr - cur_abs_arr[:, None]) > 1e-8
@@ -555,10 +619,11 @@ class BCPretrainer:
         rollout_positions = None
         for epoch in range(self.n_epochs):
             state_all = teacher_state_all
+            target_all = np.asarray(oracle_positions[:T], dtype=np.float32)
             if self.self_condition_prob > 0.0 and epoch >= self.self_condition_warmup_epochs:
                 if rollout_positions is None or (epoch - self.self_condition_warmup_epochs) % self.self_condition_interval == 0:
                     rollout_positions = None
-                state_all, rollout_positions = self._mixed_controller_states(
+                state_all, rollout_positions, target_all = self._mixed_controller_states(
                     z[:T],
                     h[:T],
                     oracle_positions[:T],
@@ -568,7 +633,7 @@ class BCPretrainer:
 
             z_t = torch.tensor(z[:T], dtype=torch.float32)
             h_t = torch.tensor(h[:T], dtype=torch.float32)
-            a_t = torch.tensor(oracle_positions[:T], dtype=torch.float32)
+            a_t = torch.tensor(target_all[:T], dtype=torch.float32)
             inv_t = torch.tensor(state_all[:T], dtype=torch.float32)
 
             regime_t = torch.tensor(regime_probs[:T], dtype=torch.float32) if use_regime else None
@@ -607,6 +672,8 @@ class BCPretrainer:
                         reg_b = reg_b[:, 0]
                     bi += 1
                 sl_b = batch[bi].to(self.device) if use_soft else None
+                if use_soft and self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    sl_b = sl_b[:, 0]
 
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
