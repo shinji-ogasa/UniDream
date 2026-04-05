@@ -225,6 +225,38 @@ def augment_with_context_features(
     return pd.concat([features_df, derived_z], axis=1).dropna()
 
 
+def augment_with_funding_context_features(
+    features_df: pd.DataFrame,
+    zscore_window_days: int = 60,
+    interval: str = "15m",
+    windows_hours: list[int] | None = None,
+) -> pd.DataFrame:
+    """funding_rate から極端値・持続性・反転圧力を作る."""
+    if "funding_rate" not in features_df.columns:
+        return features_df
+    if windows_hours is None:
+        windows_hours = [8, 24, 72]
+    bars_per_hour = max(1, BARS_PER_DAY.get(interval, 96) // 24)
+    window_bars = days_to_bars(zscore_window_days, interval)
+
+    fr = features_df["funding_rate"].astype(np.float64)
+    cols: dict[str, pd.Series] = {}
+    for hours in windows_hours:
+        w = max(2, hours * bars_per_hour)
+        mean = fr.rolling(w, min_periods=w // 3).mean()
+        std = fr.rolling(w, min_periods=w // 3).std()
+        cols[f"fund_mean_{w}"] = mean.shift(1)
+        cols[f"fund_std_{w}"] = std.shift(1)
+        cols[f"fund_z_{w}"] = ((fr - mean) / (std + 1e-8)).shift(1)
+        cols[f"fund_skew_{w}"] = fr.rolling(w, min_periods=w // 3).skew().shift(1)
+        cols[f"fund_posratio_{w}"] = (fr.gt(0.0).rolling(w, min_periods=w // 3).mean()).shift(1)
+        cols[f"fund_impulse_{w}"] = (fr - mean).abs().shift(1)
+
+    derived = pd.DataFrame(cols, index=features_df.index)
+    derived_z = rolling_zscore_df(derived, window_bars=window_bars)
+    return pd.concat([features_df, derived_z], axis=1).dropna()
+
+
 # --- Funding Rate / OI 前処理 ---
 
 def align_funding_rate(

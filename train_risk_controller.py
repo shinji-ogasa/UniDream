@@ -19,6 +19,7 @@ from unidream.data.features import (
     get_raw_returns,
     augment_with_rebound_features,
     augment_with_context_features,
+    augment_with_funding_context_features,
 )
 from unidream.data.dataset import get_wfo_splits, WFODataset
 from unidream.eval.backtest import Backtest
@@ -320,6 +321,14 @@ def main() -> None:
             windows_hours=feature_extras_cfg.get("context_windows_hours", [4, 24, 72]),
         )
         print(f"[Data] Context features enabled -> obs_dim={features_df.shape[1]}")
+    if feature_extras_cfg.get("funding_context_v1", False):
+        features_df = augment_with_funding_context_features(
+            features_df,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            windows_hours=feature_extras_cfg.get("funding_context_windows_hours", [8, 24, 72]),
+        )
+        print(f"[Data] Funding context features enabled -> obs_dim={features_df.shape[1]}")
     raw_returns = raw_returns.reindex(features_df.index)
 
     splits = get_wfo_splits(
