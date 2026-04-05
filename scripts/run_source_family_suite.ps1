@@ -3,6 +3,7 @@ param(
   [string]$CacheTag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
   [string]$Interval = "15m",
   [string]$Folds = "4",
+  [bool]$SkipMissing = $true,
   [string[]]$Configs = @(
     "configs\\smoke_risk_controller_v5_basis.yaml",
     "configs\\smoke_risk_controller_v8_orderflow_ctx.yaml",
@@ -21,6 +22,17 @@ foreach ($Config in $Configs) {
   $Stem = [System.IO.Path]::GetFileNameWithoutExtension($Config)
   $RunDir = Join-Path $SuiteDir $Stem
   New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
+
+  if ($SkipMissing) {
+    & $Python check_config_source_requirements.py `
+      --cache-dir $CacheDir `
+      --cache-tag $CacheTag `
+      --config $Config
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "[SUITE] Skipping $Stem due to missing raw source dependencies."
+      continue
+    }
+  }
 
   Write-Host "[SUITE] Inspecting cache for $Stem ..."
   & $Python inspect_source_cache.py `

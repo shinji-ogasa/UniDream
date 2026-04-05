@@ -271,6 +271,7 @@ This runs the basis / orderflow / on-chain probes and writes:
 
 The default suite now also includes a hybrid config that combines basis,
 order-flow, and on-chain context features.
+By default, configs whose raw source dependencies are still missing are skipped.
 
 To generate a manifest stub from those suite configs:
 
