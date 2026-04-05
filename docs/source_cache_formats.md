@@ -303,6 +303,14 @@ To generate a config-to-source requirement matrix:
 .\scripts\generate_source_requirements_matrix.ps1
 ```
 
+To see which stages are unlocked by the current cache:
+
+```powershell
+.\scripts\report_source_stage_status.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 That script:
 
 1. Builds raw source cache

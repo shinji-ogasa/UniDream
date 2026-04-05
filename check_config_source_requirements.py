@@ -40,26 +40,20 @@ def _feature_to_requirement(feature_name: str) -> tuple[str, str]:
     return ("derived", feature_name)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Check whether source cache files satisfy a config's raw dependencies")
-    parser.add_argument("--cache-dir", required=True)
-    parser.add_argument("--cache-tag", required=True)
-    parser.add_argument("--config", required=True)
-    args = parser.parse_args()
-
-    with open(args.config, "r", encoding="utf-8") as f:
+def collect_missing_requirements(cache_dir: str, cache_tag: str, config_path: str) -> list[str]:
+    with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
     feature_subset = ((cfg.get("risk_controller") or {}).get("feature_subset")) or []
 
     available_files = {
-        "ohlcv": os.path.exists(os.path.join(args.cache_dir, f"{args.cache_tag}_ohlcv.parquet")),
-        "mark": os.path.exists(os.path.join(args.cache_dir, f"{args.cache_tag}_mark.parquet")),
-        "funding": os.path.exists(os.path.join(args.cache_dir, f"{args.cache_tag}_funding.parquet")),
-        "oi": os.path.exists(os.path.join(args.cache_dir, f"{args.cache_tag}_oi.parquet")),
+        "ohlcv": os.path.exists(os.path.join(cache_dir, f"{cache_tag}_ohlcv.parquet")),
+        "mark": os.path.exists(os.path.join(cache_dir, f"{cache_tag}_mark.parquet")),
+        "funding": os.path.exists(os.path.join(cache_dir, f"{cache_tag}_funding.parquet")),
+        "oi": os.path.exists(os.path.join(cache_dir, f"{cache_tag}_oi.parquet")),
     }
     available_series = {
-        os.path.basename(path).replace(f"{args.cache_tag}_series_", "").replace(".parquet", "")
-        for path in glob.glob(os.path.join(args.cache_dir, f"{args.cache_tag}_series_*.parquet"))
+        os.path.basename(path).replace(f"{cache_tag}_series_", "").replace(".parquet", "")
+        for path in glob.glob(os.path.join(cache_dir, f"{cache_tag}_series_*.parquet"))
     }
 
     missing: list[str] = []
@@ -67,10 +61,21 @@ def main() -> None:
         kind, key = _feature_to_requirement(feature_name)
         if kind == "file":
             if not available_files.get(key, False):
-                missing.append(f"{feature_name} -> missing {args.cache_tag}_{key}.parquet")
+                missing.append(f"{feature_name} -> missing {cache_tag}_{key}.parquet")
         elif kind == "series":
             if key not in available_series:
-                missing.append(f"{feature_name} -> missing {args.cache_tag}_series_{key}.parquet")
+                missing.append(f"{feature_name} -> missing {cache_tag}_series_{key}.parquet")
+    return missing
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Check whether source cache files satisfy a config's raw dependencies")
+    parser.add_argument("--cache-dir", required=True)
+    parser.add_argument("--cache-tag", required=True)
+    parser.add_argument("--config", required=True)
+    args = parser.parse_args()
+
+    missing = collect_missing_requirements(args.cache_dir, args.cache_tag, args.config)
 
     if missing:
         print("[REQ] Missing raw dependencies:")
