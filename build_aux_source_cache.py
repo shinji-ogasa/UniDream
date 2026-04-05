@@ -58,6 +58,15 @@ def _prepare_oi(df: pd.DataFrame) -> pd.DataFrame:
     raise ValueError("OI source must contain one of: open_interest, sumOpenInterest, openInterest")
 
 
+def _prepare_spot_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
+    df = _normalize_time_index(df)
+    required = ["open", "high", "low", "close", "volume"]
+    missing = [col for col in required if col not in df.columns]
+    if missing:
+        raise ValueError(f"Spot OHLCV is missing columns: {missing}")
+    return df[required].astype(float)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build auxiliary source cache parquet files")
     parser.add_argument("--cache-dir", required=True)
@@ -65,9 +74,16 @@ def main() -> None:
     parser.add_argument("--mark-file", default=None)
     parser.add_argument("--funding-file", default=None)
     parser.add_argument("--oi-file", default=None)
+    parser.add_argument("--spot-file", default=None)
     args = parser.parse_args()
 
     os.makedirs(args.cache_dir, exist_ok=True)
+
+    if args.spot_file:
+        spot = _prepare_spot_ohlcv(_load_any(args.spot_file))
+        spot_path = os.path.join(args.cache_dir, f"{args.cache_tag}_ohlcv.parquet")
+        spot.to_parquet(spot_path)
+        print(f"[AUX] Wrote spot ohlcv cache -> {spot_path} ({len(spot)} rows)")
 
     if args.mark_file:
         mark = _prepare_mark(_load_any(args.mark_file))

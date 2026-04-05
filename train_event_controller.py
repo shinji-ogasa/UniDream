@@ -43,6 +43,18 @@ def _resolve_cache_pair(cache_dir: str, cache_tag: str) -> tuple[str, str]:
     return features_cache, returns_cache
 
 
+def _read_optional_parquet(path: str) -> pd.DataFrame | None:
+    if not os.path.exists(path):
+        return None
+    df = pd.read_parquet(path)
+    if isinstance(df, pd.Series):
+        df = df.to_frame()
+    if not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
+        df["time"] = pd.to_datetime(df["time"], utc=False)
+        df = df.set_index("time")
+    return df.sort_index()
+
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -381,15 +393,33 @@ def main() -> None:
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
     features_cache, returns_cache = _resolve_cache_pair(args.data_cache_dir, cache_tag)
+    ohlcv_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_ohlcv.parquet")
+    funding_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_funding.parquet")
+    oi_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_oi.parquet")
+    mark_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_mark.parquet")
 
     if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
         print("[Data] Loading cached features...")
         features_df = pd.read_parquet(features_cache)
         raw_returns = pd.read_parquet(returns_cache).squeeze()
     else:
-        print("[Data] Computing features from OHLCV...")
-        ohlcv = fetch_binance_ohlcv(symbol=symbol, interval=interval, start=args.start, end=args.end)
-        features_df = compute_features(ohlcv, zscore_window_days=zscore_window)
+        ohlcv = _read_optional_parquet(ohlcv_cache)
+        if ohlcv is None:
+            print("[Data] Computing features from OHLCV...")
+            ohlcv = fetch_binance_ohlcv(symbol=symbol, interval=interval, start=args.start, end=args.end)
+        else:
+            print("[Data] Rebuilding features from cached OHLCV...")
+        funding_df = _read_optional_parquet(funding_cache)
+        oi_df = _read_optional_parquet(oi_cache)
+        mark_price_df = _read_optional_parquet(mark_cache)
+        features_df = compute_features(
+            ohlcv,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            funding_df=funding_df,
+            oi_df=oi_df,
+            mark_price_df=mark_price_df,
+        )
         raw_returns = get_raw_returns(ohlcv)
 
     feature_extras_cfg = cfg.get("feature_extras", {})

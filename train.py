@@ -1523,6 +1523,7 @@ def main():
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
+    ohlcv_cache = os.path.join(cache_dir, f"{cache_tag}_ohlcv.parquet")
     funding_cache = os.path.join(cache_dir, f"{cache_tag}_funding.parquet")
     oi_cache = os.path.join(cache_dir, f"{cache_tag}_oi.parquet")
     mark_cache = os.path.join(cache_dir, f"{cache_tag}_mark.parquet")
@@ -1533,11 +1534,15 @@ def main():
         raw_returns = pd.read_parquet(returns_cache).squeeze()
         print(f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]}")
     else:
-        print("\n[Data] Fetching OHLCV...")
-        df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
-        print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
+        df = _read_optional_parquet(ohlcv_cache)
+        if df is not None:
+            print(f"\n[Data] Spot OHLCV cache loaded: {len(df)} bars")
+        else:
+            print("\n[Data] Fetching OHLCV...")
+            df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
+            print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
 
-        # Futures 追加データ（funding rate, OI）
+        # Futures 追加データ（funding rate, OI, mark price）
         funding_df = _read_optional_parquet(funding_cache)
         oi_df = _read_optional_parquet(oi_cache)
         mark_price_df = _read_optional_parquet(mark_cache)
@@ -1586,6 +1591,7 @@ def main():
 
         # キャッシュ保存
         os.makedirs(cache_dir, exist_ok=True)
+        df.to_parquet(ohlcv_cache)
         features_df.to_parquet(features_cache)
         raw_returns.to_frame().to_parquet(returns_cache)
         if funding_df is not None and not funding_df.empty:
