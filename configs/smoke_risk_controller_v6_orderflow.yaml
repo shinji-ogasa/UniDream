@@ -48,6 +48,7 @@ targets:
 
 risk_controller:
   horizon: 16
+  feature_subset_allow_missing: false
   feature_subset:
     - basis
     - basis_mom

@@ -398,7 +398,12 @@ def main() -> None:
         feature_subset = rcfg.get("feature_subset")
         if feature_subset:
             name_to_idx = {name: idx for idx, name in enumerate(wfo_ds.feature_columns)}
+            missing = [name for name in feature_subset if name not in name_to_idx]
             keep = [name_to_idx[name] for name in feature_subset if name in name_to_idx]
+            if missing:
+                print(f"[RISK] Missing feature subset entries: {missing}")
+                if not rcfg.get("feature_subset_allow_missing", False):
+                    raise RuntimeError("Configured feature_subset is missing required feature columns")
             if not keep:
                 raise RuntimeError("Configured feature_subset did not match any feature columns")
             train_x = train_x[:, keep]
