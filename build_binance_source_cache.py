@@ -5,6 +5,7 @@ import os
 
 from unidream.data.download import (
     fetch_binance_ohlcv,
+    fetch_binance_spot_taker_proxy,
     fetch_funding_rate,
     fetch_open_interest_hist,
     fetch_mark_price_klines,
@@ -24,6 +25,7 @@ def main() -> None:
     parser.add_argument("--skip-oi", action="store_true")
     parser.add_argument("--skip-mark", action="store_true")
     parser.add_argument("--skip-taker-flow", action="store_true")
+    parser.add_argument("--prefer-spot-taker-proxy", action="store_true")
     args = parser.parse_args()
 
     os.makedirs(args.cache_dir, exist_ok=True)
@@ -67,7 +69,14 @@ def main() -> None:
     if not args.skip_taker_flow:
         try:
             print("[SRC] Fetching taker buy/sell flow...")
-            taker = fetch_taker_buy_sell_volume(args.symbol, args.interval, args.start, args.end)
+            if args.prefer_spot_taker_proxy:
+                taker = fetch_binance_spot_taker_proxy(args.symbol, args.interval, args.start, args.end)
+            else:
+                try:
+                    taker = fetch_taker_buy_sell_volume(args.symbol, args.interval, args.start, args.end)
+                except Exception as e:
+                    print(f"[SRC] Futures taker flow failed, falling back to spot proxy: {e}")
+                    taker = fetch_binance_spot_taker_proxy(args.symbol, args.interval, args.start, args.end)
             for col in ["signed_order_flow", "taker_imbalance", "buy_sell_ratio"]:
                 if col not in taker.columns:
                     continue

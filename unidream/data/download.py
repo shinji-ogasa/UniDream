@@ -25,7 +25,7 @@ def _parse_timestamp(ts: str | datetime) -> int:
     return int(pd.Timestamp(ts, tz="UTC").timestamp() * 1000)
 
 
-def _klines_to_df(raw: list) -> pd.DataFrame:
+def _klines_to_df(raw: list, include_taker_fields: bool = False) -> pd.DataFrame:
     """Binance klines レスポンスを DataFrame に変換する."""
     cols = [
         "open_time", "open", "high", "low", "close", "volume",
@@ -35,9 +35,15 @@ def _klines_to_df(raw: list) -> pd.DataFrame:
     df = pd.DataFrame(raw, columns=cols)
     df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
     df.set_index("open_time", inplace=True)
-    for col in ["open", "high", "low", "close", "volume"]:
+    numeric_cols = ["open", "high", "low", "close", "volume"]
+    if include_taker_fields:
+        numeric_cols.extend(["quote_volume", "taker_buy_base", "taker_buy_quote"])
+    for col in numeric_cols:
         df[col] = df[col].astype(float)
-    return df[["open", "high", "low", "close", "volume"]]
+    keep_cols = ["open", "high", "low", "close", "volume"]
+    if include_taker_fields:
+        keep_cols.extend(["quote_volume", "n_trades", "taker_buy_base", "taker_buy_quote"])
+    return df[keep_cols]
 
 
 def fetch_binance_ohlcv(
@@ -98,6 +104,70 @@ def fetch_binance_ohlcv(
     end_dt = pd.Timestamp(end_ms, unit="ms")
     df = df[df.index < end_dt]
     return df
+
+
+def fetch_binance_spot_taker_proxy(
+    symbol: str,
+    interval: str,
+    start: str | datetime,
+    end: str | datetime,
+    base_url: str = BINANCE_BASE_URL,
+    sleep_sec: float = 0.1,
+) -> pd.DataFrame:
+    """Build order-flow proxy series from spot klines.
+
+    Spot klines include taker buy base volume, so this provides a long-history
+    free fallback when futures taker-flow endpoints do not expose the period.
+    """
+    start_ms = _parse_timestamp(start)
+    end_ms = _parse_timestamp(end)
+    all_rows = []
+
+    current_start = start_ms
+    while current_start < end_ms:
+        params = {
+            "symbol": symbol,
+            "interval": interval,
+            "startTime": current_start,
+            "endTime": end_ms,
+            "limit": MAX_LIMIT,
+        }
+        resp = requests.get(base_url + KLINES_ENDPOINT, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if not data:
+            break
+
+        all_rows.extend(data)
+        last_close_time = data[-1][6]
+        current_start = last_close_time + 1
+
+        if len(data) < MAX_LIMIT:
+            break
+
+        time.sleep(sleep_sec)
+
+    if not all_rows:
+        return pd.DataFrame(columns=["signed_order_flow", "taker_imbalance", "buy_sell_ratio"])
+
+    df = _klines_to_df(all_rows, include_taker_fields=True)
+    end_dt = pd.Timestamp(end_ms, unit="ms")
+    df = df[df.index < end_dt]
+
+    buy_vol = df["taker_buy_base"].astype(float)
+    total = df["volume"].astype(float)
+    sell_vol = (total - buy_vol).clip(lower=0.0)
+    signed = buy_vol - sell_vol
+    out = pd.DataFrame(
+        {
+            "signed_order_flow": signed,
+            "taker_imbalance": signed / (total + 1e-8),
+            "buy_sell_ratio": buy_vol / (sell_vol + 1e-8),
+        },
+        index=df.index,
+    )
+    return out
 
 
 BINANCE_FUTURES_URL = "https://fapi.binance.com"
