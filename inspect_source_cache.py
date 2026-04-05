@@ -60,6 +60,56 @@ def _coverage_summary(name: str, obj: pd.DataFrame | pd.Series | None, target_in
     )
 
 
+def _feature_to_source_hint(feature_name: str) -> str:
+    if feature_name.startswith("basis"):
+        return "mark cache: <cache_tag>_mark.parquet"
+    if feature_name.startswith("fund_") or feature_name == "funding_rate":
+        return "funding cache: <cache_tag>_funding.parquet"
+    if feature_name.startswith("oi_") or feature_name == "oi_change":
+        return "oi cache: <cache_tag>_oi.parquet"
+
+    suffixes = (
+        "_delta1",
+        "_abs",
+        "_mean_16", "_mean_96", "_mean_288",
+        "_std_16", "_std_96", "_std_288",
+        "_z_16", "_z_96", "_z_288",
+        "_impulse_16", "_impulse_96", "_impulse_288",
+    )
+    base = feature_name
+    for suffix in suffixes:
+        if feature_name.endswith(suffix):
+            base = feature_name[: -len(suffix)]
+            break
+    if base == feature_name and feature_name in {
+        "signed_order_flow",
+        "taker_imbalance",
+        "buy_sell_ratio",
+        "exchange_netflow",
+        "stablecoin_inflow",
+        "active_address_growth",
+    }:
+        base = feature_name
+    if base != feature_name or feature_name in {
+        "signed_order_flow",
+        "taker_imbalance",
+        "buy_sell_ratio",
+        "exchange_netflow",
+        "stablecoin_inflow",
+        "active_address_growth",
+    }:
+        return f"extra series cache: <cache_tag>_series_{base}.parquet"
+    return "unknown source"
+
+
+def _collect_config_feature_subset(config_path: str | None) -> list[str]:
+    if not config_path:
+        return []
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+    return ((cfg.get("risk_controller") or {}).get("feature_subset")) or []
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect offline source cache completeness")
     parser.add_argument("--cache-dir", required=True)
@@ -94,6 +144,12 @@ def main() -> None:
     for name, series in extra_series.items():
         print("  " + _coverage_summary(name, series, ohlcv.index))
 
+    feature_subset = _collect_config_feature_subset(args.config)
+    if feature_subset:
+        print("[INSPECT] Config source dependencies")
+        for name in feature_subset:
+            print(f"  {name} -> {_feature_to_source_hint(name)}")
+
     try:
         features = compute_features(
             ohlcv,
@@ -112,10 +168,8 @@ def main() -> None:
 
     print(f"[INSPECT] Rebuilt features -> shape={features.shape}")
     print(f"[INSPECT] Returns aligned -> {raw_returns.shape[0]} rows")
+
     if args.config:
-        with open(args.config, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-        feature_subset = ((cfg.get("risk_controller") or {}).get("feature_subset")) or []
         if feature_subset:
             present = [name for name in feature_subset if name in features.columns]
             missing = [name for name in feature_subset if name not in features.columns]
@@ -130,7 +184,7 @@ def main() -> None:
             if missing:
                 print("  missing:")
                 for name in missing:
-                    print(f"    {name}")
+                    print(f"    {name} -> {_feature_to_source_hint(name)}")
     print("[INSPECT] Feature columns:")
     for col in features.columns:
         print(f"  {col}")
