@@ -14,7 +14,12 @@ import yaml
 from train import _benchmark_position_value, _format_m2_scorecard, _m2_scorecard
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats
 from unidream.data.download import fetch_binance_ohlcv
-from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
+from unidream.data.features import (
+    compute_features,
+    get_raw_returns,
+    augment_with_rebound_features,
+    augment_with_context_features,
+)
 from unidream.data.dataset import get_wfo_splits, WFODataset
 from unidream.eval.backtest import Backtest
 
@@ -306,6 +311,15 @@ def main() -> None:
             windows_hours=feature_extras_cfg.get("rebound_windows_hours", [24, 72]),
         )
         print(f"[Data] Rebound features enabled -> obs_dim={features_df.shape[1]}")
+    if feature_extras_cfg.get("context_v1", False):
+        features_df = augment_with_context_features(
+            features_df,
+            raw_returns,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            windows_hours=feature_extras_cfg.get("context_windows_hours", [4, 24, 72]),
+        )
+        print(f"[Data] Context features enabled -> obs_dim={features_df.shape[1]}")
     raw_returns = raw_returns.reindex(features_df.index)
 
     splits = get_wfo_splits(

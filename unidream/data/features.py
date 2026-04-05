@@ -190,6 +190,41 @@ def augment_with_rebound_features(
     return pd.concat([features_df, derived_z], axis=1).dropna()
 
 
+def augment_with_context_features(
+    features_df: pd.DataFrame,
+    raw_returns: pd.Series,
+    zscore_window_days: int = 60,
+    interval: str = "15m",
+    windows_hours: list[int] | None = None,
+) -> pd.DataFrame:
+    """低頻度の trend / vol / funding context を追加する."""
+    if windows_hours is None:
+        windows_hours = [4, 24, 72]
+    bars_per_hour = max(1, BARS_PER_DAY.get(interval, 96) // 24)
+    window_bars = days_to_bars(zscore_window_days, interval)
+
+    raw_returns = raw_returns.reindex(features_df.index).astype(np.float64)
+    known_log_price = raw_returns.cumsum().shift(1)
+    cols: dict[str, pd.Series] = {}
+    for hours in windows_hours:
+        w = max(2, hours * bars_per_hour)
+        cols[f"ctx_mom_{w}"] = known_log_price - known_log_price.shift(w)
+        cols[f"ctx_vol_{w}"] = raw_returns.rolling(w, min_periods=w // 3).std().shift(1)
+        cols[f"ctx_downsemi_{w}"] = (
+            raw_returns.clip(upper=0.0).pow(2).rolling(w, min_periods=w // 3).mean().pow(0.5).shift(1)
+        )
+        if "funding_rate" in features_df.columns:
+            fr = features_df["funding_rate"].astype(np.float64)
+            cols[f"ctx_funding_{w}"] = fr.rolling(w, min_periods=w // 3).mean().shift(1)
+        if "oi_change" in features_df.columns:
+            oi = features_df["oi_change"].astype(np.float64)
+            cols[f"ctx_oi_{w}"] = oi.rolling(w, min_periods=w // 3).mean().shift(1)
+
+    derived = pd.DataFrame(cols, index=features_df.index)
+    derived_z = rolling_zscore_df(derived, window_bars=window_bars)
+    return pd.concat([features_df, derived_z], axis=1).dropna()
+
+
 # --- Funding Rate / OI 前処理 ---
 
 def align_funding_rate(
