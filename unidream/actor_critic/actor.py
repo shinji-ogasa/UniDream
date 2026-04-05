@@ -28,14 +28,16 @@ class Actor(nn.Module):
         regime_dim: int = 0,
         dropout_p: float = 0.0,
         inventory_dim: int = 1,
+        advantage_dim: int = 0,
     ):
         super().__init__()
         self.act_dim = act_dim
         self.unimix_ratio = unimix_ratio
         self.regime_dim = regime_dim
         self.inventory_dim = inventory_dim
+        self.advantage_dim = advantage_dim
 
-        in_dim = z_dim + h_dim + regime_dim + inventory_dim
+        in_dim = z_dim + h_dim + regime_dim + inventory_dim + advantage_dim
         layers: list[nn.Module] = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
         if dropout_p > 0.0:
             layers.append(nn.Dropout(dropout_p))
@@ -82,6 +84,32 @@ class Actor(nn.Module):
 
     def _use_residual_controller(self) -> bool:
         return bool(getattr(self, "use_residual_controller", False))
+
+    def _ensure_advantage(
+        self,
+        advantage: torch.Tensor | None,
+        ref: torch.Tensor,
+    ) -> torch.Tensor | None:
+        if self.advantage_dim <= 0:
+            return None
+        if advantage is None:
+            default_adv = float(getattr(self, "infer_advantage_level", 0.0))
+            return torch.full(
+                (*ref.shape[:-1], self.advantage_dim),
+                default_adv,
+                dtype=ref.dtype,
+                device=ref.device,
+            )
+        if advantage.ndim == ref.ndim - 1:
+            advantage = advantage.unsqueeze(-1)
+        if advantage.shape[-1] == self.advantage_dim:
+            return advantage
+        if advantage.shape[-1] > self.advantage_dim:
+            return advantage[..., :self.advantage_dim]
+        pad_shape = list(advantage.shape)
+        pad_shape[-1] = self.advantage_dim - advantage.shape[-1]
+        pad = torch.zeros(*pad_shape, dtype=advantage.dtype, device=advantage.device)
+        return torch.cat([advantage, pad], dim=-1)
 
     def _ensure_controller_state(
         self,
@@ -203,14 +231,18 @@ class Actor(nn.Module):
         h: torch.Tensor,
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         inventory = self._ensure_controller_state(inventory, z)
+        advantage = self._ensure_advantage(advantage, z)
 
         parts = [z, h, inventory]
         if self.regime_dim > 0:
             if regime is None:
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
             parts.append(regime)
+        if advantage is not None:
+            parts.append(advantage)
         x = torch.cat(parts, dim=-1)
         return self.trunk(x), inventory
 
@@ -223,10 +255,11 @@ class Actor(nn.Module):
         h: torch.Tensor,
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
         temperature: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """trade logit, target logits/mean/std, band width, current inventory."""
-        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime)
+        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
         trade_logits = self.trade_head(hidden).squeeze(-1)
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
@@ -275,6 +308,7 @@ class Actor(nn.Module):
         h: torch.Tensor,
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
         temperature: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """adjust logit, target mean/std, band width, current inventory."""
@@ -284,6 +318,7 @@ class Actor(nn.Module):
                 h,
                 inventory=inventory,
                 regime=regime,
+                advantage=advantage,
                 temperature=temperature,
             )
         )
@@ -423,10 +458,11 @@ class Actor(nn.Module):
         h: torch.Tensor,
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """executed inventory・log_prob・entropy を返す."""
         trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
-            z, h, inventory=inventory, regime=regime
+            z, h, inventory=inventory, regime=regime, advantage=advantage
         )
         trade_base = Bernoulli(logits=trade_logits)
         relax_temp = torch.as_tensor(
@@ -461,12 +497,13 @@ class Actor(nn.Module):
         h: torch.Tensor,
         inventory: torch.Tensor | None = None,
         regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
         temperature: float = 1.0,
     ) -> torch.Tensor:
         """greedy execution に対応する executed inventory を返す."""
         del temperature
         trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs_full(
-            z, h, inventory=inventory, regime=regime
+            z, h, inventory=inventory, regime=regime, advantage=advantage
         )
         trade_prob = torch.sigmoid(trade_logits)
         target_inventory = target_mean
@@ -562,6 +599,7 @@ class Actor(nn.Module):
         z_np: np.ndarray,
         h_np: np.ndarray,
         regime_np: np.ndarray | None = None,
+        advantage_np: np.ndarray | float | None = None,
         device: str = "cpu",
         temperature: float | None = None,
     ) -> np.ndarray:
@@ -575,16 +613,28 @@ class Actor(nn.Module):
         regime = None
         if regime_np is not None and self.regime_dim > 0:
             regime = torch.tensor(regime_np, dtype=torch.float32, device=dev)
+        advantage = None
+        if self.advantage_dim > 0:
+            if advantage_np is None:
+                advantage = torch.full((len(z_np), self.advantage_dim), float(getattr(self, "infer_advantage_level", 0.0)), dtype=torch.float32, device=dev)
+            elif np.isscalar(advantage_np):
+                advantage = torch.full((len(z_np), self.advantage_dim), float(advantage_np), dtype=torch.float32, device=dev)
+            else:
+                advantage = torch.tensor(advantage_np, dtype=torch.float32, device=dev)
+                if advantage.ndim == 1:
+                    advantage = advantage.unsqueeze(-1)
 
         positions = np.zeros(len(z_np), dtype=np.float32)
         controller_state = torch.zeros(1, self.inventory_dim, dtype=torch.float32, device=dev)
         for i in range(len(z_np)):
             reg_t = regime[i:i + 1] if regime is not None else None
+            adv_t = advantage[i:i + 1] if advantage is not None else None
             next_position = self.act_greedy(
                 z[i:i + 1],
                 h[i:i + 1],
                 inventory=controller_state,
                 regime=reg_t,
+                advantage=adv_t,
             )
             next_position = self._quantize_inference(next_position)
             positions[i] = float(next_position.item())

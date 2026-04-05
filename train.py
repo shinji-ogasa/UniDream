@@ -347,7 +347,7 @@ def _selector_candidate(
         label += f" reject={reject_reason}"
 
     return {
-        "candidate": float(candidate),
+        "candidate": candidate,
         "score": float(score),
         "label": label,
         "alpha_excess_pt": alpha_excess_pt,
@@ -360,6 +360,14 @@ def _selector_candidate(
         "benchmark_hold": benchmark_hold,
         "scorecard": scorecard,
     }
+
+
+def _candidate_to_text(candidate) -> str:
+    if isinstance(candidate, dict):
+        scale = float(candidate.get("scale", 0.0))
+        adv = float(candidate.get("adv", 0.0))
+        return f"scale={scale:.3f} adv={adv:.2f}"
+    return f"scale={float(candidate):.3f}"
 
 
 def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict:
@@ -709,6 +717,7 @@ def run_fold(
         regime_dim=regime_dim,
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
         inventory_dim=ac_cfg.get("controller_state_dim", 1),
+        advantage_dim=1 if ac_cfg.get("advantage_conditioned", False) else 0,
     )
     actor.target_values = oracle_action_values.astype(np.float32)
     actor.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
@@ -716,6 +725,7 @@ def run_fold(
     actor.abs_min_position = ac_cfg.get("abs_min_position", -1.0)
     actor.abs_max_position = ac_cfg.get("abs_max_position", 1.0)
     actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
+    actor.infer_advantage_level = ac_cfg.get("infer_advantage_level", 0.0)
     actor.infer_gap_boost = ac_cfg.get("infer_gap_boost", 0.0)
     actor.infer_adjust_rate_scale = ac_cfg.get("infer_adjust_rate_scale", 1.0)
     actor.adjustment_temperature = ac_cfg.get("adjustment_temperature", 0.25)
@@ -774,6 +784,7 @@ def run_fold(
         print(f"[SPIBB] support table skipped: {e}")
 
     bc_sample_quality = None
+    bc_advantage_values = None
     bc_quality_mode = str(bc_cfg.get("sample_quality_mode", "none")).lower()
     if oracle_teacher_mode == "signal_aim" and bc_quality_mode != "none":
         signal_values = np.asarray(oracle_values, dtype=np.float32)
@@ -804,6 +815,18 @@ def run_fold(
                 bc_sample_quality = np.clip((raw_edge - edge_floor) / edge_scale, 0.0, bc_cfg.get("sample_quality_clip", 4.0))
             else:
                 bc_sample_quality = np.zeros_like(raw_edge, dtype=np.float32)
+    if ac_cfg.get("advantage_conditioned", False):
+        raw_adv = outcome_edge if outcome_edge is not None else bc_sample_quality
+        if raw_adv is None:
+            raw_adv = np.zeros(len(oracle_positions), dtype=np.float32)
+        raw_adv = np.asarray(raw_adv, dtype=np.float32)
+        positive_adv = raw_adv[raw_adv > 0.0]
+        if positive_adv.size > 0:
+            adv_scale = float(np.quantile(positive_adv, 0.90))
+            adv_scale = max(adv_scale, 1e-6)
+            bc_advantage_values = np.clip(raw_adv / adv_scale, 0.0, 1.0).astype(np.float32)
+        else:
+            bc_advantage_values = np.zeros_like(raw_adv, dtype=np.float32)
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC - loading checkpoint: {bc_path}")
@@ -905,6 +928,7 @@ def run_fold(
                 regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
                 soft_labels=oracle_soft_labels[:T_enc] if oracle_soft_labels is not None else None,
                 sample_quality=bc_sample_quality[:T_enc] if bc_sample_quality is not None else None,
+                advantage_values=bc_advantage_values[:T_enc] if bc_advantage_values is not None else None,
             )
             bc_trainer.save(bc_path)
         else:
@@ -1098,6 +1122,7 @@ def run_fold(
         return {"fold": fold_idx, "completed_stage": "ac"}
 
     adjust_scale_grid = ac_cfg.get("val_adjust_rate_scale_grid", [])
+    adv_level_grid = ac_cfg.get("val_advantage_level_grid", [actor.infer_advantage_level])
     if len(adjust_scale_grid) > 0:
         val_features_arr = wfo_dataset.val_features
         val_returns_arr = wfo_dataset.val_returns
@@ -1106,40 +1131,47 @@ def run_fold(
             best_scale = float(getattr(actor, "infer_adjust_rate_scale", 1.0))
             best_label = "score=-inf"
             original_scale = best_scale
+            original_adv = float(getattr(actor, "infer_advantage_level", 0.0))
             selector_cfg = _selector_cfg(ac_cfg)
             selector_candidates = []
-            for candidate in adjust_scale_grid:
-                actor.infer_adjust_rate_scale = float(candidate)
-                pos = actor.predict_positions(
-                    enc_val["z"], enc_val["h"], regime_np=val_regime_probs, device=device
-                )
-                T_min = min(len(val_returns_arr), len(pos))
-                metrics = Backtest(
-                    val_returns_arr[:T_min], pos[:T_min],
-                    spread_bps=costs_cfg.get("spread_bps", 5.0),
-                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                    interval=cfg.get("data", {}).get("interval", "15m"),
-                    benchmark_positions=_benchmark_positions(T_min, cfg),
-                ).run()
-                stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
-                candidate_rec = _selector_candidate(
-                    float(candidate),
-                    metrics,
-                    stats,
-                    benchmark_position=_benchmark_position_value(cfg),
-                    selector_cfg=selector_cfg,
-                    cfg=cfg,
-                )
-                selector_candidates.append(candidate_rec)
-                print(f"  [ValAdj] scale={float(candidate):.3f} {candidate_rec['label']}")
+            for adv_level in adv_level_grid:
+                actor.infer_advantage_level = float(adv_level)
+                for candidate in adjust_scale_grid:
+                    actor.infer_adjust_rate_scale = float(candidate)
+                    pos = actor.predict_positions(
+                        enc_val["z"], enc_val["h"], regime_np=val_regime_probs, device=device
+                    )
+                    T_min = min(len(val_returns_arr), len(pos))
+                    metrics = Backtest(
+                        val_returns_arr[:T_min], pos[:T_min],
+                        spread_bps=costs_cfg.get("spread_bps", 5.0),
+                        fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+                        interval=cfg.get("data", {}).get("interval", "15m"),
+                        benchmark_positions=_benchmark_positions(T_min, cfg),
+                    ).run()
+                    stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
+                    candidate_key = {"scale": float(candidate), "adv": float(adv_level)}
+                    candidate_rec = _selector_candidate(
+                        candidate_key,
+                        metrics,
+                        stats,
+                        benchmark_position=_benchmark_position_value(cfg),
+                        selector_cfg=selector_cfg,
+                        cfg=cfg,
+                    )
+                    selector_candidates.append(candidate_rec)
+                    print(f"  [ValAdj] {_candidate_to_text(candidate_key)} {candidate_rec['label']}")
             chosen = _select_policy_candidate(selector_candidates, selector_cfg)
-            best_scale = float(chosen["candidate"])
+            chosen_candidate = chosen["candidate"] if isinstance(chosen["candidate"], dict) else {"scale": float(chosen["candidate"]), "adv": original_adv}
+            best_scale = float(chosen_candidate["scale"])
+            best_adv = float(chosen_candidate.get("adv", original_adv))
             best_label = chosen["label"]
             actor.infer_adjust_rate_scale = best_scale
+            actor.infer_advantage_level = best_adv
             print(
-                f"  [ValAdj] selected scale={best_scale:.3f} "
-                f"(default={original_scale:.3f}) {best_label}"
+                f"  [ValAdj] selected {_candidate_to_text(chosen_candidate)} "
+                f"(default=scale={original_scale:.3f} adv={original_adv:.2f}) {best_label}"
             )
 
     # --------- Step 5: Test バックテスト ---------

@@ -69,6 +69,7 @@ class ControllerPathDataset(Dataset):
         regime: torch.Tensor | None = None,
         soft_labels: torch.Tensor | None = None,
         sample_quality: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
     ):
         self.z = z
         self.h = h
@@ -78,6 +79,7 @@ class ControllerPathDataset(Dataset):
         self.regime = regime
         self.soft_labels = soft_labels
         self.sample_quality = sample_quality
+        self.advantage = advantage
         self.length = max(0, len(z) - self.horizon + 1)
 
     def __len__(self) -> int:
@@ -93,6 +95,8 @@ class ControllerPathDataset(Dataset):
             items.append(self.soft_labels[s:e])
         if self.sample_quality is not None:
             items.append(self.sample_quality[s:e])
+        if self.advantage is not None:
+            items.append(self.advantage[s:e])
         return tuple(items)
 
 
@@ -337,11 +341,12 @@ class BCPretrainer:
         class_weights: Optional[torch.Tensor] = None,
         trade_pos_weight: Optional[torch.Tensor] = None,
         sample_quality: Optional[torch.Tensor] = None,
+        advantage: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
         trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = (
             self.actor.controller_outputs_full(
-            z, h, inventory=inventory, regime=regime
+            z, h, inventory=inventory, regime=regime, advantage=advantage
             )
         )
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
@@ -472,6 +477,7 @@ class BCPretrainer:
         oracle_positions_seq: torch.Tensor,
         inventory0: torch.Tensor,
         regime_seq: Optional[torch.Tensor] = None,
+        advantage_seq: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         horizon = z_seq.shape[1]
         if horizon <= 0:
@@ -491,6 +497,7 @@ class BCPretrainer:
                 h_seq[:, t],
                 inventory=state,
                 regime=reg_t,
+                advantage=advantage_seq[:, t] if advantage_seq is not None else None,
             )
             next_inventory = self.actor.soft_execute_controller(
                 trade_signal=torch.sigmoid(trade_logits),
@@ -534,6 +541,7 @@ class BCPretrainer:
         regime_probs: "np.ndarray | None" = None,
         soft_labels: "np.ndarray | None" = None,
         sample_quality: "np.ndarray | None" = None,
+        advantage_values: "np.ndarray | None" = None,
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
@@ -577,6 +585,7 @@ class BCPretrainer:
             rollout_positions = None
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
+            use_adv = advantage_values is not None
             for epoch in range(self.n_epochs):
                 state_all = teacher_state_all
                 target_all = np.asarray(oracle_positions[:T], dtype=np.float32)
@@ -622,6 +631,10 @@ class BCPretrainer:
                     q_arr = np.asarray(sample_quality[:T_use], dtype=np.float32).reshape(n_chunks, k)
                     q_repr_arr = q_arr[np.arange(n_chunks), repr_idx]
                     tensors.append(torch.tensor(q_repr_arr, dtype=torch.float32))
+                if use_adv:
+                    adv_arr = np.asarray(advantage_values[:T_use], dtype=np.float32).reshape(n_chunks, k)
+                    adv_repr_arr = adv_arr[np.arange(n_chunks), repr_idx]
+                    tensors.append(torch.tensor(adv_repr_arr, dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)
                 loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
@@ -640,6 +653,9 @@ class BCPretrainer:
                     if use_soft:
                         bi += 1
                     q_repr = batch[bi].to(self.device) if sample_quality is not None else None
+                    if sample_quality is not None:
+                        bi += 1
+                    adv_repr = batch[bi].to(self.device) if use_adv else None
 
                     if self.use_sirl:
                         state = torch.cat([z_b, h_b], dim=-1)
@@ -657,6 +673,7 @@ class BCPretrainer:
                         class_weights=class_weights_t,
                         trade_pos_weight=trade_pos_weight_t,
                         sample_quality=q_repr,
+                        advantage=adv_repr,
                     )
 
                     self.optimizer.zero_grad()
@@ -679,6 +696,7 @@ class BCPretrainer:
         # --- 通常の per-step 学習（chunk_size=1）---
         use_regime = regime_probs is not None
         use_soft = soft_labels is not None
+        use_adv = advantage_values is not None
         logs = []
         rollout_positions = None
         for epoch in range(self.n_epochs):
@@ -703,6 +721,7 @@ class BCPretrainer:
             regime_t = torch.tensor(regime_probs[:T], dtype=torch.float32) if use_regime else None
             soft_t = torch.tensor(soft_labels[:T], dtype=torch.float32) if use_soft else None
             quality_t = torch.tensor(sample_quality[:T], dtype=torch.float32) if sample_quality is not None else None
+            adv_t = torch.tensor(advantage_values[:T], dtype=torch.float32) if use_adv else None
             if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                 dataset = ControllerPathDataset(
                     z_t,
@@ -713,6 +732,7 @@ class BCPretrainer:
                     regime=regime_t,
                     soft_labels=soft_t,
                     sample_quality=quality_t,
+                    advantage=adv_t,
                 )
             else:
                 tensors = [z_t, h_t, a_t, inv_t]
@@ -722,6 +742,8 @@ class BCPretrainer:
                     tensors.append(soft_t)
                 if quality_t is not None:
                     tensors.append(quality_t)
+                if adv_t is not None:
+                    tensors.append(adv_t)
                 dataset = TensorDataset(*tensors)
             loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
             epoch_loss = 0.0
@@ -747,6 +769,11 @@ class BCPretrainer:
                 q_b = batch[bi].to(self.device) if sample_quality is not None else None
                 if q_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     q_b = q_b[:, 0]
+                if sample_quality is not None:
+                    bi += 1
+                adv_b = batch[bi].to(self.device) if use_adv else None
+                if adv_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    adv_b = adv_b[:, 0]
 
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
@@ -768,18 +795,22 @@ class BCPretrainer:
                     class_weights=class_weights_t,
                     trade_pos_weight=trade_pos_weight_t,
                     sample_quality=q_b,
+                    advantage=adv_b,
                 )
                 if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     z_seq = z_seq.to(self.device)
                     h_seq = h_seq.to(self.device)
                     a_seq = a_seq.to(self.device)
                     reg_seq = batch[4].to(self.device) if use_regime else None
+                    adv_seq_idx = 4 + (1 if use_regime else 0) + (1 if use_soft else 0) + (1 if sample_quality is not None else 0)
+                    adv_seq = batch[adv_seq_idx].to(self.device) if use_adv else None
                     path_loss = self._bc_path_loss(
                         z_seq=z_seq,
                         h_seq=h_seq,
                         oracle_positions_seq=a_seq,
                         inventory0=inv_b,
                         regime_seq=reg_seq,
+                        advantage_seq=adv_seq,
                     )
                     loss = loss + self.path_aux_coef * path_loss
 
