@@ -643,6 +643,15 @@ class Actor(nn.Module):
                 floor_strength = (gap_excess > 0.0).to(trade_prob.dtype)
             trade_floor = min_trade_floor * floor_strength
             trade_prob = torch.maximum(trade_prob, trade_floor)
+        if bool(getattr(self, "infer_direct_target_track", False)):
+            direct_scale = float(getattr(self, "infer_direct_track_scale", 1.0))
+            target_gap = target_inventory - current_inventory
+            bounded_step = self._bounded_step(target_gap)
+            next_inventory = current_inventory + direct_scale * bounded_step
+            overlay_low, overlay_high = self._overlay_bounds()
+            next_inventory = next_inventory.clamp(min=overlay_low, max=overlay_high)
+            next_position = self._overlay_to_position(next_inventory)
+            return next_position.unsqueeze(-1)
         trade_prob = self._quantize_inference(trade_prob)
         band_width = self._quantize_inference(band_width)
         target_inventory = self._quantize_inference(target_inventory)
