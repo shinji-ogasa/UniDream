@@ -223,6 +223,15 @@ This runs the basis / orderflow / on-chain probes and writes:
 The default suite now also includes a hybrid config that combines basis,
 order-flow, and on-chain context features.
 
+To generate a manifest stub from those suite configs:
+
+```powershell
+.\scripts\generate_suite_manifest_stub.ps1
+```
+
+This writes a placeholder manifest listing the raw source files and extra series
+needed by the selected probe configs.
+
 That script:
 
 1. Builds raw source cache
