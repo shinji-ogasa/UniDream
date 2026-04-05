@@ -288,6 +288,8 @@ order-flow, and on-chain context features.
 By default, configs whose raw source dependencies are still missing are skipped.
 The rollout order and default config list are centralized in
 [source_rollout_suite.yaml](/C:/Users/Sophie/Documents/UniDream/UniDream/configs/source_rollout_suite.yaml).
+The end-to-end command order is summarized in
+[source_rollout_workflow.md](/C:/Users/Sophie/Documents/UniDream/UniDream/docs/source_rollout_workflow.md).
 
 To generate a manifest stub from those suite configs:
 
