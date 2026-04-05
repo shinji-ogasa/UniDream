@@ -87,6 +87,19 @@ def _ac_alerts(label: str, s: dict, bc_loss: float | None = None) -> None:
         print(f"  ⚠️  [{label}] BC loss {bc_loss:.4f} > 0.05")
 
 
+def _ac_alerts_ascii(label: str, s: dict, bc_loss: float | None = None) -> None:
+    """ASCII-safe alert logging for Windows cp932 terminals."""
+    directional_collapse = max(s["long"], s["short"]) > 0.80 and s["switches"] <= 5 and s["turnover"] < 1.0
+    if directional_collapse and s["long"] > 0.80:
+        print(f"  [WARN] [{label}] long ratio {s['long']:.0%} > 80%")
+    if directional_collapse and s["short"] > 0.80:
+        print(f"  [WARN] [{label}] short ratio {s['short']:.0%} > 80%")
+    if s["avg_hold"] < 2.0:
+        print(f"  [WARN] [{label}] avg_hold={s['avg_hold']:.1f}b high turnover")
+    if bc_loss is not None and bc_loss > 0.05:
+        print(f"  [WARN] [{label}] BC loss {bc_loss:.4f} > 0.05")
+
+
 class ImagACTrainer:
     """Imagination Actor-Critic 学習ループ.
 
@@ -145,6 +158,9 @@ class ImagACTrainer:
         self.prior_flow_coef = ac_cfg.get("prior_flow_coef", 0.0)
         self.turnover_coef = ac_cfg.get("turnover_coef", 0.0)
         self.flow_change_coef = ac_cfg.get("flow_change_coef", 0.0)
+        self.active_deviation_coef = ac_cfg.get("active_deviation_coef", 0.0)
+        self.underweight_exposure_coef = ac_cfg.get("underweight_exposure_coef", 0.0)
+        self.underweight_floor = ac_cfg.get("underweight_floor", 0.0)
         self.positive_advantages = ac_cfg.get("positive_advantages", False)
 
         # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
@@ -577,6 +593,11 @@ class ImagACTrainer:
             rewards_for_ac = rewards_for_ac - self.turnover_coef * delta_inventory
         if self.flow_change_coef > 0.0:
             rewards_for_ac = rewards_for_ac - self.flow_change_coef * flow_change
+        if self.active_deviation_coef > 0.0:
+            rewards_for_ac = rewards_for_ac - self.active_deviation_coef * next_inventory.abs()
+        if self.underweight_exposure_coef > 0.0:
+            underweight_excess = F.relu((-next_inventory) - float(self.underweight_floor))
+            rewards_for_ac = rewards_for_ac - self.underweight_exposure_coef * underweight_excess
 
         # --- Slow Critic の value 推定（原スケール）---
         zs_flat = zs.reshape(B * self.horizon, -1)
@@ -865,10 +886,13 @@ class ImagACTrainer:
                         ),
                         device=str(self.device),
                     )
-                    _tr_s = _action_stats(_tr_pos)
+                    _tr_s = _action_stats(_tr_pos, benchmark_position=self.benchmark_position)
                     print(f"[AC] Train dist: {_fmt_action_stats(_tr_s)}")
-                    _ac_alerts(f"train/step{self.global_step}", _tr_s,
-                               bc_loss=step_log.get("bc_loss"))
+                    _ac_alerts_ascii(
+                        f"train/step{self.global_step}",
+                        _tr_s,
+                        bc_loss=step_log.get("bc_loss"),
+                    )
 
                 # BC loss early stop チェック
                 cur_bc_loss = step_log["bc_loss"]
