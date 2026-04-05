@@ -59,6 +59,18 @@ def _read_optional_parquet(path: str) -> pd.DataFrame | None:
     return df.sort_index()
 
 
+def _read_extra_series_caches(cache_dir: str, cache_tag: str) -> dict[str, pd.Series]:
+    series_map: dict[str, pd.Series] = {}
+    pattern = os.path.join(cache_dir, f"{cache_tag}_series_*.parquet")
+    for path in sorted(glob.glob(pattern)):
+        df = _read_optional_parquet(path)
+        if df is None or df.empty or df.shape[1] == 0:
+            continue
+        name = os.path.basename(path).replace(f"{cache_tag}_series_", "").replace(".parquet", "")
+        series_map[name] = df.iloc[:, 0].rename(name)
+    return series_map
+
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -322,6 +334,7 @@ def main() -> None:
         funding_df = _read_optional_parquet(funding_cache)
         oi_df = _read_optional_parquet(oi_cache)
         mark_price_df = _read_optional_parquet(mark_cache)
+        extra_series = _read_extra_series_caches(args.data_cache_dir, cache_tag)
         features_df = compute_features(
             ohlcv,
             zscore_window_days=zscore_window,
@@ -329,6 +342,7 @@ def main() -> None:
             funding_df=funding_df,
             oi_df=oi_df,
             mark_price_df=mark_price_df,
+            extra_series=extra_series,
         )
         raw_returns = get_raw_returns(ohlcv)
 

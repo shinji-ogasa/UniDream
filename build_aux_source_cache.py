@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -67,6 +68,20 @@ def _prepare_spot_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     return df[required].astype(float)
 
 
+def _prepare_generic_series(df: pd.DataFrame, name: str, value_col: str | None = None) -> pd.DataFrame:
+    df = _normalize_time_index(df)
+    if value_col and value_col in df.columns:
+        col = value_col
+    else:
+        numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+        if len(numeric_cols) != 1:
+            raise ValueError(
+                f"Series '{name}' must have exactly one numeric column when value_col is omitted, got {numeric_cols}"
+            )
+        col = numeric_cols[0]
+    return df[[col]].rename(columns={col: name}).astype(float)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build auxiliary source cache parquet files")
     parser.add_argument("--cache-dir", required=True)
@@ -75,6 +90,12 @@ def main() -> None:
     parser.add_argument("--funding-file", default=None)
     parser.add_argument("--oi-file", default=None)
     parser.add_argument("--spot-file", default=None)
+    parser.add_argument(
+        "--extra-series",
+        action="append",
+        default=[],
+        help="name=path or name=path:column for arbitrary aligned external series",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.cache_dir, exist_ok=True)
@@ -102,6 +123,19 @@ def main() -> None:
         oi_path = os.path.join(args.cache_dir, f"{args.cache_tag}_oi.parquet")
         oi.to_parquet(oi_path)
         print(f"[AUX] Wrote oi cache -> {oi_path} ({len(oi)} rows)")
+
+    for spec in args.extra_series:
+        if "=" not in spec:
+            raise ValueError(f"Invalid --extra-series '{spec}', expected name=path or name=path:column")
+        name, rhs = spec.split("=", 1)
+        if ":" in rhs:
+            path, value_col = rhs.rsplit(":", 1)
+        else:
+            path, value_col = rhs, None
+        series_df = _prepare_generic_series(_load_any(path), name=name, value_col=value_col)
+        out_path = os.path.join(args.cache_dir, f"{args.cache_tag}_series_{name}.parquet")
+        series_df.to_parquet(out_path)
+        print(f"[AUX] Wrote series cache -> {out_path} ({len(series_df)} rows) from {Path(path).name}")
 
 
 if __name__ == "__main__":

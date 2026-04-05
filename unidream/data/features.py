@@ -279,6 +279,27 @@ def compute_basis_features(
     )
 
 
+def align_extra_series(
+    extra_series: dict[str, pd.Series | pd.DataFrame] | None,
+    target_index: pd.DatetimeIndex,
+) -> list[pd.Series]:
+    if not extra_series:
+        return []
+    aligned: list[pd.Series] = []
+    for name, value in extra_series.items():
+        if isinstance(value, pd.DataFrame):
+            if value.shape[1] != 1:
+                continue
+            series = value.iloc[:, 0]
+        else:
+            series = value
+        series = series.rename(name)
+        series = series.reindex(target_index, method="ffill")
+        series = series.bfill().ffill().shift(1)
+        aligned.append(series)
+    return aligned
+
+
 # --- Funding Rate / OI 前処理 ---
 
 def align_funding_rate(
@@ -326,6 +347,7 @@ def compute_features(
     funding_df: "pd.DataFrame | None" = None,
     oi_df: "pd.DataFrame | None" = None,
     mark_price_df: "pd.DataFrame | None" = None,
+    extra_series: "dict[str, pd.Series | pd.DataFrame] | None" = None,
     rv_windows_hours: list[int] | None = None,
 ) -> pd.DataFrame:
     """OHLCV DataFrame から特徴量を計算して結合する.
@@ -392,6 +414,10 @@ def compute_features(
     if mark_price_df is not None and not mark_price_df.empty:
         basis_df = compute_basis_features(df["close"], mark_price_df)
         parts.append(basis_df)
+
+    extra_parts = align_extra_series(extra_series, df.index)
+    if extra_parts:
+        parts.extend(extra_parts)
 
     # --- 結合 ---
     feat = pd.concat(parts, axis=1)
