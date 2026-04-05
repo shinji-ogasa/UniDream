@@ -10,6 +10,7 @@ import yaml
 
 from build_coinmetrics_source_cache import _apply_transform as apply_coinmetrics_transform
 from check_config_source_requirements import collect_missing_requirements
+from select_best_source_family import select_best_family
 from source_rollout_plan import (
     build_rollout_snapshot,
     dedupe_missing_targets,
@@ -210,6 +211,33 @@ class SourceRolloutHelperTests(unittest.TestCase):
             snapshot["next_stage"]["missing_targets"],
             [f"{cache_tag}_series_signed_order_flow.parquet"],
         )
+
+    def test_select_best_family_prefers_m2_progress(self) -> None:
+        summary_path = self._test_root / "suite_summary.csv"
+        pd.DataFrame(
+            [
+                {
+                    "config": "basis",
+                    "m2_pass_count": 0,
+                    "test_alpha_pt_mean": 1.0,
+                    "test_sharpe_delta_mean": 0.05,
+                    "test_maxdd_delta_pt_mean": -1.0,
+                    "test_win_rate_mean": 0.51,
+                },
+                {
+                    "config": "orderflow",
+                    "m2_pass_count": 1,
+                    "test_alpha_pt_mean": 4.5,
+                    "test_sharpe_delta_mean": 0.18,
+                    "test_maxdd_delta_pt_mean": -8.0,
+                    "test_win_rate_mean": 0.58,
+                },
+            ]
+        ).to_csv(summary_path, index=False)
+
+        ranked, best = select_best_family(str(summary_path))
+        self.assertEqual(ranked.iloc[0]["config"], "orderflow")
+        self.assertEqual(best["config"], "orderflow")
 
 
 if __name__ == "__main__":
