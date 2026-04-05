@@ -28,7 +28,12 @@ import pandas as pd
 import torch
 import yaml
 
-from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetch_open_interest_hist
+from unidream.data.download import (
+    fetch_binance_ohlcv,
+    fetch_funding_rate,
+    fetch_open_interest_hist,
+    fetch_mark_price_klines,
+)
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.oracle import (
     _forward_window_stats,
@@ -1520,6 +1525,7 @@ def main():
         # Futures 追加データ（funding rate, OI）
         funding_df = None
         oi_df = None
+        mark_price_df = None
         try:
             print("[Data] Fetching funding rate...")
             funding_df = fetch_funding_rate(symbol, args.start, args.end)
@@ -1532,6 +1538,12 @@ def main():
             print(f"  Open interest: {len(oi_df)} records")
         except Exception as e:
             print(f"  Open interest skipped: {e}")
+        try:
+            print("[Data] Fetching futures mark price...")
+            mark_price_df = fetch_mark_price_klines(symbol, interval, args.start, args.end)
+            print(f"  Mark price: {len(mark_price_df)} records")
+        except Exception as e:
+            print(f"  Mark price skipped: {e}")
 
         print("[Data] Computing features...")
         features_df = compute_features(
@@ -1540,6 +1552,7 @@ def main():
             interval=interval,
             funding_df=funding_df,
             oi_df=oi_df,
+            mark_price_df=mark_price_df,
         )
         raw_returns = get_raw_returns(df)
         common_idx = features_df.index.intersection(raw_returns.index)

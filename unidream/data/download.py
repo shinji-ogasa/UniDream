@@ -103,6 +103,55 @@ def fetch_binance_ohlcv(
 BINANCE_FUTURES_URL = "https://fapi.binance.com"
 
 
+def fetch_mark_price_klines(
+    symbol: str,
+    interval: str,
+    start: str | datetime,
+    end: str | datetime,
+    base_url: str = BINANCE_FUTURES_URL,
+    sleep_sec: float = 0.1,
+) -> pd.DataFrame:
+    """Binance Futures の mark price kline を取得する.
+
+    Returns:
+        DataFrame (index=datetime, columns=['mark_close'])
+    """
+    start_ms = _parse_timestamp(start)
+    end_ms = _parse_timestamp(end)
+    all_rows = []
+    current_start = start_ms
+
+    while current_start < end_ms:
+        params = {
+            "symbol": symbol,
+            "interval": interval,
+            "startTime": current_start,
+            "endTime": end_ms,
+            "limit": MAX_LIMIT,
+        }
+        resp = requests.get(
+            base_url + "/fapi/v1/markPriceKlines", params=params, timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data:
+            break
+        all_rows.extend(data)
+        last_close_time = data[-1][6]
+        current_start = last_close_time + 1
+        if len(data) < MAX_LIMIT:
+            break
+        time.sleep(sleep_sec)
+
+    if not all_rows:
+        return pd.DataFrame(columns=["mark_close"])
+
+    df = _klines_to_df(all_rows)
+    end_dt = pd.Timestamp(end_ms, unit="ms")
+    df = df[df.index < end_dt]
+    return df[["close"]].rename(columns={"close": "mark_close"})
+
+
 def fetch_funding_rate(
     symbol: str,
     start: str | datetime,

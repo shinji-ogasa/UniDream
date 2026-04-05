@@ -1,0 +1,105 @@
+# Basis-source preparation config
+
+data:
+  symbol: "BTCUSDT"
+  interval: "15m"
+  train_years: 1
+  val_months: 2
+  test_months: 2
+  seq_len: 64
+
+normalization:
+  zscore_window_days: 60
+
+feature_extras:
+  rebound_v1: true
+  rebound_windows_hours: [24, 72]
+  context_v1: true
+  context_windows_hours: [4, 24, 72]
+  funding_context_v1: true
+  funding_context_windows_hours: [8, 24, 72]
+
+actions:
+  n: 5
+  values: [-1.0, -0.5, 0.0, 0.5, 1.0]
+
+costs:
+  spread_bps: 3.0
+  fee_rate: 0.0003
+  slippage_bps: 1.0
+
+cost_profiles:
+  base:
+    spread_bps: 3.0
+    fee_rate: 0.0003
+    slippage_bps: 1.0
+  stress:
+    spread_bps: 5.0
+    fee_rate: 0.0004
+    slippage_bps: 2.0
+
+oracle:
+  teacher_mode: feature_ridge
+  discount: 1.0
+  action_values: [-0.25, 0.0, 0.5, 1.0]
+  use_aim_targets: true
+  ridge_horizons: [4, 16, 64]
+  ridge_horizon_weights: [0.2, 0.3, 0.5]
+  ridge_alpha: 4.0
+  ridge_feature_clip: 5.0
+  ridge_signal_clip: 4.0
+  ridge_floor_position: 0.90
+  ridge_ceiling_position: 1.15
+  ridge_pos_deadzone: 0.15
+  ridge_neg_deadzone: 0.15
+
+reward:
+  beta: 0.1
+  dsr_eta: 0.01
+  mode: "excess_bh"
+  benchmark_position: 1.0
+
+world_model:
+  encoder_hidden: 256
+  encoder_layers: 2
+  n_categoricals: 32
+  n_classes: 32
+  unimix_ratio: 0.01
+  d_model: 256
+  n_heads: 4
+  n_layers: 2
+  d_ff: 1024
+  dropout: 0.1
+  max_seq_len: 128
+  free_bits: 1.0
+  dyn_scale: 0.5
+  rep_scale: 0.1
+  recon_scale: 1.0
+  reward_scale: 1.0
+  done_scale: 0.0
+  n_ensemble: 2
+  disagree_scale: 0.1
+  idm_scale: 0.0
+  return_scale: 0.1
+  return_horizon: 10
+  lr: 1.0e-4
+  batch_size: 32
+  max_steps: 500
+  grad_clip: 100.0
+  n_bins: 255
+  bin_range: [-20.0, 20.0]
+
+bc:
+  n_epochs: 6
+  lr: 3.0e-4
+  batch_size: 256
+
+ac:
+  max_steps: 0
+
+eval:
+  pbo_n_trials: 50
+  hmm_n_states: 3
+
+logging:
+  checkpoint_dir: "checkpoints/signal_teacher_v21_basis_source"

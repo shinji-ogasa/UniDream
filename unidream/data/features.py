@@ -257,6 +257,28 @@ def augment_with_funding_context_features(
     return pd.concat([features_df, derived_z], axis=1).dropna()
 
 
+def compute_basis_features(
+    spot_close: pd.Series,
+    mark_price_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """spot と futures mark の乖離特徴を作る."""
+    if mark_price_df is None or mark_price_df.empty:
+        return pd.DataFrame(index=spot_close.index)
+    mark_close = mark_price_df["mark_close"].reindex(spot_close.index, method="ffill")
+    mark_close = mark_close.bfill().ffill()
+    basis = np.log(mark_close / spot_close).shift(1)
+    basis_mom = basis.diff().shift(1)
+    basis_abs = basis.abs().shift(1)
+    return pd.DataFrame(
+        {
+            "basis": basis,
+            "basis_mom": basis_mom,
+            "basis_abs": basis_abs,
+        },
+        index=spot_close.index,
+    )
+
+
 # --- Funding Rate / OI 前処理 ---
 
 def align_funding_rate(
@@ -303,6 +325,7 @@ def compute_features(
     atr_period: int = 14,
     funding_df: "pd.DataFrame | None" = None,
     oi_df: "pd.DataFrame | None" = None,
+    mark_price_df: "pd.DataFrame | None" = None,
     rv_windows_hours: list[int] | None = None,
 ) -> pd.DataFrame:
     """OHLCV DataFrame から特徴量を計算して結合する.
@@ -364,6 +387,11 @@ def compute_features(
     if oi_df is not None and not oi_df.empty:
         oi_chg = compute_oi_change(oi_df, df.index)
         parts.append(oi_chg)
+
+    # --- spot / mark basis --- 
+    if mark_price_df is not None and not mark_price_df.empty:
+        basis_df = compute_basis_features(df["close"], mark_price_df)
+        parts.append(basis_df)
 
     # --- 結合 ---
     feat = pd.concat(parts, axis=1)
