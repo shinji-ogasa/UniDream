@@ -300,6 +300,45 @@ def align_extra_series(
     return aligned
 
 
+def compute_extra_series_features(
+    extra_series: dict[str, pd.Series | pd.DataFrame] | None,
+    target_index: pd.DatetimeIndex,
+    interval: str = "15m",
+    windows_hours: list[int] | None = None,
+) -> list[pd.Series | pd.DataFrame]:
+    """Align generic external series and derive simple regime/context features.
+
+    Each source contributes:
+    - raw shifted level
+    - one-step delta
+    - absolute impulse
+    - rolling mean / std / z-score over a few context windows
+    """
+    if not extra_series:
+        return []
+    if windows_hours is None:
+        windows_hours = [4, 24, 72]
+
+    bars_per_hour = max(1, BARS_PER_DAY.get(interval, 96) // 24)
+    aligned = align_extra_series(extra_series, target_index)
+    parts: list[pd.Series | pd.DataFrame] = []
+    for series in aligned:
+        name = str(series.name)
+        base = series.astype(np.float64)
+        parts.append(base)
+        parts.append(base.diff().rename(f"{name}_delta1"))
+        parts.append(base.abs().rename(f"{name}_abs"))
+        for hours in windows_hours:
+            w = max(2, hours * bars_per_hour)
+            mean = base.rolling(w, min_periods=max(2, w // 3)).mean()
+            std = base.rolling(w, min_periods=max(2, w // 3)).std()
+            parts.append(mean.rename(f"{name}_mean_{w}"))
+            parts.append(std.rename(f"{name}_std_{w}"))
+            parts.append(((base - mean) / (std + 1e-8)).rename(f"{name}_z_{w}"))
+            parts.append((base - mean).abs().rename(f"{name}_impulse_{w}"))
+    return parts
+
+
 # --- Funding Rate / OI 前処理 ---
 
 def align_funding_rate(
@@ -348,6 +387,7 @@ def compute_features(
     oi_df: "pd.DataFrame | None" = None,
     mark_price_df: "pd.DataFrame | None" = None,
     extra_series: "dict[str, pd.Series | pd.DataFrame] | None" = None,
+    extra_series_windows_hours: list[int] | None = None,
     rv_windows_hours: list[int] | None = None,
 ) -> pd.DataFrame:
     """OHLCV DataFrame から特徴量を計算して結合する.
@@ -415,7 +455,12 @@ def compute_features(
         basis_df = compute_basis_features(df["close"], mark_price_df)
         parts.append(basis_df)
 
-    extra_parts = align_extra_series(extra_series, df.index)
+    extra_parts = compute_extra_series_features(
+        extra_series,
+        df.index,
+        interval=interval,
+        windows_hours=extra_series_windows_hours,
+    )
     if extra_parts:
         parts.extend(extra_parts)
 

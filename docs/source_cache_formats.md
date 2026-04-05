@@ -117,6 +117,19 @@ Examples:
 - `stablecoin_inflow`
 - `signed_order_flow`
 
+When a generic external series is present, feature rebuild now creates both the
+raw shifted level and simple context features automatically:
+
+- `<name>`
+- `<name>_delta1`
+- `<name>_abs`
+- `<name>_mean_<bars>`
+- `<name>_std_<bars>`
+- `<name>_z_<bars>`
+- `<name>_impulse_<bars>`
+
+Default context windows are 4h / 24h / 72h.
+
 Index or time column:
 
 - Datetime index, or one of `time`, `timestamp`
