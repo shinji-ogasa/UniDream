@@ -1,0 +1,241 @@
+# UniDream — Smoke Test Configuration (teacher v2 confirmation smoothing)
+
+data:
+  symbol: "BTCUSDT"
+  interval: "15m"
+  train_years: 1
+  val_months: 2
+  test_months: 2
+  seq_len: 64
+
+normalization:
+  zscore_window_days: 60
+
+actions:
+  n: 5
+  values: [-1.0, -0.5, 0.0, 0.5, 1.0]
+
+costs:
+  spread_bps: 3.0
+  fee_rate: 0.0003
+  slippage_bps: 1.0
+
+cost_profiles:
+  base:
+    spread_bps: 3.0
+    fee_rate: 0.0003
+    slippage_bps: 1.0
+  stress:
+    spread_bps: 5.0
+    fee_rate: 0.0004
+    slippage_bps: 2.0
+
+oracle:
+  teacher_mode: signal_aim
+  discount: 1.0
+  soft_label_temp: 0.0
+  min_hold: 64
+  action_values: [-0.25, 0.0, 0.5, 1.0]
+  use_aim_targets: true
+  aim_max_step: 0.125
+  aim_band: 0.02
+  aim_underweight_confirm_bars: 8
+  aim_underweight_min_scale: 0.25
+  aim_underweight_floor_position: 0.50
+  aim_underweight_step_scale: 0.35
+  signal_horizons: [4, 16, 64]
+  signal_horizon_weights: [0.2, 0.3, 0.5]
+  signal_scale: 1.5
+  signal_deadzone: 0.10
+  signal_clip: 4.0
+  signal_floor_position: 0.50
+  signal_ceiling_position: 1.0
+  signal_downside_horizon: 16
+  signal_downside_weight: 0.15
+
+reward:
+  beta: 0.1
+  dsr_eta: 0.01
+  mode: "excess_bh"
+  benchmark_position: 1.0
+
+world_model:
+  encoder_hidden: 256
+  encoder_layers: 2
+  n_categoricals: 32
+  n_classes: 32
+  unimix_ratio: 0.01
+  d_model: 256
+  n_heads: 4
+  n_layers: 2
+  d_ff: 1024
+  dropout: 0.1
+  max_seq_len: 128
+  free_bits: 1.0
+  dyn_scale: 0.5
+  rep_scale: 0.1
+  recon_scale: 1.0
+  reward_scale: 1.0
+  done_scale: 0.0
+  n_ensemble: 2
+  disagree_scale: 0.1
+  idm_scale: 0.0
+  return_scale: 0.1
+  return_horizon: 10
+  lr: 1.0e-4
+  batch_size: 32
+  max_steps: 500
+  grad_clip: 100.0
+  n_bins: 255
+  bin_range: [-20.0, 20.0]
+
+bc:
+  n_epochs: 6
+  lr: 3.0e-4
+  batch_size: 256
+  sirl_hidden: 0
+  label_smoothing: 0.00
+  entropy_coef: 0.01
+  chunk_size: 1
+  class_balanced: false
+  target_aux_coef: 1.00
+  residual_target_coef: 1.25
+  residual_aux_ce_coef: 0.05
+  sample_quality_mode: underweight_edge
+  sample_quality_coef: 1.00
+  sample_quality_clip: 4.00
+  sample_quality_quantile: 0.85
+  trade_aux_coef: 0.25
+  band_aux_coef: 0.15
+  execution_aux_coef: 1.50
+  path_aux_coef: 1.25
+  path_horizon: 4
+  path_position_coef: 0.25
+  path_turnover_coef: 10.00
+  path_shortfall_coef: 0.50
+  soft_trade_targets: true
+  trade_target_scale: 0.125
+  self_condition_prob: 0.75
+  self_condition_interval: 1
+  self_condition_warmup_epochs: 1
+  self_condition_mode: dagger
+  self_condition_blend: 0.00
+  self_condition_max_position_gap: 0.125
+  self_condition_max_underweight_gap: 0.125
+  self_condition_relabel_step: 0.125
+  self_condition_relabel_band: 0.02
+
+ac:
+  actor_hidden: 256
+  critic_hidden: 256
+  ac_layers: 2
+  actor_dropout: 0.10
+  controller_state_dim: 3
+  residual_controller: true
+  residual_min_overlay: -0.35
+  residual_max_overlay: 0.00
+  residual_init_overlay: 0.00
+  infer_temperature: 1.0
+  infer_adjust_rate_scale: 0.10
+  adjustment_temperature: 0.25
+  infer_gap_boost: 0.00
+  infer_bootstrap_target_prob: 0.60
+  infer_bootstrap_target_std: 0.12
+  infer_bootstrap_trade_signal: 0.35
+  infer_bootstrap_baseline_margin: 0.05
+  infer_underweight_adjust_scale: 0.25
+  infer_support_min_count: 64
+  infer_support_min_ratio: 0.05
+  infer_min_trade_floor: 0.45
+  infer_min_trade_gap: 0.01
+  infer_min_trade_scale: 0.04
+  val_adjust_rate_scale_grid: [0.00, 0.01, 0.02, 0.03, 0.05, 0.10, 0.20, 0.40]
+  max_position_step: 0.125
+  abs_min_position: -0.25
+  abs_max_position: 1.0
+  min_band: 0.02
+  max_band: 0.20
+  min_target_std: 0.03
+  max_target_std: 0.20
+  horizon: 3
+  lam: 0.95
+  gamma: 0.99
+  ema_decay: 0.98
+  alpha_init: 1.0
+  alpha_final: 0.30
+  alpha_decay_steps: 600
+  entropy_scale: 1.0e-2
+  td3bc_alpha: 2.5
+  target_aux_coef: 1.00
+  trade_aux_coef: 0.10
+  band_aux_coef: 0.05
+  execution_aux_coef: 0.05
+  prior_kl_coef: 0.05
+  prior_trade_coef: 0.05
+  prior_band_coef: 0.02
+  prior_flow_coef: 0.10
+  turnover_coef: 0.25
+  flow_change_coef: 0.10
+  positive_advantages: true
+  selector_reject_alpha_floor_pt: -25.0
+  selector_reject_sharpe_floor: -1.0
+  selector_max_turnover: 8.0
+  selector_min_avg_hold: 3.0
+  selector_max_directional_ratio: 1.01
+  selector_directional_penalty_coef: 80.0
+  selector_directional_soft_limit: 0.90
+  selector_confirm_alpha_tol_pt: 5.0
+  selector_confirm_sharpe_tol: 0.20
+  selector_confirm_score_tol: 15.0
+  selector_turnover_score_coef: 3.0
+  selector_maxdd_score_coef: 50.0
+  selector_active_alpha_min_pt: 8.0
+  selector_active_sharpe_min: 0.05
+  selector_active_maxdd_worse_pt: 0.0
+  selector_active_min_win_rate: 0.48
+  selector_active_score_margin: 5.0
+  actor_lr: 3.0e-5
+  online_wm_interval: 200
+  online_wm_window_days: 30
+  online_wm_steps: 20
+  use_dsr: true
+  adaptive_bc: true
+  critic_lr: 3.0e-4
+  critic_pretrain_steps: 200
+  max_steps: 1000
+  checkpoint_interval: 200
+  val_patience: 6
+  bc_loss_threshold: 0.0
+  bc_loss_patience: 3
+  grad_clip: 100.0
+
+qdt:
+  n_epochs: 20
+  batch_size: 64
+  lr: 3.0e-4
+
+ppo:
+  n_epochs: 3
+  batch_size: 64
+  lr: 3.0e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_steps: 5000
+  grad_clip: 0.5
+
+eval:
+  pbo_n_trials: 50
+  hmm_n_states: 3
+  report_metrics:
+    - sharpe
+    - sortino
+    - max_drawdown
+    - calmar
+
+logging:
+  log_interval: 100
+  eval_interval: 500
+  checkpoint_dir: "checkpoints/smoke_contaim_mildshort_teacher_v2"

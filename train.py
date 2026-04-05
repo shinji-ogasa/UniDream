@@ -723,8 +723,25 @@ def run_fold(
         print(f"[SPIBB] support table skipped: {e}")
 
     bc_sample_quality = None
-    if oracle_teacher_mode == "signal_aim":
-        bc_sample_quality = np.abs(np.asarray(oracle_values, dtype=np.float32))
+    bc_quality_mode = str(bc_cfg.get("sample_quality_mode", "none")).lower()
+    if oracle_teacher_mode == "signal_aim" and bc_quality_mode != "none":
+        signal_values = np.asarray(oracle_values, dtype=np.float32)
+        if bc_quality_mode == "abs_signal":
+            bc_sample_quality = np.abs(signal_values)
+        elif bc_quality_mode == "underweight_edge":
+            benchmark_position = float(reward_cfg.get("benchmark_position", 1.0))
+            underweight_size = np.clip(benchmark_position - np.asarray(oracle_positions, dtype=np.float32), 0.0, None)
+            negative_signal = np.clip(-signal_values, 0.0, None)
+            raw_edge = underweight_size * negative_signal
+            positive_edge = raw_edge[raw_edge > 0.0]
+            if positive_edge.size > 0:
+                edge_quantile = float(np.clip(bc_cfg.get("sample_quality_quantile", 0.75), 0.0, 0.99))
+                edge_floor = float(np.quantile(positive_edge, edge_quantile))
+                edge_scale = float(np.quantile(positive_edge, 0.90)) - edge_floor
+                edge_scale = max(edge_scale, 1e-6)
+                bc_sample_quality = np.clip((raw_edge - edge_floor) / edge_scale, 0.0, bc_cfg.get("sample_quality_clip", 4.0))
+            else:
+                bc_sample_quality = np.zeros_like(raw_edge, dtype=np.float32)
 
     if has_bc:
         print(f"\n[{_ts()}] [Step 3] BC - loading checkpoint: {bc_path}")
