@@ -47,6 +47,16 @@ def _resolve_cache_pair(cache_dir: str, cache_tag: str) -> tuple[str, str]:
     return features_cache, returns_cache
 
 
+def _resolve_optional_cache(cache_dir: str, cache_tag: str, suffix: str) -> str:
+    path = os.path.join(cache_dir, f"{cache_tag}_{suffix}.parquet")
+    if os.path.exists(path):
+        return path
+    candidates = sorted(glob.glob(os.path.join(cache_dir, f"{cache_tag}*_{suffix}.parquet")))
+    if candidates:
+        return candidates[0]
+    return path
+
+
 def _read_optional_parquet(path: str) -> pd.DataFrame | None:
     if not os.path.exists(path):
         return None
@@ -61,12 +71,12 @@ def _read_optional_parquet(path: str) -> pd.DataFrame | None:
 
 def _read_extra_series_caches(cache_dir: str, cache_tag: str) -> dict[str, pd.Series]:
     series_map: dict[str, pd.Series] = {}
-    pattern = os.path.join(cache_dir, f"{cache_tag}_series_*.parquet")
+    pattern = os.path.join(cache_dir, f"{cache_tag}*_series_*.parquet")
     for path in sorted(glob.glob(pattern)):
         df = _read_optional_parquet(path)
         if df is None or df.empty or df.shape[1] == 0:
             continue
-        name = os.path.basename(path).replace(f"{cache_tag}_series_", "").replace(".parquet", "")
+        name = os.path.basename(path).split("_series_", 1)[-1].replace(".parquet", "")
         series_map[name] = df.iloc[:, 0].rename(name)
     return series_map
 
@@ -316,10 +326,10 @@ def main() -> None:
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
     features_cache, returns_cache = _resolve_cache_pair(args.data_cache_dir, cache_tag)
-    ohlcv_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_ohlcv.parquet")
-    funding_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_funding.parquet")
-    oi_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_oi.parquet")
-    mark_cache = os.path.join(args.data_cache_dir, f"{cache_tag}_mark.parquet")
+    ohlcv_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "ohlcv")
+    funding_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "funding")
+    oi_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "oi")
+    mark_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "mark")
 
     if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
         print("[Data] Loading cached features...")
