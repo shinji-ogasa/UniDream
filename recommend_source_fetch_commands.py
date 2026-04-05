@@ -43,7 +43,7 @@ def _command_hint(cache_dir: str, cache_tag: str, target: str) -> str:
             ".\\.venv\\Scripts\\python.exe build_coinmetrics_source_cache.py "
             f"--cache-dir {cache_dir} --cache-tag {cache_tag} "
             "--asset btc --start 2021-01-01 --end 2023-06-01 "
-            "--frequency 1h --metric active_address_growth=AdrActCnt"
+            "--frequency 1h --metric active_address_growth=AdrActCnt:logdiff"
         )
     if target.endswith("_series_stablecoin_inflow.parquet"):
         return (

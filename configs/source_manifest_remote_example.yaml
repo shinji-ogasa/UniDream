@@ -17,7 +17,9 @@ coinmetrics:
   end: "2023-06-01"
   frequency: "1h"
   metrics:
-    active_address_growth: "AdrActCnt"
+    active_address_growth:
+      metric: "AdrActCnt"
+      transform: "logdiff"
 
 glassnode:
   asset: "BTC"

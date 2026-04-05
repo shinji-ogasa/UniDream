@@ -91,7 +91,10 @@ def main() -> None:
                 "coinmetrics",
                 {"asset": "btc", "start": start, "end": end, "frequency": "1h", "metrics": {}},
             )
-            coinmetrics["metrics"]["active_address_growth"] = "AdrActCnt"
+            coinmetrics["metrics"]["active_address_growth"] = {
+                "metric": "AdrActCnt",
+                "transform": "logdiff",
+            }
         elif target.endswith("_series_stablecoin_inflow.parquet"):
             extra_series = manifest.setdefault("extra_series", {})
             extra_series["stablecoin_inflow"] = {"path": "path/to/stablecoin_inflow.csv", "column": "stablecoin_inflow"}

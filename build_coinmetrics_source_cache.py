@@ -4,6 +4,7 @@ import argparse
 import os
 from urllib.parse import urlencode
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -46,6 +47,21 @@ def _fetch_coinmetrics_metric(
     return df
 
 
+def _apply_transform(df: pd.DataFrame, col: str, transform: str | None) -> pd.DataFrame:
+    if not transform or transform == "none":
+        return df
+    series = df[col].astype(float)
+    if transform == "diff":
+        out = series.diff()
+    elif transform == "pct_change":
+        out = series.pct_change()
+    elif transform == "logdiff":
+        out = np.log(series.clip(lower=1e-8)).diff()
+    else:
+        raise ValueError(f"Unsupported transform: {transform}")
+    return out.to_frame(col)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch Coin Metrics asset metrics into source cache series")
     parser.add_argument("--cache-dir", required=True)
@@ -59,15 +75,19 @@ def main() -> None:
         "--metric",
         action="append",
         required=True,
-        help="alias=MetricName, repeated for each metric",
+        help="alias=MetricName or alias=MetricName:transform, repeated for each metric",
     )
     args = parser.parse_args()
 
     os.makedirs(args.cache_dir, exist_ok=True)
     for spec in args.metric:
         if "=" not in spec:
-            raise ValueError(f"Invalid --metric '{spec}', expected alias=MetricName")
-        alias, metric = spec.split("=", 1)
+            raise ValueError(f"Invalid --metric '{spec}', expected alias=MetricName[:transform]")
+        alias, rhs = spec.split("=", 1)
+        if ":" in rhs:
+            metric, transform = rhs.rsplit(":", 1)
+        else:
+            metric, transform = rhs, None
         df = _fetch_coinmetrics_metric(
             asset=args.asset,
             metric=metric,
@@ -76,9 +96,11 @@ def main() -> None:
             frequency=args.frequency,
             api_key=args.api_key,
         ).rename(columns={metric: alias})
+        df = _apply_transform(df, alias, transform)
         out_path = os.path.join(args.cache_dir, f"{args.cache_tag}_series_{alias}.parquet")
         df.to_parquet(out_path)
-        print(f"[CM] Wrote {out_path} ({len(df)} rows) metric={metric}")
+        suffix = f":{transform}" if transform else ""
+        print(f"[CM] Wrote {out_path} ({len(df)} rows) metric={metric}{suffix}")
 
 
 if __name__ == "__main__":

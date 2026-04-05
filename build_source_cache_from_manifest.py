@@ -179,7 +179,13 @@ def main() -> None:
         end = coinmetrics_cfg["end"]
         frequency = coinmetrics_cfg.get("frequency", "1h")
         api_key = coinmetrics_cfg.get("api_key")
-        for alias, metric in (coinmetrics_cfg.get("metrics") or {}).items():
+        for alias, metric_spec in (coinmetrics_cfg.get("metrics") or {}).items():
+            if isinstance(metric_spec, dict):
+                metric = metric_spec["metric"]
+                transform = metric_spec.get("transform")
+            else:
+                metric = metric_spec
+                transform = None
             df = _fetch_coinmetrics_metric(
                 asset=asset,
                 metric=metric,
@@ -188,6 +194,8 @@ def main() -> None:
                 frequency=frequency,
                 api_key=api_key,
             ).rename(columns={metric: alias})
+            from build_coinmetrics_source_cache import _apply_transform as _apply_cm_transform
+            df = _apply_cm_transform(df, alias, transform)
             out_path = os.path.join(cache_dir, f"{cache_tag}_series_{alias}.parquet")
             df.to_parquet(out_path)
             print(f"[MANIFEST] Wrote series cache -> {out_path} ({len(df)} rows) metric={metric}")
@@ -199,7 +207,13 @@ def main() -> None:
         interval = glassnode_cfg.get("interval", "1h")
         api_key = glassnode_cfg["api_key"]
         pit = bool(glassnode_cfg.get("pit", False))
-        for alias, metric_path in (glassnode_cfg.get("metrics") or {}).items():
+        for alias, metric_spec in (glassnode_cfg.get("metrics") or {}).items():
+            if isinstance(metric_spec, dict):
+                metric_path = metric_spec["metric"]
+                transform = metric_spec.get("transform")
+            else:
+                metric_path = metric_spec
+                transform = None
             df = _fetch_glassnode_metric(
                 asset=asset,
                 metric_path=metric_path,
@@ -209,6 +223,8 @@ def main() -> None:
                 api_key=api_key,
                 pit=pit,
             ).rename(columns={"value": alias})
+            from build_glassnode_source_cache import _apply_transform as _apply_gn_transform
+            df = _apply_gn_transform(df, alias, transform)
             out_path = os.path.join(cache_dir, f"{cache_tag}_series_{alias}.parquet")
             df.to_parquet(out_path)
             print(f"[MANIFEST] Wrote series cache -> {out_path} ({len(df)} rows) metric={metric_path}")

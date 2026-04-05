@@ -221,7 +221,7 @@ Use:
   --start 2021-01-01 `
   --end 2023-06-01 `
   --frequency 1h `
-  --metric active_address_growth=AdrActCnt
+  --metric active_address_growth=AdrActCnt:logdiff
 ```
 
 ### Download from Glassnode
@@ -240,6 +240,12 @@ Use:
   --api-key <glassnode_key> `
   --metric exchange_netflow=transactions/transfers_volume_exchanges_net
 ```
+
+Provider builders accept optional transforms on metrics:
+
+- `:diff`
+- `:pct_change`
+- `:logdiff`
 
 ## Offline Runners
 
