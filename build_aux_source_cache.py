@@ -1,0 +1,92 @@
+from __future__ import annotations
+
+import argparse
+import os
+
+import pandas as pd
+
+
+def _load_any(path: str) -> pd.DataFrame:
+    if path.lower().endswith(".parquet"):
+        df = pd.read_parquet(path)
+    else:
+        df = pd.read_csv(path)
+    if isinstance(df, pd.Series):
+        df = df.to_frame()
+    return df
+
+
+def _normalize_time_index(df: pd.DataFrame) -> pd.DataFrame:
+    time_candidates = ["time", "open_time", "timestamp", "fundingTime"]
+    if isinstance(df.index, pd.DatetimeIndex):
+        out = df.copy()
+    else:
+        for col in time_candidates:
+            if col in df.columns:
+                out = df.copy()
+                out[col] = pd.to_datetime(out[col], utc=False)
+                out = out.set_index(col)
+                break
+        else:
+            raise ValueError("No datetime index/column found")
+    return out.sort_index()
+
+
+def _prepare_mark(df: pd.DataFrame) -> pd.DataFrame:
+    df = _normalize_time_index(df)
+    if "mark_close" in df.columns:
+        return df[["mark_close"]].astype(float)
+    for col in ["close", "markPrice", "mark_price"]:
+        if col in df.columns:
+            return df[[col]].rename(columns={col: "mark_close"}).astype(float)
+    raise ValueError("Mark source must contain one of: mark_close, close, markPrice, mark_price")
+
+
+def _prepare_funding(df: pd.DataFrame) -> pd.DataFrame:
+    df = _normalize_time_index(df)
+    for col in ["funding_rate", "fundingRate"]:
+        if col in df.columns:
+            return df[[col]].rename(columns={col: "funding_rate"}).astype(float)
+    raise ValueError("Funding source must contain one of: funding_rate, fundingRate")
+
+
+def _prepare_oi(df: pd.DataFrame) -> pd.DataFrame:
+    df = _normalize_time_index(df)
+    for col in ["open_interest", "sumOpenInterest", "openInterest"]:
+        if col in df.columns:
+            return df[[col]].rename(columns={col: "open_interest"}).astype(float)
+    raise ValueError("OI source must contain one of: open_interest, sumOpenInterest, openInterest")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build auxiliary source cache parquet files")
+    parser.add_argument("--cache-dir", required=True)
+    parser.add_argument("--cache-tag", required=True)
+    parser.add_argument("--mark-file", default=None)
+    parser.add_argument("--funding-file", default=None)
+    parser.add_argument("--oi-file", default=None)
+    args = parser.parse_args()
+
+    os.makedirs(args.cache_dir, exist_ok=True)
+
+    if args.mark_file:
+        mark = _prepare_mark(_load_any(args.mark_file))
+        mark_path = os.path.join(args.cache_dir, f"{args.cache_tag}_mark.parquet")
+        mark.to_parquet(mark_path)
+        print(f"[AUX] Wrote mark cache -> {mark_path} ({len(mark)} rows)")
+
+    if args.funding_file:
+        funding = _prepare_funding(_load_any(args.funding_file))
+        funding_path = os.path.join(args.cache_dir, f"{args.cache_tag}_funding.parquet")
+        funding.to_parquet(funding_path)
+        print(f"[AUX] Wrote funding cache -> {funding_path} ({len(funding)} rows)")
+
+    if args.oi_file:
+        oi = _prepare_oi(_load_any(args.oi_file))
+        oi_path = os.path.join(args.cache_dir, f"{args.cache_tag}_oi.parquet")
+        oi.to_parquet(oi_path)
+        print(f"[AUX] Wrote oi cache -> {oi_path} ({len(oi)} rows)")
+
+
+if __name__ == "__main__":
+    main()

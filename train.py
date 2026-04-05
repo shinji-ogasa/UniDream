@@ -75,6 +75,18 @@ def _cache_is_fresh(path: str, stale_days: int = _CACHE_STALE_DAYS) -> bool:
     return age_days < stale_days
 
 
+def _read_optional_parquet(path: str) -> pd.DataFrame | None:
+    if not os.path.exists(path):
+        return None
+    df = pd.read_parquet(path)
+    if isinstance(df, pd.Series):
+        df = df.to_frame()
+    if not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
+        df["time"] = pd.to_datetime(df["time"], utc=False)
+        df = df.set_index("time")
+    return df.sort_index()
+
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -1511,6 +1523,9 @@ def main():
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
+    funding_cache = os.path.join(cache_dir, f"{cache_tag}_funding.parquet")
+    oi_cache = os.path.join(cache_dir, f"{cache_tag}_oi.parquet")
+    mark_cache = os.path.join(cache_dir, f"{cache_tag}_mark.parquet")
 
     if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
         print("\n[Data] Loading cached features...")
@@ -1523,27 +1538,36 @@ def main():
         print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
 
         # Futures 追加データ（funding rate, OI）
-        funding_df = None
-        oi_df = None
-        mark_price_df = None
-        try:
-            print("[Data] Fetching funding rate...")
-            funding_df = fetch_funding_rate(symbol, args.start, args.end)
-            print(f"  Funding rate: {len(funding_df)} records")
-        except Exception as e:
-            print(f"  Funding rate skipped: {e}")
-        try:
-            print("[Data] Fetching open interest...")
-            oi_df = fetch_open_interest_hist(symbol, interval, args.start, args.end)
-            print(f"  Open interest: {len(oi_df)} records")
-        except Exception as e:
-            print(f"  Open interest skipped: {e}")
-        try:
-            print("[Data] Fetching futures mark price...")
-            mark_price_df = fetch_mark_price_klines(symbol, interval, args.start, args.end)
-            print(f"  Mark price: {len(mark_price_df)} records")
-        except Exception as e:
-            print(f"  Mark price skipped: {e}")
+        funding_df = _read_optional_parquet(funding_cache)
+        oi_df = _read_optional_parquet(oi_cache)
+        mark_price_df = _read_optional_parquet(mark_cache)
+        if funding_df is not None:
+            print(f"[Data] Funding cache loaded: {len(funding_df)} records")
+        else:
+            try:
+                print("[Data] Fetching funding rate...")
+                funding_df = fetch_funding_rate(symbol, args.start, args.end)
+                print(f"  Funding rate: {len(funding_df)} records")
+            except Exception as e:
+                print(f"  Funding rate skipped: {e}")
+        if oi_df is not None:
+            print(f"[Data] OI cache loaded: {len(oi_df)} records")
+        else:
+            try:
+                print("[Data] Fetching open interest...")
+                oi_df = fetch_open_interest_hist(symbol, interval, args.start, args.end)
+                print(f"  Open interest: {len(oi_df)} records")
+            except Exception as e:
+                print(f"  Open interest skipped: {e}")
+        if mark_price_df is not None:
+            print(f"[Data] Mark cache loaded: {len(mark_price_df)} records")
+        else:
+            try:
+                print("[Data] Fetching futures mark price...")
+                mark_price_df = fetch_mark_price_klines(symbol, interval, args.start, args.end)
+                print(f"  Mark price: {len(mark_price_df)} records")
+            except Exception as e:
+                print(f"  Mark price skipped: {e}")
 
         print("[Data] Computing features...")
         features_df = compute_features(
@@ -1564,6 +1588,12 @@ def main():
         os.makedirs(cache_dir, exist_ok=True)
         features_df.to_parquet(features_cache)
         raw_returns.to_frame().to_parquet(returns_cache)
+        if funding_df is not None and not funding_df.empty:
+            funding_df.to_parquet(funding_cache)
+        if oi_df is not None and not oi_df.empty:
+            oi_df.to_parquet(oi_cache)
+        if mark_price_df is not None and not mark_price_df.empty:
+            mark_price_df.to_parquet(mark_cache)
         print(f"  Cached to {cache_dir}")
 
     # --------- WFO 分割 ---------
