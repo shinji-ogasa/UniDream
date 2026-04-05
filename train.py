@@ -31,6 +31,7 @@ import yaml
 from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetch_open_interest_hist
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.oracle import (
+    _forward_window_stats,
     hindsight_oracle_dp,
     hindsight_signal_teacher,
     oracle_to_dataset,
@@ -93,6 +94,27 @@ def _benchmark_positions(length: int, cfg: dict) -> np.ndarray:
 
 def _benchmark_position_value(cfg: dict) -> float:
     return float(cfg.get("reward", {}).get("benchmark_position", 1.0))
+
+
+def _teacher_outcome_edge(
+    returns: np.ndarray,
+    positions: np.ndarray,
+    benchmark_position: float,
+    horizons: tuple[int, ...],
+    horizon_weights: tuple[float, ...],
+) -> np.ndarray:
+    weighted_forward = np.zeros(len(returns), dtype=np.float32)
+    total_weight = 0.0
+    for horizon, weight in zip(horizons, horizon_weights):
+        if weight == 0.0:
+            continue
+        fwd_mean, _ = _forward_window_stats(np.asarray(returns, dtype=np.float32), int(horizon))
+        weighted_forward += float(weight) * fwd_mean.astype(np.float32)
+        total_weight += float(weight)
+    if total_weight > 0.0:
+        weighted_forward /= total_weight
+    action_edge = (np.asarray(positions, dtype=np.float32) - float(benchmark_position)) * weighted_forward
+    return np.clip(action_edge, 0.0, None).astype(np.float32)
 
 
 def _goal_cfg(cfg: dict) -> dict:
@@ -585,6 +607,34 @@ def run_fold(
         _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
         print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
 
+    outcome_edge = None
+    bc_quality_mode = str(bc_cfg.get("sample_quality_mode", "none")).lower()
+    if oracle_teacher_mode == "signal_aim" and (
+        bc_quality_mode in {"outcome_edge", "outcome_edge_relabel"} or bc_cfg.get("outcome_relabel_bad_to_benchmark", False)
+    ):
+        outcome_horizons = tuple(oracle_cfg.get("signal_horizons", [4, 16, 64]))
+        outcome_weights = tuple(oracle_cfg.get("signal_horizon_weights", [0.2, 0.3, 0.5]))
+        outcome_edge = _teacher_outcome_edge(
+            train_returns,
+            oracle_positions,
+            benchmark_position=oracle_benchmark_position,
+            horizons=outcome_horizons,
+            horizon_weights=outcome_weights,
+        )
+        if bc_cfg.get("outcome_relabel_bad_to_benchmark", False):
+            positive_edge = outcome_edge[outcome_edge > 0.0]
+            relabel_quantile = float(np.clip(bc_cfg.get("outcome_relabel_quantile", 0.25), 0.0, 0.99))
+            relabel_floor = float(np.quantile(positive_edge, relabel_quantile)) if positive_edge.size > 0 else 0.0
+            bad_underweight = (oracle_positions < oracle_benchmark_position - 1e-6) & (outcome_edge <= relabel_floor)
+            if bad_underweight.any():
+                oracle_positions = oracle_positions.copy()
+                oracle_positions[bad_underweight] = oracle_benchmark_position
+                print(
+                    "  Outcome relabel: "
+                    f"{int(bad_underweight.sum())} weak underweight targets -> benchmark "
+                    f"(q={relabel_quantile:.2f})"
+                )
+
     # --------- HMM レジーム事後確率（Actor 入力用）---------
     # Actor 生成前に計算して regime_dim を確定する
     n_states = cfg.get("eval", {}).get("hmm_n_states", 3)
@@ -733,6 +783,17 @@ def run_fold(
             underweight_size = np.clip(benchmark_position - np.asarray(oracle_positions, dtype=np.float32), 0.0, None)
             negative_signal = np.clip(-signal_values, 0.0, None)
             raw_edge = underweight_size * negative_signal
+            positive_edge = raw_edge[raw_edge > 0.0]
+            if positive_edge.size > 0:
+                edge_quantile = float(np.clip(bc_cfg.get("sample_quality_quantile", 0.75), 0.0, 0.99))
+                edge_floor = float(np.quantile(positive_edge, edge_quantile))
+                edge_scale = float(np.quantile(positive_edge, 0.90)) - edge_floor
+                edge_scale = max(edge_scale, 1e-6)
+                bc_sample_quality = np.clip((raw_edge - edge_floor) / edge_scale, 0.0, bc_cfg.get("sample_quality_clip", 4.0))
+            else:
+                bc_sample_quality = np.zeros_like(raw_edge, dtype=np.float32)
+        elif bc_quality_mode in {"outcome_edge", "outcome_edge_relabel"}:
+            raw_edge = outcome_edge if outcome_edge is not None else np.zeros_like(signal_values, dtype=np.float32)
             positive_edge = raw_edge[raw_edge > 0.0]
             if positive_edge.size > 0:
                 edge_quantile = float(np.clip(bc_cfg.get("sample_quality_quantile", 0.75), 0.0, 0.99))
