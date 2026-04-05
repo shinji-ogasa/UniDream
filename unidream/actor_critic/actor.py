@@ -507,6 +507,18 @@ class Actor(nn.Module):
                 trade_prob * underweight_adjust_scale,
                 trade_prob,
             )
+        min_trade_floor = float(getattr(self, "infer_min_trade_floor", 0.0))
+        min_trade_gap = float(getattr(self, "infer_min_trade_gap", 0.0))
+        min_trade_scale = float(getattr(self, "infer_min_trade_scale", 0.0))
+        if min_trade_floor > 0.0:
+            target_gap_abs = torch.abs(target_inventory - current_inventory)
+            gap_excess = (target_gap_abs - min_trade_gap).clamp(min=0.0)
+            if min_trade_scale > 0.0:
+                floor_strength = torch.tanh(gap_excess / max(min_trade_scale, 1e-6))
+            else:
+                floor_strength = (gap_excess > 0.0).to(trade_prob.dtype)
+            trade_floor = min_trade_floor * floor_strength
+            trade_prob = torch.maximum(trade_prob, trade_floor)
         trade_prob = self._quantize_inference(trade_prob)
         band_width = self._quantize_inference(band_width)
         target_inventory = self._quantize_inference(target_inventory)

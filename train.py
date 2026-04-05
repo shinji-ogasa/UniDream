@@ -30,7 +30,13 @@ import yaml
 
 from unidream.data.download import fetch_binance_ohlcv, fetch_funding_rate, fetch_open_interest_hist
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
-from unidream.data.oracle import hindsight_oracle_dp, oracle_to_dataset, smooth_aim_positions, ACTIONS as _ACTIONS
+from unidream.data.oracle import (
+    hindsight_oracle_dp,
+    hindsight_signal_teacher,
+    oracle_to_dataset,
+    smooth_aim_positions,
+    ACTIONS as _ACTIONS,
+)
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 from unidream.actor_critic.actor import Actor
@@ -476,6 +482,7 @@ def run_fold(
     oracle_soft_temp = oracle_cfg.get("soft_label_temp", 0.0)
     oracle_reward_mode = reward_cfg.get("mode", "absolute")
     oracle_benchmark_position = reward_cfg.get("benchmark_position", 1.0)
+    oracle_teacher_mode = str(oracle_cfg.get("teacher_mode", "dp"))
     oracle_actions, oracle_values, oracle_soft_labels = hindsight_oracle_dp(
         train_returns,
         spread_bps=costs_cfg.get("spread_bps", 5.0),
@@ -509,6 +516,43 @@ def run_fold(
     )
     oracle_positions = oracle_action_values[oracle_actions].astype(np.float32)
     val_oracle_positions = oracle_action_values[val_oracle_actions].astype(np.float32)
+    if oracle_teacher_mode == "signal_aim":
+        abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
+        abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
+        teacher_horizons = tuple(oracle_cfg.get("signal_horizons", [4, 16, 64]))
+        teacher_weights = tuple(oracle_cfg.get("signal_horizon_weights", [0.2, 0.3, 0.5]))
+        oracle_positions, oracle_signal = hindsight_signal_teacher(
+            train_returns,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("signal_floor_position", abs_min),
+            max_position=oracle_cfg.get("signal_ceiling_position", abs_max),
+            horizons=teacher_horizons,
+            horizon_weights=teacher_weights,
+            signal_scale=oracle_cfg.get("signal_scale", 1.5),
+            signal_deadzone=oracle_cfg.get("signal_deadzone", 0.1),
+            signal_clip=oracle_cfg.get("signal_clip", 4.0),
+            downside_horizon=oracle_cfg.get("signal_downside_horizon", 16),
+            downside_weight=oracle_cfg.get("signal_downside_weight", 0.0),
+        )
+        val_oracle_positions, val_oracle_signal = hindsight_signal_teacher(
+            wfo_dataset.val_returns,
+            benchmark_position=oracle_benchmark_position,
+            min_position=oracle_cfg.get("signal_floor_position", abs_min),
+            max_position=oracle_cfg.get("signal_ceiling_position", abs_max),
+            horizons=teacher_horizons,
+            horizon_weights=teacher_weights,
+            signal_scale=oracle_cfg.get("signal_scale", 1.5),
+            signal_deadzone=oracle_cfg.get("signal_deadzone", 0.1),
+            signal_clip=oracle_cfg.get("signal_clip", 4.0),
+            downside_horizon=oracle_cfg.get("signal_downside_horizon", 16),
+            downside_weight=oracle_cfg.get("signal_downside_weight", 0.0),
+        )
+        oracle_values = oracle_signal.astype(np.float32)
+        print(
+            "  Signal teacher: "
+            f"horizons={teacher_horizons} floor={oracle_cfg.get('signal_floor_position', abs_min):+.2f} "
+            f"scale={oracle_cfg.get('signal_scale', 1.5):.2f}"
+        )
     if oracle_cfg.get("use_aim_targets", False):
         abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
         abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
@@ -640,6 +684,9 @@ def run_fold(
     actor.infer_underweight_adjust_scale = ac_cfg.get("infer_underweight_adjust_scale", 1.0)
     actor.infer_support_min_count = ac_cfg.get("infer_support_min_count", 0.0)
     actor.infer_support_min_ratio = ac_cfg.get("infer_support_min_ratio", 0.0)
+    actor.infer_min_trade_floor = ac_cfg.get("infer_min_trade_floor", 0.0)
+    actor.infer_min_trade_gap = ac_cfg.get("infer_min_trade_gap", 0.0)
+    actor.infer_min_trade_scale = ac_cfg.get("infer_min_trade_scale", 0.0)
     actor.support_transition_counts = None
     try:
         current_abs_positions = np.empty_like(oracle_positions)

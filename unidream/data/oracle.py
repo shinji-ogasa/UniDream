@@ -308,6 +308,97 @@ def smooth_aim_positions(
     return aim_positions
 
 
+def _forward_window_stats(
+    returns: np.ndarray,
+    horizon: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute forward cumulative-return and volatility over the next `horizon` bars."""
+    T = len(returns)
+    if T == 0:
+        return np.zeros(0, dtype=np.float32), np.zeros(0, dtype=np.float32)
+    horizon = int(max(horizon, 1))
+    idx = np.arange(T, dtype=np.int64)
+    start = np.minimum(idx + 1, T)
+    end = np.minimum(idx + 1 + horizon, T)
+    length = np.maximum(end - start, 1)
+
+    cs = np.concatenate([[0.0], np.cumsum(returns, dtype=np.float64)])
+    cs2 = np.concatenate([[0.0], np.cumsum(np.square(returns, dtype=np.float64))])
+    window_sum = cs[end] - cs[start]
+    window_sq_sum = cs2[end] - cs2[start]
+    mean = window_sum / length
+    var = np.maximum(window_sq_sum / length - np.square(mean), 0.0)
+    std = np.sqrt(var)
+    window_sum[start >= T] = 0.0
+    std[start >= T] = 0.0
+    return window_sum.astype(np.float32), std.astype(np.float32)
+
+
+def hindsight_signal_teacher(
+    returns: np.ndarray | pd.Series,
+    benchmark_position: float = 1.0,
+    min_position: float = 0.5,
+    max_position: float = 1.0,
+    horizons: tuple[int, ...] = (4, 16, 64),
+    horizon_weights: tuple[float, ...] | None = None,
+    signal_scale: float = 1.5,
+    signal_deadzone: float = 0.1,
+    signal_clip: float = 4.0,
+    downside_horizon: int = 16,
+    downside_weight: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build a continuous hindsight teacher from forward excess-return signals.
+
+    The teacher is benchmark-relative and only underweights when the future
+    benchmark return signal is sufficiently negative after volatility
+    normalization. This yields a continuous target in [min_position, max_position]
+    instead of a rigid binary switching sequence.
+    """
+    if isinstance(returns, pd.Series):
+        returns = returns.to_numpy()
+    rets = np.asarray(returns, dtype=np.float64)
+    T = len(rets)
+    if T == 0:
+        return np.zeros(0, dtype=np.float32), np.zeros(0, dtype=np.float32)
+
+    horizons = tuple(int(max(h, 1)) for h in horizons)
+    if horizon_weights is None:
+        horizon_weights = tuple(np.ones(len(horizons), dtype=np.float32))
+    horizon_weights = np.asarray(horizon_weights, dtype=np.float32)
+    if len(horizon_weights) != len(horizons):
+        raise ValueError("horizon_weights must match horizons length")
+    horizon_weights = horizon_weights / max(float(horizon_weights.sum()), 1e-8)
+
+    signal = np.zeros(T, dtype=np.float32)
+    for h, w in zip(horizons, horizon_weights):
+        fwd_sum, fwd_std = _forward_window_stats(rets, h)
+        scaled = fwd_sum / (np.sqrt(float(h)) * (fwd_std + 1e-6))
+        signal += float(w) * scaled
+
+    if downside_weight > 0.0:
+        downside_horizon = int(max(downside_horizon, 1))
+        downside = np.zeros(T, dtype=np.float32)
+        for t in range(T):
+            s = t + 1
+            e = min(T, t + 1 + downside_horizon)
+            if s >= e:
+                continue
+            window = rets[s:e]
+            downside[t] = float(np.mean(window < 0.0))
+        signal -= float(downside_weight) * downside
+
+    signal = np.clip(signal, -float(signal_clip), float(signal_clip))
+    negative_signal = np.maximum(0.0, -(signal + float(signal_deadzone)))
+    scale = max(float(signal_scale), 1e-6)
+    underweight_strength = 1.0 - np.exp(-negative_signal / scale)
+    benchmark_position = float(benchmark_position)
+    min_position = float(min_position)
+    max_position = float(max_position)
+    target = benchmark_position - (benchmark_position - min_position) * underweight_strength
+    target = np.clip(target, min_position, max_position).astype(np.float32)
+    return target, signal.astype(np.float32)
+
+
 def oracle_to_dataset(
     returns: np.ndarray | pd.Series,
     features: np.ndarray,
