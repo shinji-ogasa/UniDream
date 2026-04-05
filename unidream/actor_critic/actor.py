@@ -570,6 +570,22 @@ class Actor(nn.Module):
                 torch.zeros_like(target_inventory),
                 target_inventory,
             )
+        active_std_max = float(getattr(self, "infer_active_std_max", 0.0))
+        active_zscore_min = float(getattr(self, "infer_active_zscore_min", 0.0))
+        if active_std_max > 0.0:
+            target_inventory = torch.where(
+                (target_inventory != 0.0) & (target_std > active_std_max),
+                torch.zeros_like(target_inventory),
+                target_inventory,
+            )
+        if active_zscore_min > 0.0:
+            gap_to_target = torch.abs(target_inventory - current_inventory)
+            signal_z = gap_to_target / target_std.clamp_min(1e-4)
+            target_inventory = torch.where(
+                (target_inventory != 0.0) & (signal_z < active_zscore_min),
+                torch.zeros_like(target_inventory),
+                target_inventory,
+            )
         underweight_adjust_scale = float(getattr(self, "infer_underweight_adjust_scale", 1.0))
         if underweight_adjust_scale < 1.0:
             more_underweight = (target_inventory < 0.0) & (target_inventory < current_inventory)
