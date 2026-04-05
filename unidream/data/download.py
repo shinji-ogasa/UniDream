@@ -256,6 +256,74 @@ def fetch_open_interest_hist(
     return df
 
 
+def _taker_long_short_to_df(raw: list[dict]) -> pd.DataFrame:
+    if not raw:
+        return pd.DataFrame(columns=["signed_order_flow", "taker_imbalance", "buy_sell_ratio"])
+    df = pd.DataFrame(raw)
+    df["time"] = pd.to_datetime(df["timestamp"], unit="ms")
+    buy_vol = df["buyVol"].astype(float)
+    sell_vol = df["sellVol"].astype(float)
+    total = buy_vol + sell_vol
+    out = pd.DataFrame(
+        {
+            "signed_order_flow": (buy_vol - sell_vol).to_numpy(),
+            "taker_imbalance": (((buy_vol - sell_vol) / (total + 1e-8))).to_numpy(),
+            "buy_sell_ratio": df["buySellRatio"].astype(float).to_numpy(),
+        },
+        index=df["time"],
+    )
+    return out.sort_index()
+
+
+def fetch_taker_buy_sell_volume(
+    symbol: str,
+    period: str,
+    start: str | datetime,
+    end: str | datetime,
+    base_url: str = BINANCE_FUTURES_URL,
+    sleep_sec: float = 0.5,
+) -> pd.DataFrame:
+    """Fetch taker buy/sell flow proxy from Binance Futures.
+
+    Endpoint:
+        /futures/data/takerlongshortRatio
+
+    Returns:
+        DataFrame (index=datetime, columns=['signed_order_flow', 'taker_imbalance', 'buy_sell_ratio'])
+    """
+    start_ms = _parse_timestamp(start)
+    end_ms = _parse_timestamp(end)
+    all_rows: list[dict] = []
+    current_start = start_ms
+    limit = 500
+
+    while current_start < end_ms:
+        params = {
+            "symbol": symbol,
+            "period": period,
+            "startTime": current_start,
+            "endTime": end_ms,
+            "limit": limit,
+        }
+        resp = requests.get(
+            base_url + "/futures/data/takerlongshortRatio", params=params, timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data:
+            break
+        all_rows.extend(data)
+        current_start = int(data[-1]["timestamp"]) + 1
+        if len(data) < limit:
+            break
+        time.sleep(sleep_sec)
+
+    df = _taker_long_short_to_df(all_rows)
+    if df.empty:
+        return df
+    return df[df.index < pd.Timestamp(end_ms, unit="ms")]
+
+
 def fetch_multi_symbol(
     symbols: list[str],
     interval: str,

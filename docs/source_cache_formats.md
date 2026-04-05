@@ -185,6 +185,12 @@ Use:
   --end 2023-06-01
 ```
 
+This builder now also writes, when available:
+
+- `<cache_tag>_series_signed_order_flow.parquet`
+- `<cache_tag>_series_taker_imbalance.parquet`
+- `<cache_tag>_series_buy_sell_ratio.parquet`
+
 ## Offline Runners
 
 After caches exist, run:
