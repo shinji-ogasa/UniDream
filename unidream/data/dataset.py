@@ -214,6 +214,10 @@ class WFODataset:
         return self._val_feat
 
     @property
+    def test_features(self) -> np.ndarray:
+        return self._test_feat
+
+    @property
     def obs_dim(self) -> int:
         return self._train_feat.shape[1]
 
