@@ -282,6 +282,21 @@ To generate a manifest stub from those suite configs:
 This writes a placeholder manifest listing the raw source files and extra series
 needed by the selected probe configs.
 
+For staged rollout by source priority:
+
+```powershell
+.\scripts\run_priority_source_rollout.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
+This runs, in order:
+
+1. basis
+2. order-flow
+3. on-chain
+4. hybrid
+
 That script:
 
 1. Builds raw source cache
