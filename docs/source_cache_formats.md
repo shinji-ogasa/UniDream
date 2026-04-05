@@ -207,6 +207,19 @@ Or, if you are importing from a manifest and want the external-series probe in o
   -RiskConfig configs\smoke_risk_controller_v8_orderflow_ctx.yaml
 ```
 
+To compare source families side by side after caches exist:
+
+```powershell
+.\scripts\run_source_family_suite.ps1 `
+  -CacheDir checkpoints\basis_source_cache `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
+This runs the basis / orderflow / on-chain probes and writes:
+
+- `checkpoints\source_family_suite\<config>\risk_controller_summary.csv`
+- `checkpoints\source_family_suite\suite_summary.csv`
+
 That script:
 
 1. Builds raw source cache
