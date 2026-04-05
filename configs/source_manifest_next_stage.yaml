@@ -1,0 +1,18 @@
+cache_dir: checkpoints\aux_smoke2
+cache_tag: BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+generated_for_next_config: smoke_risk_controller_v8_orderflow_ctx.yaml
+binance:
+  symbol: BTCUSDT
+  interval: 15m
+  start: '2021-01-01'
+  end: '2023-06-01'
+  taker_flow: true
+glassnode:
+  asset: BTC
+  start: '2021-01-01'
+  end: '2023-06-01'
+  interval: 1h
+  pit: true
+  api_key: <glassnode_api_key>
+  metrics:
+    exchange_netflow: transactions/transfers_volume_exchanges_net

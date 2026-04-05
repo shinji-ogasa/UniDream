@@ -13,6 +13,14 @@ The canonical config order and stage grouping live in:
 
 ## Main Commands
 
+### 0. Run the regression checks
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_source_rollout_checks.ps1 `
+  -CacheDir checkpoints\aux_smoke2 `
+  -CacheTag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2
+```
+
 ### 1. Diagnose current cache
 
 ```powershell
