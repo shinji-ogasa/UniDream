@@ -135,7 +135,7 @@ def compute_sortino(pnl: np.ndarray, ann_factor: float) -> float:
     """年換算 Sortino Ratio を計算する."""
     downside = pnl[pnl < 0]
     if len(downside) == 0 or downside.std() < 1e-10:
-        return np.inf if pnl.mean() > 0 else 0.0
+        return 99.0 if pnl.mean() > 0 else 0.0
     return float(pnl.mean() / downside.std() * np.sqrt(ann_factor))
 
 
@@ -149,7 +149,7 @@ def compute_max_drawdown(equity: np.ndarray) -> float:
 def compute_calmar(total_return: float, max_dd: float, period_years: float = 1.0) -> float:
     """Calmar Ratio を計算する."""
     if abs(max_dd) < 1e-10:
-        return np.inf if total_return > 0 else 0.0
+        return 99.0 if total_return > 0 else 0.0
     return float((total_return / period_years) / abs(max_dd))
 
 

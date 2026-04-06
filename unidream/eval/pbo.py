@@ -73,13 +73,9 @@ def compute_pbo(
         best_is = np.argmax(is_sharpes)
         best_oos = np.argmax(oos_sharpes)
 
-        # IS 最良と OOS 最良が一致するか
-        # IS 最良モデルの OOS ランク
-        best_is_global = list(is_idxs)[best_is]
-
-        # OOS での同じモデルの順位（ランク）
-        # OOS fold での IS 最良モデルに対応する fold がない場合はスキップ
-        # 簡略化: IS 最良の Sharpe > OOS 最良の Sharpe → overfitting
+        # 簡略化: IS 最良 Sharpe > OOS 最良 Sharpe → IS が膨張 → overfitting
+        # (fold ベース PBO — 標準 CSCV-PBO は複数戦略に対して IS-best の
+        #  OOS ランクを検定するが、本実装は fold を候補として扱う)
         if is_sharpes[best_is] > oos_sharpes[best_oos]:
             overfit_count += 1
         total += 1
@@ -90,6 +86,21 @@ def compute_pbo(
     return float(overfit_count / total)
 
 
+def estimate_return_moments(returns: np.ndarray | None) -> tuple[float, float]:
+    """リターン列から skew と kurtosis を推定する（Fisher 定義）.
+
+    crypto は negative skew + fat tails が典型的なので、正規分布の仮定（0, 3）は
+    deflation を過小評価する。実データが利用可能な場合はここで推定する。
+    """
+    if returns is None or len(returns) < 20:
+        return 0.0, 3.0
+    r = np.asarray(returns, dtype=np.float64)
+    r = r[np.isfinite(r)]
+    if len(r) < 20:
+        return 0.0, 3.0
+    return float(stats.skew(r)), float(stats.kurtosis(r, fisher=False))
+
+
 def deflated_sharpe(
     sharpe: float,
     n_trials: int,
@@ -97,6 +108,7 @@ def deflated_sharpe(
     skew: float = 0.0,
     kurt: float = 3.0,
     sharpe_annual: bool = False,
+    returns: np.ndarray | None = None,
 ) -> float:
     """Deflated Sharpe Ratio を計算する.
 
@@ -106,13 +118,17 @@ def deflated_sharpe(
         sharpe: 報告された Sharpe Ratio
         n_trials: 試行数（ハイパーパラメータ探索回数等）
         T: サンプル数（バー数）
-        skew: リターンの歪度
-        kurt: リターンの尖度
+        skew: リターンの歪度（0.0 = 正規分布仮定）
+        kurt: リターンの尖度（3.0 = 正規分布仮定）
         sharpe_annual: True の場合は年換算済みとして扱う
+        returns: 実リターン列。指定時は skew/kurt をデータから推定（引数より優先）
 
     Returns:
         Deflated Sharpe Ratio（z スコア）
     """
+    if returns is not None:
+        skew, kurt = estimate_return_moments(returns)
+
     if n_trials <= 0:
         n_trials = 1
 
