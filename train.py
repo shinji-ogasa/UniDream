@@ -20,14 +20,11 @@ from __future__ import annotations
 
 import argparse
 import os
-import random
 from datetime import datetime
-import glob
 
 import numpy as np
 import pandas as pd
 import torch
-import yaml
 
 from unidream.data.download import (
     fetch_binance_ohlcv,
@@ -58,59 +55,16 @@ from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.eval.wfo import aggregate_wfo_results
 from unidream.eval.pbo import compute_pbo, deflated_sharpe
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
-
-
-_CACHE_STALE_DAYS = 7  # キャッシュがこの日数以上古ければ再取得
+from unidream.experiments.runtime import (
+    load_config,
+    load_training_features,
+    resolve_costs,
+    set_seed,
+)
 
 
 def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
-
-
-def _cache_is_fresh(path: str, stale_days: int = _CACHE_STALE_DAYS) -> bool:
-    """キャッシュファイルが存在し、stale_days 以内に更新されていれば True."""
-    if not os.path.exists(path):
-        return False
-    import time
-    age_days = (time.time() - os.path.getmtime(path)) / 86400
-    return age_days < stale_days
-
-
-def _read_optional_parquet(path: str) -> pd.DataFrame | None:
-    if not os.path.exists(path):
-        return None
-    df = pd.read_parquet(path)
-    if isinstance(df, pd.Series):
-        df = df.to_frame()
-    if not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
-        df["time"] = pd.to_datetime(df["time"], utc=False)
-        df = df.set_index("time")
-    return df.sort_index()
-
-
-def _read_extra_series_caches(cache_dir: str, cache_tag: str) -> dict[str, pd.Series]:
-    series_map: dict[str, pd.Series] = {}
-    pattern = os.path.join(cache_dir, f"{cache_tag}_series_*.parquet")
-    for path in sorted(glob.glob(pattern)):
-        df = _read_optional_parquet(path)
-        if df is None or df.empty or df.shape[1] == 0:
-            continue
-        name = os.path.basename(path).replace(f"{cache_tag}_series_", "").replace(".parquet", "")
-        series_map[name] = df.iloc[:, 0].rename(name)
-    return series_map
-
-
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-
-def load_config(path: str) -> dict:
-    with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
 
 
 _PIPELINE_STAGES = ("wm", "bc", "ac", "test")
@@ -447,29 +401,6 @@ def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict
         ),
     )
     return chosen
-
-
-def resolve_costs(cfg: dict, cost_profile: str | None = None) -> tuple[dict, str]:
-    """Resolve trading costs from either legacy `costs` or named `cost_profiles`."""
-    resolved_cfg = dict(cfg)
-    profile_name = cost_profile or cfg.get("cost_profile") or "default"
-    profiles = cfg.get("cost_profiles")
-
-    if profiles:
-        if profile_name == "default":
-            profile_name = "base" if "base" in profiles else next(iter(profiles))
-        if profile_name not in profiles:
-            available = ", ".join(profiles.keys())
-            raise KeyError(f"Unknown cost profile '{profile_name}'. Available: {available}")
-        resolved_cfg["costs"] = dict(profiles[profile_name])
-        resolved_cfg["cost_profile"] = profile_name
-    else:
-        resolved_cfg["costs"] = dict(cfg.get("costs", {}))
-        resolved_cfg["cost_profile"] = profile_name
-
-    return resolved_cfg, resolved_cfg["cost_profile"]
-
-
 def run_fold(
     fold_idx: int,
     wfo_dataset: WFODataset,
@@ -1534,88 +1465,15 @@ def main():
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
-    features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
-    returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
-    ohlcv_cache = os.path.join(cache_dir, f"{cache_tag}_ohlcv.parquet")
-    funding_cache = os.path.join(cache_dir, f"{cache_tag}_funding.parquet")
-    oi_cache = os.path.join(cache_dir, f"{cache_tag}_oi.parquet")
-    mark_cache = os.path.join(cache_dir, f"{cache_tag}_mark.parquet")
-
-    if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
-        print("\n[Data] Loading cached features...")
-        features_df = pd.read_parquet(features_cache)
-        raw_returns = pd.read_parquet(returns_cache).squeeze()
-        print(f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]}")
-    else:
-        df = _read_optional_parquet(ohlcv_cache)
-        if df is not None:
-            print(f"\n[Data] Spot OHLCV cache loaded: {len(df)} bars")
-        else:
-            print("\n[Data] Fetching OHLCV...")
-            df = fetch_binance_ohlcv(symbol, interval, args.start, args.end)
-            print(f"  Raw data: {len(df)} bars ({df.index[0]} → {df.index[-1]})")
-
-        # Futures 追加データ（funding rate, OI, mark price）
-        funding_df = _read_optional_parquet(funding_cache)
-        oi_df = _read_optional_parquet(oi_cache)
-        mark_price_df = _read_optional_parquet(mark_cache)
-        extra_series = _read_extra_series_caches(cache_dir, cache_tag)
-        if funding_df is not None:
-            print(f"[Data] Funding cache loaded: {len(funding_df)} records")
-        else:
-            try:
-                print("[Data] Fetching funding rate...")
-                funding_df = fetch_funding_rate(symbol, args.start, args.end)
-                print(f"  Funding rate: {len(funding_df)} records")
-            except Exception as e:
-                print(f"  Funding rate skipped: {e}")
-        if oi_df is not None:
-            print(f"[Data] OI cache loaded: {len(oi_df)} records")
-        else:
-            try:
-                print("[Data] Fetching open interest...")
-                oi_df = fetch_open_interest_hist(symbol, interval, args.start, args.end)
-                print(f"  Open interest: {len(oi_df)} records")
-            except Exception as e:
-                print(f"  Open interest skipped: {e}")
-        if mark_price_df is not None:
-            print(f"[Data] Mark cache loaded: {len(mark_price_df)} records")
-        else:
-            try:
-                print("[Data] Fetching futures mark price...")
-                mark_price_df = fetch_mark_price_klines(symbol, interval, args.start, args.end)
-                print(f"  Mark price: {len(mark_price_df)} records")
-            except Exception as e:
-                print(f"  Mark price skipped: {e}")
-
-        print("[Data] Computing features...")
-        features_df = compute_features(
-            df,
-            zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
-            interval=interval,
-            funding_df=funding_df,
-            oi_df=oi_df,
-            mark_price_df=mark_price_df,
-            extra_series=extra_series,
-        )
-        raw_returns = get_raw_returns(df)
-        common_idx = features_df.index.intersection(raw_returns.index)
-        features_df = features_df.loc[common_idx]
-        raw_returns = raw_returns.loc[common_idx]
-        print(f"  Features: {features_df.shape} | obs_dim={features_df.shape[1]}")
-
-        # キャッシュ保存
-        os.makedirs(cache_dir, exist_ok=True)
-        df.to_parquet(ohlcv_cache)
-        features_df.to_parquet(features_cache)
-        raw_returns.to_frame().to_parquet(returns_cache)
-        if funding_df is not None and not funding_df.empty:
-            funding_df.to_parquet(funding_cache)
-        if oi_df is not None and not oi_df.empty:
-            oi_df.to_parquet(oi_cache)
-        if mark_price_df is not None and not mark_price_df.empty:
-            mark_price_df.to_parquet(mark_cache)
-        print(f"  Cached to {cache_dir}")
+    features_df, raw_returns = load_training_features(
+        symbol=symbol,
+        interval=interval,
+        start=args.start,
+        end=args.end,
+        zscore_window=zscore_window,
+        cache_dir=cache_dir,
+        cache_tag=cache_tag,
+    )
 
     # --------- WFO 分割 ---------
     feature_extras_cfg = cfg.get("feature_extras", {})
