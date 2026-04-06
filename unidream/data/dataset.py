@@ -158,7 +158,9 @@ class WFODataset:
         self.seq_len = seq_len
         self._feature_columns = list(features_df.columns)
 
-        # 各 split のデータを切り出す（境界バーの重複を防ぐため右端は exclusive）
+        # 各 split のデータを切り出す
+        # train/val: 右端 exclusive（次の期間の開始バーと重複を防ぐ）
+        # test: 右端 inclusive（後続期間がないため末尾バーを含める）
         def _slice(start, end, right_inclusive=False):
             if right_inclusive:
                 mask = (features_df.index >= start) & (features_df.index <= end)
