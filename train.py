@@ -61,6 +61,7 @@ from unidream.experiments.runtime import (
     set_seed,
 )
 from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
+from unidream.experiments.oracle_post import apply_oracle_postprocess
 from unidream.experiments.oracle_stage import compute_base_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.train_reporting import (
@@ -85,25 +86,6 @@ def _benchmark_position_value(cfg: dict) -> float:
     return float(cfg.get("reward", {}).get("benchmark_position", 1.0))
 
 
-def _teacher_outcome_edge(
-    returns: np.ndarray,
-    positions: np.ndarray,
-    benchmark_position: float,
-    horizons: tuple[int, ...],
-    horizon_weights: tuple[float, ...],
-) -> np.ndarray:
-    weighted_forward = np.zeros(len(returns), dtype=np.float32)
-    total_weight = 0.0
-    for horizon, weight in zip(horizons, horizon_weights):
-        if weight == 0.0:
-            continue
-        fwd_mean, _ = _forward_window_stats(np.asarray(returns, dtype=np.float32), int(horizon))
-        weighted_forward += float(weight) * fwd_mean.astype(np.float32)
-        total_weight += float(weight)
-    if total_weight > 0.0:
-        weighted_forward /= total_weight
-    action_edge = (np.asarray(positions, dtype=np.float32) - float(benchmark_position)) * weighted_forward
-    return np.clip(action_edge, 0.0, None).astype(np.float32)
 
 
 def _goal_cfg(cfg: dict) -> dict:
@@ -725,65 +707,25 @@ def run_fold(
             f"{oracle_cfg.get('ridge_ceiling_position', abs_max):+.2f}] "
             f"ridge={oracle_cfg.get('ridge_alpha', 1.0):.2f}"
         )
+    oracle_positions, val_oracle_positions, outcome_edge = apply_oracle_postprocess(
+        oracle_positions=oracle_positions,
+        val_oracle_positions=val_oracle_positions,
+        oracle_action_values=oracle_action_values,
+        oracle_cfg=oracle_cfg,
+        ac_cfg=ac_cfg,
+        bc_cfg=bc_cfg,
+        oracle_reward_mode=oracle_reward_mode,
+        oracle_benchmark_position=oracle_benchmark_position,
+        oracle_teacher_mode=oracle_teacher_mode,
+        train_returns=train_returns,
+        forward_window_stats_fn=_forward_window_stats,
+    )
     if oracle_cfg.get("use_aim_targets", False):
-        abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
-        abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
-        oracle_positions = smooth_aim_positions(
-            oracle_positions,
-            max_step=oracle_cfg.get("aim_max_step", 0.25),
-            band=oracle_cfg.get("aim_band", 0.0),
-            initial_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
-            min_position=abs_min,
-            max_position=abs_max,
-            benchmark_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
-            underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
-            underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
-            underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
-            underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
-        ).astype(np.float32)
-        val_oracle_positions = smooth_aim_positions(
-            val_oracle_positions,
-            max_step=oracle_cfg.get("aim_max_step", 0.25),
-            band=oracle_cfg.get("aim_band", 0.0),
-            initial_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
-            min_position=abs_min,
-            max_position=abs_max,
-            benchmark_position=oracle_benchmark_position if oracle_reward_mode == "excess_bh" else 0.0,
-            underweight_confirm_bars=oracle_cfg.get("aim_underweight_confirm_bars", 0),
-            underweight_min_scale=oracle_cfg.get("aim_underweight_min_scale", 0.0),
-            underweight_floor_position=oracle_cfg.get("aim_underweight_floor_position"),
-            underweight_step_scale=oracle_cfg.get("aim_underweight_step_scale", 1.0),
-        ).astype(np.float32)
         _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
         print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
-
-    outcome_edge = None
-    bc_quality_mode = str(bc_cfg.get("sample_quality_mode", "none")).lower()
-    if oracle_teacher_mode == "signal_aim" and (
-        bc_quality_mode in {"outcome_edge", "outcome_edge_relabel"} or bc_cfg.get("outcome_relabel_bad_to_benchmark", False)
-    ):
-        outcome_horizons = tuple(oracle_cfg.get("signal_horizons", [4, 16, 64]))
-        outcome_weights = tuple(oracle_cfg.get("signal_horizon_weights", [0.2, 0.3, 0.5]))
-        outcome_edge = _teacher_outcome_edge(
-            train_returns,
-            oracle_positions,
-            benchmark_position=oracle_benchmark_position,
-            horizons=outcome_horizons,
-            horizon_weights=outcome_weights,
-        )
-        if bc_cfg.get("outcome_relabel_bad_to_benchmark", False):
-            positive_edge = outcome_edge[outcome_edge > 0.0]
-            relabel_quantile = float(np.clip(bc_cfg.get("outcome_relabel_quantile", 0.25), 0.0, 0.99))
-            relabel_floor = float(np.quantile(positive_edge, relabel_quantile)) if positive_edge.size > 0 else 0.0
-            bad_underweight = (oracle_positions < oracle_benchmark_position - 1e-6) & (outcome_edge <= relabel_floor)
-            if bad_underweight.any():
-                oracle_positions = oracle_positions.copy()
-                oracle_positions[bad_underweight] = oracle_benchmark_position
-                print(
-                    "  Outcome relabel: "
-                    f"{int(bad_underweight.sum())} weak underweight targets -> benchmark "
-                    f"(q={relabel_quantile:.2f})"
-                )
+    if bc_cfg.get("outcome_relabel_bad_to_benchmark", False) and outcome_edge is not None:
+        relabeled = int(np.sum(oracle_positions >= oracle_benchmark_position - 1e-6))
+        print(f"  Outcome relabel active; benchmark-or-higher targets={relabeled}")
 
     # --------- HMM レジーム事後確率（Actor 入力用）---------
     # Actor 生成前に計算して regime_dim を確定する
