@@ -32,11 +32,7 @@ from unidream.data.download import (
     fetch_mark_price_klines,
 )
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
-from unidream.data.oracle import (
-    _forward_window_stats,
-    oracle_to_dataset,
-    ACTIONS as _ACTIONS,
-)
+from unidream.data.oracle import _forward_window_stats, oracle_to_dataset
 from unidream.data.dataset import WFODataset, SequenceDataset
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts
 from unidream.eval.backtest import Backtest, pnl_attribution
@@ -48,10 +44,7 @@ from unidream.experiments.runtime import (
     set_seed,
 )
 from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
-from unidream.experiments.oracle_post import apply_oracle_postprocess
-from unidream.experiments.oracle_stage import compute_base_oracle
-from unidream.experiments.regime_runtime import fit_fold_regimes
-from unidream.experiments.oracle_teacher import compute_teacher_oracle
+from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.ac_stage import run_ac_stage
 from unidream.experiments.bc_setup import prepare_bc_setup
@@ -450,102 +443,39 @@ def run_fold(
             f"Fold {fold_idx}: --start-from test requires {bc_path} or {ac_path}"
         )
 
-    # --------- Step 1: Hindsight Oracle ---------
-    print(f"\n[{_ts()}] [Step 1] Hindsight Oracle DP...")
-    train_returns = wfo_dataset.train_returns
-    oracle_cfg = cfg.get("oracle", {})
     reward_cfg = cfg.get("reward", {})
-    oracle_bundle = compute_base_oracle(
-        train_returns=train_returns,
-        val_returns=wfo_dataset.val_returns,
-        oracle_cfg=oracle_cfg,
-        reward_cfg=reward_cfg,
+    fold_inputs = prepare_fold_inputs(
+        wfo_dataset=wfo_dataset,
+        cfg=cfg,
         costs_cfg=costs_cfg,
-        default_action_values=cfg.get("actions", {}).get("values", _ACTIONS),
+        ac_cfg=ac_cfg,
+        bc_cfg=bc_cfg,
+        reward_cfg=reward_cfg,
+        action_stats_fn=_action_stats,
+        format_action_stats_fn=_fmt_action_stats,
+        benchmark_position=_benchmark_position_value(cfg),
+        forward_window_stats_fn=_forward_window_stats,
+        log_ts=_ts,
     )
+    train_returns = fold_inputs["train_returns"]
+    oracle_cfg = fold_inputs["oracle_cfg"]
+    oracle_bundle = fold_inputs["oracle_bundle"]
     oracle_action_values = oracle_bundle["oracle_action_values"]
     oracle_min_hold = oracle_bundle["oracle_min_hold"]
     oracle_soft_temp = oracle_bundle["oracle_soft_temp"]
     oracle_reward_mode = oracle_bundle["oracle_reward_mode"]
     oracle_benchmark_position = oracle_bundle["oracle_benchmark_position"]
     oracle_teacher_mode = oracle_bundle["oracle_teacher_mode"]
-    oracle_actions = oracle_bundle["oracle_actions"]
     oracle_values = oracle_bundle["oracle_values"]
     oracle_soft_labels = oracle_bundle["oracle_soft_labels"]
-    print(f"  Oracle computed: {len(oracle_actions)} steps, "
-          f"mean value={oracle_values.mean():.4f}")
-    print(f"  Oracle objective: {oracle_reward_mode} (benchmark={oracle_benchmark_position:+.2f})")
-    _oracle_pos = oracle_action_values[oracle_actions]
-    _oracle_s = _action_stats(_oracle_pos, benchmark_position=_benchmark_position_value(cfg))
-    print(f"  Oracle dist: {_fmt_action_stats(_oracle_s)}")
-
-    # Val oracle actions（分布比較・WM 学習に使用）
-    oracle_positions = oracle_bundle["oracle_positions"]
-    val_oracle_positions = oracle_bundle["val_oracle_positions"]
-    teacher_bundle = compute_teacher_oracle(
-        teacher_mode=oracle_teacher_mode,
-        base_oracle_positions=oracle_positions,
-        base_val_oracle_positions=val_oracle_positions,
-        base_oracle_values=oracle_values,
-        train_returns=train_returns,
-        val_returns=wfo_dataset.val_returns,
-        train_features=wfo_dataset.train_features,
-        val_features=wfo_dataset.val_features,
-        feature_columns=getattr(wfo_dataset, "feature_columns", []),
-        oracle_action_values=oracle_action_values,
-        oracle_cfg=oracle_cfg,
-        ac_cfg=ac_cfg,
-        oracle_benchmark_position=oracle_benchmark_position,
-    )
-    oracle_positions = teacher_bundle["oracle_positions"]
-    val_oracle_positions = teacher_bundle["val_oracle_positions"]
-    if teacher_bundle["oracle_values"] is not None:
-        oracle_values = teacher_bundle["oracle_values"]
-    if teacher_bundle["teacher_message"]:
-        print(teacher_bundle["teacher_message"])
-    oracle_positions, val_oracle_positions, outcome_edge = apply_oracle_postprocess(
-        oracle_positions=oracle_positions,
-        val_oracle_positions=val_oracle_positions,
-        oracle_action_values=oracle_action_values,
-        oracle_cfg=oracle_cfg,
-        ac_cfg=ac_cfg,
-        bc_cfg=bc_cfg,
-        oracle_reward_mode=oracle_reward_mode,
-        oracle_benchmark_position=oracle_benchmark_position,
-        oracle_teacher_mode=oracle_teacher_mode,
-        train_returns=train_returns,
-        forward_window_stats_fn=_forward_window_stats,
-    )
-    if oracle_cfg.get("use_aim_targets", False):
-        _aim_s = _action_stats(oracle_positions, benchmark_position=_benchmark_position_value(cfg))
-        print(f"  Oracle aim dist: {_fmt_action_stats(_aim_s)}")
-    if bc_cfg.get("outcome_relabel_bad_to_benchmark", False) and outcome_edge is not None:
-        relabeled = int(np.sum(oracle_positions >= oracle_benchmark_position - 1e-6))
-        print(f"  Outcome relabel active; benchmark-or-higher targets={relabeled}")
-
-    # --------- HMM レジーム事後確率（Actor 入力用）---------
-    # Actor 生成前に計算して regime_dim を確定する
-    n_states = cfg.get("eval", {}).get("hmm_n_states", 3)
-    hmm_det = None
-    regime_dim = 0
-    train_regime_probs = None
-    val_regime_probs = None
-    test_regime_probs = None
-    try:
-        regime_bundle = fit_fold_regimes(
-            train_returns=wfo_dataset.train_returns,
-            val_returns=wfo_dataset.val_returns,
-            test_returns=wfo_dataset.test_returns,
-            n_states=n_states,
-        )
-        hmm_det = regime_bundle["detector"]
-        regime_dim = regime_bundle["regime_dim"]
-        train_regime_probs = regime_bundle["train_regime_probs"]
-        val_regime_probs = regime_bundle["val_regime_probs"]
-        test_regime_probs = regime_bundle["test_regime_probs"]
-        print(f"[Regime] HMM fitted, regime_dim={regime_dim}")
-    except Exception as e:
-        print(f"[Regime] HMM skipped: {e}")
+    oracle_positions = fold_inputs["oracle_positions"]
+    val_oracle_positions = fold_inputs["val_oracle_positions"]
+    outcome_edge = fold_inputs["outcome_edge"]
+    hmm_det = fold_inputs["hmm_det"]
+    regime_dim = fold_inputs["regime_dim"]
+    train_regime_probs = fold_inputs["train_regime_probs"]
+    val_regime_probs = fold_inputs["val_regime_probs"]
+    test_regime_probs = fold_inputs["test_regime_probs"]
 
     # --------- Step 2: 世界モデル学習 ---------
     ensemble, wm_trainer = prepare_world_model_stage(
