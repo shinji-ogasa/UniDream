@@ -61,6 +61,7 @@ from unidream.experiments.runtime import (
     set_seed,
 )
 from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
+from unidream.experiments.oracle_stage import compute_base_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.train_reporting import (
     aggregate_scorecards,
@@ -477,27 +478,23 @@ def run_fold(
     train_returns = wfo_dataset.train_returns
     oracle_cfg = cfg.get("oracle", {})
     reward_cfg = cfg.get("reward", {})
-    oracle_action_values = np.asarray(
-        oracle_cfg.get("action_values", cfg.get("actions", {}).get("values", _ACTIONS)),
-        dtype=np.float32,
+    oracle_bundle = compute_base_oracle(
+        train_returns=train_returns,
+        val_returns=wfo_dataset.val_returns,
+        oracle_cfg=oracle_cfg,
+        reward_cfg=reward_cfg,
+        costs_cfg=costs_cfg,
+        default_action_values=cfg.get("actions", {}).get("values", _ACTIONS),
     )
-    oracle_min_hold = oracle_cfg.get("min_hold", 0)
-    oracle_soft_temp = oracle_cfg.get("soft_label_temp", 0.0)
-    oracle_reward_mode = reward_cfg.get("mode", "absolute")
-    oracle_benchmark_position = reward_cfg.get("benchmark_position", 1.0)
-    oracle_teacher_mode = str(oracle_cfg.get("teacher_mode", "dp"))
-    oracle_actions, oracle_values, oracle_soft_labels = hindsight_oracle_dp(
-        train_returns,
-        spread_bps=costs_cfg.get("spread_bps", 5.0),
-        fee_rate=costs_cfg.get("fee_rate", 0.0004),
-        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-        discount=oracle_cfg.get("discount", 1.0),
-        min_hold=oracle_min_hold,
-        soft_label_temp=oracle_soft_temp,
-        reward_mode=oracle_reward_mode,
-        benchmark_position=oracle_benchmark_position,
-        action_values=oracle_action_values,
-    )
+    oracle_action_values = oracle_bundle["oracle_action_values"]
+    oracle_min_hold = oracle_bundle["oracle_min_hold"]
+    oracle_soft_temp = oracle_bundle["oracle_soft_temp"]
+    oracle_reward_mode = oracle_bundle["oracle_reward_mode"]
+    oracle_benchmark_position = oracle_bundle["oracle_benchmark_position"]
+    oracle_teacher_mode = oracle_bundle["oracle_teacher_mode"]
+    oracle_actions = oracle_bundle["oracle_actions"]
+    oracle_values = oracle_bundle["oracle_values"]
+    oracle_soft_labels = oracle_bundle["oracle_soft_labels"]
     print(f"  Oracle computed: {len(oracle_actions)} steps, "
           f"mean value={oracle_values.mean():.4f}")
     print(f"  Oracle objective: {oracle_reward_mode} (benchmark={oracle_benchmark_position:+.2f})")
@@ -506,19 +503,9 @@ def run_fold(
     print(f"  Oracle dist: {_fmt_action_stats(_oracle_s)}")
 
     # Val oracle actions（分布比較・WM 学習に使用）
-    val_oracle_actions, _, _ = hindsight_oracle_dp(
-        wfo_dataset.val_returns,
-        spread_bps=costs_cfg.get("spread_bps", 5.0),
-        fee_rate=costs_cfg.get("fee_rate", 0.0004),
-        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-        discount=oracle_cfg.get("discount", 1.0),
-        min_hold=oracle_min_hold,
-        reward_mode=oracle_reward_mode,
-        benchmark_position=oracle_benchmark_position,
-        action_values=oracle_action_values,
-    )
-    oracle_positions = oracle_action_values[oracle_actions].astype(np.float32)
-    val_oracle_positions = oracle_action_values[val_oracle_actions].astype(np.float32)
+    val_oracle_actions = oracle_bundle["val_oracle_actions"]
+    oracle_positions = oracle_bundle["oracle_positions"]
+    val_oracle_positions = oracle_bundle["val_oracle_positions"]
     if oracle_teacher_mode == "signal_aim":
         abs_min = ac_cfg.get("abs_min_position", float(np.min(oracle_action_values)))
         abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
