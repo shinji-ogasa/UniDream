@@ -33,7 +33,7 @@ from unidream.data.download import (
 from unidream.data.features import compute_features, get_raw_returns
 from unidream.data.oracle import _forward_window_stats, oracle_to_dataset
 from unidream.data.dataset import WFODataset, SequenceDataset
-from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts
+from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts_ascii as _ac_alerts
 from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.experiments.runtime import load_config, resolve_costs, set_seed
 from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
