@@ -23,7 +23,6 @@ import os
 from datetime import datetime
 
 import numpy as np
-import pandas as pd
 import torch
 
 from unidream.data.download import (
@@ -38,11 +37,9 @@ from unidream.data.oracle import (
     oracle_to_dataset,
     ACTIONS as _ACTIONS,
 )
-from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
-from unidream.actor_critic.actor import Actor
+from unidream.data.dataset import WFODataset, SequenceDataset
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts
 from unidream.eval.backtest import Backtest, pnl_attribution
-from unidream.eval.wfo import aggregate_wfo_results
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
 from unidream.experiments.runtime import (
     load_config,
@@ -57,6 +54,7 @@ from unidream.experiments.regime_runtime import fit_fold_regimes
 from unidream.experiments.oracle_teacher import compute_teacher_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.ac_stage import run_ac_stage
+from unidream.experiments.bc_setup import prepare_bc_setup
 from unidream.experiments.bc_stage import run_bc_stage
 from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
@@ -581,138 +579,21 @@ def run_fold(
     h_train = encoded["h"]
 
     # --------- Step 3: BC 初期化 ---------
-    actor = Actor(
-        z_dim=ensemble.get_z_dim(),
-        h_dim=ensemble.get_d_model(),
-        act_dim=int(len(oracle_action_values)),
-        hidden_dim=ac_cfg.get("actor_hidden", 256),
-        n_layers=ac_cfg.get("ac_layers", 2),
-        regime_dim=regime_dim,
-        dropout_p=ac_cfg.get("actor_dropout", 0.0),
-        inventory_dim=ac_cfg.get("controller_state_dim", 1),
-        advantage_dim=1 if ac_cfg.get("advantage_conditioned", False) else 0,
+    bc_setup = prepare_bc_setup(
+        ensemble=ensemble,
+        oracle_action_values=oracle_action_values,
+        oracle_positions=oracle_positions,
+        oracle_values=oracle_values,
+        train_regime_probs=train_regime_probs,
+        outcome_edge=outcome_edge,
+        ac_cfg=ac_cfg,
+        bc_cfg=bc_cfg,
+        reward_cfg=reward_cfg,
+        oracle_teacher_mode=oracle_teacher_mode,
     )
-    actor.target_values = oracle_action_values.astype(np.float32)
-    actor.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
-    actor.baseline_target_index = int(np.argmin(np.abs(oracle_action_values - reward_cfg.get("benchmark_position", 1.0))))
-    actor.abs_min_position = ac_cfg.get("abs_min_position", -1.0)
-    actor.abs_max_position = ac_cfg.get("abs_max_position", 1.0)
-    actor.infer_temperature = ac_cfg.get("infer_temperature", 1.0)
-    actor.infer_advantage_level = ac_cfg.get("infer_advantage_level", 0.0)
-    actor.infer_gap_boost = ac_cfg.get("infer_gap_boost", 0.0)
-    actor.infer_adjust_rate_scale = ac_cfg.get("infer_adjust_rate_scale", 1.0)
-    actor.adjustment_temperature = ac_cfg.get("adjustment_temperature", 0.25)
-    actor.max_position_step = ac_cfg.get("max_position_step", 10.0)
-    actor.min_band = ac_cfg.get("min_band", 0.02)
-    actor.max_band = ac_cfg.get("max_band", 0.20)
-    actor.min_target_std = ac_cfg.get("min_target_std", 0.05)
-    actor.max_target_std = ac_cfg.get("max_target_std", 0.35)
-    actor.hold_state_scale = ac_cfg.get("hold_state_scale", 64.0)
-    actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
-    actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
-    actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
-    actor.residual_min_overlay = ac_cfg.get(
-        "residual_min_overlay",
-        ac_cfg.get("abs_min_position", -1.0) - reward_cfg.get("benchmark_position", 1.0),
-    )
-    actor.residual_max_overlay = ac_cfg.get("residual_max_overlay", 0.0)
-    actor.regime_overlay_caps = ac_cfg.get("regime_overlay_caps")
-    actor.infer_bootstrap_target_prob = ac_cfg.get("infer_bootstrap_target_prob", 0.0)
-    actor.infer_bootstrap_target_std = ac_cfg.get("infer_bootstrap_target_std", 0.0)
-    actor.infer_bootstrap_trade_signal = ac_cfg.get("infer_bootstrap_trade_signal", 0.0)
-    actor.infer_bootstrap_baseline_margin = ac_cfg.get("infer_bootstrap_baseline_margin", 0.0)
-    actor.infer_regime_active_threshold = ac_cfg.get("infer_regime_active_threshold", 0.0)
-    actor.infer_regime_active_state = ac_cfg.get("infer_regime_active_state", 0)
-    actor.infer_active_std_max = ac_cfg.get("infer_active_std_max", 0.0)
-    actor.infer_active_zscore_min = ac_cfg.get("infer_active_zscore_min", 0.0)
-    actor.infer_event_entry_gap = ac_cfg.get("infer_event_entry_gap", 0.0)
-    actor.infer_event_exit_gap = ac_cfg.get("infer_event_exit_gap", 0.0)
-    actor.infer_event_trade_prob = ac_cfg.get("infer_event_trade_prob", 0.0)
-    actor.infer_event_target_overlay = ac_cfg.get("infer_event_target_overlay")
-    actor.infer_event_min_hold_bars = ac_cfg.get("infer_event_min_hold_bars", 0.0)
-    actor.infer_target_from_logits = ac_cfg.get("infer_target_from_logits", False)
-    actor.infer_logits_target_blend = ac_cfg.get("infer_logits_target_blend", 1.0)
-    actor.infer_direct_target_track = ac_cfg.get("infer_direct_target_track", False)
-    actor.infer_direct_track_scale = ac_cfg.get("infer_direct_track_scale", 1.0)
-    actor.infer_underweight_adjust_scale = ac_cfg.get("infer_underweight_adjust_scale", 1.0)
-    actor.infer_support_min_count = ac_cfg.get("infer_support_min_count", 0.0)
-    actor.infer_support_min_ratio = ac_cfg.get("infer_support_min_ratio", 0.0)
-    actor.infer_min_trade_floor = ac_cfg.get("infer_min_trade_floor", 0.0)
-    actor.infer_min_trade_gap = ac_cfg.get("infer_min_trade_gap", 0.0)
-    actor.infer_min_trade_scale = ac_cfg.get("infer_min_trade_scale", 0.0)
-    actor.support_transition_counts = None
-    if actor.use_residual_controller:
-        residual_min = float(actor.residual_min_overlay)
-        residual_max = float(actor.residual_max_overlay)
-        init_overlay = float(ac_cfg.get("residual_init_overlay", 0.0))
-        if residual_max > residual_min + 1e-6:
-            init_frac = np.clip((init_overlay - residual_min) / (residual_max - residual_min), 1e-4, 1.0 - 1e-4)
-            residual_bias = float(np.log(init_frac / (1.0 - init_frac)))
-            torch.nn.init.constant_(actor.residual_head.bias, residual_bias)
-            torch.nn.init.zeros_(actor.residual_head.weight)
-    try:
-        current_abs_positions = np.empty_like(oracle_positions)
-        current_abs_positions[0] = reward_cfg.get("benchmark_position", 1.0)
-        if len(oracle_positions) > 1:
-            current_abs_positions[1:] = oracle_positions[:-1]
-        current_idx = actor.target_indices(torch.tensor(current_abs_positions, dtype=torch.float32)).cpu().numpy()
-        next_idx = actor.target_indices(torch.tensor(oracle_positions, dtype=torch.float32)).cpu().numpy()
-        if train_regime_probs is not None:
-            regime_idx = np.argmax(train_regime_probs[:len(next_idx)], axis=1).astype(np.int64)
-            n_regimes = train_regime_probs.shape[1]
-        else:
-            regime_idx = np.zeros(len(next_idx), dtype=np.int64)
-            n_regimes = 1
-        support_counts = np.zeros((n_regimes, len(oracle_action_values), len(oracle_action_values)), dtype=np.float32)
-        np.add.at(support_counts, (regime_idx, current_idx, next_idx), 1.0)
-        actor.support_transition_counts = support_counts
-    except Exception as e:
-        print(f"[SPIBB] support table skipped: {e}")
-
-    bc_sample_quality = None
-    bc_advantage_values = None
-    bc_quality_mode = str(bc_cfg.get("sample_quality_mode", "none")).lower()
-    if oracle_teacher_mode == "signal_aim" and bc_quality_mode != "none":
-        signal_values = np.asarray(oracle_values, dtype=np.float32)
-        if bc_quality_mode == "abs_signal":
-            bc_sample_quality = np.abs(signal_values)
-        elif bc_quality_mode == "underweight_edge":
-            benchmark_position = float(reward_cfg.get("benchmark_position", 1.0))
-            underweight_size = np.clip(benchmark_position - np.asarray(oracle_positions, dtype=np.float32), 0.0, None)
-            negative_signal = np.clip(-signal_values, 0.0, None)
-            raw_edge = underweight_size * negative_signal
-            positive_edge = raw_edge[raw_edge > 0.0]
-            if positive_edge.size > 0:
-                edge_quantile = float(np.clip(bc_cfg.get("sample_quality_quantile", 0.75), 0.0, 0.99))
-                edge_floor = float(np.quantile(positive_edge, edge_quantile))
-                edge_scale = float(np.quantile(positive_edge, 0.90)) - edge_floor
-                edge_scale = max(edge_scale, 1e-6)
-                bc_sample_quality = np.clip((raw_edge - edge_floor) / edge_scale, 0.0, bc_cfg.get("sample_quality_clip", 4.0))
-            else:
-                bc_sample_quality = np.zeros_like(raw_edge, dtype=np.float32)
-        elif bc_quality_mode in {"outcome_edge", "outcome_edge_relabel"}:
-            raw_edge = outcome_edge if outcome_edge is not None else np.zeros_like(signal_values, dtype=np.float32)
-            positive_edge = raw_edge[raw_edge > 0.0]
-            if positive_edge.size > 0:
-                edge_quantile = float(np.clip(bc_cfg.get("sample_quality_quantile", 0.75), 0.0, 0.99))
-                edge_floor = float(np.quantile(positive_edge, edge_quantile))
-                edge_scale = float(np.quantile(positive_edge, 0.90)) - edge_floor
-                edge_scale = max(edge_scale, 1e-6)
-                bc_sample_quality = np.clip((raw_edge - edge_floor) / edge_scale, 0.0, bc_cfg.get("sample_quality_clip", 4.0))
-            else:
-                bc_sample_quality = np.zeros_like(raw_edge, dtype=np.float32)
-    if ac_cfg.get("advantage_conditioned", False):
-        raw_adv = outcome_edge if outcome_edge is not None else bc_sample_quality
-        if raw_adv is None:
-            raw_adv = np.zeros(len(oracle_positions), dtype=np.float32)
-        raw_adv = np.asarray(raw_adv, dtype=np.float32)
-        positive_adv = raw_adv[raw_adv > 0.0]
-        if positive_adv.size > 0:
-            adv_scale = float(np.quantile(positive_adv, 0.90))
-            adv_scale = max(adv_scale, 1e-6)
-            bc_advantage_values = np.clip(raw_adv / adv_scale, 0.0, 1.0).astype(np.float32)
-        else:
-            bc_advantage_values = np.zeros_like(raw_adv, dtype=np.float32)
+    actor = bc_setup["actor"]
+    bc_sample_quality = bc_setup["bc_sample_quality"]
+    bc_advantage_values = bc_setup["bc_advantage_values"]
 
     bc_trainer = run_bc_stage(
         actor=actor,
