@@ -12,17 +12,12 @@ import yaml
 
 from train import _benchmark_position_value, _format_m2_scorecard, _m2_scorecard
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats
-from unidream.data.download import fetch_binance_ohlcv
-from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.dataset import get_wfo_splits, WFODataset
 from unidream.eval.backtest import Backtest
 from unidream.experiments.probe_common import (
-    cache_is_fresh as _cache_is_fresh,
-    read_extra_series_caches as _read_extra_series_caches,
-    read_optional_parquet as _read_optional_parquet,
-    resolve_cache_pair as _resolve_cache_pair,
+    apply_feature_extras,
+    load_probe_features,
     resolve_costs,
-    resolve_optional_cache as _resolve_optional_cache,
     set_seed,
 )
 
@@ -335,51 +330,21 @@ def main() -> None:
     interval = cfg.get("data", {}).get("interval", "15m")
     data_cfg = cfg.get("data", {})
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}"
-    features_cache, returns_cache = _resolve_cache_pair(args.data_cache_dir, cache_tag)
-    ohlcv_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "ohlcv")
-    funding_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "funding")
-    oi_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "oi")
-    mark_cache = _resolve_optional_cache(args.data_cache_dir, cache_tag, "mark")
-
-    if _cache_is_fresh(features_cache) and _cache_is_fresh(returns_cache):
-        print("[Data] Loading cached features...")
-        features_df = pd.read_parquet(features_cache)
-        raw_returns = pd.read_parquet(returns_cache).squeeze()
-    else:
-        ohlcv = _read_optional_parquet(ohlcv_cache)
-        if ohlcv is None:
-            print("[Data] Computing features from OHLCV...")
-            ohlcv = fetch_binance_ohlcv(symbol=symbol, interval=interval, start=args.start, end=args.end)
-        else:
-            print("[Data] Rebuilding features from cached OHLCV...")
-        funding_df = _read_optional_parquet(funding_cache)
-        oi_df = _read_optional_parquet(oi_cache)
-        mark_price_df = _read_optional_parquet(mark_cache)
-        extra_series = _read_extra_series_caches(args.data_cache_dir, cache_tag)
-        features_df = compute_features(
-            ohlcv,
-            zscore_window_days=zscore_window,
-            interval=interval,
-            funding_df=funding_df,
-            oi_df=oi_df,
-            mark_price_df=mark_price_df,
-            extra_series=extra_series,
-        )
-        raw_returns = get_raw_returns(ohlcv)
-
-    feature_extras_cfg = cfg.get("feature_extras", {})
-    if feature_extras_cfg.get("rebound_v1", False):
-        features_df = augment_with_rebound_features(
-            features_df,
-            raw_returns,
-            zscore_window_days=zscore_window,
-            windows_hours=feature_extras_cfg.get("rebound_windows_hours", [24, 72]),
-            interval=interval,
-        )
-        print(f"[Data] Rebound features enabled -> obs_dim={features_df.shape[1]}")
-
-    raw_returns = raw_returns.reindex(features_df.index)
+    features_df, raw_returns, _ = load_probe_features(
+        symbol=symbol,
+        interval=interval,
+        start=args.start,
+        end=args.end,
+        zscore_window=zscore_window,
+        data_cache_dir=args.data_cache_dir,
+    )
+    features_df, raw_returns = apply_feature_extras(
+        features_df,
+        raw_returns,
+        feature_extras_cfg=cfg.get("feature_extras", {}),
+        zscore_window=zscore_window,
+        interval=interval,
+    )
 
     splits = get_wfo_splits(
         features_df,
