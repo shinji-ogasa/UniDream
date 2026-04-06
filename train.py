@@ -60,6 +60,7 @@ from unidream.experiments.runtime import (
     resolve_costs,
     set_seed,
 )
+from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
 from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.train_reporting import (
     aggregate_scorecards,
@@ -72,14 +73,6 @@ from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 
 def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
-
-
-_PIPELINE_STAGES = ("wm", "bc", "ac", "test")
-_STAGE_TO_INDEX = {stage: idx for idx, stage in enumerate(_PIPELINE_STAGES)}
-
-
-def _stage_idx(stage: str) -> int:
-    return _STAGE_TO_INDEX[stage]
 
 
 def _benchmark_positions(length: int, cfg: dict) -> np.ndarray:
@@ -443,24 +436,30 @@ def run_fold(
     obs_dim = wfo_dataset.obs_dim
     seq_len = cfg.get("data", {}).get("seq_len", 64)
 
-    fold_ckpt_dir = os.path.join(checkpoint_dir, f"fold_{fold_idx}")
-    os.makedirs(fold_ckpt_dir, exist_ok=True)
-    wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
-    bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
-    ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
-    ac_max_steps_cfg = int(ac_cfg.get("max_steps", 200_000))
-    ignore_ac_ckpt = bool(ac_cfg.get("ignore_ac_checkpoint", False)) or ac_max_steps_cfg <= 0
+    fold_runtime = prepare_fold_runtime(
+        fold_idx=fold_idx,
+        checkpoint_dir=checkpoint_dir,
+        ac_cfg=ac_cfg,
+        resume=resume,
+        start_from=start_from,
+        stop_after=stop_after,
+    )
+    fold_ckpt_dir = fold_runtime["fold_ckpt_dir"]
+    wm_path = fold_runtime["wm_path"]
+    bc_path = fold_runtime["bc_path"]
+    ac_path = fold_runtime["ac_path"]
+    ac_max_steps_cfg = fold_runtime["ac_max_steps_cfg"]
+    ignore_ac_ckpt = fold_runtime["ignore_ac_ckpt"]
+    start_idx = fold_runtime["start_idx"]
+    stop_idx = fold_runtime["stop_idx"]
+    has_wm_ckpt = fold_runtime["has_wm_ckpt"]
+    has_bc_ckpt = fold_runtime["has_bc_ckpt"]
+    has_ac_ckpt = fold_runtime["has_ac_ckpt"]
+    has_wm = fold_runtime["has_wm"]
+    has_bc = fold_runtime["has_bc"]
+    has_ac = fold_runtime["has_ac"]
 
-    start_idx = _stage_idx(start_from)
-    stop_idx = _stage_idx(stop_after)
-    has_wm_ckpt = os.path.exists(wm_path)
-    has_bc_ckpt = os.path.exists(bc_path)
-    has_ac_ckpt = os.path.exists(ac_path) and not ignore_ac_ckpt
-    has_wm = has_wm_ckpt and (resume or start_idx > _stage_idx("wm"))
-    has_bc = has_bc_ckpt and (resume or start_idx > _stage_idx("bc"))
-    has_ac = has_ac_ckpt and (resume or start_idx > _stage_idx("ac"))
-
-    if start_idx > _stage_idx("wm") and not has_wm_ckpt:
+    if start_idx > stage_idx("wm") and not has_wm_ckpt:
         raise FileNotFoundError(
             f"Fold {fold_idx}: missing WM checkpoint for --start-from {start_from}: {wm_path}"
         )
@@ -1040,7 +1039,7 @@ def run_fold(
         )
         bc_trainer.load(bc_path)
     else:
-        if start_idx <= _stage_idx("bc"):
+        if start_idx <= stage_idx("bc"):
             print(f"\n[{_ts()}] [Step 3] BC Pre-training...")
             bc_trainer = BCPretrainer(
                 actor=actor,
@@ -1115,7 +1114,7 @@ def run_fold(
     # 異なる h 分布上で計算されて矛盾した gradient が生じる。
     # no-action h に統一することで BC train/AC train/val/test が一貫する。
 
-    ac_requested = ((stop_idx >= _stage_idx("ac")) and ac_max_steps_cfg > 0) or has_ac
+    ac_requested = ((stop_idx >= stage_idx("ac")) and ac_max_steps_cfg > 0) or has_ac
     if ac_requested:
         critic = Critic(
             z_dim=ensemble.get_z_dim(),
@@ -1135,7 +1134,7 @@ def run_fold(
         if has_ac:
             ac_trainer.load(ac_path)
 
-        if start_idx <= _stage_idx("ac") or has_ac:
+        if start_idx <= stage_idx("ac") or has_ac:
             # oracle データは resume 時も必要（BC 損失計算用）
             # z/h は oracle エンコード（z は obs のみなので同一、h は BC エンコードとは別途保持）
             T_enc = min(len(z_train), len(oracle_positions))
@@ -1419,13 +1418,13 @@ def main():
     parser.add_argument(
         "--start-from",
         default="wm",
-        choices=_PIPELINE_STAGES,
+        choices=PIPELINE_STAGES,
         help="Start pipeline from this stage",
     )
     parser.add_argument(
         "--stop-after",
         default="test",
-        choices=_PIPELINE_STAGES,
+        choices=PIPELINE_STAGES,
         help="Stop pipeline after this stage",
     )
     parser.add_argument(
@@ -1440,7 +1439,7 @@ def main():
     )
     args = parser.parse_args()
 
-    if _stage_idx(args.start_from) > _stage_idx(args.stop_after):
+    if stage_idx(args.start_from) > stage_idx(args.stop_after):
         parser.error("--start-from must be earlier than or equal to --stop-after")
 
     cfg = load_config(args.config)
