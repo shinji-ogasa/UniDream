@@ -56,7 +56,7 @@ from unidream.experiments.oracle_stage import compute_base_oracle
 from unidream.experiments.regime_runtime import fit_fold_regimes
 from unidream.experiments.oracle_teacher import compute_teacher_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
-from unidream.experiments.ac_stage import build_ac_trainer, run_ac_stage
+from unidream.experiments.ac_stage import run_ac_stage
 from unidream.experiments.bc_stage import run_bc_stage
 from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
@@ -748,169 +748,40 @@ def run_fold(
     # 異なる h 分布上で計算されて矛盾した gradient が生じる。
     # no-action h に統一することで BC train/AC train/val/test が一貫する。
 
-    ac_requested = ((stop_idx >= stage_idx("ac")) and ac_max_steps_cfg > 0) or has_ac
-    if ac_requested:
-        ac_trainer = build_ac_trainer(
-            actor=actor,
-            ensemble=ensemble,
-            cfg=cfg,
-            ac_cfg=ac_cfg,
-            wm_cfg=wm_cfg,
-            device=device,
-            has_ac=has_ac,
-            ac_path=ac_path,
-        )
-
-        if start_idx <= stage_idx("ac") or has_ac:
-            # oracle データは resume 時も必要（BC 損失計算用）
-            # z/h は oracle エンコード（z は obs のみなので同一、h は BC エンコードとは別途保持）
-            T_enc = min(len(z_train), len(oracle_positions))
-            ac_trainer.set_oracle_data(
-                z=z_train[:T_enc],
-                h=h_train[:T_enc],
-                oracle_positions=oracle_positions[:T_enc],
-                regime_probs=train_regime_probs[:T_enc] if train_regime_probs is not None else None,
-            )
-
-            encoded_list = [{
-                "z": z_train,
-                "h": h_train,
-                "regime": train_regime_probs if train_regime_probs is not None else None,
-            }]
-
-            # Val encoding を no-action（flat）で一度だけ固定する。
-            # test と同じ single-pass encoding に統一することで val/test の比較を整合させる。
-            # 自己参照ループ（AC の自身の予測を context に使う → val Sharpe 過大）は
-            # ここで固定した z_val_fixed/h_val_fixed を AC 学習中ずっと使い回すことで回避する。
-            val_features_arr = wfo_dataset.val_features
-            val_returns_arr = wfo_dataset.val_returns
-            if len(val_features_arr) > 0:
-                _enc_val_fixed = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
-                z_val_fixed = _enc_val_fixed["z"]
-                h_val_fixed = _enc_val_fixed["h"]
-            else:
-                z_val_fixed = h_val_fixed = None
-
-            # Val backtest function - used for AC checkpoint selection
-            def _val_eval() -> tuple[float, str]:
-                if z_val_fixed is None:
-                    return -float("inf"), "raw=-inf score=-inf"
-                pos = actor.predict_positions(
-                    z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
-                )
-                T_min = min(len(val_returns_arr), len(pos))
-                metrics = Backtest(
-                    val_returns_arr[:T_min], pos[:T_min],
-                    spread_bps=costs_cfg.get("spread_bps", 5.0),
-                    fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                    slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                    interval=cfg.get("data", {}).get("interval", "15m"),
-                    benchmark_positions=_benchmark_positions(T_min, cfg),
-                ).run()
-                stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
-                return _policy_score(
-                    metrics,
-                    stats,
-                    benchmark_position=_benchmark_position_value(cfg),
-                )
-
-            ac_max_steps = ac_cfg.get("max_steps", 200_000)
-            if ac_trainer.global_step >= ac_max_steps:
-                print(f"\n[{_ts()}] [Step 4] AC - already complete (step={ac_trainer.global_step})")
-            else:
-                bc_val_sharpe = -float("inf")
-                if has_ac:
-                    print(f"\n[{_ts()}] [Step 4] AC - resuming from step {ac_trainer.global_step}/{ac_max_steps}")
-                else:
-                    print(f"\n[{_ts()}] [Step 4] Imagination AC Fine-tuning...")
-
-                    # BC-only val score (checkpoint selection のベースライン)
-                    bc_val_sharpe, bc_val_label = _val_eval()
-                    print(f"[AC] BC-only val score: {bc_val_label}")
-                    if z_val_fixed is not None:
-                        _bc_pos = actor.predict_positions(
-                            z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
-                        )
-                        _bc_T = min(len(val_returns_arr), len(_bc_pos))
-                        _bc_m = Backtest(
-                            val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
-                            spread_bps=costs_cfg.get("spread_bps", 5.0),
-                            fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                            interval=cfg.get("data", {}).get("interval", "15m"),
-                            benchmark_positions=_benchmark_positions(_bc_T, cfg),
-                        ).run()
-                        _bc_attr = pnl_attribution(
-                            val_returns_arr[:_bc_T], _bc_pos[:_bc_T],
-                            spread_bps=costs_cfg.get("spread_bps", 5.0),
-                            fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                        )
-                        _bc_s = _action_stats(_bc_pos[:_bc_T], benchmark_position=_benchmark_position_value(cfg))
-                        print(f"  BC val dist: {_fmt_action_stats(_bc_s)}")
-                        print(f"  BC val: TotalRet={_bc_m.total_return:.3f}  "
-                              f"AlphaExcess={100.0 * (_bc_m.alpha_excess or 0.0):+.2f}pt  "
-                              f"long={_bc_attr['long_gross']:+.4f}  "
-                              f"short={_bc_attr['short_gross']:+.4f}  "
-                              f"cost={_bc_attr['cost_total']:.4f}")
-                        _oracle_val_pos = val_oracle_positions[:_bc_T]
-                        _oracle_val_s = _action_stats(_oracle_val_pos, benchmark_position=_benchmark_position_value(cfg))
-                        print(f"  Oracle val dist: {_fmt_action_stats(_oracle_val_s)}")
-                        _ac_alerts("BC-val", _bc_s)
-
-                    critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
-                    if critic_pretrain_steps > 0:
-                        ac_trainer.pretrain_critic(
-                            encoded_sequences=encoded_list,
-                            n_steps=critic_pretrain_steps,
-                            batch_size=ac_cfg.get("batch_size", 32),
-                        )
-
-                interval = cfg.get("data", {}).get("interval", "15m")
-                bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(interval, 96)
-                online_wm_window = ac_cfg.get("online_wm_window_days", 30) * bars_per_day
-                online_wm_steps_val = ac_cfg.get("online_wm_steps", 0)
-
-                def _online_wm_cb(step: int) -> None:
-                    if online_wm_steps_val <= 0:
-                        return
-                    T_train = len(wfo_dataset.train_features)
-                    window_start = max(0, T_train - online_wm_window)
-                    recent_feat = wfo_dataset.train_features[window_start:]
-                    recent_returns = wfo_dataset.train_returns[window_start:]
-                    recent_regime = (
-                        train_regime_probs[window_start:T_train]
-                        if train_regime_probs is not None else None
-                    )
-                    enc_recent = wm_trainer.encode_sequence(recent_feat, seq_len=seq_len)
-                    recent_pos = actor.predict_positions(
-                        enc_recent["z"], enc_recent["h"],
-                        regime_np=recent_regime, device=device,
-                    )
-                    recent_ds = SequenceDataset(
-                        recent_feat, seq_len=seq_len,
-                        actions=recent_pos[:len(recent_feat)],
-                        returns=recent_returns[:len(recent_feat)],
-                    )
-                    if len(recent_ds) < 2:
-                        return
-                    wm_trainer.ensemble.train()
-                    wm_trainer.train_on_dataset(recent_ds, max_steps=online_wm_steps_val, checkpoint_path=None)
-                    wm_trainer.ensemble.eval()
-
-                online_wm_callback = _online_wm_cb if online_wm_steps_val > 0 else None
-
-                ac_trainer.train(
-                    encoded_sequences=encoded_list,
-                    batch_size=ac_cfg.get("batch_size", 32),
-                    checkpoint_path=ac_path,
-                    val_eval_fn=_val_eval,
-                    val_baseline_sharpe=bc_val_sharpe,
-                    online_wm_callback=online_wm_callback,
-                )
-                ac_trainer.save(ac_path)
-        else:
-            print(f"\n[{_ts()}] [Step 4] AC - skipped (BC actor only for test)")
+    ac_trainer = run_ac_stage(
+        actor=actor,
+        ensemble=ensemble,
+        cfg=cfg,
+        ac_cfg=ac_cfg,
+        wm_cfg=wm_cfg,
+        costs_cfg=costs_cfg,
+        device=device,
+        has_ac=has_ac,
+        ac_path=ac_path,
+        z_train=z_train,
+        h_train=h_train,
+        oracle_positions=oracle_positions,
+        train_regime_probs=train_regime_probs,
+        wfo_dataset=wfo_dataset,
+        wm_trainer=wm_trainer,
+        seq_len=seq_len,
+        val_regime_probs=val_regime_probs,
+        val_oracle_positions=val_oracle_positions,
+        start_idx=start_idx,
+        stop_idx=stop_idx,
+        ac_stage_idx=stage_idx("ac"),
+        ac_max_steps_cfg=ac_max_steps_cfg,
+        log_ts=_ts,
+        backtest_cls=Backtest,
+        pnl_attribution_fn=pnl_attribution,
+        action_stats_fn=_action_stats,
+        format_action_stats_fn=_fmt_action_stats,
+        ac_alerts_fn=_ac_alerts,
+        benchmark_positions_fn=lambda length: _benchmark_positions(length, cfg),
+        benchmark_position=_benchmark_position_value(cfg),
+        policy_score_fn=_policy_score,
+        sequence_dataset_cls=SequenceDataset,
+    )
 
     if stop_after == "ac":
         print(f"\n[{_ts()}] [Stop] Requested stop after AC")
@@ -959,66 +830,6 @@ def run_fold(
     )
     test_result["fold"] = fold_idx
     return test_result
-
-    print(f"\n[{_ts()}] [Step 5] Test Backtest...")
-    test_features = wfo_dataset.test_dataset().features.numpy()
-    test_returns = wfo_dataset.test_returns
-
-    # Single-pass encoding: no-action context（flat）で encode して actor を適用する。
-    # 2-pass encoding はノイジーな BC 予測を context に混入させ switching を増幅するため、
-    # val と同じ no-action single-pass に統一して安定性を確保する。
-    enc_test = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
-    positions = actor.predict_positions(
-        enc_test["z"], enc_test["h"], regime_np=test_regime_probs, device=device
-    )
-
-    T_min = min(len(test_returns), len(positions))
-    bt = Backtest(
-        test_returns[:T_min],
-        positions[:T_min],
-        spread_bps=costs_cfg.get("spread_bps", 5.0),
-        fee_rate=costs_cfg.get("fee_rate", 0.0004),
-        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-        interval=cfg.get("data", {}).get("interval", "15m"),
-        benchmark_positions=_benchmark_positions(T_min, cfg),
-    )
-    metrics = bt.run()
-
-    _test_attr = pnl_attribution(
-        test_returns[:T_min], positions[:T_min],
-        spread_bps=costs_cfg.get("spread_bps", 5.0),
-        fee_rate=costs_cfg.get("fee_rate", 0.0004),
-        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-    )
-    _test_s = _action_stats(positions[:T_min], benchmark_position=_benchmark_position_value(cfg))
-    _test_scorecard = _m2_scorecard(metrics, _test_s, cfg)
-    print(f"  Sharpe:   {metrics.sharpe:.3f}")
-    print(f"  Sortino:  {metrics.sortino:.3f}")
-    print(f"  MaxDD:    {metrics.max_drawdown:.3f}")
-    print(f"  Calmar:   {metrics.calmar:.3f}")
-    print(f"  TotalRet: {metrics.total_return:.4f}")
-    if metrics.alpha_excess is not None:
-        print(f"  AlphaEx:  {100.0 * metrics.alpha_excess:+.2f} pt/yr")
-        print(f"  SharpeΔ:  {(metrics.sharpe_delta or 0.0):+.3f}")
-    if metrics.alpha_excess is not None:
-        print(f"  MaxDDΔ:   {100.0 * (metrics.maxdd_delta or 0.0):+.2f} pt")
-        print(f"  WinRate:  {(metrics.win_rate_vs_bh or 0.0):.1%}")
-        print(f"  Score:    {_format_m2_scorecard(_test_scorecard)}")
-    print(f"  PnL attr: long={_test_attr['long_gross']:+.4f}  "
-          f"short={_test_attr['short_gross']:+.4f}  "
-          f"cost={_test_attr['cost_total']:.4f}  "
-          f"net={_test_attr['net_total']:+.4f}")
-    print(f"  Test dist: {_fmt_action_stats(_test_s)}")
-    _ac_alerts("test", _test_s)
-
-    return {
-        "fold": fold_idx,
-        "metrics": metrics,
-        "scorecard": _test_scorecard,
-        "positions": positions[:T_min],
-        "test_returns": test_returns[:T_min],
-        "completed_stage": "test",
-    }
 
 
 def main():

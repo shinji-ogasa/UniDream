@@ -56,6 +56,7 @@ def run_ac_stage(
     val_regime_probs,
     val_oracle_positions,
     start_idx: int,
+    stop_idx: int,
     ac_stage_idx: int,
     ac_max_steps_cfg: int,
     log_ts,
@@ -69,7 +70,7 @@ def run_ac_stage(
     policy_score_fn,
     sequence_dataset_cls,
 ):
-    ac_requested = ((start_idx <= ac_stage_idx) and ac_max_steps_cfg > 0) or has_ac
+    ac_requested = ((stop_idx >= ac_stage_idx) and ac_max_steps_cfg > 0) or has_ac
     if not ac_requested:
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
         return None
