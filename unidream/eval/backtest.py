@@ -202,6 +202,8 @@ class Backtest:
     def run(self) -> BacktestMetrics:
         """バックテストを実行してメトリクスを返す."""
         pnl = compute_pnl(self.returns, self.positions, self.spread_bps, self.fee_rate, self.slippage_bps)
+        # position * log_return ≈ log(1 + position * simple_return) for small returns
+        # 15分足では十分な近似。厳密な対数リターンは position=1.0 の場合のみ。
         equity = np.exp(np.cumsum(pnl))  # 累積 PnL → equity curve
 
         # equity[-1] = exp(sum(log_returns)) なので、実リターン = equity[-1] - 1.0

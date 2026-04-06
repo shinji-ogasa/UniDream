@@ -19,8 +19,9 @@ import pandas as pd
 ACTIONS = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
 N_ACTIONS = len(ACTIONS)
 
-# 初期ポジション = フラット (0.0)
-_FLAT_IDX = int(np.where(ACTIONS == 0.0)[0][0])  # = 2
+# 初期ポジション = フラット (0.0 に最も近い値)
+_flat_matches = np.where(ACTIONS == 0.0)[0]
+_FLAT_IDX = int(_flat_matches[0]) if len(_flat_matches) > 0 else int(np.argmin(np.abs(ACTIONS)))
 
 
 def _transition_cost(
