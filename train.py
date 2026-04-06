@@ -59,6 +59,7 @@ from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.ac_stage import build_ac_trainer, run_ac_stage
 from unidream.experiments.bc_stage import run_bc_stage
 from unidream.experiments.test_stage import run_test_stage
+from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.experiments.train_reporting import (
     aggregate_scorecards,
@@ -915,58 +916,25 @@ def run_fold(
         print(f"\n[{_ts()}] [Stop] Requested stop after AC")
         return {"fold": fold_idx, "completed_stage": "ac"}
 
-    adjust_scale_grid = ac_cfg.get("val_adjust_rate_scale_grid", [])
-    adv_level_grid = ac_cfg.get("val_advantage_level_grid", [actor.infer_advantage_level])
-    if len(adjust_scale_grid) > 0:
-        val_features_arr = wfo_dataset.val_features
-        val_returns_arr = wfo_dataset.val_returns
-        if len(val_features_arr) > 0:
-            enc_val = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
-            best_scale = float(getattr(actor, "infer_adjust_rate_scale", 1.0))
-            best_label = "score=-inf"
-            original_scale = best_scale
-            original_adv = float(getattr(actor, "infer_advantage_level", 0.0))
-            selector_cfg = _selector_cfg(ac_cfg)
-            selector_candidates = []
-            for adv_level in adv_level_grid:
-                actor.infer_advantage_level = float(adv_level)
-                for candidate in adjust_scale_grid:
-                    actor.infer_adjust_rate_scale = float(candidate)
-                    pos = actor.predict_positions(
-                        enc_val["z"], enc_val["h"], regime_np=val_regime_probs, device=device
-                    )
-                    T_min = min(len(val_returns_arr), len(pos))
-                    metrics = Backtest(
-                        val_returns_arr[:T_min], pos[:T_min],
-                        spread_bps=costs_cfg.get("spread_bps", 5.0),
-                        fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                        interval=cfg.get("data", {}).get("interval", "15m"),
-                        benchmark_positions=_benchmark_positions(T_min, cfg),
-                    ).run()
-                    stats = _action_stats(pos[:T_min], benchmark_position=_benchmark_position_value(cfg))
-                    candidate_key = {"scale": float(candidate), "adv": float(adv_level)}
-                    candidate_rec = _selector_candidate(
-                        candidate_key,
-                        metrics,
-                        stats,
-                        benchmark_position=_benchmark_position_value(cfg),
-                        selector_cfg=selector_cfg,
-                        cfg=cfg,
-                    )
-                    selector_candidates.append(candidate_rec)
-                    print(f"  [ValAdj] {_candidate_to_text(candidate_key)} {candidate_rec['label']}")
-            chosen = _select_policy_candidate(selector_candidates, selector_cfg)
-            chosen_candidate = chosen["candidate"] if isinstance(chosen["candidate"], dict) else {"scale": float(chosen["candidate"]), "adv": original_adv}
-            best_scale = float(chosen_candidate["scale"])
-            best_adv = float(chosen_candidate.get("adv", original_adv))
-            best_label = chosen["label"]
-            actor.infer_adjust_rate_scale = best_scale
-            actor.infer_advantage_level = best_adv
-            print(
-                f"  [ValAdj] selected {_candidate_to_text(chosen_candidate)} "
-                f"(default=scale={original_scale:.3f} adv={original_adv:.2f}) {best_label}"
-            )
+    run_val_selector_stage(
+        actor=actor,
+        wm_trainer=wm_trainer,
+        wfo_dataset=wfo_dataset,
+        seq_len=seq_len,
+        val_regime_probs=val_regime_probs,
+        device=device,
+        cfg=cfg,
+        ac_cfg=ac_cfg,
+        costs_cfg=costs_cfg,
+        backtest_cls=Backtest,
+        action_stats_fn=_action_stats,
+        selector_cfg_fn=_selector_cfg,
+        selector_candidate_fn=_selector_candidate,
+        select_policy_candidate_fn=_select_policy_candidate,
+        candidate_to_text_fn=_candidate_to_text,
+        benchmark_positions_fn=lambda length: _benchmark_positions(length, cfg),
+        benchmark_position=_benchmark_position_value(cfg),
+    )
 
     # --------- Step 5: Test バックテスト ---------
     test_result = run_test_stage(
