@@ -10,10 +10,14 @@ import torch
 import torch.nn as nn
 import yaml
 
-from train import _benchmark_position_value, _format_m2_scorecard, _m2_scorecard
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats
 from unidream.data.dataset import get_wfo_splits, WFODataset
 from unidream.eval.backtest import Backtest
+from unidream.experiments.m2 import (
+    benchmark_position_value as _benchmark_position_value,
+    format_m2_scorecard as _format_m2_scorecard,
+    m2_scorecard as _m2_scorecard,
+)
 from unidream.experiments.probe_common import (
     apply_feature_extras,
     load_probe_features,
