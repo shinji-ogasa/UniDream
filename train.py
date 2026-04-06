@@ -40,8 +40,7 @@ from unidream.data.oracle import (
 )
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
 from unidream.actor_critic.actor import Actor
-from unidream.actor_critic.critic import Critic
-from unidream.actor_critic.imagination_ac import ImagACTrainer, _action_stats, _fmt_action_stats, _ac_alerts
+from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts
 from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.eval.wfo import aggregate_wfo_results
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
@@ -57,6 +56,7 @@ from unidream.experiments.oracle_stage import compute_base_oracle
 from unidream.experiments.regime_runtime import fit_fold_regimes
 from unidream.experiments.oracle_teacher import compute_teacher_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
+from unidream.experiments.ac_stage import build_ac_trainer, run_ac_stage
 from unidream.experiments.bc_stage import run_bc_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.experiments.train_reporting import (
@@ -748,23 +748,16 @@ def run_fold(
 
     ac_requested = ((stop_idx >= stage_idx("ac")) and ac_max_steps_cfg > 0) or has_ac
     if ac_requested:
-        critic = Critic(
-            z_dim=ensemble.get_z_dim(),
-            h_dim=ensemble.get_d_model(),
-            hidden_dim=ac_cfg.get("critic_hidden", 256),
-            n_layers=ac_cfg.get("ac_layers", 2),
-            n_bins=wm_cfg.get("n_bins", 255),
-            ema_decay=ac_cfg.get("ema_decay", 0.98),
-        )
-        ac_trainer = ImagACTrainer(
+        ac_trainer = build_ac_trainer(
             actor=actor,
-            critic=critic,
             ensemble=ensemble,
             cfg=cfg,
+            ac_cfg=ac_cfg,
+            wm_cfg=wm_cfg,
             device=device,
+            has_ac=has_ac,
+            ac_path=ac_path,
         )
-        if has_ac:
-            ac_trainer.load(ac_path)
 
         if start_idx <= stage_idx("ac") or has_ac:
             # oracle データは resume 時も必要（BC 損失計算用）
