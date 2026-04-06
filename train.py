@@ -39,7 +39,6 @@ from unidream.data.oracle import (
     ACTIONS as _ACTIONS,
 )
 from unidream.data.dataset import get_wfo_splits, WFODataset, SequenceDataset
-from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 from unidream.actor_critic.actor import Actor
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.bc_pretrain import BCPretrainer
@@ -59,6 +58,7 @@ from unidream.experiments.oracle_stage import compute_base_oracle
 from unidream.experiments.regime_runtime import fit_fold_regimes
 from unidream.experiments.oracle_teacher import compute_teacher_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
+from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.experiments.train_reporting import (
     aggregate_scorecards,
     compute_overfitting_diagnostics,
@@ -548,31 +548,18 @@ def run_fold(
         print(f"[Regime] HMM skipped: {e}")
 
     # --------- Step 2: 世界モデル学習 ---------
-    ensemble = build_ensemble(obs_dim, cfg)
-    wm_trainer = WorldModelTrainer(ensemble, cfg, device=device)
-
-    if has_wm:
-        print(f"\n[{_ts()}] [Step 2] World Model - loading checkpoint: {wm_path}")
-        wm_trainer.load(wm_path)
-    else:
-        print(f"\n[{_ts()}] [Step 2] World Model Training...")
-        train_ds_with_actions = SequenceDataset(
-            wfo_dataset.train_features,
-            seq_len=seq_len,
-            actions=oracle_positions[:len(wfo_dataset.train_features)],
-            returns=train_returns,
-        )
-        val_ds = SequenceDataset(
-            wfo_dataset.val_features,
-            seq_len=seq_len,
-            actions=val_oracle_positions[:len(wfo_dataset.val_features)],
-            returns=wfo_dataset.val_returns,
-        )
-        wm_trainer.train_on_dataset(
-            train_ds_with_actions,
-            val_dataset=val_ds,
-            checkpoint_path=wm_path,
-        )
+    ensemble, wm_trainer = prepare_world_model_stage(
+        obs_dim=obs_dim,
+        cfg=cfg,
+        device=device,
+        has_wm=has_wm,
+        wm_path=wm_path,
+        wfo_dataset=wfo_dataset,
+        oracle_positions=oracle_positions,
+        val_oracle_positions=val_oracle_positions,
+        train_returns=train_returns,
+        log_ts=_ts,
+    )
 
     if stop_after == "wm":
         print(f"\n[{_ts()}] [Stop] Requested stop after WM")
