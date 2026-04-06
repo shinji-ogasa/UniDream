@@ -58,6 +58,7 @@ from unidream.experiments.oracle_teacher import compute_teacher_oracle
 from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.ac_stage import build_ac_trainer, run_ac_stage
 from unidream.experiments.bc_stage import run_bc_stage
+from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.experiments.train_reporting import (
     aggregate_scorecards,
@@ -968,6 +969,29 @@ def run_fold(
             )
 
     # --------- Step 5: Test バックテスト ---------
+    test_result = run_test_stage(
+        actor=actor,
+        wm_trainer=wm_trainer,
+        wfo_dataset=wfo_dataset,
+        seq_len=seq_len,
+        test_regime_probs=test_regime_probs,
+        device=device,
+        cfg=cfg,
+        costs_cfg=costs_cfg,
+        backtest_cls=Backtest,
+        pnl_attribution_fn=pnl_attribution,
+        action_stats_fn=_action_stats,
+        format_action_stats_fn=_fmt_action_stats,
+        ac_alerts_fn=_ac_alerts,
+        benchmark_positions_fn=lambda length: _benchmark_positions(length, cfg),
+        benchmark_position=_benchmark_position_value(cfg),
+        m2_scorecard_fn=_m2_scorecard,
+        format_m2_scorecard_fn=_format_m2_scorecard,
+        log_ts=_ts,
+    )
+    test_result["fold"] = fold_idx
+    return test_result
+
     print(f"\n[{_ts()}] [Step 5] Test Backtest...")
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
