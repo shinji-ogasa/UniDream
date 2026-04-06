@@ -14,6 +14,23 @@ import requests
 BINANCE_BASE_URL = "https://api.binance.com"
 KLINES_ENDPOINT = "/api/v3/klines"
 MAX_LIMIT = 1000  # Binance の 1 リクエスト上限
+_MAX_RETRIES = 3
+_RETRY_BACKOFF = 2.0  # 秒（指数バックオフの基数）
+
+
+def _request_with_retry(url: str, params: dict, timeout: int = 30) -> requests.Response:
+    """リトライ付き GET リクエスト（指数バックオフ）."""
+    for attempt in range(_MAX_RETRIES):
+        try:
+            resp = requests.get(url, params=params, timeout=timeout)
+            resp.raise_for_status()
+            return resp
+        except (requests.exceptions.RequestException, requests.exceptions.HTTPError) as e:
+            if attempt == _MAX_RETRIES - 1:
+                raise
+            wait = _RETRY_BACKOFF * (2 ** attempt)
+            print(f"  [download] Retry {attempt + 1}/{_MAX_RETRIES} after {wait:.1f}s: {e}")
+            time.sleep(wait)
 
 
 def _parse_timestamp(ts: str | datetime) -> int:
@@ -80,8 +97,7 @@ def fetch_binance_ohlcv(
             "endTime": end_ms,
             "limit": MAX_LIMIT,
         }
-        resp = requests.get(base_url + KLINES_ENDPOINT, params=params, timeout=30)
-        resp.raise_for_status()
+        resp = _request_with_retry(base_url + KLINES_ENDPOINT, params)
         data = resp.json()
 
         if not data:
@@ -132,8 +148,7 @@ def fetch_binance_spot_taker_proxy(
             "endTime": end_ms,
             "limit": MAX_LIMIT,
         }
-        resp = requests.get(base_url + KLINES_ENDPOINT, params=params, timeout=30)
-        resp.raise_for_status()
+        resp = _request_with_retry(base_url + KLINES_ENDPOINT, params)
         data = resp.json()
 
         if not data:
@@ -199,10 +214,7 @@ def fetch_mark_price_klines(
             "endTime": end_ms,
             "limit": MAX_LIMIT,
         }
-        resp = requests.get(
-            base_url + "/fapi/v1/markPriceKlines", params=params, timeout=30,
-        )
-        resp.raise_for_status()
+        resp = _request_with_retry(base_url + "/fapi/v1/markPriceKlines", params)
         data = resp.json()
         if not data:
             break
@@ -248,10 +260,7 @@ def fetch_funding_rate(
             "endTime": end_ms,
             "limit": MAX_LIMIT,
         }
-        resp = requests.get(
-            base_url + "/fapi/v1/fundingRate", params=params, timeout=30,
-        )
-        resp.raise_for_status()
+        resp = _request_with_retry(base_url + "/fapi/v1/fundingRate", params)
         data = resp.json()
         if not data:
             break
@@ -302,10 +311,7 @@ def fetch_open_interest_hist(
             "endTime": end_ms,
             "limit": limit,
         }
-        resp = requests.get(
-            base_url + "/futures/data/openInterestHist", params=params, timeout=30,
-        )
-        resp.raise_for_status()
+        resp = _request_with_retry(base_url + "/futures/data/openInterestHist", params)
         data = resp.json()
         if not data:
             break
@@ -375,10 +381,7 @@ def fetch_taker_buy_sell_volume(
             "endTime": end_ms,
             "limit": limit,
         }
-        resp = requests.get(
-            base_url + "/futures/data/takerlongshortRatio", params=params, timeout=30,
-        )
-        resp.raise_for_status()
+        resp = _request_with_retry(base_url + "/futures/data/takerlongshortRatio", params)
         data = resp.json()
         if not data:
             break
