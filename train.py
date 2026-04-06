@@ -60,6 +60,7 @@ from unidream.experiments.runtime import (
     resolve_costs,
     set_seed,
 )
+from unidream.experiments.train_pipeline import run_wfo_folds
 from unidream.experiments.train_reporting import (
     aggregate_scorecards,
     compute_overfitting_diagnostics,
@@ -1511,25 +1512,19 @@ def main():
         print(f"  Running selected folds only: {selected_folds}")
 
     # --------- 各 Fold の学習・評価 ---------
-    fold_results = {}
-    for split in splits:
-        wfo_ds = WFODataset(
-            features_df,
-            raw_returns,
-            split,
-            seq_len=data_cfg.get("seq_len", 64),
-        )
-        result = run_fold(
-            fold_idx=split.fold_idx,
-            wfo_dataset=wfo_ds,
-            cfg=cfg,
-            device=args.device,
-            checkpoint_dir=args.checkpoint_dir,
-            resume=args.resume,
-            start_from=args.start_from,
-            stop_after=args.stop_after,
-        )
-        fold_results[split.fold_idx] = result
+    fold_results = run_wfo_folds(
+        features_df=features_df,
+        raw_returns=raw_returns,
+        splits=splits,
+        data_cfg=data_cfg,
+        cfg=cfg,
+        device=args.device,
+        checkpoint_dir=args.checkpoint_dir,
+        resume=args.resume,
+        start_from=args.start_from,
+        stop_after=args.stop_after,
+        run_fold_fn=run_fold,
+    )
 
     if args.stop_after != "test":
         print_stage_summary(fold_results, args.stop_after)
