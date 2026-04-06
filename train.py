@@ -19,7 +19,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 from datetime import datetime
 
 import numpy as np
@@ -31,34 +30,21 @@ from unidream.data.download import (
     fetch_open_interest_hist,
     fetch_mark_price_klines,
 )
-from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
+from unidream.data.features import compute_features, get_raw_returns
 from unidream.data.oracle import _forward_window_stats, oracle_to_dataset
 from unidream.data.dataset import WFODataset, SequenceDataset
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts
 from unidream.eval.backtest import Backtest, pnl_attribution
-from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
-from unidream.experiments.runtime import (
-    load_config,
-    load_training_features,
-    resolve_costs,
-    set_seed,
-)
+from unidream.experiments.runtime import load_config, resolve_costs, set_seed
 from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
 from unidream.experiments.fold_inputs import prepare_fold_inputs
-from unidream.experiments.train_pipeline import run_wfo_folds
+from unidream.experiments.train_app import run_training_app
 from unidream.experiments.ac_stage import run_ac_stage
 from unidream.experiments.bc_setup import prepare_bc_setup
 from unidream.experiments.bc_stage import run_bc_stage
 from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
-from unidream.experiments.train_reporting import (
-    aggregate_scorecards,
-    compute_overfitting_diagnostics,
-    print_stage_summary,
-    print_training_summary,
-)
-from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 
 
 def _ts() -> str:
@@ -684,135 +670,13 @@ def main():
     cfg = load_config(args.config)
     cfg, active_cost_profile = resolve_costs(cfg, args.cost_profile)
     set_seed(args.seed)
-
-    symbol = args.symbol or cfg.get("data", {}).get("symbol", "BTCUSDT")
-    interval = cfg.get("data", {}).get("interval", "15m")
-
-    print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")
-    print(f"Device: {args.device} | Seed: {args.seed} | Resume: {args.resume}")
-    print(f"Stages: {args.start_from} -> {args.stop_after}")
-    costs_cfg = cfg.get("costs", {})
-    total_cost_bps = (
-        costs_cfg.get("spread_bps", 0.0) / 2
-        + costs_cfg.get("fee_rate", 0.0) * 10000
-        + costs_cfg.get("slippage_bps", 0.0)
-    )
-    print(
-        "Costs: "
-        f"profile={active_cost_profile} | "
-        f"spread={costs_cfg.get('spread_bps', 0.0):.2f}bps "
-        f"fee={costs_cfg.get('fee_rate', 0.0) * 10000:.2f}bps "
-        f"slip={costs_cfg.get('slippage_bps', 0.0):.2f}bps "
-        f"=> one-way Δpos=1 cost={total_cost_bps:.2f}bps"
-    )
-
-    # --------- データ取得・特徴量計算（キャッシュ対応）---------
-    cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
-    zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
-    features_df, raw_returns = load_training_features(
-        symbol=symbol,
-        interval=interval,
-        start=args.start,
-        end=args.end,
-        zscore_window=zscore_window,
-        cache_dir=cache_dir,
-        cache_tag=cache_tag,
-    )
-
-    # --------- WFO 分割 ---------
-    feature_extras_cfg = cfg.get("feature_extras", {})
-    if feature_extras_cfg.get("rebound_v1", False):
-        features_df = augment_with_rebound_features(
-            features_df,
-            raw_returns,
-            zscore_window_days=cfg.get("normalization", {}).get("zscore_window_days", 60),
-            interval=interval,
-            windows_hours=feature_extras_cfg.get("rebound_windows_hours", [24, 72]),
-        )
-        raw_returns = raw_returns.loc[features_df.index]
-        print(f"[Data] Rebound features added -> {features_df.shape}")
-
-    print("[Data] WFO splits...")
-    data_cfg = cfg.get("data", {})
-    splits = build_wfo_splits(features_df, data_cfg)
-    print(f"  {len(splits)} folds")
-
-    if len(splits) == 0:
-        print("ERROR: WFO splits が空です。データ期間が短すぎます。")
-        return
-
-    try:
-        splits, selected_folds = select_wfo_splits(splits, args.folds)
-    except ValueError as exc:
-        parser.error(str(exc))
-    if selected_folds is not None:
-        print(f"  Running selected folds only: {selected_folds}")
-
-    # --------- 各 Fold の学習・評価 ---------
-    fold_results = run_wfo_folds(
-        features_df=features_df,
-        raw_returns=raw_returns,
-        splits=splits,
-        data_cfg=data_cfg,
+    run_training_app(
+        args=args,
         cfg=cfg,
-        device=args.device,
-        checkpoint_dir=args.checkpoint_dir,
-        resume=args.resume,
-        start_from=args.start_from,
-        stop_after=args.stop_after,
+        active_cost_profile=active_cost_profile,
         run_fold_fn=run_fold,
-    )
-
-    if args.stop_after != "test":
-        print_stage_summary(fold_results, args.stop_after)
-        return
-
-    # --------- PBO / Deflated Sharpe ---------
-    # 注意: PBO は「fold を戦略候補扱いした IS/OOS 分割の簡略版」。
-    #       標準 CSCV-PBO（Bailey & Lopez de Prado 2014）ではない。
-    #       複数モデル構成を比較する際は CSCV 版に差し替えること。
-    # 注意: DSR は n_trials=1（ハイパーパラメータ探索なし）のため、
-    #       多重比較補正なしの「best fold Sharpe の t 統計量」として機能する。
-    print("\n[Eval] Overfitting Diagnostics (simplified)...")
-    eval_cfg = cfg.get("eval", {})
-    pbo, dsr, all_sharpes = compute_overfitting_diagnostics(fold_results, eval_cfg)
-    print(f"  PBO (simplified): {pbo:.4f} (< 0.5 is better)")
-    dsr_str = f"{dsr:.4f}" if np.isfinite(dsr) else f"N/A ({dsr})"
-    print(f"  Sharpe t-stat (DSR, n_trials=1): {dsr_str} (> 0 is better)")
-
-    # --------- レジーム別メトリクス ---------
-    print("\n[Eval] Regime Analysis...")
-    all_test_returns = np.concatenate([r["test_returns"] for r in fold_results.values()])
-    all_positions = np.concatenate([r["positions"] for r in fold_results.values()])
-
-    try:
-        detector = RegimeDetector(n_states=cfg.get("eval", {}).get("hmm_n_states", 3))
-        regimes = detector.fit_predict(all_test_returns)
-        regime_results = regime_metrics(
-            all_test_returns,
-            all_positions,
-            regimes,
-            n_states=detector.n_states,
-            interval=interval,
-            spread_bps=cfg.get("costs", {}).get("spread_bps", 5.0),
-            fee_rate=cfg.get("costs", {}).get("fee_rate", 0.0004),
-            slippage_bps=cfg.get("costs", {}).get("slippage_bps", 2.0),
-        )
-        print_regime_report(regime_results, detector)
-    except Exception as e:
-        print(f"  Regime analysis skipped: {e}")
-
-    # --------- サマリー ---------
-    scorecards = [r["scorecard"] for r in fold_results.values() if "scorecard" in r]
-    aggregate_scorecard = aggregate_scorecards(scorecards)
-    print_training_summary(
-        fold_results,
-        all_sharpes,
-        aggregate_scorecard,
-        pbo,
-        dsr,
-        _format_m2_scorecard,
+        format_m2_scorecard_fn=_format_m2_scorecard,
+        parser_error_fn=parser.error,
     )
 
 
