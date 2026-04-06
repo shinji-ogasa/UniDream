@@ -53,13 +53,18 @@ from unidream.actor_critic.bc_pretrain import BCPretrainer
 from unidream.actor_critic.imagination_ac import ImagACTrainer, _action_stats, _fmt_action_stats, _ac_alerts
 from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.eval.wfo import aggregate_wfo_results
-from unidream.eval.pbo import compute_pbo, deflated_sharpe
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
 from unidream.experiments.runtime import (
     load_config,
     load_training_features,
     resolve_costs,
     set_seed,
+)
+from unidream.experiments.train_reporting import (
+    aggregate_scorecards,
+    compute_overfitting_diagnostics,
+    print_stage_summary,
+    print_training_summary,
 )
 from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 
@@ -1527,11 +1532,7 @@ def main():
         fold_results[split.fold_idx] = result
 
     if args.stop_after != "test":
-        print("\n" + "="*60)
-        print("Stage Summary")
-        print("="*60)
-        for fold_idx, r in fold_results.items():
-            print(f"  Fold {fold_idx}: completed_stage={r.get('completed_stage', args.stop_after)}")
+        print_stage_summary(fold_results, args.stop_after)
         return
 
     # --------- PBO / Deflated Sharpe ---------
@@ -1541,22 +1542,11 @@ def main():
     # 注意: DSR は n_trials=1（ハイパーパラメータ探索なし）のため、
     #       多重比較補正なしの「best fold Sharpe の t 統計量」として機能する。
     print("\n[Eval] Overfitting Diagnostics (simplified)...")
-    pnl_list = [r["metrics"].pnl_series for r in fold_results.values()]
     eval_cfg = cfg.get("eval", {})
-    pbo = compute_pbo(
-        pnl_list,
-        n_combinations=eval_cfg.get("pbo_n_trials"),
-    )
-    print(f"  PBO (simplified): {pbo:.4f} (< 0.5 が望ましい; fold IS/OOS split 版)")
-
-    all_sharpes = [r["metrics"].sharpe for r in fold_results.values()]
-    best_sharpe = max(all_sharpes)
-    # n_trials=1: ハイパーパラメータ探索を行っていないため多重比較補正なし
-    n_trials = 1
-    T_avg = int(np.mean([len(r["metrics"].pnl_series) for r in fold_results.values()]))
-    dsr = deflated_sharpe(best_sharpe, n_trials=n_trials, T=T_avg)
-    dsr_str = f"{dsr:.4f}" if np.isfinite(dsr) else f"N/A ({dsr}, fold 数不足)"
-    print(f"  Sharpe t-stat (DSR, n_trials=1): {dsr_str} (> 0 が望ましい)")
+    pbo, dsr, all_sharpes = compute_overfitting_diagnostics(fold_results, eval_cfg)
+    print(f"  PBO (simplified): {pbo:.4f} (< 0.5 is better)")
+    dsr_str = f"{dsr:.4f}" if np.isfinite(dsr) else f"N/A ({dsr})"
+    print(f"  Sharpe t-stat (DSR, n_trials=1): {dsr_str} (> 0 is better)")
 
     # --------- レジーム別メトリクス ---------
     print("\n[Eval] Regime Analysis...")
@@ -1582,46 +1572,15 @@ def main():
 
     # --------- サマリー ---------
     scorecards = [r["scorecard"] for r in fold_results.values() if "scorecard" in r]
-    aggregate_scorecard = None
-    if scorecards:
-        aggregate_scorecard = {
-            "alpha_excess_pt": float(np.mean([s["alpha_excess_pt"] for s in scorecards])),
-            "sharpe_delta": float(np.mean([s["sharpe_delta"] for s in scorecards])),
-            "maxdd_delta_pt": float(np.mean([s["maxdd_delta_pt"] for s in scorecards])),
-            "win_rate_vs_bh": float(np.mean([s["win_rate_vs_bh"] for s in scorecards])),
-            "collapse_guard_pass": all(s["collapse_guard_pass"] for s in scorecards),
-            "collapse_guard_reasons": sorted(
-                {reason for s in scorecards for reason in s["collapse_guard_reasons"]}
-            ),
-            "required": {
-                "alpha_excess": all(s["required"]["alpha_excess"] for s in scorecards),
-                "sharpe_delta": all(s["required"]["sharpe_delta"] for s in scorecards),
-                "maxdd_delta": all(s["required"]["maxdd_delta"] for s in scorecards),
-                "win_rate_vs_bh": all(s["required"]["win_rate_vs_bh"] for s in scorecards),
-                "collapse_guard": all(s["required"]["collapse_guard"] for s in scorecards),
-            },
-            "stretch": {
-                "alpha_excess": any(s["stretch"]["alpha_excess"] for s in scorecards),
-                "maxdd_delta": any(s["stretch"]["maxdd_delta"] for s in scorecards),
-            },
-        }
-        aggregate_scorecard["m2_pass"] = all(aggregate_scorecard["required"].values())
-        aggregate_scorecard["stretch_hit"] = any(aggregate_scorecard["stretch"].values())
-
-    print("\n" + "="*60)
-    print("Summary")
-    print("="*60)
-    for fold_idx, r in fold_results.items():
-        m = r["metrics"]
-        scorecard = r.get("scorecard")
-        extra = f" | {_format_m2_scorecard(scorecard)}" if scorecard is not None else ""
-        print(f"  Fold {fold_idx}: Sharpe={m.sharpe:.3f}, MaxDD={m.max_drawdown:.3f}, "
-              f"Calmar={m.calmar:.3f}, TotalRet={m.total_return:.4f}{extra}")
-    print(f"  Mean Sharpe: {np.mean(all_sharpes):.3f}")
-    if aggregate_scorecard is not None:
-        print(f"  Aggregate M2: {_format_m2_scorecard(aggregate_scorecard)}")
-    dsr_summary = f"{dsr:.4f}" if np.isfinite(dsr) else "N/A"
-    print(f"  PBO (simplified): {pbo:.4f} | Sharpe t-stat: {dsr_summary}")
+    aggregate_scorecard = aggregate_scorecards(scorecards)
+    print_training_summary(
+        fold_results,
+        all_sharpes,
+        aggregate_scorecard,
+        pbo,
+        dsr,
+        _format_m2_scorecard,
+    )
 
 
 if __name__ == "__main__":
