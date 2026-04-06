@@ -61,6 +61,7 @@ from unidream.experiments.runtime import (
     resolve_costs,
     set_seed,
 )
+from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 
 
 def _ts() -> str:
@@ -1490,33 +1491,18 @@ def main():
 
     print("[Data] WFO splits...")
     data_cfg = cfg.get("data", {})
-    splits = get_wfo_splits(
-        features_df,
-        train_years=data_cfg.get("train_years", 2),
-        val_months=data_cfg.get("val_months", 3),
-        test_months=data_cfg.get("test_months", 3),
-    )
+    splits = build_wfo_splits(features_df, data_cfg)
     print(f"  {len(splits)} folds")
 
     if len(splits) == 0:
         print("ERROR: WFO splits が空です。データ期間が短すぎます。")
         return
 
-    if args.folds:
-        selected_folds = sorted(
-            {
-                int(token.strip())
-                for token in args.folds.split(",")
-                if token.strip()
-            }
-        )
-        if not selected_folds:
-            parser.error("--folds must contain at least one fold index")
-        splits = [split for split in splits if split.fold_idx in selected_folds]
-        if len(splits) == 0:
-            parser.error(
-                f"--folds selected {selected_folds}, but no matching folds were found in this dataset"
-            )
+    try:
+        splits, selected_folds = select_wfo_splits(splits, args.folds)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if selected_folds is not None:
         print(f"  Running selected folds only: {selected_folds}")
 
     # --------- 各 Fold の学習・評価 ---------
