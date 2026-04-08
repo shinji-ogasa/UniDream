@@ -1,4 +1,5 @@
 param(
+  [switch]$CheckUv,
   [switch]$RunIssue2,
   [switch]$RunIssue3,
   [switch]$RunIssue4,
@@ -11,10 +12,15 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-if (-not ($RunIssue2 -or $RunIssue3 -or $RunIssue4 -or $RunIssue5 -or $RunIssue6)) {
+if (-not ($CheckUv -or $RunIssue2 -or $RunIssue3 -or $RunIssue4 -or $RunIssue5 -or $RunIssue6)) {
   Write-Host "[Loop] No issue flag selected."
-  Write-Host "[Loop] Available flags: -RunIssue2 -RunIssue3 -RunIssue4 -RunIssue5 -RunIssue6"
+  Write-Host "[Loop] Available flags: -CheckUv -RunIssue2 -RunIssue3 -RunIssue4 -RunIssue5 -RunIssue6"
   exit 0
+}
+
+if ($CheckUv) {
+  Write-Host "[Loop] UV runtime check"
+  & powershell -ExecutionPolicy Bypass -File .\scripts\check_uv_runtime.ps1
 }
 
 if ($RunIssue2) {

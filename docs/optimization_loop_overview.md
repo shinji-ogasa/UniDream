@@ -38,5 +38,5 @@
 ## 全体 wrapper
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_optimization_loop.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\run_optimization_loop.ps1 -CheckUv
 ```
