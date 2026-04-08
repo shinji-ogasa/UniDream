@@ -83,6 +83,7 @@
   - `continuous target head + execution_aux + shortmass`
 - inference keep:
   - `logits blend 0.50` (`alpha -0.34 pt/yr`)
+  - `logits blend 0.375` (`alpha -0.48 pt/yr`)
 
 ## 次の本命
 

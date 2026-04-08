@@ -71,6 +71,19 @@ issue8 の追確認で、`medium_l1_bc_continuous_exec_shortmass` は
 - `blend 0.25` よりも少し良い
 - ただし benchmark/flat 側へ寄りすぎる
 
+### `medium_l1_bc_continuous_exec_shortmass_logitsblend375`
+
+- test `alpha -0.48 pt/yr`
+- `sharpe delta -0.011`
+- `maxdd delta -0.78 pt`
+- `win 50.0%`
+- `test dist: short 40% / flat 60%`
+
+判定:
+- `blend 0.25` より良い
+- ただし `blend 0.50` には届かない
+- 中間 blend でも action-head bottleneck は少しだけ緩む
+
 ## 結論
 
 - `logits blend` は `direct target track` より明確に良い
