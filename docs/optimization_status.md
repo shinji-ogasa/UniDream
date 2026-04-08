@@ -84,6 +84,11 @@
   - collapse 指標はわずかに改善
   - ただし test は current keep より悪い
   - reject
+- `medium_l1_bc_continuous_exec_shortmass_quality`
+- `medium_l1_bc_continuous_exec_shortmass_quality_balanced`
+  - `balanced` と同一挙動
+  - 新しい情報なし
+  - reject
 
 ## 次
 1. issue10 の learner 側を別 family で再開

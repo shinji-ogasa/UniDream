@@ -2,7 +2,8 @@
 
 ## 課題
 - current learner family は target 側の mass がほぼ benchmark でも final action が `short 100%` に collapse する
-- inference では `logits blend` が benchmark 近傍まで戻せるので、action-head 側の bottleneck を疑う
+- inference だけなら `logits blend` で benchmark 近傍まで戻せる
+- なので action-head 側の bottleneck を疑う
 
 ## baseline
 
@@ -60,7 +61,7 @@
 - `bc_flat_ratio = 0.0012`
 
 判定:
-- current keep を更新できず
+- current keep を更新できない
 - reject
 
 ### `medium_l1_bc_continuous_exec_shortmass_balanced`
@@ -76,13 +77,24 @@
 - ただし test は悪化
 - reject
 
+### `medium_l1_bc_continuous_exec_shortmass_quality`
+### `medium_l1_bc_continuous_exec_shortmass_quality_balanced`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1265`
+- `bc_short_ratio = 0.9973`
+- `bc_flat_ratio = 0.0027`
+
+判定:
+- `balanced` と同一挙動
+- 新しい情報は出ない
+- reject
+
 ## 結論
 - inference-only では `logits blend 0.50` が最良
-- ただし training-side で同等の改善を出せる軽量 branch はまだ無い
+- training-side の `align / execaux / balanced / quality / quality_balanced` は全部 reject
 - current keep は
   - learner: `medium_l1_bc_continuous_exec_shortmass`
   - inference: `logits blend 0.50`
 
 ## 次
 - issue10 は別 family の action-head / learner branch で再開する
-- 既存の mass-match / balanced / execaux 系は一旦打ち切る
+- 既存の mass-match / balanced / quality / execaux 系は一旦打ち切る
