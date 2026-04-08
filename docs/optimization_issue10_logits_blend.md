@@ -103,6 +103,20 @@
 - `regimebias 0.50` と同一挙動
 - reject
 
+## inference sweep on regimebias winner
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_blend375`
+- test `alpha -0.35 pt/yr`
+- `sharpe delta -0.008`
+- `test dist: flat 100%`
+- reject
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_blend25`
+- test `alpha -0.46 pt/yr`
+- `sharpe delta -0.011`
+- `test dist: flat 100%`
+- reject
+
 ## 判断
 - issue10 は true
 - inference-only では `logits blend 0.50` が有効
@@ -113,4 +127,4 @@
 
 ## 次
 - `flat 100%` の過補正を戻せる軽量 head family に進む
-- 既存の `align / execaux / balanced / quality / regimebias25 / regimebias_floor` は打ち切り
+- 既存の `align / execaux / balanced / quality / regimebias25 / regimebias_floor / blend375 / blend25` は打ち切り
