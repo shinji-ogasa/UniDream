@@ -77,7 +77,15 @@
 - inference keep:
   - `logits blend 0.50`
 
+## issue10 update
+- `medium_l1_bc_continuous_exec_shortmass_balanced`
+  - BC-only val `gap 0.1265`
+  - test `alpha -2.14 pt/yr`
+  - collapse 指標はわずかに改善
+  - ただし test は current keep より悪い
+  - reject
+
 ## 次
-1. issue2 / issue10 の learner 側を優先して改善
+1. issue10 の learner 側を別 family で再開
 2. issue5 は必要なら `lighter conservative AC` を 1 本だけ追加
 3. その後に issue6 へ戻る
