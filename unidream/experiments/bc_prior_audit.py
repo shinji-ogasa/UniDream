@@ -96,6 +96,11 @@ def run_bc_prior_audit(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     data_cfg = cfg.get("data", {})
     zscore_window = int(cfg.get("normalization", {}).get("zscore_window_days", 60))
+    extra_series_mode = str(cfg.get("data", {}).get("extra_series_mode", "derived"))
+    extra_series_include = cfg.get("data", {}).get("extra_series_include")
+    include_funding = bool(cfg.get("data", {}).get("include_funding", True))
+    include_oi = bool(cfg.get("data", {}).get("include_oi", True))
+    include_mark = bool(cfg.get("data", {}).get("include_mark", True))
     cache_tag = f"{symbol}_{interval}_{start}_{end}_z{zscore_window}_v2"
     features_df, raw_returns = load_audit_features(
         symbol=symbol,
@@ -106,6 +111,11 @@ def run_bc_prior_audit(
         cache_dir=cache_dir,
         cache_tag=cache_tag,
         raw_cache_dir=raw_cache_dir,
+        extra_series_mode=extra_series_mode,
+        extra_series_include=extra_series_include,
+        include_funding=include_funding,
+        include_oi=include_oi,
+        include_mark=include_mark,
     )
 
     resolved_cfg, _ = resolve_costs(cfg)

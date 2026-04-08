@@ -15,7 +15,7 @@ from unidream.data.download import (
     fetch_mark_price_klines,
     fetch_open_interest_hist,
 )
-from unidream.data.features import compute_features, get_raw_returns
+from unidream.data.features import align_extra_series, compute_features, get_raw_returns
 from unidream.data.dataset import WFODataset
 from unidream.data.oracle import _forward_window_stats
 
@@ -45,6 +45,11 @@ def load_audit_features(
     cache_dir: str,
     cache_tag: str,
     raw_cache_dir: str | None = None,
+    extra_series_mode: str = "derived",
+    extra_series_include: list[str] | None = None,
+    include_funding: bool = True,
+    include_oi: bool = True,
+    include_mark: bool = True,
 ) -> tuple[pd.DataFrame, pd.Series]:
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
@@ -63,41 +68,58 @@ def load_audit_features(
     mark_path = _find_optional_cache(source_dirs, cache_tag, "mark")
 
     df = read_optional_parquet(ohlcv_path) if ohlcv_path else None
-    funding_df = read_optional_parquet(funding_path) if funding_path else None
-    oi_df = read_optional_parquet(oi_path) if oi_path else None
-    mark_price_df = read_optional_parquet(mark_path) if mark_path else None
+    funding_df = read_optional_parquet(funding_path) if (funding_path and include_funding) else None
+    oi_df = read_optional_parquet(oi_path) if (oi_path and include_oi) else None
+    mark_price_df = read_optional_parquet(mark_path) if (mark_path and include_mark) else None
 
     extra_series: dict[str, pd.Series] = {}
     for source_dir in source_dirs:
         extra_series.update(read_extra_series_caches(source_dir, cache_tag))
+    if extra_series_include:
+        include = set(extra_series_include)
+        extra_series = {name: series for name, series in extra_series.items() if name in include}
 
     if df is None:
         df = fetch_binance_ohlcv(symbol, interval, start, end)
-    if funding_df is None:
+    if include_funding and funding_df is None:
         try:
             funding_df = fetch_funding_rate(symbol, start, end)
         except Exception:
             funding_df = None
-    if oi_df is None:
+    if include_oi and oi_df is None:
         try:
             oi_df = fetch_open_interest_hist(symbol, interval, start, end)
         except Exception:
             oi_df = None
-    if mark_price_df is None:
+    if include_mark and mark_price_df is None:
         try:
             mark_price_df = fetch_mark_price_klines(symbol, interval, start, end)
         except Exception:
             mark_price_df = None
 
-    features_df = compute_features(
-        df,
-        zscore_window_days=zscore_window,
-        interval=interval,
-        funding_df=funding_df,
-        oi_df=oi_df,
-        mark_price_df=mark_price_df,
-        extra_series=extra_series,
-    )
+    if extra_series_mode == "raw_only":
+        features_df = compute_features(
+            df,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            funding_df=funding_df,
+            oi_df=oi_df,
+            mark_price_df=mark_price_df,
+            extra_series=None,
+        )
+        extra_parts = align_extra_series(extra_series, df.index)
+        if extra_parts:
+            features_df = pd.concat([features_df, *extra_parts], axis=1).dropna()
+    else:
+        features_df = compute_features(
+            df,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            funding_df=funding_df,
+            oi_df=oi_df,
+            mark_price_df=mark_price_df,
+            extra_series=extra_series,
+        )
     raw_returns = get_raw_returns(df)
     common_idx = features_df.index.intersection(raw_returns.index)
     return features_df.loc[common_idx], raw_returns.loc[common_idx]

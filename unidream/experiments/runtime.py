@@ -16,7 +16,7 @@ from unidream.data.download import (
     fetch_mark_price_klines,
     fetch_open_interest_hist,
 )
-from unidream.data.features import compute_features, get_raw_returns
+from unidream.data.features import align_extra_series, compute_features, get_raw_returns
 
 
 _CACHE_STALE_DAYS = 7
@@ -57,9 +57,13 @@ def read_optional_parquet(path: str) -> pd.DataFrame | None:
     df = pd.read_parquet(path)
     if isinstance(df, pd.Series):
         df = df.to_frame()
-    if not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
-        df["time"] = pd.to_datetime(df["time"], utc=False)
-        df = df.set_index("time")
+    if not isinstance(df.index, pd.DatetimeIndex):
+        if "time" in df.columns:
+            df["time"] = pd.to_datetime(df["time"], utc=False)
+            df = df.set_index("time")
+        elif "timestamp" in df.columns:
+            ts = pd.to_datetime(df["timestamp"], utc=True).dt.tz_localize(None)
+            df = df.drop(columns=["timestamp"]).set_index(ts.rename("time"))
     return df.sort_index()
 
 
@@ -117,15 +121,15 @@ def load_training_features(
     zscore_window: int,
     cache_dir: str,
     cache_tag: str,
+    extra_series_mode: str = "derived",
 ) -> tuple[pd.DataFrame, pd.Series]:
-    features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
-    returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
+    features_cache, returns_cache = resolve_cache_pair(cache_dir, cache_tag)
     ohlcv_cache = os.path.join(cache_dir, f"{cache_tag}_ohlcv.parquet")
     funding_cache = os.path.join(cache_dir, f"{cache_tag}_funding.parquet")
     oi_cache = os.path.join(cache_dir, f"{cache_tag}_oi.parquet")
     mark_cache = os.path.join(cache_dir, f"{cache_tag}_mark.parquet")
 
-    if cache_is_fresh(features_cache) and cache_is_fresh(returns_cache):
+    if os.path.exists(features_cache) and os.path.exists(returns_cache):
         print("\n[Data] Loading cached features...")
         features_df = pd.read_parquet(features_cache)
         raw_returns = pd.read_parquet(returns_cache).squeeze()
@@ -173,18 +177,36 @@ def load_training_features(
             print(f"  Mark price skipped: {exc}")
 
     print("[Data] Computing features...")
-    features_df = compute_features(
-        df,
-        zscore_window_days=zscore_window,
-        interval=interval,
-        funding_df=funding_df,
-        oi_df=oi_df,
-        mark_price_df=mark_price_df,
-        extra_series=extra_series,
-    )
+    if extra_series_mode == "raw_only":
+        features_df = compute_features(
+            df,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            funding_df=funding_df,
+            oi_df=oi_df,
+            mark_price_df=mark_price_df,
+            extra_series=None,
+        )
+        extra_parts = align_extra_series(extra_series, df.index)
+        if extra_parts:
+            features_df = pd.concat([features_df, *extra_parts], axis=1).dropna()
+    else:
+        features_df = compute_features(
+            df,
+            zscore_window_days=zscore_window,
+            interval=interval,
+            funding_df=funding_df,
+            oi_df=oi_df,
+            mark_price_df=mark_price_df,
+            extra_series=extra_series,
+        )
     raw_returns = get_raw_returns(df)
     common_idx = features_df.index.intersection(raw_returns.index)
     features_df = features_df.loc[common_idx]
     raw_returns = raw_returns.loc[common_idx]
+    os.makedirs(cache_dir, exist_ok=True)
+    features_df.to_parquet(features_cache)
+    raw_returns.to_frame(name="returns").to_parquet(returns_cache)
     print(f"  Features: {features_df.shape} | obs_dim={features_df.shape[1]}")
+    print(f"  Saved cache: {features_cache}")
     return features_df, raw_returns
