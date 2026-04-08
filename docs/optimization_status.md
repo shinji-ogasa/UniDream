@@ -71,3 +71,17 @@ issue8 で切ったこと:
 ## 次の本命
 
 - `sequence / multimodal policy family`
+
+### issue9 進捗
+
+- `medium_l0_bc_seqchunk_exec`
+  - `fold4 / stop-after bc` で 240 秒超
+  - runtime 理由で棄却
+- `medium_l0_bc_exec_selfcond`
+  - `fold4 / resume / start-from bc / stop-after bc` で 150 秒超
+  - runtime 理由で棄却
+
+結論:
+- issue9 は研究結果以前に runtime 制約へ抵触
+- 重い sequence family は一旦保留
+- 次は軽量な learner / inference 枝へ戻す
