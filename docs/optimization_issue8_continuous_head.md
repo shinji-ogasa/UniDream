@@ -118,6 +118,44 @@ L1:
 - robustness が無い
 - reject
 
+## L1 follow-up: execution head vs direct target track
+
+上の結果を受けて、`signal_aim` + 軽量 continuous family の中で
+実際に残っていた checkpoint に対して test-only 比較を追加した。
+
+### `medium_l1_bc_continuous_exec_shortmass`
+
+collapse audit:
+- `teacher_short 0.3572`
+- `bc_short 0.9966`
+- `bc_flat 0.0034`
+- `gap 0.1287`
+
+test-only:
+- `alpha -1.19 pt/yr`
+- `sharpe delta -0.030`
+- `maxdd delta -1.48 pt`
+- `win 49.9%`
+- `test dist: short 100%`
+
+判定:
+- 行動分布は still `short 100%`
+- ただし test 指標は benchmark 近傍まで戻る
+- issue8 の中では「まだ使える」枝として keep
+
+### `medium_l1_bc_continuous_exec_shortmass_directtrack`
+
+test-only:
+- `alpha -33.12 pt/yr`
+- `sharpe delta -1.061`
+- `maxdd delta +3.81 pt`
+- `win 45.9%`
+- `test dist: short 97% / flat 3%`
+
+判定:
+- `direct target track` はむしろ大幅悪化
+- target head をそのまま execution に流す方向は reject
+
 ## 結論
 
 - issue8 の current best はまだ
@@ -128,6 +166,10 @@ L1:
   - 変化なし
   - L1 非再現
   のどれかに落ちる
+- 追確認すると、`medium_l1_bc_continuous_exec_shortmass` は
+  collapse を解けていないが test は benchmark 近傍まで戻る
+- 一方で `direct target track` は悪化したため、
+  次枝は `orderflow/rawonly + shortmass 系` を優先する
 
 ## 次
 

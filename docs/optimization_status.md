@@ -3,8 +3,8 @@
 ## 現在の主課題
 
 1. teacher は弱い
-2. BC prior が teacher marginal をほぼ保持できない
-3. AC と WM は主因ではなく、現状は learner collapse の二次被害が大きい
+2. BC prior が teacher marginal を保持できない
+3. AC / WM は主因というより、その後段で悪化している可能性が高い
 4. source family は補助要因で、主因ではない
 
 ## issue 別の状態
@@ -18,24 +18,28 @@
 
 ### issue2 BC prior の再現性診断
 
-- 診断コードと runner は実装済み
-- まだ正式な local run を回していない
-- 次の本番対象
+- 完了
+- `signal_aim teacher + current best learner family` でも
+  - `teacher_short 0.353`
+  - `bc_short 0.999`
+  - `teacher_to_bc_mean_abs_gap 0.145`
+- issue2 は主因として確定
+- 単純な `weighted / sequence / residual / balanced` では改善なし
 
 ### issue3 AC の support 逸脱診断
 
 - 診断コードと runner は実装済み
-- issue2 の後に実行
+- 次の本番対象
 
 ### issue4 WM に regime 補助目的を追加
 
 - 診断コードと runner は実装済み
-- learner collapse が主因でないと切れた後に進む
+- issue3 の後に評価
 
 ### issue5 AWR/AWAC or IQL/CQL 系へ寄せる
 
 - 候補 config と runner は実装済み
-- issue2 / issue3 の結果を見てから
+- issue3 / issue4 の結果を見て入る
 
 ### issue6 external source を追加評価
 
@@ -66,7 +70,7 @@
 
 結論:
 - issue8 の current best は維持
-- ただし issue8 family だけではまだ M2 は遠い
+- ただし issue8 family だけでは M2 は遠い
 
 ## 現在の best
 
@@ -77,10 +81,10 @@
 
 ## 次の本命
 
-1. issue2 `BC prior audit` を正式に実行
-2. mismatch が強ければ BC 側の修正へ
-3. その後 issue3 `AC support audit`
-4. 必要なら issue4 / issue5 へ
+1. issue3 `AC support audit`
+2. BC collapse より先に AC が崩れているかを切る
+3. その後 issue4 / issue5 へ
+4. external source は最後に戻る
 
 ## いま避けるもの
 
