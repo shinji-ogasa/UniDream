@@ -49,6 +49,8 @@ def prepare_bc_setup(
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
     actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
+    actor.use_regime_target_bias = bool(ac_cfg.get("use_regime_target_bias", False))
+    actor.regime_target_bias_scale = float(ac_cfg.get("regime_target_bias_scale", 1.0))
     actor.residual_min_overlay = ac_cfg.get(
         "residual_min_overlay",
         ac_cfg.get("abs_min_position", -1.0) - benchmark_position,

@@ -1,9 +1,9 @@
 # Optimization Loop: Issue 10 Action-Head Bottleneck / Logits Blend
 
-## 課題
-- current learner family は target 側の mass がほぼ benchmark でも final action が `short 100%` に collapse する
-- inference だけなら `logits blend` で benchmark 近傍まで戻せる
-- なので action-head 側の bottleneck を疑う
+## 概要
+- current learner family は target mass をほぼ benchmark に寄せているのに、final action が `short 100%` に collapse する
+- inference-only の `logits blend` は効く
+- なので主因は action-head / execution-side の bottleneck とみなす
 
 ## baseline
 
@@ -21,8 +21,6 @@
 - test `alpha -33.12 pt/yr`
 - `sharpe delta -1.061`
 - `test dist: short 97% / flat 3%`
-
-判定:
 - reject
 
 ### `logits blend 0.25`
@@ -40,9 +38,9 @@
 - `sharpe delta -0.008`
 - `test dist: flat 100%`
 
-判定:
-- inference 側では `blend 0.50` が最良
-- action-head bottleneck 自体はかなり濃い
+判断:
+- inference-only では `blend 0.50` が最良
+- action-head bottleneck 仮説は強い
 
 ## training-side follow-up
 
@@ -50,18 +48,12 @@
 - BC-only val `teacher_to_bc_mean_abs_gap = 0.3380`
 - `bc_short_ratio = 0.9980`
 - `bc_flat_ratio = 0.0020`
-
-判定:
-- benchmark 側へ寄りすぎ
 - reject
 
 ### `medium_l0_bc_continuous_execaux`
 - BC-only val `teacher_to_bc_mean_abs_gap = 0.1432`
 - `bc_short_ratio = 0.9988`
 - `bc_flat_ratio = 0.0012`
-
-判定:
-- current keep を更新できない
 - reject
 
 ### `medium_l1_bc_continuous_exec_shortmass_balanced`
@@ -71,30 +63,44 @@
 - test `alpha -2.14 pt/yr`
 - `sharpe delta -0.055`
 - `test dist: short 100%`
-
-判定:
-- collapse 指標はわずかに改善
-- ただし test は悪化
 - reject
 
 ### `medium_l1_bc_continuous_exec_shortmass_quality`
 ### `medium_l1_bc_continuous_exec_shortmass_quality_balanced`
-- BC-only val `teacher_to_bc_mean_abs_gap = 0.1265`
-- `bc_short_ratio = 0.9973`
-- `bc_flat_ratio = 0.0027`
-
-判定:
 - `balanced` と同一挙動
-- 新しい情報は出ない
 - reject
 
-## 結論
-- inference-only では `logits blend 0.50` が最良
-- training-side の `align / execaux / balanced / quality / quality_balanced` は全部 reject
+### `medium_l1_bc_continuous_exec_shortmass_regimebias`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1070`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha -0.26 pt/yr`
+- `sharpe delta -0.006`
+- `test dist: flat 100%`
+
+判断:
+- current keep を更新
+- training-side winner
+- collapse を `short 100%` から `flat 100%` へ戻せた
+- ただし still 過補正
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias25`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1085`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha -0.38 pt/yr`
+- `sharpe delta -0.009`
+- `test dist: flat 100%`
+- `regimebias 0.50` より悪いので reject
+
+## 判断
+- issue10 は true
+- inference-only では `logits blend 0.50` が有効
+- training-side では `regimebias 0.50` が最良
 - current keep は
-  - learner: `medium_l1_bc_continuous_exec_shortmass`
-  - inference: `logits blend 0.50`
+  - learner: `medium_l1_bc_continuous_exec_shortmass_regimebias`
+  - inference: `infer_logits_target_blend = 0.50`
 
 ## 次
-- issue10 は別 family の action-head / learner branch で再開する
-- 既存の mass-match / balanced / quality / execaux 系は一旦打ち切る
+- `flat 100%` の過補正を戻せる軽量 head family に進む
+- 既存の `align / execaux / balanced / quality / regimebias25` は打ち切り

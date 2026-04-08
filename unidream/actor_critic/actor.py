@@ -49,6 +49,9 @@ class Actor(nn.Module):
         self.trade_head = nn.Linear(hidden_dim, 1)
         self.execution_head = nn.Linear(hidden_dim, 1)
         self.target_logits_head = nn.Linear(hidden_dim, act_dim)
+        self.regime_target_bias_head = (
+            nn.Linear(regime_dim, act_dim, bias=False) if regime_dim > 0 else None
+        )
         self.residual_head = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
@@ -296,6 +299,15 @@ class Actor(nn.Module):
             target_logits = -0.5 * ((target_values.unsqueeze(0) - target_mean.unsqueeze(-1)) / logit_scale) ** 2
         else:
             target_logits = self.target_logits_head(hidden) / max(temperature, 1e-6)
+        if (
+            bool(getattr(self, "use_regime_target_bias", False))
+            and self.regime_target_bias_head is not None
+            and regime is not None
+            and regime.shape[-1] > 0
+        ):
+            bias_scale = float(getattr(self, "regime_target_bias_scale", 1.0))
+            target_logits = target_logits + bias_scale * self.regime_target_bias_head(regime)
+        if not self._use_residual_controller():
             target_probs = F.softmax(target_logits, dim=-1)
             target_mean = (target_probs * target_values).sum(dim=-1)
         return (
