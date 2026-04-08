@@ -1,72 +1,47 @@
 # Optimization Loop: Issue 2 BC Prior の再現性診断
 
-## 目的
+## 課題
+- teacher は `signal_aim` まで改善した
+- それでも BC prior が teacher を再現できず `short 100%` へ collapse しているかを確認する
 
-teacher が動いていても、BC prior がそれを再現できず `short 100%` に潰れている可能性を切る。
-
-見るもの:
-- teacher と BC の `short / flat` 比率差
-- `teacher_to_bc_mean_abs_gap`
-- regime 別 mismatch
-- turnover 差
-
-## 過去の L0 で分かったこと
-
-既存の L0 比較では、以下の BC 側手当てを入れても根本改善は出なかった。
-
-- `weighted BC`
-- `sequence BC`
-- `residual`
-- `class-balanced`
-- `class-balanced residual`
-
-結論:
-- BC family は teacher marginal を保持できず、ほぼ `short 100%` に collapse する
-
-## 今回の正式確認
-
-比較条件:
-- teacher: `signal_aim`
-- learner family: `continuous target head + regime gate + execution_aux`
-- 実行: fold 4 / `--stop-after bc`
-- audit: `policy_collapse_audit`
+## baseline 診断
 
 ### `medium_l1_bc_continuous_regimegate_exec`
+- `teacher_short 0.353`
+- `teacher_flat 0.647`
+- `bc_short 0.999`
+- `bc_flat 0.001`
+- `teacher_to_bc_mean_abs_gap 0.145`
 
-- `teacher_short 0.3530`
-- `teacher_flat 0.6470`
-- `bc_short 0.9985`
-- `bc_flat 0.0015`
-- `trade_prob_mean 0.0884`
-- `short_target_mass_mean 0.1393`
-- `baseline_target_mass_mean 0.8607`
-- `teacher_to_bc_mean_abs_gap 0.1453`
+判定:
+- issue2 は true
+- 主因は BC collapse
 
-## 判定
+## current learner family の比較
 
-issue2 の判定は **true**。
+### `medium_l1_bc_continuous_exec_shortmass_align`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1287`
+- `bc_short_ratio = 0.9980`
+- `bc_flat_ratio = 0.0020`
 
-理由:
-- issue1 で teacher は `signal_aim` に改善しても
-- current best learner family で BC を回すと
-  `teacher_short 0.353 -> bc_short 0.999`
-  まで潰れる
-- つまり主因は teacher 単独ではなく、BC prior の再現失敗
+判定:
+- 現時点の current keep
+- まだ collapse は強いが baseline よりは改善
 
-補足:
-- `short_target_mass_mean 0.139` までは出ている
-- それでも final BC action は `short 0.999`
-- なので collapse は target marginal より後段、つまり actor / inference 側で増幅されている
+### `medium_l0_bc_continuous_signalaim_regimegate_exec`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1424`
+- `bc_short_ratio = 0.9980`
+- `bc_flat_ratio = 0.0020`
+
+判定:
+- `medium_l1_bc_continuous_exec_shortmass_align` を更新できない
+- reject
 
 ## 結論
-
-- issue2 は確定
-- BC prior は teacher を再現できていない
-- しかも単純な weighted / sequence / residual だけでは直っていない
+- issue2 は主因のまま
+- `signal_aim teacher` を使っても BC は still `short 100%` 近辺へ collapse する
+- 現時点の learner keep は `medium_l1_bc_continuous_exec_shortmass_align`
 
 ## 次
-
-- issue3 `AC support audit`
-- ここで見るのは
-  - AC が BC よりさらに support 外へ出ているか
-  - それとも主に BC collapse の持ち越しなのか
+- issue10 の action-head 側を優先
+- `logits blend 0.50` を基準に、training-side で同等の改善を出せる learner 枝を探す

@@ -23,6 +23,10 @@
   - `teacher_short 0.353 -> bc_short 0.999`
   - `teacher_to_bc_mean_abs_gap 0.145`
   - 主因は BC collapse
+- current keep 比較:
+  - `medium_l1_bc_continuous_exec_shortmass_align`: `gap 0.1287`
+  - `medium_l0_bc_continuous_signalaim_regimegate_exec`: `gap 0.1424`
+  - keep は `medium_l1_bc_continuous_exec_shortmass_align`
 
 ### issue3 AC の support 逸脱診断
 - baseline 実測完了
@@ -69,7 +73,6 @@
 ## 現在の keep
 - teacher: `signal_aim`
 - learner keep:
-  - `medium_l0_bc_continuous_regimegate_exec`
   - `medium_l1_bc_continuous_exec_shortmass_align`
 - inference keep:
   - `logits blend 0.50`
