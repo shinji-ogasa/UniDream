@@ -1,87 +1,89 @@
 # Optimization Status
 
-## 完了した issue
+## 現在の主課題
+
+1. teacher は弱い
+2. BC prior が teacher marginal をほぼ保持できない
+3. AC と WM は主因ではなく、現状は learner collapse の二次被害が大きい
+4. source family は補助要因で、主因ではない
+
+## issue 別の状態
 
 ### issue1 teacher audit by regime
 
+- 完了
 - teacher はほぼ `long 0% / short 50% / flat 50%`
 - `min_hold` を振っても行動分布はほぼ不変
-- `signal_aim` を次候補に採用
+- 次候補 teacher は `signal_aim`
 
 ### issue2 BC prior の再現性診断
 
-- `weighted / sequence / residual / balanced` を切ったが、BC はほぼ `short 100%`
-- 既存 BC family は teacher marginal を保てない
+- 診断コードと runner は実装済み
+- まだ正式な local run を回していない
+- 次の本番対象
 
-### issue3 AC support 逸脱診断
+### issue3 AC の support 逸脱診断
 
-- AC の悪化はあるが、主因は BC collapse の引き継ぎ
+- 診断コードと runner は実装済み
+- issue2 の後に実行
 
-### issue4 WM regime 補助
+### issue4 WM に regime 補助目的を追加
 
-- WM は regime を全く持てていないわけではない
-- 主因は WM 単体より learner 側
+- 診断コードと runner は実装済み
+- learner collapse が主因でないと切れた後に進む
 
-### issue5 conservative AC
+### issue5 AWR/AWAC or IQL/CQL 系へ寄せる
 
-- `KL budget / support budget / conservative AC / TD3+BC-ish / IQL-ish`
-  はすべて弱かった
+- 候補 config と runner は実装済み
+- issue2 / issue3 の結果を見てから
 
-### issue6 external source evaluation
+### issue6 external source を追加評価
 
-- source family は `orderflow > basis`
-- source だけでは根本解決しない
+- source rollout は整備済み
+- `orderflow > basis`
+- ただし主因ではないので後順位
 
 ### issue7 learner / output collapse
 
-- 既存 1-step CE 系 actor family はほぼ全部 `BC short ≈ 1.0`
-- `static dist match / regime-aware dist match / short-mass match` でも直らなかった
-- 結論: 既存 output family 自体が主因
+- 完了
+- 既存 1-step CE actor family はほぼ全面的に `BC short ~ 1.0`
+- 主因は旧 actor family 側
 
 ### issue8 continuous target head
 
-current best:
-- `medium_l0_bc_continuous_regimegate_exec`
-  - `bc_short 0.969`
-  - `gap 0.0576`
-
-issue8 で切ったこと:
-- inference-only regime gate family 7 本
-  - collapse は減るが flat に過補正
-- learner-loss 3 本
-  - `regime-dist` は short collapse 維持
-  - `short-mass / dist-combo` は flat collapse
-- post-Web 2 本 (`target_from_logits`)
-  - どちらも flat collapse
+- 一段完了
+- current best:
+  - `medium_l0_bc_continuous_regimegate_exec`
+  - `bc_short 0.9968`
+  - `teacher_to_bc_mean_abs_gap 0.1293`
+- inference / target-mass の派生:
+  - `bootstrap`: flat collapse
+  - `damped`: 変化なし
+  - `execsplit`: 悪化
+  - `regimedist`: 悪化
+  - `distcombo`: 悪化
+  - `shortmass`: L0 は少し改善するが L1 で崩壊
 
 結論:
-- issue8 は current best を保持したまま打ち切り
-- `continuous target head + regime gate + execution_aux` は改善の兆候はある
-- ただし collapse 自体はまだ強い
+- issue8 の current best は維持
+- ただし issue8 family だけではまだ M2 は遠い
 
-## 現在の主結論
+## 現在の best
 
-1. teacher は弱い
-2. その次に BC prior が teacher marginal を保てない
-3. AC と WM は主因ではあるが、learner collapse より優先度は下がる
-4. source family は `orderflow` が最有望
-5. 現時点の最良 learner family は
-   `continuous target head + regime gate + execution_aux`
+- teacher:
+  - `signal_aim`
+- learner family:
+  - `continuous target head + regime gate + execution_aux`
 
 ## 次の本命
 
-- `sequence / multimodal policy family`
+1. issue2 `BC prior audit` を正式に実行
+2. mismatch が強ければ BC 側の修正へ
+3. その後 issue3 `AC support audit`
+4. 必要なら issue4 / issue5 へ
 
-### issue9 進捗
+## いま避けるもの
 
-- `medium_l0_bc_seqchunk_exec`
-  - `fold4 / stop-after bc` で 240 秒超
-  - runtime 理由で棄却
-- `medium_l0_bc_exec_selfcond`
-  - `fold4 / resume / start-from bc / stop-after bc` で 150 秒超
-  - runtime 理由で棄却
-
-結論:
-- issue9 は研究結果以前に runtime 制約へ抵触
-- 重い sequence family は一旦保留
-- 次は軽量な learner / inference 枝へ戻す
+- 重い all-fold run
+- inference の小手先調整を増やすこと
+- source family を主因扱いすること

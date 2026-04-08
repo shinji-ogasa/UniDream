@@ -1,126 +1,137 @@
 # Optimization Loop: Issue 8 Continuous Target Head
 
-## 位置づけ
+## 目的
 
-issue7 で既存の 1-step CE 系 actor family はほぼ全部 `BC short ≈ 1.0` に collapse すると分かった。
-そのため issue8 では、`continuous target head` を使って teacher marginal を保てる learner family を探した。
+issue7 で既存の 1-step CE actor family はほぼ全面的に `BC short ~ 1.0` に collapse した。
+そのため issue8 では、teacher marginal を少しでも保持できる learner family として
+`continuous target head + regime gate + execution_aux` を検証した。
 
-## current best
+## 比較条件
 
-- `medium_l0_bc_continuous_regimegate_exec`
-  - `teacher_short 0.163`
-  - `bc_short 0.969`
-  - `teacher_to_bc_mean_abs_gap 0.0576`
+- 期間: `2020-01-01 -> 2024-01-01`
+- fold: `4`
+- 実行: `--stop-after bc`
+- 比較軸:
+  - `bc_short_ratio`
+  - `bc_flat_ratio`
+  - `short_target_mass_mean`
+  - `baseline_target_mass_mean`
+  - `teacher_to_bc_mean_abs_gap`
 
-これは issue8 の current best。
+## 基準
 
-## ここまでに切った枝
+### `medium_l0_bc_continuous_regimegate_exec`
 
-- `medium_l0_bc_continuous`
-  - `gap 0.0607`
-- `medium_l0_bc_continuous_regimegate`
-  - `bc_short 0.989`
-  - `gap 0.0595`
-- `direct target track`
-  - current best を超えず棄却
-- `path_aux`
-  - `flat 100%` で棄却
-- `signal_aim + raw-only orderflow`
-  - `bc_short 0.999`, `gap 0.1492`
-- baseline source の `signal_aim + regime gate + execution_aux`
-  - `bc_short 0.998`, `gap 0.1424`
-- `controller_state_dim=3`
-  - `flat 100%`, `gap 0.0537`
-- code-level split execution head
-  - `bc_short 0.999`, `gap 0.0593`
+- `teacher_short 0.3752`
+- `bc_short 0.9968`
+- `bc_flat 0.0032`
+- `short_target_mass_mean 0.0082`
+- `baseline_target_mass_mean 0.9918`
+- `teacher_to_bc_mean_abs_gap 0.1293`
 
-## inference-only regime gate branch
+結論:
+- issue8 の current best はまだこの枝
+- ただし final action は依然として short collapse が強い
 
-current best checkpoint に対して、学習なしで `policy_collapse_audit` だけを当てる
-inference-only 7 本を試した。
+## inference / target-mass branch
 
-- `medium_l0_bc_continuous_regimegate_exec_r0only`
-  - `bc_short 0.001`
-  - `bc_flat 0.999`
-  - `gap 0.0289`
-- `medium_l0_bc_continuous_regimegate_exec_r0support`
-  - `bc_short 0.001`
-  - `bc_flat 0.999`
-  - `gap 0.0289`
-- `medium_l0_bc_continuous_regimegate_exec_r0uncertainty`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0289`
-- `medium_l0_bc_continuous_regimegate_exec_r0soft`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0300`
-- `medium_l0_bc_continuous_regimegate_exec_r0soft_uncertainty`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0289`
-- `medium_l0_bc_continuous_regimegate_exec_bootstrap`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0289`
-- `medium_l0_bc_continuous_regimegate_exec_damped`
-  - `bc_short 0.969`
-  - `gap 0.0576`
+### `medium_l0_bc_continuous_regimegate_exec_bootstrap`
 
-### 結論
+- `bc_short 0.0000`
+- `bc_flat 1.0000`
+- `gap 0.1137`
 
-- hard/soft どちらの regime gate でも collapse は減るが flat へ過補正した
-- damped branch は current best と同等で改善なし
-- inference-only family はここで打ち切り
+判定:
+- over-flat
+- reject
 
-## learner-loss branch
+### `medium_l0_bc_continuous_regimegate_exec_damped`
 
-`execution_aux` を維持したまま、continuous head の loss を 3 本切った。
+- `bc_short 0.9968`
+- `bc_flat 0.0032`
+- `gap 0.1293`
 
-- `medium_l0_bc_continuous_regimegate_exec_regimedist`
-  - `bc_short 0.993`
-  - `bc_flat 0.007`
-  - `gap 0.0590`
-  - current best より悪化
-- `medium_l0_bc_continuous_regimegate_exec_shortmass`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0538`
-  - over-flat で棄却
-- `medium_l0_bc_continuous_regimegate_exec_distcombo`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0530`
-  - over-flat で棄却
+判定:
+- head 指標は基準と同じ
+- inference 側で効いた形跡が弱い
+- reject
 
-### 結論
+### `medium_l0_bc_continuous_regimegate_execsplit`
 
-- learner-loss 3 本でも current best を超えなかった
-- `regime-dist` は short collapse を維持
-- `short-mass / dist-combo` は flat collapse に反転
+- `bc_short 0.9980`
+- `bc_flat 0.0020`
+- `short_target_mass_mean 0.0038`
+- `gap 0.1302`
 
-## post-Web 2 tries
+判定:
+- separate execution head でも collapse 改善なし
+- reject
 
-Web では multi-modal action head が有望だったため、repo で近い既存 knob として
-`target_from_logits` を 2 本試した。
+### `medium_l0_bc_continuous_regimegate_exec_regimedist`
 
-- `medium_l0_bc_continuous_regimegate_exec_logitsblend`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0419`
-- `medium_l0_bc_continuous_regimegate_exec_logitsfull`
-  - `bc_short 0.000`
-  - `bc_flat 1.000`
-  - `gap 0.0289`
+- `bc_short 0.9990`
+- `bc_flat 0.0010`
+- `short_target_mass_mean 0.1022`
+- `gap 0.1456`
 
-### 結論
+判定:
+- regime-aware dist match はむしろ悪化
+- reject
 
-- post-Web 2 本も collapse は減るが flat へ過補正した
-- issue8 は current best を保持したまま打ち切る
+### `medium_l0_bc_continuous_regimegate_exec_distcombo`
 
-## 最終結論
+- `bc_short 0.9988`
+- `bc_flat 0.0012`
+- `short_target_mass_mean 0.1211`
+- `gap 0.1458`
 
-- issue8 の current best は引き続き
-  `continuous target head + regime gate + execution_aux`
-- ただし current best でも `bc_short 0.969` で collapse は強い
-- 次は `sequence / multimodal policy family` に移る
+判定:
+- dist 系の複合も悪化
+- reject
+
+### `medium_l0_bc_continuous_regimegate_exec_shortmass`
+
+L0:
+- `bc_short 0.9971`
+- `bc_flat 0.0029`
+- `short_target_mass_mean 0.0541`
+- `baseline_target_mass_mean 0.9459`
+- `gap 0.1226`
+
+判定:
+- L0 では head 側の marginal が少し改善
+- この枝だけ keep して L1 へ
+
+L1:
+### `medium_l1_bc_continuous_regimegate_exec_shortmass`
+
+- teacher: `signal_aim`
+- `teacher_short 0.3572`
+- `bc_short 0.9983`
+- `bc_flat 0.0017`
+- `short_target_mass_mean 0.0000002`
+- `baseline_target_mass_mean 0.9999999`
+- `gap 0.1431`
+
+判定:
+- `signal_aim` teacher にすると完全に劣化
+- robustness が無い
+- reject
+
+## 結論
+
+- issue8 の current best はまだ
+  `medium_l0_bc_continuous_regimegate_exec`
+- ただし current best でも short collapse は強い
+- inference / target-mass の小手先調整では
+  - flat collapse
+  - 変化なし
+  - L1 非再現
+  のどれかに落ちる
+
+## 次
+
+- issue8 はここで一段閉じる
+- 次は `execution_aux` を維持したまま別 learner family を見る
+- 併行して core loop の issue2 `BC prior audit` を実行し、
+  teacher と learner の mismatch を正式に切る
