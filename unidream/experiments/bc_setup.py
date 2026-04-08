@@ -51,6 +51,8 @@ def prepare_bc_setup(
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
     actor.use_regime_target_bias = bool(ac_cfg.get("use_regime_target_bias", False))
     actor.regime_target_bias_scale = float(ac_cfg.get("regime_target_bias_scale", 1.0))
+    actor.use_regime_trade_bias = bool(ac_cfg.get("use_regime_trade_bias", False))
+    actor.regime_trade_bias_scale = float(ac_cfg.get("regime_trade_bias_scale", 1.0))
     actor.use_regime_residual_shift = bool(ac_cfg.get("use_regime_residual_shift", False))
     actor.regime_residual_shift_scale = float(ac_cfg.get("regime_residual_shift_scale", 0.0))
     actor.residual_min_overlay = ac_cfg.get(

@@ -47,6 +47,9 @@ class Actor(nn.Module):
                 layers.append(nn.Dropout(dropout_p))
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
+        self.regime_trade_bias_head = (
+            nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
+        )
         self.execution_head = nn.Linear(hidden_dim, 1)
         self.target_logits_head = nn.Linear(hidden_dim, act_dim)
         self.regime_target_bias_head = (
@@ -272,6 +275,14 @@ class Actor(nn.Module):
         """trade logit, target logits/mean/std, band width, current inventory."""
         hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
         trade_logits = self.trade_head(hidden).squeeze(-1)
+        if (
+            bool(getattr(self, "use_regime_trade_bias", False))
+            and self.regime_trade_bias_head is not None
+            and regime is not None
+            and regime.shape[-1] > 0
+        ):
+            trade_bias_scale = float(getattr(self, "regime_trade_bias_scale", 1.0))
+            trade_logits = trade_logits + trade_bias_scale * self.regime_trade_bias_head(regime).squeeze(-1)
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
