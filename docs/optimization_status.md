@@ -48,8 +48,18 @@
   - `mixed / no winner`
 
 ### issue5 conservative AC
-- docs / config / runner は揃っている
-- 次に current best learner family 上で最小実測を行う
+- baseline family では false
+- current learner family 上では部分的に true
+- `medium_l0_ac_conservative_signal_aim`
+  - val 4096 bars: `bc_short 0.998 -> ac_short 0.002`, `ac_flat 0.998`
+  - test: `alpha -0.56 pt/yr`, `sharpe_delta -0.013`, `flat 100%`
+- `medium_l0_ac_supportbudget_signal_aim`
+  - val 4096 bars: `ac_short 0.905`, `ac_flat 0.095`
+  - test: `alpha -0.77 pt/yr`, `sharpe_delta -0.018`, `short 97%`
+- 結論:
+  - conservative AC は candidate を benchmark 近傍へ戻す効果はある
+  - ただし flat 過補正で alpha は作れていない
+  - current keep は `medium_l0_ac_conservative_signal_aim`
 
 ### issue6 external source
 - rollout 導線は揃っている
@@ -65,6 +75,6 @@
   - `logits blend 0.50`
 
 ## 次
-1. issue5 を current best learner family 上で tiny 実測
-2. その結果で conservative AC を keep / reject 判定
+1. issue2 / issue10 の learner 側を優先して改善
+2. issue5 は必要なら `lighter conservative AC` を 1 本だけ追加
 3. その後に issue6 へ戻る

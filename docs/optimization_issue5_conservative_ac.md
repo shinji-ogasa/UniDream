@@ -1,69 +1,70 @@
 # Optimization Loop: Issue 5 Conservative AC
 
-## 位置づけ
-- issue2 で `BC prior` が `short 100%` に collapse することを確認した。
-- それでも AC 側の制約を強めれば改善できるかを切り分けるため、heavy run を避けて `AC-only tiny rerun` で比較した。
-- 目的は「AC が support 逸脱で悪化させているのか」「conservative update で改善できる余地があるのか」を見ること。
+## 課題
+- `issue2` で BC collapse が主因だと確認した
+- それでも current learner family 上で AC を保守化すると改善が出るかを tiny 実測で確認する
 
-## pre-Web の 3 本
-baseline fold 4 の既存 checkpoint から AC だけを tiny rerun した。
+## baseline
+- 旧 baseline family では
+  - `teacher_short 0.4998`
+  - `bc_short 1.0`
+  - `ac_short 1.0`
+  - `bc_to_ac_short_mismatch = 0.0`
+- baseline では AC drift は主因ではなかった
 
-1. `support budget`
-2. `KL budget`
-3. `conservative AC`
+## current learner family 上の tiny 実測
 
-### 結果
-- `support budget`
-  - test alpha: `-93.53 pt/yr`
-  - sharpe delta: `-13.477`
-  - test distribution: `short 100%`
-- `KL budget`
-  - test alpha: `-94.09 pt/yr`
-  - sharpe delta: `-13.883`
-  - test distribution: `short 100%`
-- `conservative AC`
-  - test alpha: `-84.35 pt/yr`
-  - sharpe delta: `-9.524`
-  - test distribution: `short 100%`
+### `medium_l0_ac_conservative_signal_aim`
 
-3 本とも baseline の collapse を崩せなかった。
+val 4096 bars support audit:
+- `teacher_short_ratio 0.357`
+- `bc_short_ratio 0.998`
+- `ac_short_ratio 0.002`
+- `ac_flat_ratio 0.998`
+- `teacher_to_ac_mean_abs_gap 0.113`
 
-## post-Web の 2 本
-同系統 3 本で改善が薄かったので文献を見直し、近い保守化として 2 本だけ追加した。
+test:
+- `alpha_excess -0.56 pt/yr`
+- `sharpe_delta -0.013`
+- `maxdd_delta -0.67 pt`
+- `win_rate_vs_bh 49.9%`
+- distribution: `flat 100%`
 
-4. `TD3+BC 寄り`
-5. `IQL 寄り`
+判定:
+- BC の short collapse は解消する
+- ただし flat へ過補正する
+- benchmark 近傍までは戻るが M2 には届かない
 
-### 結果
-- `TD3+BC 寄り`
-  - test alpha: `-81.32 pt/yr`
-  - sharpe delta: `-9.346`
-  - test distribution: `short 100%`
-- `IQL 寄り`
-  - test alpha: `-87.08 pt/yr`
-  - sharpe delta: `-11.418`
-  - test distribution: `short 100%`
+### `medium_l0_ac_supportbudget_signal_aim`
 
-## rawonly + signal_aim の追確認
-orderflow 系 raw source を含む軽量 config でも conservative AC を 1 本だけ追確認した。
+val 4096 bars support audit:
+- `teacher_short_ratio 0.357`
+- `bc_short_ratio 0.998`
+- `ac_short_ratio 0.905`
+- `ac_flat_ratio 0.095`
+- `teacher_to_ac_mean_abs_gap 0.116`
 
-- config: `configs/medium_l0_ac_conservative_rawonly.yaml`
-- audit: `checkpoints/medium_l0_ac_conservative_rawonly_fold4/ac_support_audit/medium_l0_ac_conservative_rawonly_ac_support_audit_summary.csv`
+test:
+- `alpha_excess -0.77 pt/yr`
+- `sharpe_delta -0.018`
+- `maxdd_delta -0.83 pt`
+- `win_rate_vs_bh 50.0%`
+- distribution: `short 97% / flat 3%`
 
-### 結果
-- teacher short ratio: `0.440`
-- BC short ratio: `1.000`
-- AC short ratio: `1.000`
-- `bc_to_ac_short_mismatch = 0.0`
-- `teacher_to_ac_short_mismatch = 0.4375`
+判定:
+- short collapse は少ししか緩まない
+- `conservative AC` より悪い
+- reject
 
-つまり raw source を含めても、conservative AC は `BC collapse` を全く崩していない。
+## 結論
+- issue5 は baseline family では false だったが、current learner family 上では部分的に true
+- AC 保守化は `BC short collapse` を benchmark 近傍まで戻す効果がある
+- ただし現状は `flat 100%` への過補正が強く、alpha を作れていない
 
-## 判定
-- issue5 の判定は `false`
-- 現時点の主因は `AC support drift` より前にある
-- conservative / TD3+BC-ish / IQL-ish の範囲では、`BC = short 100%` の collapse を修正できない
+## current keep
+- issue5 current keep は `medium_l0_ac_conservative_signal_aim`
+- ただし用途は `candidate rescue / benchmark recovery` であって、まだ winner ではない
 
-## 次の含意
-- AC family の延命より、`BC collapse を起こさない learner family` を先に探す必要がある
-- source family では `orderflow` が最有望なので、次の本命は `orderflow を使いつつ teacher marginal を保てる learner` に移ること
+## 次
+- issue5 は `KL budget` か `lighter conservative AC` を 1 本だけ追加で見る余地がある
+- ただし優先度としては issue2/issue10 の learner 側改善の方が高い
