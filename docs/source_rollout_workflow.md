@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\generate_next_source_manifest
 ### 3. Dry-run the manifest
 
 ```powershell
-.\.venv\Scripts\python.exe build_source_cache_from_manifest.py `
+uv run python build_source_cache_from_manifest.py `
   --manifest configs\source_manifest_next_stage.yaml `
   --dry-run
 ```
@@ -50,7 +50,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\generate_next_source_manifest
 ### 4. Build source cache from the manifest
 
 ```powershell
-.\.venv\Scripts\python.exe build_source_cache_from_manifest.py `
+uv run python build_source_cache_from_manifest.py `
   --manifest configs\source_manifest_next_stage.yaml
 ```
 

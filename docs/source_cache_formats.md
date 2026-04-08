@@ -150,7 +150,7 @@ Index or time column:
 Use:
 
 ```powershell
-.\.venv\Scripts\python.exe build_aux_source_cache.py `
+uv run python build_aux_source_cache.py `
   --cache-dir checkpoints\basis_source_cache `
   --cache-tag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2 `
   --spot-file path\to\spot.csv `
@@ -165,7 +165,7 @@ Use:
 Use:
 
 ```powershell
-.\.venv\Scripts\python.exe build_source_cache_from_manifest.py `
+uv run python build_source_cache_from_manifest.py `
   --manifest configs\source_manifest_example.yaml
 ```
 
@@ -173,7 +173,7 @@ This is the shortest path when you have multiple market and external-source file
 To validate a manifest without fetching or writing files:
 
 ```powershell
-.\.venv\Scripts\python.exe build_source_cache_from_manifest.py `
+uv run python build_source_cache_from_manifest.py `
   --manifest configs\source_manifest_remote_example.yaml `
   --dry-run
 ```
@@ -194,7 +194,7 @@ See:
 Use:
 
 ```powershell
-.\.venv\Scripts\python.exe build_binance_source_cache.py `
+uv run python build_binance_source_cache.py `
   --cache-dir checkpoints\basis_source_cache `
   --cache-tag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2 `
   --symbol BTCUSDT `
@@ -214,7 +214,7 @@ This builder now also writes, when available:
 Use:
 
 ```powershell
-.\.venv\Scripts\python.exe build_coinmetrics_source_cache.py `
+uv run python build_coinmetrics_source_cache.py `
   --cache-dir checkpoints\basis_source_cache `
   --cache-tag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2 `
   --asset btc `
@@ -229,7 +229,7 @@ Use:
 Use:
 
 ```powershell
-.\.venv\Scripts\python.exe build_glassnode_source_cache.py `
+uv run python build_glassnode_source_cache.py `
   --cache-dir checkpoints\basis_source_cache `
   --cache-tag BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2 `
   --asset BTC `

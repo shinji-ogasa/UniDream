@@ -12,7 +12,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 Write-Host "[FREE] Fetching Binance basis + spot orderflow proxy..."
-& .\.venv\Scripts\python.exe .\build_binance_source_cache.py `
+uv run python .\build_binance_source_cache.py `
   --cache-dir $CacheDir `
   --cache-tag $CacheTag `
   --symbol $Symbol `
@@ -24,7 +24,7 @@ Write-Host "[FREE] Fetching Binance basis + spot orderflow proxy..."
 
 Write-Host "[FREE] Fetching Coin Metrics active addresses..."
 try {
-  & .\.venv\Scripts\python.exe .\build_coinmetrics_source_cache.py `
+  & uv run python .\build_coinmetrics_source_cache.py `
     --cache-dir $CacheDir `
     --cache-tag $CacheTag `
     --asset btc `

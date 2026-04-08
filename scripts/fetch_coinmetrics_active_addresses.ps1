@@ -15,7 +15,7 @@ Write-Host "[CM] Downloading AdrActCnt JSON..."
 Invoke-WebRequest -Uri $uri -OutFile $OutJson
 
 Write-Host "[CM] Converting export to source cache..."
-& .\.venv\Scripts\python.exe .\build_coinmetrics_source_cache.py `
+uv run python .\build_coinmetrics_source_cache.py `
   --cache-dir $CacheDir `
   --cache-tag $CacheTag `
   --asset btc `

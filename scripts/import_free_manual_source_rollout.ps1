@@ -16,7 +16,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 Write-Host "[FREE-MANUAL] Importing Binance public spot zips..."
-& .\.venv\Scripts\python.exe .\build_binance_public_spot_series.py `
+uv run python .\build_binance_public_spot_series.py `
   --cache-dir $CacheDir `
   --cache-tag $CacheTag `
   --symbol $Symbol `
@@ -27,7 +27,7 @@ Write-Host "[FREE-MANUAL] Importing Binance public spot zips..."
   --write-buy-sell-ratio
 
 Write-Host "[FREE-MANUAL] Importing Coin Metrics export..."
-& .\.venv\Scripts\python.exe .\build_coinmetrics_source_cache.py `
+uv run python .\build_coinmetrics_source_cache.py `
   --cache-dir $CacheDir `
   --cache-tag $CacheTag `
   --asset btc `

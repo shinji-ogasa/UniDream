@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-& .\.venv\Scripts\python.exe .\inspect_free_manual_inputs.py `
+uv run python .\inspect_free_manual_inputs.py `
   --zip-dir $ZipDir `
   --coinmetrics-json $CoinMetricsJson `
   --symbol $Symbol `
