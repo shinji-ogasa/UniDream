@@ -30,10 +30,16 @@
   - `static dist match`, `regime-aware dist match`, `short-mass match` でも collapse は不変
   - 既存 1-step CE 系 actor family は打ち切り
 
+- issue8 `continuous target head`: 進行中
+  - `medium_l0_bc_continuous` では `teacher_to_bc_mean_abs_gap` が `0.0607` まで改善
+  - ただし `bc_short_ratio` はまだ `0.992`
+  - `signal_aim` と raw-only/orderflow を組み合わせると改善は弱まる
+
 ## 次の主課題
 1. 主因は `BC prior が teacher marginal を保てないこと`
 2. AC や WM より先に learner / output family 側の collapse が強く出ている
 3. source family では `orderflow` が最有望
+4. 直近の有望枝は `continuous target head`
 
 ## 次の本命
 - `orderflow` を使ったまま `BC collapse` を起こさない learner family を探す
@@ -50,3 +56,4 @@
 - [issue5 conservative AC](./optimization_issue5_conservative_ac.md)
 - [issue6 external sources](./optimization_issue6_external_sources.md)
 - [issue7 output collapse](./optimization_issue7_output_collapse.md)
+- [issue8 continuous head](./optimization_issue8_continuous_head.md)
