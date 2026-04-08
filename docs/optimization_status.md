@@ -81,10 +81,12 @@
   - `signal_aim`
 - learner family:
   - `continuous target head + execution_aux + shortmass`
+- inference keep:
+  - `logits blend 0.50` (`alpha -0.34 pt/yr`)
 
 ## 次の本命
 
-1. issue8 の次の軽量 learner family を切る
+1. `issue10 logits blend` の keep 候補を learner 側へ戻せるか切る
 2. `direct target track` と `rawonly` では解けなかったので、別 learner family を優先
 3. heavy な sequence family は runtime 制約で後回し
 
