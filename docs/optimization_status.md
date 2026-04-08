@@ -33,6 +33,7 @@
 - issue8 `continuous target head`: 進行中
   - `medium_l0_bc_continuous` では `teacher_to_bc_mean_abs_gap` が `0.0607` まで改善
   - `medium_l0_bc_continuous_regimegate` では `bc_short_ratio 0.989`, `gap 0.0595`
+  - `direct target track` は全量/半量とも current best を超えず棄却
   - `signal_aim` と raw-only/orderflow を組み合わせると改善は弱まる
 
 ## 次の主課題
@@ -46,7 +47,7 @@
 - 優先度は
   - `continuous target head + regime gate` を伸ばす
   - `execution head 分離`
-  - `direct target track`
+  - `signal_aim` 条件での regime gate 再評価
   の順
 
 ## 関連ドキュメント

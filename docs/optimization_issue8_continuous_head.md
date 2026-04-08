@@ -21,6 +21,12 @@
    - feature_stress teacher
    - continuous target head
    - regime ごとに overlay 下限を変える
+5. `medium_l0_bc_continuous_regimegate_direct`
+   - current best checkpoint を使った direct target track
+   - `infer_direct_track_scale=1.0`
+6. `medium_l0_bc_continuous_regimegate_direct_half`
+   - current best checkpoint を使った direct target track
+   - `infer_direct_track_scale=0.5`
 
 ## 結果
 
@@ -66,15 +72,35 @@
 - Regime 1/2 の short 固定が少し緩む
 - issue8 の current best
 
+### `medium_l0_bc_continuous_regimegate_direct`
+- teacher short: `0.163`
+- BC short: `1.000`
+- teacher_to_bc_mean_abs_gap: `0.0596`
+
+解釈:
+- direct target track を全量で入れると `bc_short_ratio` が再び `1.0` に戻る
+- `gap` も current best を超えない
+- branch は棄却
+
+### `medium_l0_bc_continuous_regimegate_direct_half`
+- teacher short: `0.163`
+- BC short: `0.999`
+- teacher_to_bc_mean_abs_gap: `0.0596`
+
+解釈:
+- 半量に落としても current best を超えない
+- direct target track 単独では改善が弱い
+- branch は棄却
+
 ## 暫定結論
 - continuous target head は **完全な解決ではない**
 - ただし issue7 系よりは有望
 - 今の best は `continuous target head + regime gate`
+- direct target track は全量/半量とも current best を超えなかった
 
 ## 次の打ち手
 - continuous head を維持したまま
   - `execution head 分離`
-  - `direct target track`
   - `signal_aim` 条件での regime gate 再評価
   のどれかを足す
 - 反対に、旧 1-step CE head の延命には戻らない
