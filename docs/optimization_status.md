@@ -32,21 +32,22 @@
 
 - issue8 `continuous target head`: 進行中
   - `medium_l0_bc_continuous` では `teacher_to_bc_mean_abs_gap` が `0.0607` まで改善
-  - ただし `bc_short_ratio` はまだ `0.992`
+  - `medium_l0_bc_continuous_regimegate` では `bc_short_ratio 0.989`, `gap 0.0595`
   - `signal_aim` と raw-only/orderflow を組み合わせると改善は弱まる
 
 ## 次の主課題
 1. 主因は `BC prior が teacher marginal を保てないこと`
 2. AC や WM より先に learner / output family 側の collapse が強く出ている
 3. source family では `orderflow` が最有望
-4. 直近の有望枝は `continuous target head`
+4. 直近の有望枝は `continuous target head + regime gate`
 
 ## 次の本命
 - `orderflow` を使ったまま `BC collapse` を起こさない learner family を探す
-- 候補優先度は
-  - 1-step CE imitation を離れる
-  - teacher marginal を保ちやすい出力設計に変える
-  - sequence / continuous target を持つ learner family に寄せる
+- 優先度は
+  - `continuous target head + regime gate` を伸ばす
+  - `execution head 分離`
+  - `direct target track`
+  の順
 
 ## 関連ドキュメント
 - [issue1 teacher audit](./optimization_issue1_teacher_audit.md)
