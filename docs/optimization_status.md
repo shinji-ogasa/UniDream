@@ -30,7 +30,7 @@
 ### issue6 external source evaluation
 
 - source family は `orderflow > basis`
-- ただし source だけでは根本解決しない
+- source だけでは根本解決しない
 
 ### issue7 learner / output collapse
 
@@ -38,41 +38,36 @@
 - `static dist match / regime-aware dist match / short-mass match` でも直らなかった
 - 結論: 既存 output family 自体が主因
 
-## 進行中の issue
-
 ### issue8 continuous target head
 
-- `medium_l0_bc_continuous`
-  - `gap 0.0607`
-- `medium_l0_bc_continuous_regimegate`
-  - `bc_short 0.989`
-  - `gap 0.0595`
+current best:
 - `medium_l0_bc_continuous_regimegate_exec`
   - `bc_short 0.969`
   - `gap 0.0576`
-  - current best
 
-棄却済み:
-- `direct target track`
-- `path_aux`
-- `signal_aim + raw-only orderflow`
-- baseline source の `signal_aim + regime gate + execution_aux`
-- `controller_state_dim=3`
-- code-level split execution head
+issue8 で切ったこと:
+- inference-only regime gate family 7 本
+  - collapse は減るが flat に過補正
+- learner-loss 3 本
+  - `regime-dist` は short collapse 維持
+  - `short-mass / dist-combo` は flat collapse
+- post-Web 2 本 (`target_from_logits`)
+  - どちらも flat collapse
 
-inference-only regime gate family:
-- 5 本とも `flat 100%` 近辺へ過補正
-- best gap は `0.0289` まで縮んだが、current best は更新できず
+結論:
+- issue8 は current best を保持したまま打ち切り
+- `continuous target head + regime gate + execution_aux` は改善の兆候はある
+- ただし collapse 自体はまだ強い
 
 ## 現在の主結論
 
-1. `teacher` は弱い
-2. その次に `BC prior` が teacher marginal を保てない
-3. `AC` と `WM` は主因ではあるが、learner collapse より優先度は下がる
+1. teacher は弱い
+2. その次に BC prior が teacher marginal を保てない
+3. AC と WM は主因ではあるが、learner collapse より優先度は下がる
 4. source family は `orderflow` が最有望
 5. 現時点の最良 learner family は
    `continuous target head + regime gate + execution_aux`
 
 ## 次の本命
 
-- `execution_aux` を維持した learner-loss branch
+- `sequence / multimodal policy family`
