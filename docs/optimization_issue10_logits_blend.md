@@ -93,6 +93,16 @@
 - `test dist: flat 100%`
 - `regimebias 0.50` より悪いので reject
 
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_floor`
+- test `alpha -0.26 pt/yr`
+- `sharpe delta -0.006`
+- `test dist: flat 100%`
+
+判断:
+- `min_trade_floor` では過補正は戻らない
+- `regimebias 0.50` と同一挙動
+- reject
+
 ## 判断
 - issue10 は true
 - inference-only では `logits blend 0.50` が有効
@@ -103,4 +113,4 @@
 
 ## 次
 - `flat 100%` の過補正を戻せる軽量 head family に進む
-- 既存の `align / execaux / balanced / quality / regimebias25` は打ち切り
+- 既存の `align / execaux / balanced / quality / regimebias25 / regimebias_floor` は打ち切り
