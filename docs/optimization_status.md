@@ -52,8 +52,11 @@
 - rescue としては有効だが alpha を作る本命ではない
 
 ### issue6 external source
-- `orderflow > basis` の傾向はある
-- まだ本格比較を再開していない
+- source family suite では `orderflow > basis` の傾向がある
+- ただし current learner family 上の first light comparison では negative
+  - `basis-only`: `alpha_excess -84.01 pt/yr`, `gap 0.1399`
+  - `orderflow-added`: `alpha_excess -91.93 pt/yr`, `gap 0.1347`
+- source 単独では BC collapse を救えていない
 
 ### issue10 action-head bottleneck
 - inference-only winner:
@@ -78,6 +81,6 @@
 - inference keep: `infer_logits_target_blend = 0.50`
 
 ## 次
-1. issue6 の external source 比較を current keep 上で再開する
-2. orderflow / hybrid が current keep を更新するかを見る
-3. その後に全体最良の組み合わせで軽い再評価を入れる
+1. source family 単独の期待は下げて、learner family 側へ戻る
+2. current keep を維持したまま次の learner branch を探す
+3. source は learner update 後に再評価する
