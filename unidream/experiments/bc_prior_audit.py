@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 from unidream.actor_critic.imagination_ac import _action_stats
-from unidream.data.dataset import WFODataset, _forward_window_stats
+from unidream.data.dataset import WFODataset
+from unidream.data.oracle import _forward_window_stats
 
 from .bc_setup import prepare_bc_setup
 from .bc_stage import build_bc_trainer
