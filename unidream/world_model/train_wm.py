@@ -74,6 +74,21 @@ class ReturnHead(nn.Module):
         return self.net(torch.cat([z, h], dim=-1)).squeeze(-1)
 
 
+class RegimeHead(nn.Module):
+    """Regime probability prediction from latent state."""
+
+    def __init__(self, z_dim: int, d_model: int, hidden: int, regime_dim: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(z_dim + d_model, hidden),
+            nn.ELU(),
+            nn.Linear(hidden, regime_dim),
+        )
+
+    def forward(self, z: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+        return self.net(torch.cat([z, h], dim=-1))
+
+
 def build_ensemble(obs_dim: int, cfg: dict) -> EnsembleWorldModel:
     """config dict から EnsembleWorldModel を構築する."""
     wm_cfg = cfg.get("world_model", {})
@@ -138,6 +153,8 @@ class WorldModelTrainer:
         self.idm_scale = wm_cfg.get("idm_scale", 0.0)
         self.return_scale = wm_cfg.get("return_scale", 0.0)
         self.return_horizon = wm_cfg.get("return_horizon", 10)
+        self.regime_aux_scale = wm_cfg.get("regime_aux_scale", 0.0)
+        self.regime_dim = int(wm_cfg.get("regime_dim", 0))
 
         # コストパラメータ（net_return 計算に使用）
         costs_cfg = cfg.get("costs", {})
@@ -172,6 +189,12 @@ class WorldModelTrainer:
             aux_params.extend(self.return_head.parameters())
         else:
             self.return_head = None
+
+        if self.regime_aux_scale > 0.0 and self.regime_dim > 0:
+            self.regime_head = RegimeHead(z_dim, d_model, hidden=256, regime_dim=self.regime_dim).to(self.device)
+            aux_params.extend(self.regime_head.parameters())
+        else:
+            self.regime_head = None
 
         self._all_params = list(self.ensemble.parameters()) + aux_params
         self.optimizer = torch.optim.Adam(
@@ -318,8 +341,9 @@ class WorldModelTrainer:
                 # --- Auxiliary losses ---
                 idm_loss_val = 0.0
                 return_loss_val = 0.0
+                regime_loss_val = 0.0
 
-                if self.idm_head is not None or self.return_head is not None:
+                if self.idm_head is not None or self.return_head is not None or self.regime_head is not None:
                     z, _ = self.ensemble.encode(obs)  # (B, T, z_dim)
 
                     if self.idm_head is not None and "actions" in batch and not torch.is_floating_point(batch["actions"]):
@@ -335,9 +359,11 @@ class WorldModelTrainer:
                         total_loss = total_loss + self.idm_scale * idm_loss
                         idm_loss_val = idm_loss.item()
 
-                    if self.return_head is not None and raw_returns is not None:
+                    h = None
+                    if self.return_head is not None or self.regime_head is not None:
                         out_h = self.ensemble.forward(z, actions)
                         h = out_h["h"]  # (B, T, d_model)
+                    if self.return_head is not None and raw_returns is not None and h is not None:
                         # N-step cumulative raw return: n_step[t] = sum_{k=0}^{N-1} raw_returns[t+k]
                         T_ = raw_returns.shape[1]
                         n_step = torch.zeros_like(raw_returns)
@@ -348,6 +374,15 @@ class WorldModelTrainer:
                         return_loss = F.mse_loss(pred, n_step)
                         total_loss = total_loss + self.return_scale * return_loss
                         return_loss_val = return_loss.item()
+
+                    regime_probs = batch.get("regime")
+                    if self.regime_head is not None and regime_probs is not None and h is not None:
+                        regime_probs = regime_probs.to(self.device)
+                        regime_logits = self.regime_head(z, h)
+                        log_probs = F.log_softmax(regime_logits, dim=-1)
+                        regime_loss = -(regime_probs * log_probs).sum(dim=-1).mean()
+                        total_loss = total_loss + self.regime_aux_scale * regime_loss
+                        regime_loss_val = regime_loss.item()
 
                 self.optimizer.zero_grad()
                 total_loss.backward()
@@ -364,6 +399,7 @@ class WorldModelTrainer:
                     "disagreement": loss_dict["disagreement"].item(),
                     "idm_loss": idm_loss_val,
                     "return_loss": return_loss_val,
+                    "regime_loss": regime_loss_val,
                 }
                 logs.append(log)
                 self.loss_history.append(log)
@@ -375,6 +411,8 @@ class WorldModelTrainer:
                         aux_str += f" | IDM: {log['idm_loss']:.4f}"
                     if self.return_head is not None:
                         aux_str += f" | Ret: {log['return_loss']:.4f}"
+                    if self.regime_head is not None:
+                        aux_str += f" | Reg: {log['regime_loss']:.4f}"
                     print(
                         f"[{ts}] [WM] Step {self.global_step}/{max_steps} | "
                         f"Loss: {log['loss']:.4f} | "
@@ -466,7 +504,16 @@ class WorldModelTrainer:
                 reward_scale=self.reward_scale,
                 done_scale=self.done_scale,
             )
-            total += loss_dict["loss"].item()
+            total_loss = loss_dict["loss"]
+            if self.regime_head is not None and "regime" in batch:
+                z, _ = self.ensemble.encode(obs)
+                h = self.ensemble.forward(z, actions)["h"]
+                regime_probs = batch["regime"].to(self.device)
+                regime_logits = self.regime_head(z, h)
+                log_probs = F.log_softmax(regime_logits, dim=-1)
+                regime_loss = -(regime_probs * log_probs).sum(dim=-1).mean()
+                total_loss = total_loss + self.regime_aux_scale * regime_loss
+            total += total_loss.item()
             count += 1
 
         self.ensemble.train()
@@ -566,6 +613,8 @@ class WorldModelTrainer:
             ckpt["idm_head"] = self.idm_head.state_dict()
         if self.return_head is not None:
             ckpt["return_head"] = self.return_head.state_dict()
+        if self.regime_head is not None:
+            ckpt["regime_head"] = self.regime_head.state_dict()
         torch.save(ckpt, path)
         print(f"[WM] Checkpoint saved: {path}")
 
@@ -579,4 +628,6 @@ class WorldModelTrainer:
             self.idm_head.load_state_dict(ckpt["idm_head"])
         if self.return_head is not None and "return_head" in ckpt:
             self.return_head.load_state_dict(ckpt["return_head"])
+        if self.regime_head is not None and "regime_head" in ckpt:
+            self.regime_head.load_state_dict(ckpt["regime_head"])
         print(f"[WM] Checkpoint loaded: {path} (step={self.global_step})")

@@ -104,6 +104,7 @@ class SequenceDataset(Dataset):
         seq_len: int = 64,
         actions: Optional[np.ndarray] = None,
         returns: Optional[np.ndarray] = None,
+        regime_probs: Optional[np.ndarray] = None,
     ):
         self.features = torch.tensor(features, dtype=torch.float32)
         self.seq_len = seq_len
@@ -116,6 +117,9 @@ class SequenceDataset(Dataset):
         else:
             self.actions = None
         self.returns = torch.tensor(returns, dtype=torch.float32) if returns is not None else None
+        self.regime_probs = (
+            torch.tensor(regime_probs, dtype=torch.float32) if regime_probs is not None else None
+        )
         self.T = len(features)
 
     def __len__(self) -> int:
@@ -129,6 +133,8 @@ class SequenceDataset(Dataset):
             item["actions"] = self.actions[s:e]  # (seq_len,)
         if self.returns is not None:
             item["returns"] = self.returns[s:e]  # (seq_len,)
+        if self.regime_probs is not None:
+            item["regime"] = self.regime_probs[s:e]  # (seq_len, regime_dim)
         return item
 
 

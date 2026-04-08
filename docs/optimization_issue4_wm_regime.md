@@ -1,84 +1,86 @@
 # Optimization Loop: Issue 4 WM Regime Representation
 
-## 目的
-- WM latent が regime を十分に分離できているかを局所診断する
-- `BC/AC が弱い` 前に、WM 表現自体が regime 情報を持てていない可能性を切る
+## 課題
+- WM の latent が regime を十分に表現できていないかを確認する
+- BC/AC が弱い前に、そもそも state 表現が regime transition を持てていない可能性を切る
 
-## 軽量診断
-- 実行: `audit_wm_regime.py`
-- 軽量化:
-  - `--splits val`
-  - `--max-bars 4096`
+## 診断
+- 実装: `audit_wm_regime.py`
+- 評価:
+  - `current_regime`
+  - `next_regime`
+  の accuracy / balanced accuracy を train / val で確認する
 
-## baseline 結果
-- config: `medium_v2`
-- checkpoint: `checkpoints/fold_4`
-- val 4096 bars の linear probe:
-  - current regime accuracy: `0.300`
-  - current regime balanced accuracy: `0.353`
-  - next regime accuracy: `0.331`
-  - next regime balanced accuracy: `0.340`
+## baseline
 
-## current signal_aim family
-- config: `medium_l1_bc_continuous_exec_shortmass_align`
-- checkpoint: `checkpoints/medium_l1_bc_continuous_exec_shortmass_align/fold_4/world_model.pt`
-- val 4096 bars の probe:
-  - current regime accuracy: `0.271`
-  - current regime balanced accuracy: `0.331`
-  - next regime accuracy: `0.307`
-  - next regime balanced accuracy: `0.364`
+### `medium_v2`
+- val current regime balanced accuracy: `0.353`
+- val next regime balanced accuracy: `0.340`
 
-## 判定
-- baseline でも current family でも regime probe は弱い
-- balanced accuracy が `0.33 - 0.36` では、regime transition を十分に保持しているとは言いにくい
-- issue4 は `主因候補に戻す`
+### `medium_l1_bc_continuous_exec_shortmass_align`
+- val current regime balanced accuracy: `0.331`
+- val next regime balanced accuracy: `0.364`
 
-## 候補
-- `idm + return` を強める軽量 proxy
-- `capacity` を少しだけ増やす軽量 branch
-- heavy 禁止なので、まずは `stop-after wm` の L0 で切る
+判定:
+- baseline も current family も `0.33 - 0.36` に留まる
+- issue4 は主因候補として維持
 
 ## L0 first pass
 
 ### `medium_l0_wm_idmreturn`
-
 - val current regime balanced accuracy: `0.366`
 - val next regime balanced accuracy: `0.325`
 
 判定:
-- current regime は baseline/current family より少し改善
-- ただし next regime は悪化
+- current は改善
+- next は悪化
 - mixed
 
 ### `medium_l0_wm_capacity`
-
 - val current regime balanced accuracy: `0.338`
 - val next regime balanced accuracy: `0.337`
 
 判定:
-- baseline/current family と大差なし
+- baseline と大差なし
 - reject
 
 ### `medium_l0_wm_idmreturn_capacity`
-
 - val current regime balanced accuracy: `0.342`
 - val next regime balanced accuracy: `0.371`
 
 判定:
-- next regime は 3 本の中で最良
-- ただし current regime は baseline を超えない
+- next は最良
+- current は baseline 未満
 - mixed
 
-## ここまでの結論
-- 3 本とも一方向の明確改善は出ていない
-- 軽量 proxy だけでは issue4 を閉じられない
-- 次は Web で絞った
-  - `CPC / contrastive predictive coding`
-  - `SPR / self-predictive representations`
-  - `DBC / bisimulation-style invariant representation`
-  - `explicit regime auxiliary head`
-  のような表現学習寄りの枝へ進む
+## post-Web
 
-## 次の分岐
-- `issue4`: WM の軽量 branch を L0 で比較する
-- その後に `issue5`: AC 側の conservative family を tiny で比較する
+### `medium_l0_wm_regimeaux`
+- val current regime balanced accuracy: `0.343`
+- val next regime balanced accuracy: `0.355`
+
+判定:
+- `capacity` よりは良い
+- ただし baseline current と `idmreturn_capacity` next を超えない
+- mixed
+
+### `medium_l0_wm_idmreturn_regimeaux`
+- val current regime balanced accuracy: `0.331`
+- val next regime balanced accuracy: `0.359`
+
+判定:
+- `regimeaux` 単独より current が悪化
+- `idmreturn_capacity` より next も弱い
+- reject
+
+## 結論
+- `issue4` は true のまま
+- ただし、軽量 WM branch では current / next の両方を安定して押し上げる枝はまだ出ていない
+- 現時点の最良候補は
+  - current を見るなら `medium_l0_wm_idmreturn`
+  - next を見るなら `medium_l0_wm_idmreturn_capacity`
+  だが、どちらも決定打ではない
+
+## 次
+- issue4 は `mixed / no winner` で一旦閉じる
+- 次は `issue5 conservative AC` を current best learner family 上で確認する

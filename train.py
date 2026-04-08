@@ -474,6 +474,8 @@ def run_fold(
         oracle_positions=oracle_positions,
         val_oracle_positions=val_oracle_positions,
         train_returns=train_returns,
+        train_regime_probs=train_regime_probs,
+        val_regime_probs=val_regime_probs,
         log_ts=_ts,
     )
 

@@ -246,6 +246,8 @@ def run_policy_collapse_audit(
             oracle_positions=fold_inputs["oracle_positions"],
             val_oracle_positions=fold_inputs["val_oracle_positions"],
             train_returns=fold_inputs["train_returns"],
+            train_regime_probs=fold_inputs["train_regime_probs"],
+            val_regime_probs=fold_inputs["val_regime_probs"],
             log_ts=lambda: "audit",
         )
         bc_setup = prepare_bc_setup(
