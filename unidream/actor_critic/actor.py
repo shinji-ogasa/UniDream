@@ -47,6 +47,7 @@ class Actor(nn.Module):
                 layers.append(nn.Dropout(dropout_p))
         self.trunk = nn.Sequential(*layers)
         self.trade_head = nn.Linear(hidden_dim, 1)
+        self.execution_head = nn.Linear(hidden_dim, 1)
         self.target_logits_head = nn.Linear(hidden_dim, act_dim)
         self.residual_head = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
@@ -54,6 +55,7 @@ class Actor(nn.Module):
 
         # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
         nn.init.constant_(self.trade_head.bias, -0.5)
+        nn.init.constant_(self.execution_head.bias, -0.5)
         nn.init.constant_(self.band_head.bias, 0.0)
 
     def _benchmark_position(self) -> float:
@@ -84,6 +86,9 @@ class Actor(nn.Module):
 
     def _use_residual_controller(self) -> bool:
         return bool(getattr(self, "use_residual_controller", False))
+
+    def _use_separate_execution_head(self) -> bool:
+        return bool(getattr(self, "separate_execution_head", False))
 
     def _ensure_advantage(
         self,
@@ -324,6 +329,17 @@ class Actor(nn.Module):
         )
         return trade_logits, target_mean, target_std, band_width, current_inventory
 
+    def execution_logits(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
+        return self.execution_head(hidden).squeeze(-1)
+
     def _target_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         values = getattr(self, "target_values", None)
         if values is None:
@@ -507,6 +523,17 @@ class Actor(nn.Module):
             z, h, inventory=inventory_state, regime=regime, advantage=advantage
         )
         trade_prob = torch.sigmoid(trade_logits)
+        execution_prob = trade_prob
+        if self._use_separate_execution_head():
+            execution_prob = torch.sigmoid(
+                self.execution_logits(
+                    z,
+                    h,
+                    inventory=inventory_state,
+                    regime=regime,
+                    advantage=advantage,
+                )
+            )
         target_inventory = target_mean
         target_probs = F.softmax(target_logits, dim=-1)
         baseline_target_idx = int(getattr(self, "baseline_target_index", self.act_dim - 1))
@@ -561,10 +588,10 @@ class Actor(nn.Module):
                 target_inventory = torch.where(should_bootstrap, torch.zeros_like(target_inventory), target_inventory)
                 if bootstrap_trade_signal > 0.0:
                     bootstrap_signal = torch.full_like(trade_prob, bootstrap_trade_signal)
-                    trade_prob = torch.where(
+                    execution_prob = torch.where(
                         should_bootstrap,
-                        torch.maximum(trade_prob, bootstrap_signal),
-                        trade_prob,
+                        torch.maximum(execution_prob, bootstrap_signal),
+                        execution_prob,
                     )
         regime_active_threshold = float(getattr(self, "infer_regime_active_threshold", 0.0))
         regime_active_state = int(getattr(self, "infer_regime_active_state", 0))
@@ -633,8 +660,8 @@ class Actor(nn.Module):
             more_underweight = (target_inventory < 0.0) & (target_inventory < current_inventory)
             trade_prob = torch.where(
                 more_underweight,
-                trade_prob * underweight_adjust_scale,
-                trade_prob,
+                execution_prob * underweight_adjust_scale,
+                execution_prob,
             )
         min_trade_floor = float(getattr(self, "infer_min_trade_floor", 0.0))
         min_trade_gap = float(getattr(self, "infer_min_trade_gap", 0.0))
@@ -647,7 +674,7 @@ class Actor(nn.Module):
             else:
                 floor_strength = (gap_excess > 0.0).to(trade_prob.dtype)
             trade_floor = min_trade_floor * floor_strength
-            trade_prob = torch.maximum(trade_prob, trade_floor)
+            execution_prob = torch.maximum(execution_prob, trade_floor)
         if bool(getattr(self, "infer_direct_target_track", False)):
             direct_scale = float(getattr(self, "infer_direct_track_scale", 1.0))
             target_gap = target_inventory - current_inventory
@@ -657,12 +684,12 @@ class Actor(nn.Module):
             next_inventory = next_inventory.clamp(min=overlay_low, max=overlay_high)
             next_position = self._overlay_to_position(next_inventory)
             return next_position.unsqueeze(-1)
-        trade_prob = self._quantize_inference(trade_prob)
+        execution_prob = self._quantize_inference(execution_prob)
         band_width = self._quantize_inference(band_width)
         target_inventory = self._quantize_inference(target_inventory)
         current_inventory = self._quantize_inference(current_inventory)
         next_inventory = self.execute_controller_greedy(
-            trade_signal=trade_prob,
+            trade_signal=execution_prob,
             target_inventory=target_inventory,
             band_width=band_width,
             current_inventory=current_inventory,

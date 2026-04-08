@@ -71,7 +71,17 @@ def _rollout_head_metrics(
             entropy = float((-(probs * probs.clamp_min(1e-9).log()).sum()).item())
             short_mass.append(float(probs[short_mask].sum().item()))
             baseline_mass.append(float(probs[baseline_idx].item()))
-            trade_probs.append(float(torch.sigmoid(trade_logits).item()))
+            execution_prob = torch.sigmoid(trade_logits)
+            if actor._use_separate_execution_head():
+                execution_prob = torch.sigmoid(
+                    actor.execution_logits(
+                        z_t[i : i + 1],
+                        h_t[i : i + 1],
+                        inventory=controller_state,
+                        regime=reg_i,
+                    )
+                )
+            trade_probs.append(float(execution_prob.item()))
             target_entropy.append(entropy)
             target_mean_overlay.append(float(target_mean.item()))
             target_std_vals.append(float(target_std.item()))

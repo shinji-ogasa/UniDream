@@ -48,6 +48,7 @@ def prepare_bc_setup(
     actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
     actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
+    actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
     actor.residual_min_overlay = ac_cfg.get(
         "residual_min_overlay",
         ac_cfg.get("abs_min_position", -1.0) - benchmark_position,

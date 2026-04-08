@@ -486,8 +486,18 @@ class BCPretrainer:
             loss_terms = loss_terms + self.band_aux_coef * band_penalty
 
         if self.execution_aux_coef > 0.0:
+            execution_signal = trade_pred
+            if self.actor._use_separate_execution_head():
+                execution_logits = self.actor.execution_logits(
+                    z,
+                    h,
+                    inventory=inventory,
+                    regime=regime,
+                    advantage=advantage,
+                )
+                execution_signal = torch.sigmoid(execution_logits)
             predicted_next_inventory = self.actor.soft_execute_controller(
-                trade_signal=torch.sigmoid(trade_logits),
+                trade_signal=execution_signal,
                 target_inventory=target_mean,
                 band_width=band_width,
                 current_inventory=current_inventory,
@@ -550,8 +560,18 @@ class BCPretrainer:
                 regime=reg_t,
                 advantage=advantage_seq[:, t] if advantage_seq is not None else None,
             )
+            execution_signal = torch.sigmoid(trade_logits)
+            if self.actor._use_separate_execution_head():
+                execution_logits = self.actor.execution_logits(
+                    z_seq[:, t],
+                    h_seq[:, t],
+                    inventory=state,
+                    regime=reg_t,
+                    advantage=advantage_seq[:, t] if advantage_seq is not None else None,
+                )
+                execution_signal = torch.sigmoid(execution_logits)
             next_inventory = self.actor.soft_execute_controller(
-                trade_signal=torch.sigmoid(trade_logits),
+                trade_signal=execution_signal,
                 target_inventory=target_mean,
                 band_width=band_width,
                 current_inventory=current_inventory,
