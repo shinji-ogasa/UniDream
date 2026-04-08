@@ -93,6 +93,15 @@
 - `test dist: flat 100%`
 - `regimebias 0.50` より悪いので reject
 
+### `medium_l1_bc_continuous_exec_shortmass_regimeshift`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1307`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha -0.29 pt/yr`
+- `sharpe delta -0.007`
+- `test dist: flat 100%`
+- `regimebias 0.50` を更新できないので reject
+
 ### `medium_l1_bc_continuous_exec_shortmass_regimebias_floor`
 - test `alpha -0.26 pt/yr`
 - `sharpe delta -0.006`
@@ -127,4 +136,4 @@
 
 ## 次
 - `flat 100%` の過補正を戻せる軽量 head family に進む
-- 既存の `align / execaux / balanced / quality / regimebias25 / regimebias_floor / blend375 / blend25` は打ち切り
+- 既存の `align / execaux / balanced / quality / regimebias25 / regimebias_floor / blend375 / blend25 / regimeshift` は打ち切り

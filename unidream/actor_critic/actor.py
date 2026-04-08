@@ -52,6 +52,9 @@ class Actor(nn.Module):
         self.regime_target_bias_head = (
             nn.Linear(regime_dim, act_dim, bias=False) if regime_dim > 0 else None
         )
+        self.regime_residual_shift_head = (
+            nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
+        )
         self.residual_head = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
@@ -295,6 +298,18 @@ class Actor(nn.Module):
                 cap_tensor = cap_tensor[:regime.shape[-1]]
                 dynamic_min = (regime[..., : cap_tensor.shape[0]] * cap_tensor).sum(dim=-1)
                 target_mean = torch.maximum(target_mean, dynamic_min)
+            if (
+                bool(getattr(self, "use_regime_residual_shift", False))
+                and self.regime_residual_shift_head is not None
+                and regime is not None
+                and regime.shape[-1] > 0
+            ):
+                shift_scale = float(getattr(self, "regime_residual_shift_scale", 0.0))
+                if shift_scale > 0.0:
+                    target_mean = target_mean + shift_scale * torch.tanh(
+                        self.regime_residual_shift_head(regime).squeeze(-1)
+                    )
+                    target_mean = target_mean.clamp(min=overlay_low, max=overlay_high)
             logit_scale = target_std.clamp_min(1e-4).unsqueeze(-1) * max(temperature, 1e-6)
             target_logits = -0.5 * ((target_values.unsqueeze(0) - target_mean.unsqueeze(-1)) / logit_scale) ** 2
         else:

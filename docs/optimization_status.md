@@ -81,6 +81,7 @@
   - `regimebias_floor`
   - `regimebias_blend375`
   - `regimebias_blend25`
+  - `regimeshift`
 - 結論:
   - action-head bottleneck は true
   - 現在の best は `regimebias 0.50`
