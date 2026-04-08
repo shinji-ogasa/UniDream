@@ -14,16 +14,69 @@
 - config: `medium_v2`
 - checkpoint: `checkpoints/fold_4`
 - val 4096 bars の linear probe:
-  - current regime accuracy: `0.718`
-  - current regime balanced accuracy: `0.696`
-  - next regime accuracy: `0.723`
-  - next regime balanced accuracy: `0.701`
+  - current regime accuracy: `0.300`
+  - current regime balanced accuracy: `0.353`
+  - next regime accuracy: `0.331`
+  - next regime balanced accuracy: `0.340`
+
+## current signal_aim family
+- config: `medium_l1_bc_continuous_exec_shortmass_align`
+- checkpoint: `checkpoints/medium_l1_bc_continuous_exec_shortmass_align/fold_4/world_model.pt`
+- val 4096 bars の probe:
+  - current regime accuracy: `0.271`
+  - current regime balanced accuracy: `0.331`
+  - next regime accuracy: `0.307`
+  - next regime balanced accuracy: `0.364`
 
 ## 判定
-- baseline の WM latent は regime を全く持てていないわけではない
-- 少なくとも issue2 の `teacher -> BC short 100% collapse` を直接説明するほどの表現欠損には見えない
-- issue4 は `主因では薄い` と一旦判定する
+- baseline でも current family でも regime probe は弱い
+- balanced accuracy が `0.33 - 0.36` では、regime transition を十分に保持しているとは言いにくい
+- issue4 は `主因候補に戻す`
+
+## 候補
+- `idm + return` を強める軽量 proxy
+- `capacity` を少しだけ増やす軽量 branch
+- heavy 禁止なので、まずは `stop-after wm` の L0 で切る
+
+## L0 first pass
+
+### `medium_l0_wm_idmreturn`
+
+- val current regime balanced accuracy: `0.366`
+- val next regime balanced accuracy: `0.325`
+
+判定:
+- current regime は baseline/current family より少し改善
+- ただし next regime は悪化
+- mixed
+
+### `medium_l0_wm_capacity`
+
+- val current regime balanced accuracy: `0.338`
+- val next regime balanced accuracy: `0.337`
+
+判定:
+- baseline/current family と大差なし
+- reject
+
+### `medium_l0_wm_idmreturn_capacity`
+
+- val current regime balanced accuracy: `0.342`
+- val next regime balanced accuracy: `0.371`
+
+判定:
+- next regime は 3 本の中で最良
+- ただし current regime は baseline を超えない
+- mixed
+
+## ここまでの結論
+- 3 本とも一方向の明確改善は出ていない
+- 軽量 proxy だけでは issue4 を閉じられない
+- 次は Web で絞った
+  - `CPC / contrastive predictive coding`
+  - `explicit regime auxiliary head`
+  のような表現学習寄りの枝へ進む
 
 ## 次の分岐
-- `issue5`: AC 側の conservative family を tiny で比較する
-- `issue6`: 必要なら source family 側へ戻る
+- `issue4`: WM の軽量 branch を L0 で比較する
+- その後に `issue5`: AC 側の conservative family を tiny で比較する

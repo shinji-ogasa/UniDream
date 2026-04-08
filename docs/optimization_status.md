@@ -28,13 +28,27 @@
 
 ### issue3 AC の support 逸脱診断
 
-- 診断コードと runner は実装済み
-- 次の本番対象
+- baseline 監査まで完了
+- `medium_v2 / checkpoints/fold_4` では
+  - `teacher_short 0.4998`
+  - `bc_short 1.0`
+  - `ac_short 1.0`
+  - `bc_to_ac_short_mismatch = 0.0`
+  - `teacher_to_ac_mean_abs_gap = 0.4992`
+- baseline では AC drift は主因として薄い
+- ただし古い actor head を含む checkpoint は互換性がないので、系統ごとの監査は今後も必要
 
 ### issue4 WM に regime 補助目的を追加
 
-- 診断コードと runner は実装済み
-- issue3 の後に評価
+- baseline と current family の監査まで完了
+- `medium_v2`: val balanced accuracy `0.353 / 0.340`
+- `medium_l1_bc_continuous_exec_shortmass_align`: val balanced accuracy `0.331 / 0.364`
+- issue4 は `主因候補に戻す`
+- L0 first pass:
+  - `medium_l0_wm_idmreturn`: `0.366 / 0.325` で mixed
+  - `medium_l0_wm_capacity`: `0.338 / 0.337` で reject
+  - `medium_l0_wm_idmreturn_capacity`: `0.342 / 0.371` で mixed
+- 3 本とも弱いので、次は Web で絞った表現学習系の枝へ進む
 
 ### issue5 AWR/AWAC or IQL/CQL 系へ寄せる
 
@@ -84,12 +98,15 @@
 - inference keep:
   - `logits blend 0.50` (`alpha -0.34 pt/yr`)
   - `logits blend 0.375` (`alpha -0.48 pt/yr`)
+- training-side follow-up:
+  - `medium_l1_bc_continuous_exec_shortmass_align`: `gap 0.3380` で reject
+  - `medium_l0_bc_continuous_execaux`: `gap 0.1432` で reject
 
 ## 次の本命
 
-1. `issue10 logits blend` の keep 候補を learner 側へ戻せるか切る
-2. `direct target track` と `rawonly` では解けなかったので、別 learner family を優先
-3. heavy な sequence family は runtime 制約で後回し
+1. `issue4`: CPC / explicit regime auxiliary など Web で絞った表現学習系の枝へ進む
+2. `issue5`: conservative AC tiny 系を issue3/4 の結果と照らして再比較する
+3. action-head 側は新 family が必要になるまで保留
 
 ## いま避けるもの
 

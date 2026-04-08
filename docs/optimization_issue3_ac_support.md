@@ -19,11 +19,13 @@
   - AC short: `100%`
   - `bc_to_ac_short_mismatch = 0.0`
   - `bc_to_ac_flat_mismatch = 0.0`
+  - `teacher_to_ac_mean_abs_gap = 0.4992`
 
 ## 判定
 - baseline では AC drift は主因として薄い
 - すでに BC が `short 100%` に崩壊しており、AC はその崩壊をほぼそのまま引き継いでいる
 - issue3 単独では、まず BC collapse を超える主要ボトルネックには見えない
+- 互換性のない古い `ac_best.pt` は actor head 差分で監査に失敗するため、checkpoint 系統ごとに見る必要がある
 
 ## 次の分岐
 - `issue4`: WM が regime を十分に持てているか

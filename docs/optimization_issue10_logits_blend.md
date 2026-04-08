@@ -91,8 +91,38 @@ issue8 の追確認で、`medium_l1_bc_continuous_exec_shortmass` は
 - ただし learner collapse 自体を解いたわけではなく、
   action-head の崩壊を inference で少し緩めただけ
 
+## training-side follow-up
+
+### `medium_l1_bc_continuous_exec_shortmass_align`
+
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.3380`
+- `bc_short_ratio = 0.9980`
+- `bc_flat_ratio = 0.0020`
+- `target_entropy_mean = 0.6086`
+- `short_target_mass_mean = 0.5146`
+- `baseline_target_mass_mean = 0.4854`
+
+判定:
+- mass-match と entropy を強めると benchmark 側へ飛びすぎる
+- teacher 再現は current best (`gap 0.1287`) より大幅に悪化
+- reject
+
+### `medium_l0_bc_continuous_execaux`
+
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1432`
+- `bc_short_ratio = 0.9988`
+- `bc_flat_ratio = 0.0012`
+- `target_entropy_mean = 0.2484`
+- `short_target_mass_mean = 0.0861`
+- `baseline_target_mass_mean = 0.9139`
+
+判定:
+- execution / target 補助だけ少し強めても collapse は残る
+- current best (`gap 0.1287`) を更新できない
+- reject
+
 ## 次
 
-- `blend 0.25` と `blend 0.50` の中間か、
-  `infer_target_from_logits + execution_aux` の学習側反映を見る
-- ただし heavy 禁止なので、次も軽い inference / BC-only 枝から切る
+- issue10 の training-side 軽量枝は 2 本とも reject
+- current keep は `medium_l1_bc_continuous_exec_shortmass + logits blend 0.50`
+- 次は issue4 / issue5 の実測へ進みつつ、action-head 側は必要なら別 family で再開する
