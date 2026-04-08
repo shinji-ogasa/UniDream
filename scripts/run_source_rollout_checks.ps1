@@ -3,18 +3,17 @@ param(
   [string]$CacheTag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
   [string]$SuiteConfig = "configs\\source_rollout_suite.yaml",
   [string]$Manifest = "configs\\source_manifest_remote_example.yaml",
-  [string]$SnapshotOutput = "checkpoints\\source_rollout_snapshot.json",
-  [string]$Python = ".\\.venv\\Scripts\\python.exe"
+  [string]$SnapshotOutput = "checkpoints\\source_rollout_snapshot.json"
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "[1/5] Unit tests"
-& $Python -m unittest tests.test_source_rollout_helpers
+uv run python -m unittest tests.test_source_rollout_helpers
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "[2/5] Py-compile"
-& $Python -m py_compile `
+uv run python -m py_compile `
   source_rollout_plan.py `
   check_config_source_requirements.py `
   validate_source_rollout_suite.py `
@@ -27,12 +26,12 @@ Write-Host "[2/5] Py-compile"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "[3/6] Validate suite YAML"
-& $Python validate_source_rollout_suite.py `
+uv run python validate_source_rollout_suite.py `
   --suite-config $SuiteConfig
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "[4/7] Validate remote manifest"
-& $Python validate_source_manifest.py `
+uv run python validate_source_manifest.py `
   --manifest $Manifest
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -48,12 +47,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\plan_next_source_rollout.ps1 
   -CacheDir $CacheDir `
   -CacheTag $CacheTag `
   -SuiteConfig $SuiteConfig `
-  -OutManifest configs\source_manifest_next_stage.yaml `
-  -Python $Python
+  -OutManifest configs\source_manifest_next_stage.yaml
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "[7/8] Remote manifest dry-run"
-& $Python build_source_cache_from_manifest.py `
+uv run python build_source_cache_from_manifest.py `
   --manifest $Manifest `
   --dry-run
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
