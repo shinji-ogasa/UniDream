@@ -1,41 +1,33 @@
 # Optimization Loop: Issue 6 External Source Evaluation
 
-## 概要
+## 目的
+- learning principle 側の issue1〜5 を一段切った上で、外部ソースがどこまで上積みを作るかを確認する
+- 順番は `basis -> orderflow -> onchain -> hybrid`
 
-Issue 6 では、外部ソースの寄与を `basis -> orderflow -> onchain -> hybrid` の順で比較する。
-ここは学習原理側の issue を先に見た後、必要な場合だけ進める。
-
-## 実行対象
-
-- [source_rollout_suite_free.yaml](../configs/source_rollout_suite_free.yaml)
-- [run_free_source_rollout_end_to_end.ps1](../scripts/run_free_source_rollout_end_to_end.ps1)
-- [select_best_source_family.ps1](../scripts/select_best_source_family.ps1)
-
-## 実行順
-
-1. free source rollout を通す
-2. source family suite を回す
-3. `best_source_family.md` を作る
-4. orderflow / onchain / hybrid のどれが最も OOS でマシかを判定する
-
-## 実行コマンド
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_issue6_external_source_loop.ps1
-```
+## 既存 summary
+- source family suite の既存 summary:
+  - `basis`
+    - `m2_pass_count = 0`
+    - `alpha mean = +1.0 pt`
+    - `sharpe delta mean = +0.05`
+    - `win rate mean = 51%`
+  - `orderflow`
+    - `m2_pass_count = 1`
+    - `alpha mean = +4.5 pt`
+    - `sharpe delta mean = +0.18`
+    - `win rate mean = 58%`
 
 ## 判定
+- 現時点で source family の優先順位は `orderflow > basis`
+- まだ決定打ではないが、issue1〜5 が弱かったことを踏まえると、次に戻るなら source family は orderflow を優先する
 
-- `test_alpha_pt_mean`
-- `test_sharpe_delta_mean`
-- `win_rate_vs_bh_mean`
-- `m2_pass_count`
+## 実行入口
+- suite:
+  - `scripts/run_issue6_external_source_loop.ps1`
+- best family selection:
+  - `scripts/select_best_source_family.ps1`
 
-だけでなく、`basis` 比でどの程度マシかを見る。
-
-## 次の分岐
-
-- 明確に良い family がある:
-  - その source family を固定して学習側の issue に戻す
-- 差が小さい:
-  - 外部ソースは補助要因とみなし、主戦場は learning principle 側に置く
+## 現状の結論
+- learning principle 側だけでは `short 100%` collapse を崩せなかった
+- そのため、次に外部ソースを再評価するなら `orderflow` を最優先にする
+- onchain / hybrid はその後

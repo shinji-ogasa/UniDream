@@ -49,6 +49,7 @@ def run_training_app(
     cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
+    data_cfg = cfg.get("data", {})
     features_df, raw_returns = load_training_features(
         symbol=symbol,
         interval=interval,
@@ -57,6 +58,11 @@ def run_training_app(
         zscore_window=zscore_window,
         cache_dir=cache_dir,
         cache_tag=cache_tag,
+        extra_series_mode=data_cfg.get("extra_series_mode", "derived"),
+        extra_series_include=data_cfg.get("extra_series_include"),
+        include_funding=bool(data_cfg.get("include_funding", True)),
+        include_oi=bool(data_cfg.get("include_oi", True)),
+        include_mark=bool(data_cfg.get("include_mark", True)),
     )
 
     feature_extras_cfg = cfg.get("feature_extras", {})
@@ -72,7 +78,6 @@ def run_training_app(
         print(f"[Data] Rebound features added -> {features_df.shape}")
 
     print("[Data] WFO splits...")
-    data_cfg = cfg.get("data", {})
     splits = build_wfo_splits(features_df, data_cfg)
     print(f"  {len(splits)} folds")
     if len(splits) == 0:

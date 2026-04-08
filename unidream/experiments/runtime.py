@@ -122,6 +122,10 @@ def load_training_features(
     cache_dir: str,
     cache_tag: str,
     extra_series_mode: str = "derived",
+    extra_series_include: list[str] | None = None,
+    include_funding: bool = True,
+    include_oi: bool = True,
+    include_mark: bool = True,
 ) -> tuple[pd.DataFrame, pd.Series]:
     features_cache, returns_cache = resolve_cache_pair(cache_dir, cache_tag)
     ohlcv_cache = os.path.join(cache_dir, f"{cache_tag}_ohlcv.parquet")
@@ -148,7 +152,9 @@ def load_training_features(
     oi_df = read_optional_parquet(oi_cache)
     mark_price_df = read_optional_parquet(mark_cache)
     extra_series = read_extra_series_caches(cache_dir, cache_tag)
-    if funding_df is not None:
+    if not include_funding:
+        funding_df = None
+    elif funding_df is not None:
         print(f"[Data] Funding cache loaded: {len(funding_df)} records")
     else:
         try:
@@ -157,7 +163,9 @@ def load_training_features(
             print(f"  Funding rate: {len(funding_df)} records")
         except Exception as exc:
             print(f"  Funding rate skipped: {exc}")
-    if oi_df is not None:
+    if not include_oi:
+        oi_df = None
+    elif oi_df is not None:
         print(f"[Data] OI cache loaded: {len(oi_df)} records")
     else:
         try:
@@ -166,7 +174,9 @@ def load_training_features(
             print(f"  Open interest: {len(oi_df)} records")
         except Exception as exc:
             print(f"  Open interest skipped: {exc}")
-    if mark_price_df is not None:
+    if not include_mark:
+        mark_price_df = None
+    elif mark_price_df is not None:
         print(f"[Data] Mark cache loaded: {len(mark_price_df)} records")
     else:
         try:
@@ -175,6 +185,9 @@ def load_training_features(
             print(f"  Mark price: {len(mark_price_df)} records")
         except Exception as exc:
             print(f"  Mark price skipped: {exc}")
+    if extra_series_include:
+        include_set = set(extra_series_include)
+        extra_series = {k: v for k, v in extra_series.items() if k in include_set}
 
     print("[Data] Computing features...")
     if extra_series_mode == "raw_only":
