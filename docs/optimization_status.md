@@ -6,8 +6,8 @@
 - issue3 は baseline では薄いが current learner family 上では部分的に true
 - issue4 は true だが winner なし
 - issue5 は rescue として部分的に有効
-- issue6 は補助線
-- issue10 は true
+- issue6 は次の本命
+- issue10 は true だが一段閉じた
 
 ## issueごとの現状
 
@@ -53,7 +53,7 @@
 
 ### issue6 external source
 - `orderflow > basis` の傾向はある
-- ただし主因ではない
+- まだ本格比較を再開していない
 
 ### issue10 action-head bottleneck
 - inference-only winner:
@@ -63,19 +63,14 @@
   - `medium_l1_bc_continuous_exec_shortmass_regimebias`
   - BC-only val `teacher_to_bc_mean_abs_gap 0.1070`
   - test `alpha_excess -0.26 pt/yr`
-- reject:
-  - `align`
-  - `execaux`
-  - `balanced`
-  - `quality`
-  - `quality_balanced`
-  - `regimebias25`
-  - `regimebias_floor`
-  - `regimebias_blend375`
-  - `regimebias_blend25`
-  - `regimeshift`
+- post-winner rejects:
   - `tradebias`
+  - `bandbias`
+  - `execbias`
+  - `dualbias`
+  - `dualbias_execbias`
 - 現状は `short 100%` を `flat 100%` に戻した段階
+- current keep は維持して issue10 は一段閉じる
 
 ## current keep
 - teacher: `signal_aim`
@@ -83,6 +78,6 @@
 - inference keep: `infer_logits_target_blend = 0.50`
 
 ## 次
-1. issue10 の次枝として `band / execution gate` 側の軽量 head を試す
-2. rescue としての issue5 は keep しつつ、本命は learner/action-head 側で進める
-3. その後に issue6 を再評価する
+1. issue6 の external source 比較を current keep 上で再開する
+2. orderflow / hybrid が current keep を更新するかを見る
+3. その後に全体最良の組み合わせで軽い再評価を入れる

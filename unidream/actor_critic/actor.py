@@ -51,11 +51,24 @@ class Actor(nn.Module):
             nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
         )
         self.execution_head = nn.Linear(hidden_dim, 1)
+        self.regime_execution_bias_head = (
+            nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
+        )
         self.target_logits_head = nn.Linear(hidden_dim, act_dim)
         self.regime_target_bias_head = (
             nn.Linear(regime_dim, act_dim, bias=False) if regime_dim > 0 else None
         )
+        self.regime_target_bias_head_a = (
+            nn.Linear(regime_dim, act_dim, bias=False) if regime_dim > 0 else None
+        )
+        self.regime_target_bias_head_b = (
+            nn.Linear(regime_dim, act_dim, bias=False) if regime_dim > 0 else None
+        )
+        self.target_mode_gate = nn.Linear(hidden_dim, 1)
         self.regime_residual_shift_head = (
+            nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
+        )
+        self.regime_band_bias_head = (
             nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
         )
         self.residual_head = nn.Linear(hidden_dim, 1)
@@ -286,6 +299,18 @@ class Actor(nn.Module):
         min_band = float(getattr(self, "min_band", 0.02))
         max_band = float(getattr(self, "max_band", 0.20))
         band_width = min_band + max_band * torch.sigmoid(self.band_head(hidden).squeeze(-1))
+        if (
+            bool(getattr(self, "use_regime_band_bias", False))
+            and self.regime_band_bias_head is not None
+            and regime is not None
+            and regime.shape[-1] > 0
+        ):
+            band_bias_scale = float(getattr(self, "regime_band_bias_scale", 0.0))
+            if band_bias_scale > 0.0:
+                band_width = band_width + band_bias_scale * torch.tanh(
+                    self.regime_band_bias_head(regime).squeeze(-1)
+                )
+                band_width = band_width.clamp(min=min_band, max=min_band + max_band)
         min_target_std = float(getattr(self, "min_target_std", 0.05))
         max_target_std = float(getattr(self, "max_target_std", 0.25))
         target_std = min_target_std + (max_target_std - min_target_std) * torch.sigmoid(
@@ -326,6 +351,20 @@ class Actor(nn.Module):
         else:
             target_logits = self.target_logits_head(hidden) / max(temperature, 1e-6)
         if (
+            bool(getattr(self, "use_dual_regime_target_bias", False))
+            and self.regime_target_bias_head_a is not None
+            and self.regime_target_bias_head_b is not None
+            and regime is not None
+            and regime.shape[-1] > 0
+        ):
+            bias_scale = float(getattr(self, "dual_regime_target_bias_scale", 1.0))
+            mode_gate = torch.sigmoid(self.target_mode_gate(hidden))
+            dual_bias = (
+                mode_gate * self.regime_target_bias_head_a(regime)
+                + (1.0 - mode_gate) * self.regime_target_bias_head_b(regime)
+            )
+            target_logits = target_logits + bias_scale * dual_bias
+        elif (
             bool(getattr(self, "use_regime_target_bias", False))
             and self.regime_target_bias_head is not None
             and regime is not None
@@ -376,7 +415,16 @@ class Actor(nn.Module):
         advantage: torch.Tensor | None = None,
     ) -> torch.Tensor:
         hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
-        return self.execution_head(hidden).squeeze(-1)
+        execution_logits = self.execution_head(hidden).squeeze(-1)
+        if (
+            bool(getattr(self, "use_regime_execution_bias", False))
+            and self.regime_execution_bias_head is not None
+            and regime is not None
+            and regime.shape[-1] > 0
+        ):
+            execution_bias_scale = float(getattr(self, "regime_execution_bias_scale", 1.0))
+            execution_logits = execution_logits + execution_bias_scale * self.regime_execution_bias_head(regime).squeeze(-1)
+        return execution_logits
 
     def _target_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         values = getattr(self, "target_values", None)

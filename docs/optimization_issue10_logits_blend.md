@@ -40,6 +40,16 @@
 
 ## training-side follow-up
 
+### current training-side winner
+
+#### `medium_l1_bc_continuous_exec_shortmass_regimebias`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1070`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha_excess -0.26 pt/yr`
+- `sharpe_delta -0.006`
+- `test dist: flat 100%`
+
 ### reject 済み
 - `medium_l1_bc_continuous_exec_shortmass_align`
   - BC-only val `teacher_to_bc_mean_abs_gap = 0.3380`
@@ -69,23 +79,31 @@
   - BC-only val `teacher_to_bc_mean_abs_gap = 0.1083`
   - `trade_prob_mean = 0.0738`
   - test `alpha_excess -0.40 pt/yr`
-
-### current training-side winner
-
-#### `medium_l1_bc_continuous_exec_shortmass_regimebias`
-- BC-only val `teacher_to_bc_mean_abs_gap = 0.1070`
-- `bc_short_ratio = 0.0000`
-- `bc_flat_ratio = 1.0000`
-- test `alpha_excess -0.26 pt/yr`
-- `sharpe_delta -0.006`
-- `test dist: flat 100%`
+- `medium_l1_bc_continuous_exec_shortmass_regimebias_bandbias`
+  - BC-only val `teacher_to_bc_mean_abs_gap = 0.1090`
+  - `trade_prob_mean = 0.0703`
+  - test `alpha_excess -0.51 pt/yr`
+- `medium_l1_bc_continuous_exec_shortmass_regimebias_execbias`
+  - BC-only val `teacher_to_bc_mean_abs_gap = 0.1119`
+  - `bc_short_ratio = 0.0129`
+  - test `alpha_excess -1.62 pt/yr`
+- `medium_l1_bc_continuous_exec_shortmass_dualbias`
+  - BC-only val `teacher_to_bc_mean_abs_gap = 0.1128`
+  - `bc_short_ratio = 0.0137`
+  - `target_entropy_mean = 0.2665`
+  - test `alpha_excess -0.72 pt/yr`
+- `medium_l1_bc_continuous_exec_shortmass_dualbias_execbias`
+  - BC-only val `teacher_to_bc_mean_abs_gap = 0.1079`
+  - `trade_prob_mean = 0.1674`
+  - test `alpha_excess -0.80 pt/yr`
 
 ## 結論
 - issue10 は true
 - inference-only では `logits blend 0.50` が有効
 - training-side では `regimebias 0.50` が current winner
 - ただし現状の改善は `short 100%` を `flat 100%` に戻した段階で、alpha はまだ作れていない
-- `trade bias` を足しても execution は十分戻らなかった
+- `trade / band / execution` の軽量 head 3 本は keep を更新できなかった
+- Web 後の `multimodal target-bias` 2 本も keep 更新なし
 
 ## current keep
 - teacher: `signal_aim`
@@ -93,5 +111,5 @@
 - inference: `infer_logits_target_blend = 0.50`
 
 ## 次
-- `flat 100%` の過補正を戻せる別 head family に進む
-- 次枝は `trade` ではなく `band / execution gate` 側を直接触る
+- issue10 は current keep を保持したまま一段閉じる
+- 次は issue6 の external source 比較へ進む
