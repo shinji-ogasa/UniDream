@@ -74,6 +74,8 @@
 - 軽量 proxy だけでは issue4 を閉じられない
 - 次は Web で絞った
   - `CPC / contrastive predictive coding`
+  - `SPR / self-predictive representations`
+  - `DBC / bisimulation-style invariant representation`
   - `explicit regime auxiliary head`
   のような表現学習寄りの枝へ進む
 
