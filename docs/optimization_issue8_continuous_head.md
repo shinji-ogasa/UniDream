@@ -170,6 +170,9 @@ test-only:
   collapse を解けていないが test は benchmark 近傍まで戻る
 - 一方で `direct target track` は悪化したため、
   次枝は `orderflow/rawonly + shortmass 系` を優先する
+- ただし `medium_l1_bc_continuous_rawonly_regimegate_exec_shortmass` は
+  `gap 0.1515` でさらに悪化し、
+  source 追加だけでは learner collapse を救えなかった
 
 ## 次
 

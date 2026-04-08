@@ -66,7 +66,10 @@
   - `execsplit`: 悪化
   - `regimedist`: 悪化
   - `distcombo`: 悪化
-  - `shortmass`: L0 は少し改善するが L1 で崩壊
+  - `shortmass`: L0 は少し改善する
+  - `medium_l1_bc_continuous_exec_shortmass`: test `alpha -1.19 pt/yr` で benchmark 近傍
+  - `direct target track`: `alpha -33.12 pt/yr` で悪化
+  - `rawonly/orderflow + shortmass`: `gap 0.1515` で悪化
 
 結論:
 - issue8 の current best は維持
@@ -77,14 +80,13 @@
 - teacher:
   - `signal_aim`
 - learner family:
-  - `continuous target head + regime gate + execution_aux`
+  - `continuous target head + execution_aux + shortmass`
 
 ## 次の本命
 
-1. issue3 `AC support audit`
-2. BC collapse より先に AC が崩れているかを切る
-3. その後 issue4 / issue5 へ
-4. external source は最後に戻る
+1. issue8 の次の軽量 learner family を切る
+2. `direct target track` と `rawonly` では解けなかったので、別 learner family を優先
+3. heavy な sequence family は runtime 制約で後回し
 
 ## いま避けるもの
 
