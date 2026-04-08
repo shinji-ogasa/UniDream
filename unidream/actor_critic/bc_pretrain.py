@@ -913,6 +913,13 @@ class BCPretrainer:
 
     def load(self, path: str) -> None:
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
-        self.actor.load_state_dict(ckpt["actor"])
+        incompatible = self.actor.load_state_dict(ckpt["actor"], strict=False)
+        missing = [key for key in incompatible.missing_keys if key not in {"execution_head.weight", "execution_head.bias"}]
+        unexpected = list(incompatible.unexpected_keys)
+        if missing or unexpected:
+            raise RuntimeError(
+                f"BC checkpoint incompatibility while loading {path}: "
+                f"missing={missing}, unexpected={unexpected}"
+            )
         if self.use_sirl and "weight_net" in ckpt:
             self.weight_net.load_state_dict(ckpt["weight_net"])

@@ -1,66 +1,78 @@
 # Optimization Status
 
-## 現在の状況
-- issue1 `teacher audit by regime`: 完了
-  - teacher は `long 0% / short 50% / flat 50%` に近く、主因寄り
-  - 次候補として `signal_aim` を採用
+## 完了した issue
 
-- issue2 `BC prior の再現性診断`: 完了
-  - `weighted / sequence / residual / balanced` を試しても BC は `short 100%` に collapse
-  - BC family の表現力では teacher marginal を保てない
+### issue1 teacher audit by regime
 
-- issue3 `AC の support 逸脱診断`: 完了
-  - AC は BC collapse をそのまま引き継ぐ
-  - issue2 より後ろではない
+- teacher はほぼ `long 0% / short 50% / flat 50%`
+- `min_hold` を振っても行動分布はほぼ不変
+- `signal_aim` を次候補に採用
 
-- issue4 `WM の regime 表現`: 完了
-  - 現状の WM latent は regime 識別をある程度持っている
-  - `WM が全く regime を持てていない` は主因薄め
+### issue2 BC prior の再現性診断
 
-- issue5 `conservative AC / IQL / TD3+BC-ish`: 完了
-  - `KL budget / support budget / conservative AC` を入れても `short 100%` は崩れない
-  - AC family の改善余地だけでは足りない
+- `weighted / sequence / residual / balanced` を切ったが、BC はほぼ `short 100%`
+- 既存 BC family は teacher marginal を保てない
 
-- issue6 `external source evaluation`: 完了
-  - 既存 summary では `orderflow > basis`
-  - ただし source の改善だけで issue1〜5 を飛ばせるほどではない
+### issue3 AC support 逸脱診断
 
-- issue7 `learner / output collapse`: 完了
-  - actor head の監査で、`teacher short 0.16〜0.44` に対して `BC short ≈ 1.0`
-  - `static dist match`, `regime-aware dist match`, `short-mass match` でも collapse は不変
-  - 既存 1-step CE 系 actor family は打ち切り
+- AC の悪化はあるが、主因は BC collapse の引き継ぎ
 
-- issue8 `continuous target head`: 進行中
-  - `medium_l0_bc_continuous` では `teacher_to_bc_mean_abs_gap` が `0.0607` まで改善
-  - `medium_l0_bc_continuous_regimegate` では `bc_short_ratio 0.989`, `gap 0.0595`
-  - `medium_l0_bc_continuous_regimegate_exec` では `bc_short_ratio 0.969`, `gap 0.0576`
-  - `direct target track` は全量/半量とも current best を超えず棄却
-  - `path_aux` は `flat 100%` に過補正
-  - code-level `execution head` 分離も `bc_short 0.999`, `gap 0.0593` で棄却
-  - `signal_aim` と raw-only/orderflow を組み合わせると execution branch を足しても改善は弱い
-  - baseline source に戻した `signal_aim + regime gate + execution_aux` も `bc_short 0.998`, `gap 0.1424` で棄却
-  - `controller_state_dim=3` も `flat 100%`, `gap 0.0537` で過補正
+### issue4 WM regime 補助
 
-## 次の主課題
-1. 主因は `BC prior が teacher marginal を保てないこと`
-2. AC や WM より先に learner / output family 側の collapse が強く出ている
-3. source family では `orderflow` が最有望
-4. 直近の有望枝は `continuous target head + regime gate + execution_aux`
+- WM は regime を全く持てていないわけではない
+- 主因は WM 単体より learner 側
+
+### issue5 conservative AC
+
+- `KL budget / support budget / conservative AC / TD3+BC-ish / IQL-ish`
+  はすべて弱かった
+
+### issue6 external source evaluation
+
+- source family は `orderflow > basis`
+- ただし source だけでは根本解決しない
+
+### issue7 learner / output collapse
+
+- 既存 1-step CE 系 actor family はほぼ全部 `BC short ≈ 1.0`
+- `static dist match / regime-aware dist match / short-mass match` でも直らなかった
+- 結論: 既存 output family 自体が主因
+
+## 進行中の issue
+
+### issue8 continuous target head
+
+- `medium_l0_bc_continuous`
+  - `gap 0.0607`
+- `medium_l0_bc_continuous_regimegate`
+  - `bc_short 0.989`
+  - `gap 0.0595`
+- `medium_l0_bc_continuous_regimegate_exec`
+  - `bc_short 0.969`
+  - `gap 0.0576`
+  - current best
+
+棄却済み:
+- `direct target track`
+- `path_aux`
+- `signal_aim + raw-only orderflow`
+- baseline source の `signal_aim + regime gate + execution_aux`
+- `controller_state_dim=3`
+- code-level split execution head
+
+inference-only regime gate family:
+- 5 本とも `flat 100%` 近辺へ過補正
+- best gap は `0.0289` まで縮んだが、current best は更新できず
+
+## 現在の主結論
+
+1. `teacher` は弱い
+2. その次に `BC prior` が teacher marginal を保てない
+3. `AC` と `WM` は主因ではあるが、learner collapse より優先度は下がる
+4. source family は `orderflow` が最有望
+5. 現時点の最良 learner family は
+   `continuous target head + regime gate + execution_aux`
 
 ## 次の本命
-- `orderflow` を使ったまま `BC collapse` を起こさない learner family を探す
-- 優先度は
-  - `continuous target head + regime gate + execution_aux` を伸ばす
-  - `execution_aux` を維持した別 learner loss
-  - `execution_aux` を維持した別 inference rule
-  の順
 
-## 関連ドキュメント
-- [issue1 teacher audit](./optimization_issue1_teacher_audit.md)
-- [issue2 BC prior](./optimization_issue2_bc_prior.md)
-- [issue3 AC support](./optimization_issue3_ac_support.md)
-- [issue4 WM regime](./optimization_issue4_wm_regime.md)
-- [issue5 conservative AC](./optimization_issue5_conservative_ac.md)
-- [issue6 external sources](./optimization_issue6_external_sources.md)
-- [issue7 output collapse](./optimization_issue7_output_collapse.md)
-- [issue8 continuous head](./optimization_issue8_continuous_head.md)
+- `execution_aux` を維持した learner-loss branch
