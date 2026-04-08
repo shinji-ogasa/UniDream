@@ -1,46 +1,9 @@
-# Optimization Loop: Issue 3 AC Support Drift
+# Optimization Loop: Issue 3 AC の support 逸脱診断
 
-## 概要
+## 狙い
+Issue 3 では、`BC prior -> AC` の遷移で policy がさらに崩れているのかを局所診断する。
 
-Issue 3 では、`BC prior` から `AC` がどの程度離れているかを先に監査する。
-ここでは full 実験を先に広げず、既存 checkpoint だけを使って
-
-- `BC -> AC` の行動分布差
-- regime 別 mismatch
-- `teacher -> AC` の乖離
-- turnover の増加
-
-を確認する。
-
-## 診断コード
-
-- [audit_ac_support.py](../audit_ac_support.py)
-- [ac_support_audit.py](../unidream/experiments/ac_support_audit.py)
-
-この監査は既存の checkpoint
-
-- `world_model.pt`
-- `bc_actor.pt`
-- `ac_best.pt` または `ac.pt`
-
-を読み、train / val で `teacher / BC / AC` の位置系列を比較する。
-
-## 実行コマンド
-
-まずは `medium_v2` の既存 checkpoint で issue3 を切る。
-
-```powershell
-uv run python audit_ac_support.py `
-  --config configs/medium_v2.yaml `
-  --start 2020-01-01 `
-  --end 2024-01-01 `
-  --cache-dir checkpoints/data_cache `
-  --checkpoint-dir checkpoints `
-  --folds 4 `
-  --device cuda
-```
-
-## 見る指標
+見るものは次の通り。
 
 - `teacher_short_ratio`
 - `bc_short_ratio`
@@ -55,55 +18,65 @@ uv run python audit_ac_support.py `
 - `bc_turnover`
 - `ac_turnover`
 
+## 診断スクリプト
+
+- [audit_ac_support.py](../audit_ac_support.py)
+- [ac_support_audit.py](../unidream/experiments/ac_support_audit.py)
+
+既存 checkpoint の
+
+- `world_model.pt`
+- `bc_actor.pt`
+- `ac_best.pt` または `ac.pt`
+
+を読み、teacher / BC / AC の行動分布を比較する。
+
+## 真偽確認
+
+対象は `medium_v2_fix` の fold 4。
+feature family は checkpoint に合わせて raw-only の config を使う。
+
+- config: [medium_ext_sources_rawonly.yaml](../configs/medium_ext_sources_rawonly.yaml)
+- 出力:
+  - [AC support summary](../checkpoints/medium_v2_fix/ac_support_audit/medium_ext_sources_rawonly_ac_support_audit_summary.csv)
+
+実行は軽く切るため、`val` の末尾 `4096` bars に限定した。
+
+## 結果
+
+### fold 4 / val(all)
+
+- teacher: `short 49.7%`
+- BC: `short 100.0% / flat 0.0%`
+- AC: `short 100.0% / flat 0.0%`
+- `bc_to_ac_mean_abs_gap = 0.092`
+- `teacher_to_ac_mean_abs_gap = 0.500`
+- `bc_to_ac_short_mismatch = 0.000`
+- teacher turnover: `394.0`
+- AC turnover: `20.4`
+
+### regime 別
+
+- `regime_0`: BC short `100%`, AC short `100%`
+- `regime_1`: BC short `100%`, AC short `100%`
+- `regime_2`: BC short `100%`, AC short `100%`
+
 ## 判定
 
-次のどちらかで判定する。
+Issue 3 の真偽判定は次の通り。
 
-1. `AC` が `BC` から大きく離れていて、しかも `teacher` にも近づいていない  
-   - `AC support drift` が主因寄り
-2. `AC` は `BC` から大きく離れていない  
-   - 先に `WM` か `BC prior` 側を疑う
+- **AC が BC をさらに壊している**: false
+- **BC の時点でほぼ崩壊している**: true
 
-## 候補アルゴリズム
+つまり、いまの失敗は `BC -> AC drift` より前に起きている。
+AC はむしろ turnover を落としているが、行動分布自体は BC の `short 100%` をそのまま引き継いでいる。
 
-Issue 3 の候補はこの 3 本に絞る。
+## 次の遷移
 
-### 1. KL budget を強めた constrained AC
+Issue 3 はここで一段閉じる。
+次は `issue4: WM の regime 表現` を確認し、
 
-- 目的:
-  - `BC prior` からの逸脱を抑える
-  - `val` でだけ派手な action に飛ぶのを防ぐ
+- latent が regime をほとんど持てていないのか
+- それとも WM はそこそこだが BC 出力設計が潰しているのか
 
-### 2. SPIBB 風 support 制約
-
-- 目的:
-  - dataset support が薄い状態では baseline / BC に戻す
-  - offline RL の OOD drift を抑える
-
-### 3. IQL / advantage clipping 寄りの保守化
-
-- 目的:
-  - value の楽観を抑えながら改善する
-  - `BC prior` を急に捨てない
-
-## 優先順位
-
-Issue 3 の比較順はこの順で固定する。
-
-1. `KL-constrained AC`
-2. `SPIBB / support budget`
-3. `IQL / clipped-advantage`
-
-理由:
-
-- まず今の AC が `BC` から離れすぎているかを切る
-- その後に、最も実装差分の小さい制約強化から試す
-
-## 次の分岐
-
-AC support audit の結果で次を決める。
-
-- `BC -> AC` の drift が大きい:
-  - Issue 3 の候補比較へ進む
-- drift が小さい:
-  - Issue 4 の `WM regime 補助目的` を先に見る
+を切る。

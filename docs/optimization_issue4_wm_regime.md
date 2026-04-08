@@ -1,80 +1,64 @@
-# Optimization Loop: Issue 4 WM Regime Representation
+# Optimization Loop: Issue 4 WM に regime 補助目的を追加すべきか
 
-## 概要
+## 狙い
+Issue 4 では、world model の latent が regime を十分に表現できていないかを局所診断する。
 
-Issue 4 では、`world model` の latent が regime をどこまで表現できているかを先に監査する。
-ここでは full 学習を増やす前に、既存 checkpoint を使って
-
-- 現在 regime の線形分離性
-- 次 regime の予測可能性
-
-を確認する。
-
-## 診断コード
-
-- [audit_wm_regime.py](../audit_wm_regime.py)
-- [wm_regime_audit.py](../unidream/experiments/wm_regime_audit.py)
-
-この監査は `world_model.pt` を読み、encoded latent (`z`, `h`) に対する線形 probe を作る。
-まず train latent で ridge 多クラス分類器を学習し、その probe で train / val の
+ここでは full 再学習はせず、既存 checkpoint の latent から
 
 - `current_regime`
 - `next_regime`
 
-を予測する。
+の線形識別性能を測る。
 
-## 実行コマンド
+## 診断スクリプト
 
-```powershell
-uv run python audit_wm_regime.py `
-  --config configs/medium_v2.yaml `
-  --start 2020-01-01 `
-  --end 2024-01-01 `
-  --cache-dir checkpoints/data_cache `
-  --checkpoint-dir checkpoints `
-  --folds 4 `
-  --device cuda
-```
+- [audit_wm_regime.py](../audit_wm_regime.py)
+- [wm_regime_audit.py](../unidream/experiments/wm_regime_audit.py)
 
-## 見る指標
+## 真偽確認
 
-- `accuracy`
-- `balanced_accuracy`
-- `macro_f1`
+対象は `medium_v2_fix` の fold 4。
+feature family は checkpoint に合わせて raw-only の config を使う。
 
-とくに `val/current_regime` と `val/next_regime` を重視する。
+- config: [medium_ext_sources_rawonly.yaml](../configs/medium_ext_sources_rawonly.yaml)
+- 出力:
+  - [WM regime summary](../checkpoints/medium_v2_fix/wm_regime_audit/medium_ext_sources_rawonly_wm_regime_audit_summary.csv)
+
+実行は軽く切るため、`val` の末尾 `4096` bars に限定した。
+
+## 結果
+
+### fold 4 / val
+
+| task | n_samples | accuracy | balanced_accuracy | macro_f1 |
+| --- | ---: | ---: | ---: | ---: |
+| `current_regime` | 4096 | 0.683 | 0.690 | 0.702 |
+| `next_regime` | 4095 | 0.679 | 0.687 | 0.699 |
 
 ## 判定
 
-次のどちらかで判定する。
+Issue 4 の真偽判定は次の通り。
 
-1. `current_regime` も `next_regime` も低い  
-   - WM latent が regime transition を十分に持てていない
-2. `current_regime` は取れるが `next_regime` が低い  
-   - static state は持てているが transition 表現が弱い
+- **WM が regime をほとんど持てていない**: false
+- **WM の regime 表現はそこそこある**: true
 
-## 候補アルゴリズム
+完全に十分とは言えないが、`balanced_accuracy ~0.69` と `macro_f1 ~0.70` が出ているので、
+少なくとも「WM が regime transition を全く持てていない」ことは主因ではない。
 
-Issue 4 の候補はこの 3 本に絞る。
+## 次の遷移
 
-### 1. regime prediction 補助タスク
+Issue 4 もここで一段閉じる。
+Issue 2 と Issue 3 の結果を合わせると、いま濃いのは
 
-- 目的:
-  - latent に regime ラベルを明示的に持たせる
+- teacher / BC 出力設計の collapse
+- support を強く制限した actor 更新
 
-### 2. next-regime prediction 補助タスク
+側である。
 
-- 目的:
-  - transition 情報を latent に押し込む
+次は `issue5: AWR/AWAC or IQL/CQL 系へ寄せる` に進み、
 
-### 3. regime-conditioned latent / capacity 増強
+- `KL budget`
+- `support budget`
+- `conservative AC`
 
-- 目的:
-  - regime 別の状態分布をより分離して持たせる
-
-## 優先順位
-
-1. `current_regime / next_regime` の線形 probe
-2. `regime prediction` 補助
-3. `next-regime prediction`
-4. 必要なら capacity 増強
+の 2〜3 本を小さく切る。

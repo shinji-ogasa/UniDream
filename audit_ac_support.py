@@ -19,6 +19,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--folds", default=None)
     p.add_argument("--device", default="cuda")
     p.add_argument("--checkpoint-name", default="ac_best.pt")
+    p.add_argument("--splits", default="train,val")
+    p.add_argument("--max-bars", type=int, default=None)
     p.add_argument("--seed", type=int, default=42)
     return p
 
@@ -45,6 +47,8 @@ def main() -> None:
         folds_arg=args.folds,
         device=args.device,
         checkpoint_name=args.checkpoint_name,
+        split_filter=tuple(s.strip() for s in args.splits.split(",") if s.strip()),
+        max_bars=args.max_bars,
     )
     print(summary_df.to_string(index=False))
 

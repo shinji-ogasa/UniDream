@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 from unidream.actor_critic.imagination_ac import _action_stats
-from unidream.data.dataset import WFODataset, _forward_window_stats
+from unidream.data.dataset import WFODataset
+from unidream.data.oracle import _forward_window_stats
 
 from .ac_stage import build_ac_trainer
 from .bc_setup import prepare_bc_setup
@@ -95,6 +96,8 @@ def run_ac_support_audit(
     folds_arg: str | None,
     device: str,
     checkpoint_name: str = "ac_best.pt",
+    split_filter: tuple[str, ...] = ("train", "val"),
+    max_bars: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     data_cfg = cfg.get("data", {})
     zscore_window = int(cfg.get("normalization", {}).get("zscore_window_days", 60))
@@ -108,6 +111,11 @@ def run_ac_support_audit(
         cache_dir=cache_dir,
         cache_tag=cache_tag,
         raw_cache_dir=raw_cache_dir,
+        extra_series_mode=data_cfg.get("extra_series_mode", "derived"),
+        extra_series_include=data_cfg.get("extra_series_include"),
+        include_funding=bool(data_cfg.get("include_funding", True)),
+        include_oi=bool(data_cfg.get("include_oi", True)),
+        include_mark=bool(data_cfg.get("include_mark", True)),
     )
 
     resolved_cfg, _ = resolve_costs(cfg)
@@ -197,6 +205,13 @@ def run_ac_support_audit(
             ("val", wfo_dataset.val_features, fold_inputs["val_oracle_positions"], fold_inputs["val_regime_probs"]),
         ]
         for split_name, split_features, teacher_positions, regime_probs in split_specs:
+            if split_name not in split_filter:
+                continue
+            if max_bars is not None and len(split_features) > max_bars:
+                split_features = split_features[-max_bars:]
+                teacher_positions = teacher_positions[-max_bars:]
+                if regime_probs is not None:
+                    regime_probs = regime_probs[-max_bars:]
             enc = wm_trainer.encode_sequence(split_features, seq_len=seq_len)
 
             bc_trainer.load(bc_path)

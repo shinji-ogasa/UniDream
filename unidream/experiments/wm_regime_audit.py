@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 from unidream.actor_critic.imagination_ac import _action_stats
-from unidream.data.dataset import WFODataset, _forward_window_stats
+from unidream.data.dataset import WFODataset
+from unidream.data.oracle import _forward_window_stats
 
 from .fold_inputs import prepare_fold_inputs
 from .runtime import resolve_costs
@@ -111,6 +112,8 @@ def run_wm_regime_audit(
     folds_arg: str | None,
     device: str,
     ridge: float = 1e-2,
+    split_filter: tuple[str, ...] = ("train", "val"),
+    max_bars: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     data_cfg = cfg.get("data", {})
     zscore_window = int(cfg.get("normalization", {}).get("zscore_window_days", 60))
@@ -124,6 +127,11 @@ def run_wm_regime_audit(
         cache_dir=cache_dir,
         cache_tag=cache_tag,
         raw_cache_dir=raw_cache_dir,
+        extra_series_mode=data_cfg.get("extra_series_mode", "derived"),
+        extra_series_include=data_cfg.get("extra_series_include"),
+        include_funding=bool(data_cfg.get("include_funding", True)),
+        include_oi=bool(data_cfg.get("include_oi", True)),
+        include_mark=bool(data_cfg.get("include_mark", True)),
     )
 
     resolved_cfg, _ = resolve_costs(cfg)
@@ -175,6 +183,11 @@ def run_wm_regime_audit(
 
         train_pack: dict[str, np.ndarray] | None = None
         for split_name, split_features, regime_probs in split_specs:
+            if split_name not in split_filter:
+                continue
+            if max_bars is not None and len(split_features) > max_bars:
+                split_features = split_features[-max_bars:]
+                regime_probs = regime_probs[-max_bars:]
             enc = wm_trainer.encode_sequence(split_features, seq_len=seq_len)
             x = _latent_matrix(enc)
             y = np.argmax(np.asarray(regime_probs), axis=1).astype(np.int64)
