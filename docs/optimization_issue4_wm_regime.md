@@ -1,64 +1,29 @@
-# Optimization Loop: Issue 4 WM に regime 補助目的を追加すべきか
+# Optimization Loop: Issue 4 WM Regime Representation
 
-## 狙い
-Issue 4 では、world model の latent が regime を十分に表現できていないかを局所診断する。
+## 目的
+- WM latent が regime を十分に分離できているかを局所診断する
+- `BC/AC が弱い` 前に、WM 表現自体が regime 情報を持てていない可能性を切る
 
-ここでは full 再学習はせず、既存 checkpoint の latent から
+## 軽量診断
+- 実行: `audit_wm_regime.py`
+- 軽量化:
+  - `--splits val`
+  - `--max-bars 4096`
 
-- `current_regime`
-- `next_regime`
-
-の線形識別性能を測る。
-
-## 診断スクリプト
-
-- [audit_wm_regime.py](../audit_wm_regime.py)
-- [wm_regime_audit.py](../unidream/experiments/wm_regime_audit.py)
-
-## 真偽確認
-
-対象は `medium_v2_fix` の fold 4。
-feature family は checkpoint に合わせて raw-only の config を使う。
-
-- config: [medium_ext_sources_rawonly.yaml](../configs/medium_ext_sources_rawonly.yaml)
-- 出力:
-  - [WM regime summary](../checkpoints/medium_v2_fix/wm_regime_audit/medium_ext_sources_rawonly_wm_regime_audit_summary.csv)
-
-実行は軽く切るため、`val` の末尾 `4096` bars に限定した。
-
-## 結果
-
-### fold 4 / val
-
-| task | n_samples | accuracy | balanced_accuracy | macro_f1 |
-| --- | ---: | ---: | ---: | ---: |
-| `current_regime` | 4096 | 0.683 | 0.690 | 0.702 |
-| `next_regime` | 4095 | 0.679 | 0.687 | 0.699 |
+## baseline 結果
+- config: `medium_v2`
+- checkpoint: `checkpoints/fold_4`
+- val 4096 bars の linear probe:
+  - current regime accuracy: `0.718`
+  - current regime balanced accuracy: `0.696`
+  - next regime accuracy: `0.723`
+  - next regime balanced accuracy: `0.701`
 
 ## 判定
+- baseline の WM latent は regime を全く持てていないわけではない
+- 少なくとも issue2 の `teacher -> BC short 100% collapse` を直接説明するほどの表現欠損には見えない
+- issue4 は `主因では薄い` と一旦判定する
 
-Issue 4 の真偽判定は次の通り。
-
-- **WM が regime をほとんど持てていない**: false
-- **WM の regime 表現はそこそこある**: true
-
-完全に十分とは言えないが、`balanced_accuracy ~0.69` と `macro_f1 ~0.70` が出ているので、
-少なくとも「WM が regime transition を全く持てていない」ことは主因ではない。
-
-## 次の遷移
-
-Issue 4 もここで一段閉じる。
-Issue 2 と Issue 3 の結果を合わせると、いま濃いのは
-
-- teacher / BC 出力設計の collapse
-- support を強く制限した actor 更新
-
-側である。
-
-次は `issue5: AWR/AWAC or IQL/CQL 系へ寄せる` に進み、
-
-- `KL budget`
-- `support budget`
-- `conservative AC`
-
-の 2〜3 本を小さく切る。
+## 次の分岐
+- `issue5`: AC 側の conservative family を tiny で比較する
+- `issue6`: 必要なら source family 側へ戻る
