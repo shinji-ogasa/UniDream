@@ -41,6 +41,9 @@
    - code-level に `trade head` と `execution head` を分離
 12. `medium_l0_bc_continuous_signalaim_regimegate_exec`
    - baseline source のまま `signal_aim + regime gate + execution_aux`
+13. `medium_l0_bc_continuous_regimegate_exec_state3`
+   - current best に `controller_state_dim=3` を追加
+   - 現 inventory に加えて直前 delta / hold feature を渡す
 
 ## 結果
 
@@ -168,6 +171,17 @@
 - `raw-only orderflow` なしでも弱いので、現時点の issue8 本命はやはり baseline teacher 側
 - branch は棄却
 
+### `medium_l0_bc_continuous_regimegate_exec_state3`
+- teacher short: `0.163`
+- BC short: `0.000`
+- BC flat: `1.000`
+- teacher_to_bc_mean_abs_gap: `0.0537`
+
+解釈:
+- `controller_state_dim=3` にすると gap 自体は縮む
+- ただし short collapse が flat collapse に反転する
+- current best ではなく、state 拡張単独では過補正とみなす
+
 ## 暫定結論
 - continuous target head は **完全な解決ではない**
 - ただし issue7 系よりは有望
@@ -177,6 +191,7 @@
 - `signal_aim + raw-only orderflow` は execution branch を足しても弱い
 - code-level `execution head` 分離も current best を超えず棄却
 - baseline source に戻した `signal_aim + regime gate + execution_aux` も弱い
+- `controller_state_dim=3` も flat 100% への反転で棄却
 
 ## 次の打ち手
 - continuous head を維持したまま

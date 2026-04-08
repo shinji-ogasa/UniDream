@@ -39,6 +39,7 @@
   - code-level `execution head` 分離も `bc_short 0.999`, `gap 0.0593` で棄却
   - `signal_aim` と raw-only/orderflow を組み合わせると execution branch を足しても改善は弱い
   - baseline source に戻した `signal_aim + regime gate + execution_aux` も `bc_short 0.998`, `gap 0.1424` で棄却
+  - `controller_state_dim=3` も `flat 100%`, `gap 0.0537` で過補正
 
 ## 次の主課題
 1. 主因は `BC prior が teacher marginal を保てないこと`
@@ -51,7 +52,7 @@
 - 優先度は
   - `continuous target head + regime gate + execution_aux` を伸ばす
   - `execution_aux` を維持した別 learner loss
-  - `execution_aux` を維持した controller state 拡張
+  - `execution_aux` を維持した別 inference rule
   の順
 
 ## 関連ドキュメント
