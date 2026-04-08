@@ -11,7 +11,7 @@ Write-Host "[1/3] Building source cache from manifest..."
 & $Python build_source_cache_from_manifest.py `
   --manifest $Manifest
 
-$ManifestYaml = (& $Python yaml_to_json.py --file $Manifest) | ConvertFrom-Json
+$ManifestYaml = (uv run python yaml_to_json.py --file $Manifest) | ConvertFrom-Json
 $CacheDir = $ManifestYaml.cache_dir
 $CacheTag = $ManifestYaml.cache_tag
 $Interval = "15m"

@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 $Python = ".\\.venv\\Scripts\\python.exe"
 New-Item -ItemType Directory -Force -Path $RootDir | Out-Null
 
-$SuiteYaml = (& $Python yaml_to_json.py --file $SuiteConfig) | ConvertFrom-Json
+$SuiteYaml = (uv run python yaml_to_json.py --file $SuiteConfig) | ConvertFrom-Json
 $Stages = @($SuiteYaml.stages)
 
 foreach ($Stage in $Stages) {

@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Python = ".\\.venv\\Scripts\\python.exe"
 if (($Configs.Count -eq 0) -and (Test-Path $SuiteConfig)) {
-  $SuiteYaml = (& $Python yaml_to_json.py --file $SuiteConfig) | ConvertFrom-Json
+  $SuiteYaml = (uv run python yaml_to_json.py --file $SuiteConfig) | ConvertFrom-Json
   if ($SuiteYaml.ordered_configs) {
     $Configs = @($SuiteYaml.ordered_configs)
   }
