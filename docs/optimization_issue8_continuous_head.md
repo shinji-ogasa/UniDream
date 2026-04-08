@@ -37,6 +37,10 @@
    - `execution_aux + path_aux(shortfall重視)`
 10. `medium_l0_bc_continuous_rawonly_regimegate_exec`
    - `signal_aim + raw-only orderflow` に execution branch を追加
+11. `medium_l0_bc_continuous_regimegate_execsplit`
+   - code-level に `trade head` と `execution head` を分離
+12. `medium_l0_bc_continuous_signalaim_regimegate_exec`
+   - baseline source のまま `signal_aim + regime gate + execution_aux`
 
 ## 結果
 
@@ -142,6 +146,28 @@
 - `signal_aim + raw-only orderflow` では execution branch を足しても弱い
 - issue8 の本命は依然として baseline teacher 側
 
+### `medium_l0_bc_continuous_regimegate_execsplit`
+- teacher short: `0.163`
+- BC short: `0.999`
+- teacher_to_bc_mean_abs_gap: `0.0593`
+- trade_prob_mean: `0.892`
+
+解釈:
+- code-level に execution head を分けると execution signal が飽和し、short 側へ戻った
+- current best (`bc_short 0.969`, `gap 0.0576`) を超えない
+- code-level split head branch は棄却
+
+### `medium_l0_bc_continuous_signalaim_regimegate_exec`
+- teacher short: `0.353`
+- BC short: `0.998`
+- teacher_to_bc_mean_abs_gap: `0.1424`
+- trade_prob_mean: `0.0746`
+
+解釈:
+- `signal_aim` を baseline source に戻しても collapse はほぼ解けない
+- `raw-only orderflow` なしでも弱いので、現時点の issue8 本命はやはり baseline teacher 側
+- branch は棄却
+
 ## 暫定結論
 - continuous target head は **完全な解決ではない**
 - ただし issue7 系よりは有望
@@ -149,10 +175,12 @@
 - direct target track は全量/半量とも current best を超えなかった
 - `path_aux` は flat 100% へ過補正した
 - `signal_aim + raw-only orderflow` は execution branch を足しても弱い
+- code-level `execution head` 分離も current best を超えず棄却
+- baseline source に戻した `signal_aim + regime gate + execution_aux` も弱い
 
 ## 次の打ち手
 - continuous head を維持したまま
-  - code-level の `execution head 分離`
-  - `signal_aim` 条件での regime gate 再評価
+  - `execution_aux` を維持した別 learner loss
+  - `execution_aux` を維持した controller state 拡張
   のどれかを足す
 - 反対に、旧 1-step CE head の延命には戻らない

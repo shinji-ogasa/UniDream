@@ -36,7 +36,9 @@
   - `medium_l0_bc_continuous_regimegate_exec` では `bc_short_ratio 0.969`, `gap 0.0576`
   - `direct target track` は全量/半量とも current best を超えず棄却
   - `path_aux` は `flat 100%` に過補正
+  - code-level `execution head` 分離も `bc_short 0.999`, `gap 0.0593` で棄却
   - `signal_aim` と raw-only/orderflow を組み合わせると execution branch を足しても改善は弱い
+  - baseline source に戻した `signal_aim + regime gate + execution_aux` も `bc_short 0.998`, `gap 0.1424` で棄却
 
 ## 次の主課題
 1. 主因は `BC prior が teacher marginal を保てないこと`
@@ -48,8 +50,8 @@
 - `orderflow` を使ったまま `BC collapse` を起こさない learner family を探す
 - 優先度は
   - `continuous target head + regime gate + execution_aux` を伸ばす
-  - code-level の `execution head 分離`
-  - `signal_aim` 条件での regime gate 再評価
+  - `execution_aux` を維持した別 learner loss
+  - `execution_aux` を維持した controller state 拡張
   の順
 
 ## 関連ドキュメント
