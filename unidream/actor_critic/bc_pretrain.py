@@ -162,6 +162,10 @@ class BCPretrainer:
         relabel_underweight_step_scale: float = 1.0,
         residual_target_coef: float = 1.0,
         residual_aux_ce_coef: float = 0.0,
+        target_dist_match_coef: float = 0.0,
+        position_mean_match_coef: float = 0.0,
+        target_regime_dist_match_coef: float = 0.0,
+        short_mass_match_coef: float = 0.0,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         device: str = "cpu",
@@ -216,6 +220,10 @@ class BCPretrainer:
         self.relabel_underweight_step_scale = float(np.clip(relabel_underweight_step_scale, 0.0, 1.0))
         self.residual_target_coef = float(max(residual_target_coef, 0.0))
         self.residual_aux_ce_coef = float(max(residual_aux_ce_coef, 0.0))
+        self.target_dist_match_coef = float(max(target_dist_match_coef, 0.0))
+        self.position_mean_match_coef = float(max(position_mean_match_coef, 0.0))
+        self.target_regime_dist_match_coef = float(max(target_regime_dist_match_coef, 0.0))
+        self.short_mass_match_coef = float(max(short_mass_match_coef, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
 
@@ -369,10 +377,14 @@ class BCPretrainer:
         else:
             trade_targets = trade_mask
         target_reg_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
+        target_dist_penalty = None
+        position_mean_penalty = None
+        target_regime_penalty = None
+        short_mass_penalty = None
         if self.actor._use_residual_controller():
             target_loss = self.residual_target_coef * target_reg_loss
+            target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
             if self.residual_aux_ce_coef > 0.0:
-                target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
                 if soft_labels is not None and soft_labels.shape[-1] == target_logits.shape[-1]:
                     provided_soft_labels = soft_labels.to(target_logits.dtype)
                     on_grid = target_soft_labels.max(dim=-1).values > 1.0 - 1e-6
@@ -381,6 +393,15 @@ class BCPretrainer:
                 log_probs = F.log_softmax(target_logits, dim=-1)
                 target_ce_loss = -(target_soft_labels * log_probs).sum(dim=-1)
                 target_loss = target_loss + self.residual_aux_ce_coef * target_ce_loss
+            if self.target_dist_match_coef > 0.0:
+                pred_probs = F.softmax(target_logits, dim=-1)
+                target_dist_penalty = torch.abs(
+                    pred_probs.mean(dim=0) - target_soft_labels.mean(dim=0)
+                ).mean()
+            if self.position_mean_match_coef > 0.0:
+                position_mean_penalty = torch.abs(target_mean.mean() - oracle_target.mean())
+            if self.target_regime_dist_match_coef > 0.0 or self.short_mass_match_coef > 0.0:
+                pred_probs = F.softmax(target_logits, dim=-1)
         else:
             target_indices = self.actor.target_indices(oracle_positions).to(dtype=torch.long)
             target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
@@ -391,12 +412,34 @@ class BCPretrainer:
                 target_soft_labels = torch.where(on_grid.unsqueeze(-1), blended_soft_labels, target_soft_labels)
             log_probs = F.log_softmax(target_logits, dim=-1)
             target_loss = -(target_soft_labels * log_probs).sum(dim=-1) + 0.25 * target_reg_loss
+            if self.target_dist_match_coef > 0.0:
+                pred_probs = F.softmax(target_logits, dim=-1)
+                target_dist_penalty = torch.abs(
+                    pred_probs.mean(dim=0) - target_soft_labels.mean(dim=0)
+                ).mean()
+            if self.position_mean_match_coef > 0.0:
+                position_mean_penalty = torch.abs(target_mean.mean() - oracle_target.mean())
+            if self.target_regime_dist_match_coef > 0.0 or self.short_mass_match_coef > 0.0:
+                pred_probs = F.softmax(target_logits, dim=-1)
             if class_weights is not None:
                 sample_class_w = class_weights.to(
                     device=target_loss.device,
                     dtype=target_loss.dtype,
                 )[target_indices]
                 target_loss = target_loss * sample_class_w
+        if self.target_regime_dist_match_coef > 0.0 and regime is not None and regime.ndim == 2:
+            regime_w = regime.to(dtype=target_logits.dtype)
+            denom = regime_w.sum(dim=0).clamp_min(1e-6)
+            pred_regime_mean = (regime_w.T @ pred_probs) / denom.unsqueeze(-1)
+            target_regime_mean = (regime_w.T @ target_soft_labels) / denom.unsqueeze(-1)
+            target_regime_penalty = torch.abs(pred_regime_mean - target_regime_mean).mean()
+        if self.short_mass_match_coef > 0.0:
+            target_values = self.actor._target_values_tensor(target_logits.device, target_logits.dtype)
+            short_mask = target_values < benchmark_position - 1e-6
+            if bool(short_mask.any()):
+                pred_short_mass = pred_probs[:, short_mask].sum(dim=-1)
+                target_short_mass = target_soft_labels[:, short_mask].sum(dim=-1)
+                short_mass_penalty = torch.abs(pred_short_mass - target_short_mass).mean()
         if trade_pos_weight is not None:
             target_w = torch.where(
                 trade_mask > 0.5,
@@ -418,6 +461,14 @@ class BCPretrainer:
         loss_terms = self.target_aux_coef * target_loss
         if self.trade_aux_coef > 0.0:
             loss_terms = loss_terms + self.trade_aux_coef * trade_loss
+        if target_dist_penalty is not None:
+            loss_terms = loss_terms + self.target_dist_match_coef * target_dist_penalty
+        if position_mean_penalty is not None:
+            loss_terms = loss_terms + self.position_mean_match_coef * position_mean_penalty
+        if target_regime_penalty is not None:
+            loss_terms = loss_terms + self.target_regime_dist_match_coef * target_regime_penalty
+        if short_mass_penalty is not None:
+            loss_terms = loss_terms + self.short_mass_match_coef * short_mass_penalty
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05
