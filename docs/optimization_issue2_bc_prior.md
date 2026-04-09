@@ -2,7 +2,7 @@
 
 ## 概要
 - `signal_aim` teacher は baseline より改善した
-- それでも BC prior が teacher を再現できず、`short 100%` へ collapse する
+- それでも BC prior が teacher を再現できず、`short 100%` または `flat 100%` に collapse しやすい
 - なので issue2 は true
 
 ## baseline 診断
@@ -14,7 +14,7 @@
 - `bc_flat 0.001`
 - `teacher_to_bc_mean_abs_gap 0.145`
 
-判断:
+判定:
 - issue2 は true
 - 主因は BC collapse
 
@@ -35,13 +35,27 @@
 - BC-only val `teacher_to_bc_mean_abs_gap = 0.1070`
 - `bc_short_ratio = 0.0000`
 - `bc_flat_ratio = 1.0000`
-- test `alpha -0.26 pt/yr`
-- `sharpe delta -0.006`
+- test `alpha_excess -0.26 pt/yr`
+- `sharpe_delta -0.006`
 
-判断:
-- BC prior の mismatch 自体はさらに縮んだ
+判定:
+- BC prior mismatch 自体はさらに縮んだ
 - ただし `flat 100%` への過補正が残る
 - issue2 の current keep は `medium_l1_bc_continuous_exec_shortmass_regimebias`
+
+## weighting branch
+
+### `medium_l0_bc_weighted_regimebias`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1092`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha_excess -0.48 pt/yr`
+- `sharpe_delta -0.011`
+
+判定:
+- current keep (`gap 0.1070`, `alpha -0.26`) を更新できない
+- weighting 枝は current keep 上では negative
+- reject
 
 ## 判断
 - issue2 は主因のまま
@@ -49,4 +63,5 @@
 - current best learner family は `regimebias 0.50`
 
 ## 次
-- issue10 の次枝として、`flat 100%` 過補正を戻せる軽量 head family を探す
+- issue2 の weighting 枝は一段閉じる
+- 次は sequence / multimodal のような別 learner family か、issue10 に近い head family の別枝を探す

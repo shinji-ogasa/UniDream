@@ -24,6 +24,11 @@
   - `medium_l1_bc_continuous_exec_shortmass_regimebias`
   - BC-only val `teacher_to_bc_mean_abs_gap 0.1070`
   - test `alpha_excess -0.26 pt/yr`, `sharpe_delta -0.006`
+- weighting follow-up:
+  - `medium_l0_bc_weighted_regimebias`
+  - BC-only val `teacher_to_bc_mean_abs_gap 0.1092`
+  - test `alpha_excess -0.48 pt/yr`, `sharpe_delta -0.011`
+  - reject
 - 主因は still BC collapse
 
 ### issue3 AC support drift
