@@ -3,10 +3,10 @@
 ## 全体判断
 - issue1 は true
 - issue2 は true
-- issue3 は baseline では薄いが current learner family 上では部分的に true
+- issue3 は baseline では薄い
 - issue4 は true だが winner なし
 - issue5 は rescue として部分的に有効
-- issue6 は次の本命
+- issue6 の first light comparison は negative
 - issue10 は true だが一段閉じた
 
 ## issueごとの現状
@@ -44,12 +44,22 @@
 - `current / next` を同時改善する winner は出ず、`mixed / no winner`
 
 ### issue5 conservative AC
-- `medium_l0_ac_conservative_signal_aim`
-  - val: `bc_short 0.998 -> ac_short 0.002`, `ac_flat 0.998`
-  - test: `alpha_excess -0.56 pt/yr`, `sharpe_delta -0.013`, `flat 100%`
-- `medium_l0_ac_supportbudget_signal_aim`
-  - test: `alpha_excess -0.77 pt/yr`, `sharpe_delta -0.018`, `short 97%`
-- rescue としては有効だが alpha を作る本命ではない
+- old current-family winner:
+  - `medium_l0_ac_conservative_signal_aim`
+  - test `alpha_excess -0.56 pt/yr`
+- updated current-keep winner:
+  - `medium_l0_ac_conservative_regimebias_soft`
+  - val audit `teacher_to_ac_mean_abs_gap 0.1053`
+  - test `alpha_excess -0.11 pt/yr`, `sharpe_delta -0.002`, `flat 100%`
+- strict:
+  - `medium_l0_ac_conservative_regimebias`
+  - test `alpha_excess -0.15 pt/yr`
+- supportbudget:
+  - `medium_l0_ac_supportbudget_regimebias`
+  - test `alpha_excess -0.21 pt/yr`
+- 結論:
+  - rescue としては有効
+  - ただし alpha を作る本命ではなく `flat 100%` への benchmark recovery
 
 ### issue6 external source
 - source family suite では `orderflow > basis` の傾向がある
@@ -73,14 +83,14 @@
   - `dualbias`
   - `dualbias_execbias`
 - 現状は `short 100%` を `flat 100%` に戻した段階
-- current keep は維持して issue10 は一段閉じる
 
 ## current keep
 - teacher: `signal_aim`
 - learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias`
 - inference keep: `infer_logits_target_blend = 0.50`
+- issue5 rescue keep: `medium_l0_ac_conservative_regimebias_soft`
 
 ## 次
-1. source family 単独の期待は下げて、learner family 側へ戻る
+1. source family 単独の期待は下げて learner family 側へ戻る
 2. current keep を維持したまま次の learner branch を探す
 3. source は learner update 後に再評価する
