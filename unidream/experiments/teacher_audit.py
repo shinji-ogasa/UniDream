@@ -24,6 +24,19 @@ from .runtime import read_extra_series_caches, read_optional_parquet
 from .wfo_runtime import build_wfo_splits, select_wfo_splits
 
 
+def _write_audit_csvs(out_dir: Path, config_name: str, stem: str, summary_df: pd.DataFrame, detail_df: pd.DataFrame) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    summary_short = out_dir / "summary.csv"
+    detail_short = out_dir / "detail.csv"
+    summary_df.to_csv(summary_short, index=False)
+    detail_df.to_csv(detail_short, index=False)
+    try:
+        summary_df.to_csv(out_dir / f"{config_name}_{stem}_summary.csv", index=False)
+        detail_df.to_csv(out_dir / f"{config_name}_{stem}_detail.csv", index=False)
+    except OSError:
+        pass
+
+
 def _find_optional_cache(source_dirs: list[str], cache_tag: str, suffix: str) -> str | None:
     for cache_dir in source_dirs:
         direct = os.path.join(cache_dir, f"{cache_tag}_{suffix}.parquet")
@@ -277,7 +290,5 @@ def run_teacher_audit(
 
     if checkpoint_dir:
         out_dir = Path(checkpoint_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        summary_df.to_csv(out_dir / f"{config_name}_teacher_audit_summary.csv", index=False)
-        detail_df.to_csv(out_dir / f"{config_name}_teacher_audit_detail.csv", index=False)
+        _write_audit_csvs(out_dir, config_name, "teacher_audit", summary_df, detail_df)
     return summary_df, detail_df

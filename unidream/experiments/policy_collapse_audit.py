@@ -16,7 +16,7 @@ from .bc_setup import prepare_bc_setup
 from .bc_stage import build_bc_trainer
 from .fold_inputs import prepare_fold_inputs
 from .runtime import resolve_costs
-from .teacher_audit import load_audit_features
+from .teacher_audit import _write_audit_csvs, load_audit_features
 from .wfo_runtime import build_wfo_splits, select_wfo_splits
 from .wm_stage import prepare_world_model_stage
 
@@ -338,7 +338,5 @@ def run_policy_collapse_audit(
     )
 
     out_dir = Path(checkpoint_dir) / "policy_collapse_audit"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    summary_df.to_csv(out_dir / f"{config_name}_policy_collapse_audit_summary.csv", index=False)
-    detail_df.to_csv(out_dir / f"{config_name}_policy_collapse_audit_detail.csv", index=False)
+    _write_audit_csvs(out_dir, config_name, "policy_collapse_audit", summary_df, detail_df)
     return summary_df, detail_df
