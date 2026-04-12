@@ -36,6 +36,7 @@
   - `shift12`: `gap 0.1101`, `alpha -0.17`
   - `shift15`: `gap 0.1193`, `alpha -0.00`
   - `shift15_blend375`: `alpha +0.00`, `sharpeΔ +0.002`, `maxddΔ -1.43`
+  - `shift15_blend625`: `alpha -0.00`, `sharpeΔ +0.001`, `maxddΔ -0.85`, `short 89% / flat 11%`
 - 主因は still BC collapse
 
 ### issue3 AC support drift
@@ -104,7 +105,7 @@
 ## current keep
 - teacher: `signal_aim`
 - learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15` (provisional)
-- inference keep: `infer_logits_target_blend = 0.50`
+- inference keep: `infer_logits_target_blend = 0.625` on top of `shift15` (provisional)
 - issue5 rescue keep: `medium_l0_ac_conservative_regimebias_soft`
 
 ## 次
