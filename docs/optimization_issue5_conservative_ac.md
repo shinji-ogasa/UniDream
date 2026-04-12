@@ -82,11 +82,41 @@ test:
 - strict / soft より悪い
 - reject
 
+## `shift15` provisional keep 上の確認
+
+provisional learner keep:
+- `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+- test `alpha_excess -0.00 pt/yr`
+- `sharpe_delta +0.002`
+
+### `medium_l0_ac_conservative_regimebias_shift15_soft`
+
+val 4096 bars support audit:
+- `teacher_short_ratio 0.357`
+- `bc_short_ratio 0.975`
+- `ac_short_ratio 0.951`
+- `bc_flat_ratio 0.025`
+- `ac_flat_ratio 0.049`
+- `teacher_to_ac_mean_abs_gap 0.1169`
+
+test:
+- `alpha_excess -0.43 pt/yr`
+- `sharpe_delta -0.010`
+- `maxdd_delta -0.98 pt`
+- `win_rate_vs_bh 50.0%`
+- distribution: `short 98%`
+
+判定:
+- `shift15` 単体より明確に悪化
+- この family 上では rescue としても不採用
+- reject
+
 ## 結論
 - issue5 は current keep 上でも部分的に true
 - `conservative AC` は BC collapse の後始末として効く
 - ただし現状の役割は `short 100%` を `flat 100%` へ戻す rescue
 - alpha を作る本命にはまだなっていない
+- `shift15` learner 上では rescue 効果も薄く、むしろ悪化した
 
 ## current keep
 - issue5 current keep は `medium_l0_ac_conservative_regimebias_soft`

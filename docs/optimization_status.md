@@ -21,14 +21,19 @@
   - `teacher_short 0.353 -> bc_short 0.999`
   - `teacher_to_bc_mean_abs_gap 0.145`
 - current best learner:
-  - `medium_l1_bc_continuous_exec_shortmass_regimebias`
-  - BC-only val `teacher_to_bc_mean_abs_gap 0.1070`
-  - test `alpha_excess -0.26 pt/yr`, `sharpe_delta -0.006`
+  - `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+  - BC-only val `teacher_to_bc_mean_abs_gap 0.1193`
+  - test `alpha_excess -0.00 pt/yr`, `sharpe_delta +0.002`
+  - caveat: `short 100%`
 - weighting follow-up:
   - `medium_l0_bc_weighted_regimebias`
   - BC-only val `teacher_to_bc_mean_abs_gap 0.1092`
   - test `alpha_excess -0.48 pt/yr`, `sharpe_delta -0.011`
   - reject
+- residual-shift follow-up:
+  - `shift05`: `gap 0.1108`, `alpha -0.37`
+  - `shift10`: `gap 0.1098`, `alpha -0.20`
+  - `shift15`: `gap 0.1193`, `alpha -0.00`
 - 主因は still BC collapse
 
 ### issue3 AC support drift
@@ -62,9 +67,14 @@
 - supportbudget:
   - `medium_l0_ac_supportbudget_regimebias`
   - test `alpha_excess -0.21 pt/yr`
+- on top of `shift15`:
+  - `medium_l0_ac_conservative_regimebias_shift15_soft`
+  - test `alpha_excess -0.43 pt/yr`, `sharpe_delta -0.010`
+  - reject
 - 結論:
   - rescue としては有効
   - ただし alpha を作る本命ではなく `flat 100%` への benchmark recovery
+  - `shift15` learner 上では rescue 効果は出ず悪化
 
 ### issue6 external source
 - source family suite では `orderflow > basis` の傾向がある
@@ -91,11 +101,11 @@
 
 ## current keep
 - teacher: `signal_aim`
-- learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias`
+- learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15` (provisional)
 - inference keep: `infer_logits_target_blend = 0.50`
 - issue5 rescue keep: `medium_l0_ac_conservative_regimebias_soft`
 
 ## 次
 1. source family 単独の期待は下げて learner family 側へ戻る
-2. current keep を維持したまま次の learner branch を探す
+2. `shift15` 周辺を軽く再調整して、`short 100%` を崩しつつ alpha を維持できるかを見る
 3. source は learner update 後に再評価する

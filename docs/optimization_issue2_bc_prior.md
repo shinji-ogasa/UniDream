@@ -43,6 +43,42 @@
 - ただし `flat 100%` への過補正が残る
 - issue2 の current keep は `medium_l1_bc_continuous_exec_shortmass_regimebias`
 
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift05`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1108`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha_excess -0.37 pt/yr`
+- `sharpe_delta -0.009`
+
+判定:
+- current keep より悪化
+- reject
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift10`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1098`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha_excess -0.20 pt/yr`
+- `sharpe_delta -0.004`
+
+判定:
+- current keep より test は改善
+- ただし val gap は少し悪化
+- keep 候補
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1193`
+- `bc_short_ratio = 0.9753`
+- `bc_flat_ratio = 0.0247`
+- test `alpha_excess -0.00 pt/yr`
+- `sharpe_delta +0.002`
+- test distribution `short 100%`
+
+判定:
+- この family では test が最良
+- ただし val gap は悪化し、`short 100%` へ戻る
+- issue2 の provisional keep は `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+
 ## weighting branch
 
 ### `medium_l0_bc_weighted_regimebias`
@@ -60,8 +96,9 @@
 ## 判断
 - issue2 は主因のまま
 - `signal_aim teacher` を使っても BC は still collapse しやすい
-- current best learner family は `regimebias 0.50`
+- `regimebias` に `residual shift` を足すと test は benchmark 近傍まで戻せる
+- 現時点の provisional best learner family は `regimebias + shift15`
 
 ## 次
 - issue2 の weighting 枝は一段閉じる
-- 次は sequence / multimodal のような別 learner family か、issue10 に近い head family の別枝を探す
+- `shift15` 周辺を軽く再調整して、`short 100%` を崩しつつ alpha を維持できるかを見る
