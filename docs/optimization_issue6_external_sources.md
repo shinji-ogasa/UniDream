@@ -1,59 +1,95 @@
-# Optimization Loop: issue6 external source evaluation
+# Optimization Loop: Issue 6 External Source Evaluation
 
-## 背景
-- source family suite では `orderflow > basis` の傾向があった
-- ただし full learner family に入れた時に本当に効くかは未確認だった
-- ここでは current keep に近い軽量 learner を、同一期間・同一 WFO 条件で `basis-only` と `orderflow-added` で比較する
+## 判定
+- `issue6` は現時点で false
+- source を足しても current learner family では改善しない
+- 本丸はまだ learner / head family 側
 
-## 比較条件
-- period: `2021-01-01 -> 2023-06-01`
-- fold: `4`
-- config family:
-  - `medium_basis_signal_aim_regimebias_l0`
-  - `medium_ext_signal_aim_regimebias_l0`
-- teacher: `signal_aim`
-- learner core: `regimebias`
-- world model: `250 steps`
-- BC-only / test-only まで
+## 初回比較
 
-## basis-only
+期間:
+- `2021-01-01 -> 2023-06-01`
 
-### `medium_basis_signal_aim_regimebias_l0`
-- feature cache: `obs_dim = 17`
-- BC-only val:
-  - `teacher_to_bc_mean_abs_gap = 0.1399`
-  - `bc_short_ratio = 0.9895`
-  - `bc_flat_ratio = 0.0105`
-- test:
-  - `alpha_excess -84.01 pt/yr`
-  - `sharpe_delta -0.317`
-  - `win_rate_vs_bh 48.2%`
-  - `test dist: short 100%`
+fold:
+- `4`
 
-## orderflow-added
+### basis-only
+config:
+- `medium_basis_signal_aim_regimebias_l0`
 
-### `medium_ext_signal_aim_regimebias_l0`
-- feature cache: `obs_dim = 47`
-- added sources:
-  - `signed_order_flow`
-  - `taker_imbalance`
-- BC-only val:
-  - `teacher_to_bc_mean_abs_gap = 0.1347`
-  - `bc_short_ratio = 0.9985`
-  - `bc_flat_ratio = 0.0015`
-- test:
-  - `alpha_excess -91.93 pt/yr`
-  - `sharpe_delta -0.353`
-  - `win_rate_vs_bh 48.3%`
-  - `test dist: short 99% / flat 1%`
+BC-only val:
+- `teacher_to_bc_mean_abs_gap = 0.1399`
+- `bc_short_ratio = 0.9895`
+- `bc_flat_ratio = 0.0105`
+
+test:
+- `alpha_excess -84.01 pt/yr`
+- `sharpe_delta -0.317`
+- `win_rate_vs_bh 48.2%`
+- `short 100%`
+
+### orderflow-added
+config:
+- `medium_ext_signal_aim_regimebias_l0`
+
+added sources:
+- `signed_order_flow`
+- `taker_imbalance`
+
+BC-only val:
+- `teacher_to_bc_mean_abs_gap = 0.1347`
+- `bc_short_ratio = 0.9985`
+- `bc_flat_ratio = 0.0015`
+
+test:
+- `alpha_excess -91.93 pt/yr`
+- `sharpe_delta -0.353`
+- `win_rate_vs_bh 48.3%`
+- `short 99% / flat 1%`
+
+結論:
+- orderflow を足すと BC gap は少し改善する
+- ただし test alpha は悪化
+
+## current keep family での再評価
+
+config:
+- `medium_ext_signal_aim_regimebias_shift15_blend625_l0`
+
+teacher:
+- `signal_aim`
+- `signal_scale = 1.5`
+
+learner:
+- `regimebias`
+- `residual_shift = 0.15`
+
+inference:
+- `infer_logits_target_blend = 0.625`
+
+added sources:
+- `signed_order_flow`
+- `taker_imbalance`
+- `active_address_growth`
+
+BC-only val:
+- `teacher_to_bc_mean_abs_gap = 0.138356`
+- `bc_short_ratio = 0.998291`
+- `bc_flat_ratio = 0.001709`
+
+test:
+- `alpha_excess -126.84 pt/yr`
+- `sharpe_delta -0.774`
+- `maxdd_delta -0.78 pt`
+- `win_rate_vs_bh 47.3%`
+- `short 100%`
 
 ## 結論
-- orderflow を足すと BC-only の gap は `0.1399 -> 0.1347` でわずかに改善する
-- ただし test は `alpha_excess -84.01 -> -91.93 pt/yr` で悪化する
-- current learner family では、orderflow は BC collapse を救えていない
-- したがって issue6 の first light comparison は **negative**
+- old ext branch でも negative
+- current keep family でもさらに negative
+- issue6 は closed
 
 ## 次
-- source family 単独の期待は下げる
-- current keep は external source なしのまま維持
-- 次に source を触るなら、learner family 側を更新した後に再評価する
+1. source family への期待は下げる
+2. learner / head family の別枝に戻る
+3. source は learner が更新された後で必要なら再評価する
