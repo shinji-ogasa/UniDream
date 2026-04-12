@@ -137,3 +137,12 @@
 - conclusion
   - do not promote threshold retune to global keep
   - global keep remains `infer_logits_target_blend = 0.625`
+
+## 2026-04-13 regime-gate probe
+- `infer_regime_active_state=0`, `infer_regime_active_threshold=0.50`
+  - fold 4 test: `alpha +0.14`, `sharpeΔ -0.032`, `maxddΔ -0.42`, `flat 100%`
+- `infer_regime_active_state=1`, `infer_regime_active_threshold=0.50`
+  - fold 4 test: `alpha +0.25`, `sharpeΔ +0.015`, `maxddΔ -0.42`, `flat 100%`
+- conclusion
+  - regime-gating is not a winner on top of the current global keep
+  - it improves neither alpha/sharpe jointly nor action diversity relative to the threshold retune

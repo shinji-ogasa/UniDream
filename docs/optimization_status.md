@@ -103,3 +103,12 @@
     - teacher keep: `signal_scale=1.5`
     - learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
     - inference keep: `infer_logits_target_blend = 0.625`
+
+## 2026-04-13 regime-gate probe
+- `regimegate0`
+  - fold 4: `alpha +0.14`, `sharpeΔ -0.032`, `flat 100%`
+- `regimegate1`
+  - fold 4: `alpha +0.25`, `sharpeΔ +0.015`, `flat 100%`
+- conclusion
+  - rescue gate via `infer_regime_active_*` is not a winner on top of the current global keep
+  - current global keep is unchanged
