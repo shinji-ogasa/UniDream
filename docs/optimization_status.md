@@ -121,3 +121,9 @@
   - fold 4: `alpha +0.91`, `sharpeΔ +0.027`, `short 15% / flat 85%`
   - same landing as the local threshold retune
   - no new global keep
+
+## 2026-04-13 dual-target probe
+- `dual regime target bias`
+  - fold 4 val gap `0.1071`
+  - fold 4 test: `alpha +0.82`, `sharpeΔ -0.009`, `flat 100%`
+  - reject

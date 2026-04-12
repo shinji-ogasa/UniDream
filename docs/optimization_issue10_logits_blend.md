@@ -155,3 +155,11 @@
   - fold 4 test: `alpha +0.91`, `sharpeΔ +0.027`, `maxddΔ -1.47`, `short 15% / flat 85%`
   - same landing as threshold retune
   - not a new winner
+
+## 2026-04-13 dual-target probe
+- `dual regime target bias`
+  - fold 4 val gap `0.1071`
+  - fold 4 test: `alpha +0.82`, `sharpeΔ -0.009`, `maxddΔ -1.49`, `flat 100%`
+- conclusion
+  - no better than the trade-bias side branch
+  - reject
