@@ -74,3 +74,32 @@
 1. learner head の別 family に戻る
 2. 必要なら後で `rescue gate` を別 issue で再検討する
 3. source は learner 更新後に再評価する
+
+## 2026-04-13 latest update
+- issue2 keep updated
+  - teacher: `signal_aim`
+  - teacher keep: `signal_scale=1.5`
+  - learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+  - inference keep: `infer_logits_target_blend = 0.625`, `infer_trade_threshold = 0.65`
+- `tradebias` family is closed
+  - `tradebias(0.50) + signal_scale=1.5`: val gap `0.1083`, test `alpha +0.70`, `sharpeΔ -0.009`, `flat 100%`
+  - `tradebias(0.25) + signal_scale=1.5`: val gap `0.0916`, test `alpha +0.70`, `sharpeΔ -0.009`, `flat 100%`
+  - `tradebias(0.25)`: val gap `0.1071`, test `alpha +0.82`, `sharpeΔ -0.009`, `flat 100%`
+- inference-only retune on current keep is the new local winner
+  - `infer_trade_threshold=0.60 / 0.65 / 0.675`
+  - `infer_gap_boost=0.05`
+  - all converge to `alpha +0.91`, `sharpeΔ +0.027`, `maxddΔ -1.47`, `short 15% / flat 85%`
+
+## 2026-04-13 follow-up
+- local winner only:
+  - `infer_trade_threshold=0.65`
+  - fold 4: `alpha +0.91`, `sharpeΔ +0.027`
+  - fold 0: `alpha -11.34`, `sharpeΔ -0.017`
+  - fold 5: `alpha -225.84`, `sharpeΔ -0.044`
+- conclusion:
+  - threshold retune is not a global keep
+  - global keep stays:
+    - teacher: `signal_aim`
+    - teacher keep: `signal_scale=1.5`
+    - learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+    - inference keep: `infer_logits_target_blend = 0.625`

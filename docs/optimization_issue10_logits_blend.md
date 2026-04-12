@@ -113,3 +113,27 @@
 ## 次
 - issue10 は current keep を保持したまま一段閉じる
 - 次は issue6 の external source 比較へ進む
+
+## 2026-04-13 latest update
+- `tradebias` family was tested on top of the current learner family.
+  - `tradebias(0.50) + signal_scale=1.5`: val gap `0.1083`, test `alpha +0.70`, `sharpeΔ -0.009`, `flat 100%`
+  - `tradebias(0.25) + signal_scale=1.5`: val gap `0.0916`, test `alpha +0.70`, `sharpeΔ -0.009`, `flat 100%`
+  - `tradebias(0.25)`: val gap `0.1071`, test `alpha +0.82`, `sharpeΔ -0.009`, `flat 100%`
+- conclusion: training-side trade bias improves collapse metrics but still collapses to `flat 100%` at test time, so the family is closed.
+- inference-only threshold/gap retune is better than training-side trade bias:
+  - `infer_trade_threshold=0.60 / 0.65 / 0.675`
+  - `infer_gap_boost=0.05`
+  - all converge to `alpha +0.91`, `sharpeΔ +0.027`, `maxddΔ -1.47`, `short 15% / flat 85%`
+- updated keep
+  - teacher: `signal_aim`
+  - learner: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+  - inference: `infer_logits_target_blend = 0.625`, `infer_trade_threshold = 0.65`
+
+## 2026-04-13 follow-up
+- `infer_trade_threshold=0.65` is only a fold-4 local winner.
+  - fold 4: `alpha +0.91`, `sharpeΔ +0.027`, `short 15% / flat 85%`
+  - fold 0: `alpha -11.34`, `sharpeΔ -0.017`, `flat 100%`
+  - fold 5: `alpha -225.84`, `sharpeΔ -0.044`, `short 49% / flat 51%`
+- conclusion
+  - do not promote threshold retune to global keep
+  - global keep remains `infer_logits_target_blend = 0.625`
