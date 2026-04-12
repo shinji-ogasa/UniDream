@@ -163,3 +163,16 @@
 - conclusion
   - no better than the trade-bias side branch
   - reject
+
+## 2026-04-13 event-gate probe
+- `event gate`
+  - fold 4 val gap `0.0977`
+  - fold 4 test: `alpha +0.00`, `sharpeΔ +0.000`, `flat 100%`
+  - reject
+- `event overlay (-0.50)`
+  - fold 4 val gap `0.0977`
+  - fold 4 test: `alpha +0.00`, `sharpeΔ +0.000`, `flat 100%`
+  - reject
+- conclusion
+  - event-style inference is another path to `flat 100%`
+  - current global keep is unchanged
