@@ -137,3 +137,20 @@
   - fold 4 val gap `0.0977`
   - fold 4 test: `alpha +0.00`, `sharpeΔ +0.000`, `flat 100%`
   - reject
+
+## 2026-04-13 residual_aux_ce family
+- `0.50`
+  - fold 4 val gap `0.1174`
+  - fold 4 test `alpha +1.18`, `sharpeΔ -0.012`, `short 62% / flat 38%`
+- `0.25`
+  - fold 4 val gap `0.1053`
+  - fold 4 test `alpha +0.45`, `sharpeΔ -0.010`, `short 3% / flat 97%`
+- `0.75`
+  - fold 4 val gap `0.1052`
+  - fold 4 test `alpha +0.57`, `sharpeΔ +0.001`, `short 3% / flat 97%`
+  - out-of-fold failed:
+    - fold 0 `alpha -78.37`, `sharpeΔ -0.303`
+    - fold 5 `alpha -182.50`, `sharpeΔ -0.032`
+- conclusion
+  - local alpha branch only
+  - no global keep update

@@ -138,3 +138,23 @@
   - `threshold=0.65` is only a fold-4 local winner
   - it is not a global keep
   - global issue2 keep stays at `infer_logits_target_blend = 0.625`
+
+## 2026-04-13 residual_aux_ce family
+- `residual_aux_ce = 0.50`
+  - fold 4 val gap `0.1174`
+  - fold 4 test `alpha +1.18 pt/yr`, `sharpeΔ -0.012`, `short 62% / flat 38%`
+  - alpha improves, but sharpe/maxdd degrade
+- `residual_aux_ce = 0.25`
+  - fold 4 val gap `0.1053`
+  - fold 4 test `alpha +0.45 pt/yr`, `sharpeΔ -0.010`, `short 3% / flat 97%`
+  - still overcorrects toward flat
+- `residual_aux_ce = 0.75`
+  - fold 4 val gap `0.1052`
+  - fold 4 test `alpha +0.57 pt/yr`, `sharpeΔ +0.001`, `short 3% / flat 97%`
+  - local fold 4 looked competitive
+  - out-of-fold check failed:
+    - fold 0 `alpha -78.37 pt/yr`, `sharpeΔ -0.303`
+    - fold 5 `alpha -182.50 pt/yr`, `sharpeΔ -0.032`
+- conclusion
+  - `residual_aux_ce` is a local alpha branch, not a global winner
+  - global issue2 keep stays at `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
