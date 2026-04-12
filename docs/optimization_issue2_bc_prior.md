@@ -78,6 +78,25 @@
 - fold 2 / 3 を含めると `blend625` の方が安定
 - `625` 周辺の finer sweep でも keep は変わらない
 
+## teacher-scale 微調整 around current keep
+
+### `signal_scale=1.35`
+- fold 4 test: `alpha +0.76 pt/yr`
+- `sharpeΔ -0.009`
+- `maxddΔ -1.40 pt`
+- `flat 100%`
+
+### `signal_scale=1.65`
+- fold 4 test: `alpha +0.64 pt/yr`
+- `sharpeΔ -0.009`
+- `maxddΔ -1.18 pt`
+- `flat 100%`
+
+結論:
+- `1.35 / 1.65` はどちらも alpha は少し上がる
+- ただし current keep の `sharpeΔ +0.002` を壊す
+- `signal_scale=1.5` の keep は維持
+
 ## 現 keep
 - teacher: `signal_aim`
 - teacher tuning: `signal_scale=1.5`

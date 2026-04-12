@@ -30,6 +30,10 @@
   - fold 5: `alpha -1.24 pt/yr`, `sharpeΔ -0.108`, `maxddΔ -0.35`, `short 41% / flat 59%`
 - `blend500` は fold 0 では強いが、fold 2 / 3 を含めると `blend625` より不安定
 - 現時点では `signal_scale=1.5 + shift15 + blend625` が provisional keep
+- `signal_scale=1.35 / 1.65` の current-keep 周辺 sweep は
+  - fold 4 alpha は少し上がる
+  - ただし `sharpeΔ` が `-0.009` まで落ちる
+  - current keep を更新できず reject
 
 ### issue3 AC support drift
 - baseline:
