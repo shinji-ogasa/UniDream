@@ -146,3 +146,12 @@
 - conclusion
   - regime-gating is not a winner on top of the current global keep
   - it improves neither alpha/sharpe jointly nor action diversity relative to the threshold retune
+
+## 2026-04-13 bootstrap probe
+- `confidence bootstrap`
+  - fold 4 test: `alpha +0.00`, `sharpeΔ +0.000`, `maxddΔ +0.00`, `flat 100%`
+  - reject
+- `support bootstrap`
+  - fold 4 test: `alpha +0.91`, `sharpeΔ +0.027`, `maxddΔ -1.47`, `short 15% / flat 85%`
+  - same landing as threshold retune
+  - not a new winner

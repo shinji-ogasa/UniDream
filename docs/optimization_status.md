@@ -112,3 +112,12 @@
 - conclusion
   - rescue gate via `infer_regime_active_*` is not a winner on top of the current global keep
   - current global keep is unchanged
+
+## 2026-04-13 bootstrap probe
+- `confidence bootstrap`
+  - fold 4: `alpha +0.00`, `sharpeΔ +0.000`, `flat 100%`
+  - reject
+- `support bootstrap`
+  - fold 4: `alpha +0.91`, `sharpeΔ +0.027`, `short 15% / flat 85%`
+  - same landing as the local threshold retune
+  - no new global keep
