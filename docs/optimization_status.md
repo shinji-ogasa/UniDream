@@ -33,7 +33,9 @@
 - residual-shift follow-up:
   - `shift05`: `gap 0.1108`, `alpha -0.37`
   - `shift10`: `gap 0.1098`, `alpha -0.20`
+  - `shift12`: `gap 0.1101`, `alpha -0.17`
   - `shift15`: `gap 0.1193`, `alpha -0.00`
+  - `shift15_blend375`: `alpha +0.00`, `sharpeΔ +0.002`, `maxddΔ -1.43`
 - 主因は still BC collapse
 
 ### issue3 AC support drift
@@ -107,5 +109,6 @@
 
 ## 次
 1. source family 単独の期待は下げて learner family 側へ戻る
-2. `shift15` 周辺を軽く再調整して、`short 100%` を崩しつつ alpha を維持できるかを見る
-3. source は learner update 後に再評価する
+2. `shift15` は provisional keep に維持
+3. `short 100%` を崩しつつ `shift15` の alpha 近傍を維持できる別 learner / inference 枝を探す
+4. source は learner update 後に再評価する

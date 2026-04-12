@@ -79,6 +79,29 @@
 - ただし val gap は悪化し、`short 100%` へ戻る
 - issue2 の provisional keep は `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
 
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift12`
+- BC-only val `teacher_to_bc_mean_abs_gap = 0.1101`
+- `bc_short_ratio = 0.0000`
+- `bc_flat_ratio = 1.0000`
+- test `alpha_excess -0.17 pt/yr`
+- `sharpe_delta -0.003`
+
+判定:
+- `shift10` より少し良い
+- ただし `shift15` は超えられない
+- reject
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend375`
+- test `alpha_excess +0.00 pt/yr`
+- `sharpe_delta +0.002`
+- `maxdd_delta -1.43 pt`
+- test distribution `short 100%`
+
+判定:
+- `shift15` 単体と alpha / sharpe は同等
+- ただし `maxdd` が悪化
+- reject
+
 ## weighting branch
 
 ### `medium_l0_bc_weighted_regimebias`
@@ -101,4 +124,5 @@
 
 ## 次
 - issue2 の weighting 枝は一段閉じる
-- `shift15` 周辺を軽く再調整して、`short 100%` を崩しつつ alpha を維持できるかを見る
+- `shift15` 周辺を軽く再調整したが、現時点では `shift15` 単体が best
+- 次は `short 100%` を崩しつつ `shift15` の alpha 近傍を維持できる別 learner / inference 枝を探す
