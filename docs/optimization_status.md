@@ -37,6 +37,8 @@
   - `shift15`: `gap 0.1193`, `alpha -0.00`
   - `shift15_blend375`: `alpha +0.00`, `sharpeΔ +0.002`, `maxddΔ -1.43`
   - `shift15_blend625`: `alpha -0.00`, `sharpeΔ +0.001`, `maxddΔ -0.85`, `short 89% / flat 11%`
+  - `shift15_blend75`: `alpha -0.00`, `sharpeΔ +0.001`, `maxddΔ -0.57`, `flat 100%`
+  - `shift15_blend875`: `alpha -0.00`, `sharpeΔ +0.000`, `maxddΔ -0.28`, `flat 100%`
 - 主因は still BC collapse
 
 ### issue3 AC support drift

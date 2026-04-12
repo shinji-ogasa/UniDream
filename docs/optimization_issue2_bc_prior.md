@@ -114,6 +114,30 @@
 - `maxdd` も `shift15` 単体より改善
 - provisional inference keep に更新
 
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend75`
+- test `alpha_excess -0.00 pt/yr`
+- `sharpe_delta +0.001`
+- `maxdd_delta -0.57 pt`
+- test distribution `flat 100%`
+
+判定:
+- alpha は維持
+- ただし again `flat 100%`
+- `blend625` のような部分的 de-collapse は失う
+- reject
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend875`
+- test `alpha_excess -0.00 pt/yr`
+- `sharpe_delta +0.000`
+- `maxdd_delta -0.28 pt`
+- test distribution `flat 100%`
+
+判定:
+- `maxdd` は少し良い
+- ただし `flat 100%`
+- `blend625` より action diversity が悪い
+- reject
+
 ## weighting branch
 
 ### `medium_l0_bc_weighted_regimebias`
@@ -138,4 +162,4 @@
 - issue2 の weighting 枝は一段閉じる
 - `shift15` 周辺を軽く再調整したが、現時点では `shift15` 単体が best
 - inference 側では `blend625` が現時点の provisional keep
-- 次は `short 89% / flat 11%` をさらに広げつつ alpha を落とさない軽量枝を探す
+- 次は `short 89% / flat 11%` をさらに広げつつ alpha を落とさない軽量 learner / inference 枝を探す
