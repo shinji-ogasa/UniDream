@@ -1,127 +1,95 @@
 # Optimization Loop: Issue 5 Conservative AC
 
-## 課題
-- `issue2` で BC collapse が主因だと確認した
-- そのうえで、current keep の learner family 上で AC を保守化すると rescue が効くかを軽量 run で確認する
+## 判定
+- `issue5` は global keep としては false
+- ただし fold によっては rescue として効く
+- 現時点の結論は `fold-conditional rescue`
 
 ## baseline
-- 旧 baseline family では
+- baseline family では
   - `teacher_short 0.4998`
   - `bc_short 1.0`
   - `ac_short 1.0`
   - `bc_to_ac_short_mismatch = 0.0`
-- baseline では AC drift は主因ではなかった
+- baseline では AC drift は主因ではない
 
-## current keep 上の軽量実測
+## old keep 上の結果
+
+### `medium_l0_ac_conservative_regimebias`
+- test `alpha -0.15 pt/yr`
+- `sharpeΔ -0.003`
+- `flat 100%`
+
+### `medium_l0_ac_conservative_regimebias_soft`
+- test `alpha -0.11 pt/yr`
+- `sharpeΔ -0.002`
+- `flat 100%`
+- old keep 上の winner
+
+### `medium_l0_ac_supportbudget_regimebias`
+- test `alpha -0.21 pt/yr`
+- `sharpeΔ -0.005`
+- reject
+
+解釈:
+- old keep では `conservative AC` は benchmark recovery としては少し効く
+- ただし alpha winner ではない
+
+## current keep 上の再評価
 
 current keep:
 - teacher: `signal_aim`
-- learner keep: `medium_l1_bc_continuous_exec_shortmass_regimebias`
+- teacher tuning: `signal_scale=1.5`
+- learner: `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+- inference: `infer_logits_target_blend = 0.625`
 
-### `medium_l0_ac_conservative_regimebias`
+### `medium_l0_ac_conservative_regimebias_shift15_blend625_foldprobe_sig15_soft`
 
-val 4096 bars support audit:
-- `teacher_short_ratio 0.357`
-- `bc_short_ratio 0.0029`
-- `ac_short_ratio 0.0000`
-- `bc_flat_ratio 0.9971`
-- `ac_flat_ratio 1.0000`
-- `teacher_to_ac_mean_abs_gap 0.1060`
+#### fold 1
+- BC-only: `alpha +0.95 pt/yr`
+- rescue AC: `alpha -7.89 pt/yr`
+- 判定: 悪化
 
-test:
-- `alpha_excess -0.15 pt/yr`
-- `sharpe_delta -0.003`
-- `maxdd_delta -0.26 pt`
-- `win_rate_vs_bh 49.9%`
-- distribution: `flat 100%`
+#### fold 2
+- BC-only: `alpha -1.84 pt/yr`
+- rescue AC: `alpha -1910.08 pt/yr`
+- `flat 100%`
+- 判定: 大幅悪化
 
-判定:
-- rescue としては効く
-- ただし `flat 100%` の過補正が強い
+#### fold 3
+- BC-only: `alpha -23.85 pt/yr`
+- rescue AC: `alpha -53.10 pt/yr`
+- `flat 100%`
+- 判定: 悪化
 
-### `medium_l0_ac_conservative_regimebias_soft`
+#### fold 4
+- BC-only: `alpha +0.03 pt/yr`
+- rescue AC: `alpha +0.70 pt/yr`
+- `sharpeΔ +0.017`
+- `flat 100%`
+- 判定: 改善
 
-val 4096 bars support audit:
-- `teacher_short_ratio 0.357`
-- `bc_short_ratio 0.0000`
-- `ac_short_ratio 0.0000`
-- `bc_flat_ratio 1.0000`
-- `ac_flat_ratio 1.0000`
-- `teacher_to_ac_mean_abs_gap 0.1053`
-
-test:
-- `alpha_excess -0.11 pt/yr`
-- `sharpe_delta -0.002`
-- `maxdd_delta -0.20 pt`
-- `win_rate_vs_bh 50.0%`
-- distribution: `flat 100%`
-
-判定:
-- issue5 の current winner
-- strict より少し良い
-- ただし alpha を作る本命ではなく benchmark recovery 寄り
-
-### `medium_l0_ac_supportbudget_regimebias`
-
-val 4096 bars support audit:
-- `teacher_short_ratio 0.357`
-- `bc_short_ratio 0.0029`
-- `ac_short_ratio 0.0000`
-- `bc_flat_ratio 0.9971`
-- `ac_flat_ratio 1.0000`
-- `teacher_to_ac_mean_abs_gap 0.1065`
-
-test:
-- `alpha_excess -0.21 pt/yr`
-- `sharpe_delta -0.005`
-- `maxdd_delta -0.28 pt`
-- `win_rate_vs_bh 50.0%`
-- distribution: `flat 100%`
-
-判定:
-- strict / soft より悪い
-- reject
-
-## `shift15` provisional keep 上の確認
-
-provisional learner keep:
-- `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
-- test `alpha_excess -0.00 pt/yr`
-- `sharpe_delta +0.002`
-
-### `medium_l0_ac_conservative_regimebias_shift15_soft`
-
-val 4096 bars support audit:
-- `teacher_short_ratio 0.357`
-- `bc_short_ratio 0.975`
-- `ac_short_ratio 0.951`
-- `bc_flat_ratio 0.025`
-- `ac_flat_ratio 0.049`
-- `teacher_to_ac_mean_abs_gap 0.1169`
-
-test:
-- `alpha_excess -0.43 pt/yr`
-- `sharpe_delta -0.010`
-- `maxdd_delta -0.98 pt`
-- `win_rate_vs_bh 50.0%`
-- distribution: `short 98%`
-
-判定:
-- `shift15` 単体より明確に悪化
-- この family 上では rescue としても不採用
-- reject
+#### fold 5
+- BC-only: `alpha -1.24 pt/yr`
+- rescue AC: `alpha +0.33 pt/yr`
+- `sharpeΔ -0.021`
+- `flat 99%`
+- 判定: 改善
 
 ## 結論
-- issue5 は current keep 上でも部分的に true
-- `conservative AC` は BC collapse の後始末として効く
-- ただし現状の役割は `short 100%` を `flat 100%` へ戻す rescue
-- alpha を作る本命にはまだなっていない
-- `shift15` learner 上では rescue 効果も薄く、むしろ悪化した
+- issue5 は global keep にはならない
+- `conservative AC` は
+  - fold 4 / 5 では rescue として効く
+  - fold 1 / 2 / 3 では悪化する
+- 特に fold 2 は `flat 100%` へ逃げて `alpha -1910 pt/yr` まで壊れるので、そのまま全 fold 適用は不可
 
-## current keep
-- issue5 current keep は `medium_l0_ac_conservative_regimebias_soft`
-- 用途は `candidate rescue / benchmark recovery`
+## 現在の扱い
+- `medium_l0_ac_conservative_regimebias_shift15_blend625_foldprobe_sig15_soft`
+  は `fold-conditional rescue candidate`
+- global rescue keep は置かない
+- 本命は引き続き learner / head family 側
 
 ## 次
-- issue5 は一段閉じる
-- 次の本命は issue2 / issue10 側、つまり learner head / target family の改善
+1. issue5 は一段閉じる
+2. learner head の別 family に戻る
+3. 必要なら後で `rescue gate` を fold-conditional selector として別 issue で再検討する
