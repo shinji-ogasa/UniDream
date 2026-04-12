@@ -138,6 +138,28 @@
 - `blend625` より action diversity が悪い
 - reject
 
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend5625`
+- test `alpha_excess -0.00 pt/yr`
+- `sharpe_delta +0.002`
+- `maxdd_delta -1.00 pt`
+- test distribution `short 99% / flat 1%`
+
+判定:
+- `shift15` 単体よりは少し柔らかい
+- ただし `blend625` より action diversity が弱く、`maxdd` も悪い
+- reject
+
+### `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend6875`
+- test `alpha_excess -0.00 pt/yr`
+- `sharpe_delta +0.001`
+- `maxdd_delta -0.71 pt`
+- test distribution `flat 100%`
+
+判定:
+- `blend75/875` よりは少し良い
+- ただし `blend625` を更新できない
+- reject
+
 ## weighting branch
 
 ### `medium_l0_bc_weighted_regimebias`
