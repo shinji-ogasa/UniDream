@@ -154,3 +154,13 @@
 - conclusion
   - local alpha branch only
   - no global keep update
+
+## 2026-04-13 abs-signal weighting
+- fold 4 val gap `0.1014`
+- fold 4 test `alpha +0.38`, `sharpeΔ +0.011`, `flat 100%`
+- out-of-fold:
+  - fold 0 `alpha -4.29`, `sharpeΔ -0.008`
+  - fold 5 `alpha -135.94`, `sharpeΔ -0.003`
+- conclusion
+  - more stable than `residual_aux_ce`
+  - still not enough for global keep

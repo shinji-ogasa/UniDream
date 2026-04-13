@@ -158,3 +158,15 @@
 - conclusion
   - `residual_aux_ce` is a local alpha branch, not a global winner
   - global issue2 keep stays at `medium_l1_bc_continuous_exec_shortmass_regimebias_shift15`
+
+## 2026-04-13 abs-signal weighting
+- `sample_quality_mode = abs_signal`, `sample_quality_coef = 0.5`
+  - fold 4 val gap `0.1014`
+  - fold 4 test `alpha +0.38 pt/yr`, `sharpeΔ +0.011`, `flat 100%`
+  - cleaner than the residual-CE branch on fold 4
+- out-of-fold check
+  - fold 0 `alpha -4.29 pt/yr`, `sharpeΔ -0.008`, `flat 100%`
+  - fold 5 `alpha -135.94 pt/yr`, `sharpeΔ -0.003`, `flat 100%`
+- conclusion
+  - `abs_signal` weighting is more stable than `residual_aux_ce`
+  - but it is still not a global winner and still collapses to near-flat behavior
