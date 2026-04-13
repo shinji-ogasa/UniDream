@@ -196,7 +196,8 @@
 ## 2026-04-13 std10-only local candidate
 - fold 4 val gap `0.0918`
 - fold 4 test `alpha -0.18`, `sharpeΔ -0.004`, `flat 100%`
+- fold 0 val gap `0.1138`
+- fold 0 test `alpha +0.44`, `sharpeΔ +0.003`, `maxddΔ -0.86`, `flat 100%`
 - status
-  - best fold-4 result among the recent target-regularization branches
-  - not promoted yet
-  - next step is fold 0 / fold 5 confirmation
+  - local fold-4 improvement did not turn into a clear multi-fold winner
+  - rejected for global promotion
