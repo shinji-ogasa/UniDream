@@ -201,3 +201,10 @@
 - status
   - local fold-4 improvement did not turn into a clear multi-fold winner
   - rejected for global promotion
+
+## 2026-04-13 self-conditioning branch
+- `wm -> bc` on fold 4 timed out at 180s
+- `world_model.pt` exists, `bc_actor.pt` missing
+- status
+  - runtime reject
+  - not viable under the current lightweight loop constraint

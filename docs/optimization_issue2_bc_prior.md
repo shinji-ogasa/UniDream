@@ -211,3 +211,12 @@
   - slightly better alpha on fold 4
   - but still near-flat and not clearly better than the current keep on fold 0
   - reject for global promotion
+
+## 2026-04-13 self-conditioning branch
+- `self_condition_prob = 0.15`, `self_condition_blend = 0.10`
+  - fold 4 `wm -> bc` timed out at 180s
+  - `world_model.pt` was written
+  - `bc_actor.pt` was not written
+- conclusion
+  - runtime cost is already too high for the current loop
+  - reject on runtime before promotion
