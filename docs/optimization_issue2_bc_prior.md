@@ -200,3 +200,12 @@
   - smoothing regularizes the val gap
   - but both branches stay near-flat and underperform the current keep on test
   - smoothing family closed
+
+## 2026-04-13 std10-only candidate
+- `std10 + signal_scale=1.5`
+  - fold 4 val gap `0.0918`
+  - fold 4 test `alpha -0.18 pt/yr`, `sharpeΔ -0.004`, `flat 100%`
+- conclusion
+  - better than the current keep on fold 4
+  - still collapses to near-flat behavior
+  - hold as a local candidate only until fold 0 / 5 checks

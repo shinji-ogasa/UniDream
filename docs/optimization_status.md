@@ -192,3 +192,11 @@
   - both regularize the gap
   - neither beats the current keep on test
   - smoothing family closed
+
+## 2026-04-13 std10-only local candidate
+- fold 4 val gap `0.0918`
+- fold 4 test `alpha -0.18`, `sharpeΔ -0.004`, `flat 100%`
+- status
+  - best fold-4 result among the recent target-regularization branches
+  - not promoted yet
+  - next step is fold 0 / fold 5 confirmation
