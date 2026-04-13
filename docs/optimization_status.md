@@ -164,3 +164,31 @@
 - conclusion
   - more stable than `residual_aux_ce`
   - still not enough for global keep
+
+## 2026-04-13 underweight-edge weighting
+- fold 4 val gap `0.1445`
+- fold 4 test `alpha +0.41`, `sharpeΔ +0.010`, `flat 100%`
+- conclusion
+  - worse than `abs_signal` on the only metric that mattered for promotion
+  - same near-flat landing on test
+  - rejected immediately
+
+## 2026-04-13 chunk2 branch
+- fold 4 val gap `0.0934`
+- fold 4 test `alpha -0.34`, `sharpeΔ -0.008`, `flat 100%`
+- conclusion
+  - cleaner val imitation only
+  - no test improvement over the current keep
+  - reject
+
+## 2026-04-13 smoothing family
+- `softlabel05 + signal_scale=1.5`
+  - fold 4 val gap `0.0995`
+  - fold 4 test `alpha -0.23`, `sharpeΔ -0.005`, `flat 100%`
+- `softlabel05 + std10 + signal_scale=1.5`
+  - fold 4 val gap `0.0941`
+  - fold 4 test `alpha -0.48`, `sharpeΔ -0.011`, `flat 100%`
+- conclusion
+  - both regularize the gap
+  - neither beats the current keep on test
+  - smoothing family closed

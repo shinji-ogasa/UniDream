@@ -170,3 +170,33 @@
 - conclusion
   - `abs_signal` weighting is more stable than `residual_aux_ce`
   - but it is still not a global winner and still collapses to near-flat behavior
+
+## 2026-04-13 underweight-edge weighting
+- `sample_quality_mode = underweight_edge`, `sample_quality_coef = 0.5`, `quantile = 0.75`
+  - fold 4 val gap `0.1445`
+  - fold 4 test `alpha +0.41 pt/yr`, `sharpeΔ +0.010`, `flat 100%`
+- conclusion
+  - strictly worse val gap than `abs_signal`
+  - same near-flat landing on test
+  - reject without out-of-fold promotion
+
+## 2026-04-13 chunk2 branch
+- `chunk_size = 2`, `signal_scale = 1.5`
+  - fold 4 val gap `0.0934`
+  - fold 4 test `alpha -0.34 pt/yr`, `sharpeΔ -0.008`, `flat 100%`
+- conclusion
+  - val gap improves
+  - test is still worse than the current keep
+  - reject
+
+## 2026-04-13 teacher smoothing family
+- `softlabel05 + signal_scale=1.5`
+  - fold 4 val gap `0.0995`
+  - fold 4 test `alpha -0.23 pt/yr`, `sharpeΔ -0.005`, `flat 100%`
+- `softlabel05 + std10 + signal_scale=1.5`
+  - fold 4 val gap `0.0941`
+  - fold 4 test `alpha -0.48 pt/yr`, `sharpeΔ -0.011`, `flat 100%`
+- conclusion
+  - smoothing regularizes the val gap
+  - but both branches stay near-flat and underperform the current keep on test
+  - smoothing family closed
