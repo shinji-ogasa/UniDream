@@ -220,3 +220,12 @@
 - conclusion
   - runtime cost is already too high for the current loop
   - reject on runtime before promotion
+
+## 2026-04-13 dist-match branch
+- `target_dist_match_coef = 2.0`
+  - fold 4 val gap `0.0970`
+  - fold 4 test `alpha -0.20 pt/yr`, `sharpeΔ -0.004`, `flat 100%`
+- conclusion
+  - better than the current keep on neither alpha nor sharpe
+  - still collapses to near-flat behavior
+  - reject

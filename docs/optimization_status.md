@@ -208,3 +208,10 @@
 - status
   - runtime reject
   - not viable under the current lightweight loop constraint
+
+## 2026-04-13 dist-match branch
+- fold 4 val gap `0.0970`
+- fold 4 test `alpha -0.20`, `sharpeΔ -0.004`, `flat 100%`
+- status
+  - no test improvement over the current keep
+  - reject
