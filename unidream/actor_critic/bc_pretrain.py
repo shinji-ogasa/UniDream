@@ -167,6 +167,11 @@ class BCPretrainer:
         position_mean_match_coef: float = 0.0,
         target_regime_dist_match_coef: float = 0.0,
         short_mass_match_coef: float = 0.0,
+        mode_target_coef: float = 0.0,
+        mode_target_margin: float = 0.05,
+        direct_band_target_coef: float = 0.0,
+        direct_band_margin: float = 0.05,
+        direct_hold_band_margin: float = 0.02,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         device: str = "cpu",
@@ -225,6 +230,11 @@ class BCPretrainer:
         self.position_mean_match_coef = float(max(position_mean_match_coef, 0.0))
         self.target_regime_dist_match_coef = float(max(target_regime_dist_match_coef, 0.0))
         self.short_mass_match_coef = float(max(short_mass_match_coef, 0.0))
+        self.mode_target_coef = float(max(mode_target_coef, 0.0))
+        self.mode_target_margin = float(max(mode_target_margin, 0.0))
+        self.direct_band_target_coef = float(max(direct_band_target_coef, 0.0))
+        self.direct_band_margin = float(max(direct_band_margin, 0.0))
+        self.direct_hold_band_margin = float(max(direct_hold_band_margin, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
 
@@ -451,6 +461,20 @@ class BCPretrainer:
 
         trade_pred = torch.sigmoid(trade_logits)
         trade_loss = F.smooth_l1_loss(trade_pred, trade_targets, reduction="none")
+        mode_loss = None
+        if (
+            self.mode_target_coef > 0.0
+            and bool(getattr(self.actor, "use_dual_regime_target_bias", False))
+        ):
+            mode_logits = self.actor.target_mode_logits(
+                z,
+                h,
+                inventory=inventory,
+                regime=regime,
+                advantage=advantage,
+            )
+            mode_targets = (oracle_target < -self.mode_target_margin).to(dtype=mode_logits.dtype)
+            mode_loss = F.binary_cross_entropy_with_logits(mode_logits, mode_targets, reduction="none")
         if trade_pos_weight is not None:
             trade_w = torch.where(
                 trade_mask > 0.5,
@@ -462,6 +486,15 @@ class BCPretrainer:
         loss_terms = self.target_aux_coef * target_loss
         if self.trade_aux_coef > 0.0:
             loss_terms = loss_terms + self.trade_aux_coef * trade_loss
+        if mode_loss is not None:
+            if trade_pos_weight is not None:
+                mode_w = torch.where(
+                    trade_mask > 0.5,
+                    trade_pos_weight.to(device=mode_loss.device, dtype=mode_loss.dtype),
+                    torch.ones_like(mode_loss),
+                )
+                mode_loss = mode_loss * mode_w
+            loss_terms = loss_terms + self.mode_target_coef * mode_loss
         if target_dist_penalty is not None:
             loss_terms = loss_terms + self.target_dist_match_coef * target_dist_penalty
         if position_mean_penalty is not None:
@@ -485,6 +518,22 @@ class BCPretrainer:
                 )
                 band_penalty = band_penalty * band_sample_w
             loss_terms = loss_terms + self.band_aux_coef * band_penalty
+
+        if self.direct_band_target_coef > 0.0:
+            min_band = float(getattr(self.actor, "min_band", 0.02))
+            band_cap = min_band + float(getattr(self.actor, "max_band", 0.20))
+            trade_band_target = (target_gap - self.direct_band_margin).clamp(min=min_band, max=band_cap)
+            hold_band_target = (target_gap + self.direct_hold_band_margin).clamp(min=min_band, max=band_cap)
+            band_targets = torch.where(trade_mask > 0.5, trade_band_target, hold_band_target)
+            band_target_loss = F.smooth_l1_loss(band_width, band_targets, reduction="none")
+            if trade_pos_weight is not None:
+                band_target_w = torch.where(
+                    trade_mask > 0.5,
+                    trade_pos_weight.to(device=band_target_loss.device, dtype=band_target_loss.dtype),
+                    torch.ones_like(band_target_loss),
+                )
+                band_target_loss = band_target_loss * band_target_w
+            loss_terms = loss_terms + self.direct_band_target_coef * band_target_loss
 
         if self.execution_aux_coef > 0.0:
             execution_signal = trade_pred

@@ -407,6 +407,29 @@ class Actor(nn.Module):
         )
         return trade_logits, target_mean, target_std, band_width, current_inventory
 
+    def target_mode_logits(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
+        return self.target_mode_gate(hidden).squeeze(-1)
+
+    def target_mode_prob(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return torch.sigmoid(
+            self.target_mode_logits(z, h, inventory=inventory, regime=regime, advantage=advantage)
+        )
+
     def execution_logits(
         self,
         z: torch.Tensor,
