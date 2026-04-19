@@ -2,7 +2,7 @@ param(
   [string]$Start = "2020-01-01",
   [string]$End = "2024-01-01",
   [string]$Folds = "4",
-  [string]$Device = "cuda"
+  [string]$Device = "auto"
 )
 
 $ErrorActionPreference = "Stop"

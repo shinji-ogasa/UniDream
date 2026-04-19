@@ -3,7 +3,7 @@ param(
   [string]$CacheTag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
   [string]$Start = "2021-01-01",
   [string]$End = "2023-06-01",
-  [string]$Device = "cuda",
+  [string]$Device = "auto",
   [string]$OutputDir = "checkpoints\source_family_suite_free"
 )
 
@@ -14,10 +14,8 @@ Set-Location $root
 & powershell -ExecutionPolicy Bypass -File .\scripts\run_source_family_suite.ps1 `
   -CacheDir $CacheDir `
   -CacheTag $CacheTag `
-  -Start $Start `
-  -End $End `
   -Device $Device `
-  -OutputDir $OutputDir `
+  -SuiteDir $OutputDir `
   -SuiteConfig configs\source_rollout_suite_free.yaml `
   -SkipMissing $true
 

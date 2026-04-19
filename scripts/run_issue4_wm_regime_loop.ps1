@@ -5,7 +5,7 @@ param(
   [string]$CacheDir = "checkpoints/data_cache",
   [string]$CheckpointDir = "checkpoints",
   [string]$Folds = "4",
-  [string]$Device = "cuda",
+  [string]$Device = "auto",
   [double]$Ridge = 1e-2
 )
 

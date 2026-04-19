@@ -7,7 +7,7 @@ param(
   [string]$Interval = "15m",
   [string]$Start = "2021-01-01",
   [string]$End = "2023-06-01",
-  [string]$Device = "cuda",
+  [string]$Device = "auto",
   [string]$OutputDir = "checkpoints\source_family_suite_free"
 )
 

@@ -3,6 +3,7 @@ param(
   [string]$CacheTag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
   [string]$Interval = "15m",
   [string]$Folds = "4",
+  [string]$Device = "auto",
   [bool]$SkipMissing = $true,
   [string]$SuiteConfig = "configs\\source_rollout_suite.yaml",
   [string[]]$Configs = @(),
@@ -48,7 +49,7 @@ foreach ($Config in $Configs) {
   & $Python train_risk_controller.py `
     --config $Config `
     --folds $Folds `
-    --device cuda `
+    --device $Device `
     --checkpoint_dir $RunDir `
     --data_cache_dir $CacheDir
 }

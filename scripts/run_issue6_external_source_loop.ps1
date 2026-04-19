@@ -3,7 +3,7 @@ param(
   [string]$CacheTag = "BTCUSDT_15m_2021-01-01_2023-06-01_z60_v2",
   [string]$Start = "2021-01-01",
   [string]$End = "2023-06-01",
-  [string]$Device = "cuda",
+  [string]$Device = "auto",
   [string]$OutputDir = "checkpoints\\source_family_suite_free"
 )
 

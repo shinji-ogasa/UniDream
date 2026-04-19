@@ -1,7 +1,8 @@
 param(
   [string]$Manifest = "configs\\source_manifest_example.yaml",
   [string]$RiskConfig = "configs\\smoke_risk_controller_v8_orderflow_ctx.yaml",
-  [string]$Folds = "4"
+  [string]$Folds = "4",
+  [string]$Device = "auto"
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,6 +32,6 @@ Write-Host "[3/3] Running external-series risk probe..."
 & $Python train_risk_controller.py `
   --config $RiskConfig `
   --folds $Folds `
-  --device cuda `
+  --device $Device `
   --checkpoint_dir checkpoints\\manifest_external_risk_probe `
   --data_cache_dir $CacheDir

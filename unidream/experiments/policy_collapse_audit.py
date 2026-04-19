@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from unidream.actor_critic.imagination_ac import _action_stats
 from unidream.data.dataset import WFODataset
+from unidream.device import resolve_device
 from unidream.data.oracle import _forward_window_stats
 
 from .bc_setup import prepare_bc_setup
@@ -36,7 +37,7 @@ def _rollout_head_metrics(
     regime_probs: np.ndarray | None,
     device: str,
 ) -> dict[str, np.ndarray | float]:
-    dev = torch.device(device)
+    dev = torch.device(resolve_device(device))
     z_t = torch.as_tensor(z, dtype=torch.float32, device=dev)
     h_t = torch.as_tensor(h, dtype=torch.float32, device=dev)
     regime_t = None

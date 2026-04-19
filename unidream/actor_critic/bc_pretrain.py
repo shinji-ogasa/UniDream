@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from unidream.actor_critic.actor import Actor
+from unidream.device import resolve_device
 from unidream.data.oracle import smooth_aim_positions
 
 class SIRLWeightNet(nn.Module):
@@ -171,7 +172,7 @@ class BCPretrainer:
         device: str = "cpu",
     ):
         self.actor = actor
-        self.device = torch.device(device)
+        self.device = torch.device(resolve_device(device))
         self.actor.to(self.device)
         self.n_epochs = n_epochs
         self.batch_size = batch_size

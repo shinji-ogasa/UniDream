@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Bernoulli, Normal, RelaxedBernoulli
 
+from unidream.device import resolve_device
 from unidream.data.oracle import N_ACTIONS
 
 
@@ -797,7 +798,7 @@ class Actor(nn.Module):
         del temperature
         was_training = self.training
         self.eval()
-        dev = torch.device(device)
+        dev = torch.device(resolve_device(device))
         z = torch.tensor(z_np, dtype=torch.float32, device=dev)
         h = torch.tensor(h_np, dtype=torch.float32, device=dev)
         regime = None

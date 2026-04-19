@@ -5,7 +5,8 @@ param(
   [string]$End = "2023-06-01",
   [string]$CacheDir = "checkpoints\\basis_source_cache",
   [string]$RiskConfig = "configs\\smoke_risk_controller_v6_orderflow.yaml",
-  [string]$Folds = "4"
+  [string]$Folds = "4",
+  [string]$Device = "auto"
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,6 +27,6 @@ Write-Host "[2/2] Running external-series risk probe..."
   --start $Start `
   --end $End `
   --folds $Folds `
-  --device cuda `
+  --device $Device `
   --checkpoint_dir checkpoints\\external_series_risk_probe `
   --data_cache_dir $CacheDir

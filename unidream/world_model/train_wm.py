@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from unidream.data.dataset import SequenceDataset
+from unidream.device import resolve_device
 from unidream.world_model.ensemble import EnsembleWorldModel
 
 
@@ -130,7 +131,7 @@ class WorldModelTrainer:
         device: str = "cpu",
     ):
         self.ensemble = ensemble
-        self.device = torch.device(device)
+        self.device = torch.device(resolve_device(device))
         self.ensemble.to(self.device)
         cfg = cfg or {}
         wm_cfg = cfg.get("world_model", {})

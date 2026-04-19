@@ -6,7 +6,8 @@ param(
   [string]$CacheDir = "checkpoints\\basis_source_cache",
   [string]$TrainConfig = "configs\\smoke_signal_teacher_v21_basis_source.yaml",
   [string]$RiskConfig = "configs\\smoke_risk_controller_v5_basis.yaml",
-  [string]$Folds = "4"
+  [string]$Folds = "4",
+  [string]$Device = "auto"
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,7 +29,7 @@ Write-Host "[2/3] Rebuilding basis-aware training cache..."
   --symbol $Symbol `
   --start $Start `
   --end $End `
-  --device cuda `
+  --device $Device `
   --stop-after bc `
   --folds $Folds `
   --checkpoint_dir checkpoints\\basis_source_train `
@@ -40,6 +41,6 @@ Write-Host "[3/3] Running basis-aware risk probe..."
   --start $Start `
   --end $End `
   --folds $Folds `
-  --device cuda `
+  --device $Device `
   --checkpoint_dir checkpoints\\basis_source_risk_probe `
   --data_cache_dir $CacheDir

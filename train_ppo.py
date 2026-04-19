@@ -6,7 +6,7 @@ UniDream（世界モデル + AC）との比較対象として使用する。
 Usage:
     python train_ppo.py [--config configs/trading.yaml]
                         [--symbol BTCUSDT] [--start 2018-01-01] [--end 2024-01-01]
-                        [--device cpu] [--seed 42] [--resume]
+                        [--device auto] [--seed 42] [--resume]
 """
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ import yaml
 from unidream.data.download import fetch_binance_ohlcv
 from unidream.data.features import compute_features, get_raw_returns
 from unidream.data.dataset import get_wfo_splits, WFODataset
+from unidream.device import add_device_argument, resolve_device
 from unidream.baselines.ppo import PPOTrainer, TradingEnv
 from unidream.eval.backtest import Backtest
 from unidream.eval.pbo import compute_pbo
@@ -71,7 +72,7 @@ def main():
     parser.add_argument("--symbol", default=None)
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/ppo")
     parser.add_argument("--cost-profile", default=None,
@@ -79,6 +80,7 @@ def main():
     parser.add_argument("--resume", action="store_true",
                         help="保存済みチェックポイントから再開する")
     args = parser.parse_args()
+    args.device = resolve_device(args.device)
 
     with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from unidream.device import add_device_argument, resolve_device
 from unidream.experiments.bc_prior_audit import run_bc_prior_audit
 from unidream.experiments.runtime import load_config, set_seed
 
@@ -17,13 +18,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--raw-cache-dir", default=None)
     p.add_argument("--checkpoint-dir", required=True)
     p.add_argument("--folds", default=None)
-    p.add_argument("--device", default="cuda")
+    add_device_argument(p)
     p.add_argument("--seed", type=int, default=42)
     return p
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    args.device = resolve_device(args.device)
     cfg = load_config(args.config)
     set_seed(args.seed)
 

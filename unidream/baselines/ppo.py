@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.data import DataLoader, TensorDataset
 
+from unidream.device import resolve_device
 from unidream.data.oracle import ACTIONS
 
 
@@ -241,7 +242,7 @@ class PPOTrainer:
         grad_clip: float = 0.5,
         device: str = "cpu",
     ):
-        self.device = torch.device(device)
+        self.device = torch.device(resolve_device(device))
         self.actor = PPOActor(obs_dim, act_dim, hidden_dim).to(self.device)
         self.critic = PPOCritic(obs_dim, hidden_dim).to(self.device)
         self.optimizer = torch.optim.Adam(

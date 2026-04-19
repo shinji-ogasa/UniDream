@@ -33,6 +33,7 @@ import torch.nn.functional as F
 
 from unidream.actor_critic.actor import Actor
 from unidream.actor_critic.critic import Critic, RewardEMANorm
+from unidream.device import resolve_device
 from unidream.world_model.ensemble import EnsembleWorldModel
 from unidream.world_model.transformer import symlog, symexp, twohot_decode, twohot_encode
 
@@ -122,7 +123,7 @@ class ImagACTrainer:
         self.actor = actor
         self.critic = critic
         self.ensemble = ensemble
-        self.device = torch.device(device)
+        self.device = torch.device(resolve_device(device))
 
         self.actor.to(self.device)
         self.critic.to(self.device)

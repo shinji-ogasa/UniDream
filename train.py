@@ -14,7 +14,7 @@ SPEC.md の実装順序に従って以下を実行する:
 Usage:
     python train.py [--config configs/trading.yaml] [--symbol BTCUSDT]
                     [--start 2018-01-01] [--end 2024-01-01]
-                    [--device cuda] [--seed 42] [--resume]
+                    [--device auto] [--seed 42] [--resume]
 """
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ from unidream.data.features import compute_features, get_raw_returns
 from unidream.data.oracle import _forward_window_stats, oracle_to_dataset
 from unidream.data.dataset import WFODataset, SequenceDataset
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts_ascii as _ac_alerts
+from unidream.device import add_device_argument, resolve_device
 from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.experiments.runtime import load_config, resolve_costs, set_seed
 from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
@@ -637,7 +638,7 @@ def main():
     parser.add_argument("--symbol", default=None, help="Binance symbol (overrides config)")
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints")
     parser.add_argument("--resume", action="store_true",
@@ -665,6 +666,7 @@ def main():
         help="Comma-separated fold indices to run (for example: 0,1,4)",
     )
     args = parser.parse_args()
+    args.device = resolve_device(args.device)
 
     if stage_idx(args.start_from) > stage_idx(args.stop_after):
         parser.error("--start-from must be earlier than or equal to --stop-after")

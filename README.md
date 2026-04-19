@@ -75,7 +75,7 @@ issue ごとのメモ:
 設定: [configs/medium_v2.yaml](configs/medium_v2.yaml)  
 期間: `2020-01-01 -> 2024-01-01`  
 WFO: `6 folds`  
-実行: `cuda`
+実行: `auto`（CUDA 環境では `cuda`、Apple Silicon では `mps`）
 
 #### Aggregate
 
@@ -216,6 +216,9 @@ cd UniDream
 uv sync
 ```
 
+Apple Silicon では `uv sync` で標準の PyTorch wheel を入れ、実行時デバイスは `--device auto` か `--device mps` を使います。
+実行時デバイスの共通管理は [unidream/device.py](unidream/device.py) に寄せています。
+
 ---
 
 ## 使い方
@@ -233,16 +236,16 @@ uv run python train.py
 uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
 
 # medium_v2 を全 fold 実行
-uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --device cuda
+uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --device auto
 
 # resume
-uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --device cuda --resume
+uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --device auto --resume
 
 # 特定 fold のみ
-uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --folds 0,1,4 --device cuda
+uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --folds 0,1,4 --device auto
 
 # checkpoint から test だけ再実行
-uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --start-from test --stop-after test --resume --device cuda
+uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 2024-01-01 --start-from test --stop-after test --resume --device auto
 ```
 
 主なオプション:
@@ -251,7 +254,7 @@ uv run python train.py --config configs/medium_v2.yaml --start 2020-01-01 --end 
 |---|---|
 | `--config` | 設定ファイル |
 | `--start` / `--end` | 実験期間 |
-| `--device` | `cuda` または `cpu` |
+| `--device` | `auto` / `mps` / `cuda` / `cpu` |
 | `--resume` | 既存 checkpoint から再開 |
 | `--start-from` | `wm / bc / ac / test` のどこから再開するか |
 | `--stop-after` | `wm / bc / ac / test` のどこで止めるか |

@@ -11,6 +11,7 @@ import yaml
 
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats
 from unidream.data.dataset import get_wfo_splits, WFODataset
+from unidream.device import add_device_argument, resolve_device
 from unidream.eval.backtest import Backtest
 from unidream.experiments.m2 import (
     benchmark_position_value as _benchmark_position_value,
@@ -228,13 +229,14 @@ def main() -> None:
     parser.add_argument("--config", required=True)
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/risk_controller")
     parser.add_argument("--folds", default=None)
     parser.add_argument("--cost-profile", default=None)
     parser.add_argument("--data_cache_dir", default="checkpoints/data_cache")
     args = parser.parse_args()
+    args.device = resolve_device(args.device)
 
     with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)

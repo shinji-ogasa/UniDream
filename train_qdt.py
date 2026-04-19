@@ -19,6 +19,7 @@ import yaml
 from unidream.data.download import fetch_binance_ohlcv
 from unidream.data.features import compute_features, get_raw_returns, augment_with_rebound_features
 from unidream.data.dataset import get_wfo_splits, WFODataset
+from unidream.device import add_device_argument, resolve_device
 from unidream.data.oracle import hindsight_oracle_dp, ACTIONS as _ACTIONS
 from unidream.eval.backtest import Backtest
 from unidream.eval.pbo import compute_pbo
@@ -121,8 +122,9 @@ class QDTModel(nn.Module):
 
 class QDTTrainer:
     def __init__(self, model: QDTModel, lr: float = 1e-4, device: str = "cpu"):
-        self.model = model.to(device)
-        self.device = torch.device(device)
+        resolved_device = resolve_device(device)
+        self.device = torch.device(resolved_device)
+        self.model = model.to(self.device)
         self.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     def train(self, obs_seqs: np.ndarray, rtg_seqs: np.ndarray,
@@ -211,7 +213,7 @@ def main():
     parser.add_argument("--symbol", default=None)
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint_dir", default="checkpoints/qdt")
     parser.add_argument("--folds", default=None)
@@ -221,6 +223,7 @@ def main():
                         help="メインの train.py と同じキャッシュを共有する場合に指定")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
+    args.device = resolve_device(args.device)
 
     with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
