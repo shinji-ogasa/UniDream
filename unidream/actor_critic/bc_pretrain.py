@@ -178,6 +178,10 @@ class BCPretrainer:
         band_aux_trade_only: bool = False,
         direct_band_trade_only: bool = False,
         direct_band_gap_min: float = 0.0,
+        recovery_trade_coef: float = 0.0,
+        recovery_band_coef: float = 0.0,
+        recovery_underweight_margin: float = 0.05,
+        recovery_target_margin: float = 0.05,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         device: str = "cpu",
@@ -247,6 +251,10 @@ class BCPretrainer:
         self.band_aux_trade_only = bool(band_aux_trade_only)
         self.direct_band_trade_only = bool(direct_band_trade_only)
         self.direct_band_gap_min = float(max(direct_band_gap_min, 0.0))
+        self.recovery_trade_coef = float(max(recovery_trade_coef, 0.0))
+        self.recovery_band_coef = float(max(recovery_band_coef, 0.0))
+        self.recovery_underweight_margin = float(max(recovery_underweight_margin, 0.0))
+        self.recovery_target_margin = float(max(recovery_target_margin, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
 
@@ -478,7 +486,31 @@ class BCPretrainer:
 
         trade_pred = torch.sigmoid(trade_logits)
         trade_loss = F.smooth_l1_loss(trade_pred, trade_targets, reduction="none")
+        recovery_trade_loss = None
+        recovery_band_loss = None
         mode_loss = None
+        if self.recovery_trade_coef > 0.0 or self.recovery_band_coef > 0.0:
+            recovery_from_underweight = current_inventory < -self.recovery_underweight_margin
+            recovery_to_benchmark = oracle_target > (current_inventory + self.recovery_target_margin)
+            underweight_recovery_mask = recovery_from_underweight & recovery_to_benchmark
+            recovery_mask_f = self._normalized_mask(underweight_recovery_mask.to(trade_logits.dtype))
+            if self.recovery_trade_coef > 0.0:
+                recovery_trade_targets = torch.ones_like(trade_logits)
+                recovery_trade_loss = F.binary_cross_entropy_with_logits(
+                    trade_logits,
+                    recovery_trade_targets,
+                    reduction="none",
+                )
+                recovery_trade_loss = recovery_trade_loss * recovery_mask_f
+            if self.recovery_band_coef > 0.0:
+                min_band = float(getattr(self.actor, "min_band", 0.02))
+                recovery_band_targets = torch.full_like(band_width, min_band)
+                recovery_band_loss = F.smooth_l1_loss(
+                    band_width,
+                    recovery_band_targets,
+                    reduction="none",
+                )
+                recovery_band_loss = recovery_band_loss * recovery_mask_f
         if (
             self.mode_target_coef > 0.0
             and bool(getattr(self.actor, "use_dual_regime_target_bias", False))
@@ -516,6 +548,8 @@ class BCPretrainer:
         loss_terms = self.target_aux_coef * target_loss
         if self.trade_aux_coef > 0.0:
             loss_terms = loss_terms + self.trade_aux_coef * trade_loss
+        if recovery_trade_loss is not None:
+            loss_terms = loss_terms + self.recovery_trade_coef * recovery_trade_loss
         if mode_loss is not None:
             if trade_pos_weight is not None:
                 mode_w = torch.where(
@@ -533,6 +567,8 @@ class BCPretrainer:
             loss_terms = loss_terms + self.target_regime_dist_match_coef * target_regime_penalty
         if short_mass_penalty is not None:
             loss_terms = loss_terms + self.short_mass_match_coef * short_mass_penalty
+        if recovery_band_loss is not None:
+            loss_terms = loss_terms + self.recovery_band_coef * recovery_band_loss
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05
