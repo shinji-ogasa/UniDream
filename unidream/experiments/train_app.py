@@ -16,6 +16,22 @@ from .train_reporting import (
 from .wfo_runtime import build_wfo_splits, select_wfo_splits
 
 
+def resolve_cache_dir(checkpoint_dir: str, cfg: dict) -> str:
+    logging_cfg = cfg.get("logging", {})
+    if logging_cfg.get("cache_dir"):
+        return str(logging_cfg["cache_dir"])
+
+    candidate_dirs = [
+        os.path.join(checkpoint_dir, "data_cache"),
+        os.path.join(os.path.dirname(checkpoint_dir), "data_cache"),
+        "checkpoints/data_cache",
+    ]
+    for path in candidate_dirs:
+        if os.path.exists(path):
+            return path
+    return candidate_dirs[0]
+
+
 def run_training_app(
     *,
     args,
@@ -46,7 +62,7 @@ def run_training_app(
         f"=> one-way Δpos=1 cost={total_cost_bps:.2f}bps"
     )
 
-    cache_dir = os.path.join(args.checkpoint_dir, "data_cache")
+    cache_dir = resolve_cache_dir(args.checkpoint_dir, cfg)
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
     data_cfg = cfg.get("data", {})

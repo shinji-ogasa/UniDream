@@ -640,7 +640,7 @@ def main():
     parser.add_argument("--end", default="2024-01-01")
     add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--checkpoint_dir", default="checkpoints")
+    parser.add_argument("--checkpoint_dir", default=None)
     parser.add_argument("--resume", action="store_true",
                         help="保存済みチェックポイントから再開する")
     parser.add_argument(
@@ -673,6 +673,8 @@ def main():
 
     cfg = load_config(args.config)
     cfg, active_cost_profile = resolve_costs(cfg, args.cost_profile)
+    if args.checkpoint_dir is None:
+        args.checkpoint_dir = cfg.get("logging", {}).get("checkpoint_dir", "checkpoints")
     set_seed(args.seed)
     run_training_app(
         args=args,
