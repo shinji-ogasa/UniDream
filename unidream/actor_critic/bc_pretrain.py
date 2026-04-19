@@ -169,9 +169,15 @@ class BCPretrainer:
         short_mass_match_coef: float = 0.0,
         mode_target_coef: float = 0.0,
         mode_target_margin: float = 0.05,
+        mode_target_neutral_margin: float = 0.0,
+        mode_target_gap_min: float = 0.0,
+        mode_target_positive_only: bool = False,
         direct_band_target_coef: float = 0.0,
         direct_band_margin: float = 0.05,
         direct_hold_band_margin: float = 0.02,
+        band_aux_trade_only: bool = False,
+        direct_band_trade_only: bool = False,
+        direct_band_gap_min: float = 0.0,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         device: str = "cpu",
@@ -232,9 +238,15 @@ class BCPretrainer:
         self.short_mass_match_coef = float(max(short_mass_match_coef, 0.0))
         self.mode_target_coef = float(max(mode_target_coef, 0.0))
         self.mode_target_margin = float(max(mode_target_margin, 0.0))
+        self.mode_target_neutral_margin = float(max(mode_target_neutral_margin, 0.0))
+        self.mode_target_gap_min = float(max(mode_target_gap_min, 0.0))
+        self.mode_target_positive_only = bool(mode_target_positive_only)
         self.direct_band_target_coef = float(max(direct_band_target_coef, 0.0))
         self.direct_band_margin = float(max(direct_band_margin, 0.0))
         self.direct_hold_band_margin = float(max(direct_hold_band_margin, 0.0))
+        self.band_aux_trade_only = bool(band_aux_trade_only)
+        self.direct_band_trade_only = bool(direct_band_trade_only)
+        self.direct_band_gap_min = float(max(direct_band_gap_min, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
 
@@ -248,6 +260,11 @@ class BCPretrainer:
             params = list(actor.parameters())
 
         self.optimizer = torch.optim.Adam(params, lr=lr)
+
+    @staticmethod
+    def _normalized_mask(mask: torch.Tensor) -> torch.Tensor:
+        mask = mask.to(dtype=torch.float32)
+        return mask / mask.mean().clamp_min(1e-6)
 
     def _mixed_controller_states(
         self,
@@ -473,8 +490,21 @@ class BCPretrainer:
                 regime=regime,
                 advantage=advantage,
             )
-            mode_targets = (oracle_target < -self.mode_target_margin).to(dtype=mode_logits.dtype)
+            positive_mode_mask = oracle_target < -self.mode_target_margin
+            if self.mode_target_positive_only:
+                mode_supervision_mask = positive_mode_mask
+            else:
+                neutral_margin = self.mode_target_neutral_margin
+                if neutral_margin > 0.0:
+                    neutral_mode_mask = oracle_target > -neutral_margin
+                    mode_supervision_mask = positive_mode_mask | neutral_mode_mask
+                else:
+                    mode_supervision_mask = torch.ones_like(positive_mode_mask, dtype=torch.bool)
+            if self.mode_target_gap_min > 0.0:
+                mode_supervision_mask = mode_supervision_mask & (target_gap >= self.mode_target_gap_min)
+            mode_targets = positive_mode_mask.to(dtype=mode_logits.dtype)
             mode_loss = F.binary_cross_entropy_with_logits(mode_logits, mode_targets, reduction="none")
+            mode_loss = mode_loss * self._normalized_mask(mode_supervision_mask.to(mode_loss.dtype))
         if trade_pos_weight is not None:
             trade_w = torch.where(
                 trade_mask > 0.5,
@@ -508,8 +538,14 @@ class BCPretrainer:
             trade_margin = 0.05
             hold_band_min = 0.05
             trade_penalty = F.softplus(band_width - (target_gap - trade_margin).clamp(min=0.0))
-            hold_penalty = F.softplus(hold_band_min - band_width)
-            band_penalty = torch.where(trade_mask > 0.5, trade_penalty, hold_penalty)
+            if self.band_aux_trade_only:
+                band_mask = trade_mask
+                if self.direct_band_gap_min > 0.0:
+                    band_mask = band_mask * (target_gap >= self.direct_band_gap_min).to(trade_mask.dtype)
+                band_penalty = trade_penalty * self._normalized_mask(band_mask)
+            else:
+                hold_penalty = F.softplus(hold_band_min - band_width)
+                band_penalty = torch.where(trade_mask > 0.5, trade_penalty, hold_penalty)
             if trade_pos_weight is not None:
                 band_sample_w = torch.where(
                     trade_mask > 0.5,
@@ -523,9 +559,17 @@ class BCPretrainer:
             min_band = float(getattr(self.actor, "min_band", 0.02))
             band_cap = min_band + float(getattr(self.actor, "max_band", 0.20))
             trade_band_target = (target_gap - self.direct_band_margin).clamp(min=min_band, max=band_cap)
-            hold_band_target = (target_gap + self.direct_hold_band_margin).clamp(min=min_band, max=band_cap)
-            band_targets = torch.where(trade_mask > 0.5, trade_band_target, hold_band_target)
+            if self.direct_band_trade_only:
+                band_targets = trade_band_target
+                band_target_mask = trade_mask
+                if self.direct_band_gap_min > 0.0:
+                    band_target_mask = band_target_mask * (target_gap >= self.direct_band_gap_min).to(trade_mask.dtype)
+            else:
+                hold_band_target = (target_gap + self.direct_hold_band_margin).clamp(min=min_band, max=band_cap)
+                band_targets = torch.where(trade_mask > 0.5, trade_band_target, hold_band_target)
+                band_target_mask = torch.ones_like(trade_mask)
             band_target_loss = F.smooth_l1_loss(band_width, band_targets, reduction="none")
+            band_target_loss = band_target_loss * self._normalized_mask(band_target_mask)
             if trade_pos_weight is not None:
                 band_target_w = torch.where(
                     trade_mask > 0.5,
