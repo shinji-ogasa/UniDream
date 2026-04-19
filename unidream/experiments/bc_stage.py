@@ -73,6 +73,8 @@ def build_bc_trainer(
         direct_band_gap_min=bc_cfg.get("direct_band_gap_min", 0.0),
         recovery_trade_coef=bc_cfg.get("recovery_trade_coef", 0.0),
         recovery_band_coef=bc_cfg.get("recovery_band_coef", 0.0),
+        recovery_target_coef=bc_cfg.get("recovery_target_coef", 0.0),
+        recovery_execution_coef=bc_cfg.get("recovery_execution_coef", 0.0),
         recovery_underweight_margin=bc_cfg.get("recovery_underweight_margin", 0.05),
         recovery_target_margin=bc_cfg.get("recovery_target_margin", 0.05),
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),

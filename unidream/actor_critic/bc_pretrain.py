@@ -180,6 +180,8 @@ class BCPretrainer:
         direct_band_gap_min: float = 0.0,
         recovery_trade_coef: float = 0.0,
         recovery_band_coef: float = 0.0,
+        recovery_target_coef: float = 0.0,
+        recovery_execution_coef: float = 0.0,
         recovery_underweight_margin: float = 0.05,
         recovery_target_margin: float = 0.05,
         sample_quality_coef: float = 0.0,
@@ -253,6 +255,8 @@ class BCPretrainer:
         self.direct_band_gap_min = float(max(direct_band_gap_min, 0.0))
         self.recovery_trade_coef = float(max(recovery_trade_coef, 0.0))
         self.recovery_band_coef = float(max(recovery_band_coef, 0.0))
+        self.recovery_target_coef = float(max(recovery_target_coef, 0.0))
+        self.recovery_execution_coef = float(max(recovery_execution_coef, 0.0))
         self.recovery_underweight_margin = float(max(recovery_underweight_margin, 0.0))
         self.recovery_target_margin = float(max(recovery_target_margin, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
@@ -476,6 +480,19 @@ class BCPretrainer:
                 pred_short_mass = pred_probs[:, short_mask].sum(dim=-1)
                 target_short_mass = target_soft_labels[:, short_mask].sum(dim=-1)
                 short_mass_penalty = torch.abs(pred_short_mass - target_short_mass).mean()
+        recovery_mask_f = None
+        if (
+            self.recovery_trade_coef > 0.0
+            or self.recovery_band_coef > 0.0
+            or self.recovery_target_coef > 0.0
+            or self.recovery_execution_coef > 0.0
+        ):
+            recovery_from_underweight = current_inventory < -self.recovery_underweight_margin
+            recovery_to_benchmark = oracle_target > (current_inventory + self.recovery_target_margin)
+            underweight_recovery_mask = recovery_from_underweight & recovery_to_benchmark
+            recovery_mask_f = self._normalized_mask(underweight_recovery_mask.to(target_loss.dtype))
+            if self.recovery_target_coef > 0.0:
+                target_loss = target_loss + self.recovery_target_coef * target_reg_loss * recovery_mask_f
         if trade_pos_weight is not None:
             target_w = torch.where(
                 trade_mask > 0.5,
@@ -489,11 +506,7 @@ class BCPretrainer:
         recovery_trade_loss = None
         recovery_band_loss = None
         mode_loss = None
-        if self.recovery_trade_coef > 0.0 or self.recovery_band_coef > 0.0:
-            recovery_from_underweight = current_inventory < -self.recovery_underweight_margin
-            recovery_to_benchmark = oracle_target > (current_inventory + self.recovery_target_margin)
-            underweight_recovery_mask = recovery_from_underweight & recovery_to_benchmark
-            recovery_mask_f = self._normalized_mask(underweight_recovery_mask.to(trade_logits.dtype))
+        if recovery_mask_f is not None:
             if self.recovery_trade_coef > 0.0:
                 recovery_trade_targets = torch.ones_like(trade_logits)
                 recovery_trade_loss = F.binary_cross_entropy_with_logits(
@@ -637,6 +650,8 @@ class BCPretrainer:
                 oracle_target,
                 reduction="none",
             )
+            if recovery_mask_f is not None and self.recovery_execution_coef > 0.0:
+                execution_loss = execution_loss + self.recovery_execution_coef * execution_loss * recovery_mask_f
             if trade_pos_weight is not None:
                 exec_w = torch.where(
                     trade_mask > 0.5,
