@@ -106,6 +106,8 @@ bc:
   mode_target_margin: 0.10
   mode_target_neutral_margin: 0.02
   mode_target_gap_min: 0.10
+  mode_rate_match_coef: 1.50
+  mode_regime_rate_match_coef: 0.75
   dual_head_anchor_coef: 0.25
   dual_head_underweight_coef: 0.50
   dual_head_separation_coef: 0.10

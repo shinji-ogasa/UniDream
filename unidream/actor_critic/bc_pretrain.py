@@ -174,6 +174,8 @@ class BCPretrainer:
         mode_target_neutral_margin: float = 0.0,
         mode_target_gap_min: float = 0.0,
         mode_target_positive_only: bool = False,
+        mode_rate_match_coef: float = 0.0,
+        mode_regime_rate_match_coef: float = 0.0,
         dual_head_anchor_coef: float = 0.0,
         dual_head_underweight_coef: float = 0.0,
         dual_head_separation_coef: float = 0.0,
@@ -257,6 +259,8 @@ class BCPretrainer:
         self.mode_target_neutral_margin = float(max(mode_target_neutral_margin, 0.0))
         self.mode_target_gap_min = float(max(mode_target_gap_min, 0.0))
         self.mode_target_positive_only = bool(mode_target_positive_only)
+        self.mode_rate_match_coef = float(max(mode_rate_match_coef, 0.0))
+        self.mode_regime_rate_match_coef = float(max(mode_regime_rate_match_coef, 0.0))
         self.dual_head_anchor_coef = float(max(dual_head_anchor_coef, 0.0))
         self.dual_head_underweight_coef = float(max(dual_head_underweight_coef, 0.0))
         self.dual_head_separation_coef = float(max(dual_head_separation_coef, 0.0))
@@ -553,6 +557,8 @@ class BCPretrainer:
         recovery_trade_loss = None
         recovery_band_loss = None
         mode_loss = None
+        mode_rate_penalty = None
+        mode_regime_rate_penalty = None
         dual_head_anchor_loss = None
         dual_head_underweight_loss = None
         dual_head_separation_loss = None
@@ -603,6 +609,25 @@ class BCPretrainer:
             mode_targets = positive_mode_mask.to(dtype=mode_logits.dtype)
             mode_loss = F.binary_cross_entropy_with_logits(mode_logits, mode_targets, reduction="none")
             mode_loss = mode_loss * self._normalized_mask(mode_supervision_mask.to(mode_loss.dtype))
+            mode_probs = torch.sigmoid(mode_logits)
+            if self.mode_rate_match_coef > 0.0:
+                supervised_mask = mode_supervision_mask.to(mode_probs.dtype)
+                supervised_denom = supervised_mask.sum().clamp_min(1.0)
+                pred_mode_rate = (mode_probs * supervised_mask).sum() / supervised_denom
+                target_mode_rate = (mode_targets * supervised_mask).sum() / supervised_denom
+                mode_rate_penalty = torch.abs(pred_mode_rate - target_mode_rate)
+            if (
+                self.mode_regime_rate_match_coef > 0.0
+                and regime is not None
+                and regime.ndim == 2
+                and regime.shape[-1] > 0
+            ):
+                supervised_mask = mode_supervision_mask.to(mode_probs.dtype)
+                regime_w = regime.to(dtype=mode_probs.dtype) * supervised_mask.unsqueeze(-1)
+                denom = regime_w.sum(dim=0).clamp_min(1e-6)
+                pred_regime_rate = (regime_w * mode_probs.unsqueeze(-1)).sum(dim=0) / denom
+                target_regime_rate = (regime_w * mode_targets.unsqueeze(-1)).sum(dim=0) / denom
+                mode_regime_rate_penalty = torch.abs(pred_regime_rate - target_regime_rate).mean()
         if (
             bool(getattr(self.actor, "use_dual_residual_controller", False))
             and (
@@ -667,6 +692,10 @@ class BCPretrainer:
                 )
                 mode_loss = mode_loss * mode_w
             loss_terms = loss_terms + self.mode_target_coef * mode_loss
+        if mode_rate_penalty is not None:
+            loss_terms = loss_terms + self.mode_rate_match_coef * mode_rate_penalty
+        if mode_regime_rate_penalty is not None:
+            loss_terms = loss_terms + self.mode_regime_rate_match_coef * mode_regime_rate_penalty
         if dual_head_anchor_loss is not None:
             loss_terms = loss_terms + self.dual_head_anchor_coef * dual_head_anchor_loss
         if dual_head_underweight_loss is not None:
