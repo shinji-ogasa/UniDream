@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import math
+
+import numpy as np
+import torch
+
 from unidream.actor_critic.bc_pretrain import BCPretrainer
 
 
@@ -95,6 +100,35 @@ def build_bc_trainer(
     )
 
 
+def _reinitialize_actor_prefixes(actor, prefixes: list[str] | tuple[str, ...]) -> None:
+    prefix_tuple = tuple(prefixes)
+    if not prefix_tuple:
+        return
+    for name, module in actor.named_modules():
+        if not name or not any(name.startswith(prefix) for prefix in prefix_tuple):
+            continue
+        if hasattr(module, "reset_parameters"):
+            module.reset_parameters()
+    if any(prefix.startswith("target_mode_gate") for prefix in prefix_tuple):
+        torch.nn.init.constant_(actor.target_mode_gate.bias, -0.5)
+        torch.nn.init.zeros_(actor.target_mode_gate.weight)
+    residual_min = float(getattr(actor, "residual_min_overlay", -1.0))
+    residual_max = float(getattr(actor, "residual_max_overlay", 0.0))
+    if residual_max > residual_min + 1e-6:
+        init_overlay = float(getattr(actor, "residual_init_overlay", 0.0))
+        init_frac = np.clip((init_overlay - residual_min) / (residual_max - residual_min), 1e-4, 1.0 - 1e-4)
+        residual_bias = float(math.log(init_frac / (1.0 - init_frac)))
+        if any(prefix.startswith("residual_head_b") for prefix in prefix_tuple):
+            torch.nn.init.constant_(actor.residual_head_b.bias, residual_bias)
+            torch.nn.init.zeros_(actor.residual_head_b.weight)
+        if any(prefix.startswith("residual_head_a") for prefix in prefix_tuple):
+            bench_overlay = 0.0
+            bench_frac = np.clip((bench_overlay - residual_min) / (residual_max - residual_min), 1e-4, 1.0 - 1e-4)
+            bench_bias = float(math.log(bench_frac / (1.0 - bench_frac)))
+            torch.nn.init.constant_(actor.residual_head_a.bias, bench_bias)
+            torch.nn.init.zeros_(actor.residual_head_a.weight)
+
+
 def run_bc_stage(
     *,
     actor,
@@ -136,6 +170,9 @@ def run_bc_stage(
         if init_bc_path:
             print(f"\n[{log_ts()}] [Step 3] BC - warm start from: {init_bc_path}")
             bc_trainer.load(init_bc_path)
+        reinit_prefixes = bc_cfg.get("reinit_actor_prefixes", [])
+        if reinit_prefixes:
+            _reinitialize_actor_prefixes(actor, reinit_prefixes)
         print(f"\n[{log_ts()}] [Step 3] BC Pre-training...")
         t_enc = min(len(z_train), len(oracle_positions))
         bc_trainer.train(
