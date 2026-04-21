@@ -1,11 +1,99 @@
 import numpy as np
 
 from unidream.data.oracle import ACTIONS as DEFAULT_ACTIONS
+from unidream.data.oracle import feature_stress_teacher
 
 from .oracle_post import apply_oracle_postprocess
 from .oracle_stage import compute_base_oracle
 from .oracle_teacher import compute_teacher_oracle
 from .regime_runtime import fit_fold_regimes
+
+
+def _append_exogenous_stress_signal(
+    regime_probs: np.ndarray | None,
+    *,
+    train_features,
+    fold_features,
+    feature_columns,
+    oracle_cfg: dict,
+    benchmark_position: float,
+    abs_min_position: float,
+    abs_max_position: float,
+    train_signal_stats: tuple[float, float] | None = None,
+) -> tuple[np.ndarray, tuple[float, float]]:
+    _positions_train, train_signal = feature_stress_teacher(
+        train_features,
+        feature_columns=feature_columns,
+        benchmark_position=benchmark_position,
+        min_position=oracle_cfg.get("stress_floor_position", abs_min_position),
+        max_position=oracle_cfg.get("stress_ceiling_position", abs_max_position),
+        fast_vol_col=oracle_cfg.get("stress_fast_vol_col", "rv_16"),
+        slow_vol_col=oracle_cfg.get("stress_slow_vol_col", "rv_96"),
+        shock_col=oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
+        drift_col=oracle_cfg.get("stress_drift_col", "open_ret"),
+        macd_col=oracle_cfg.get("stress_macd_col", "macd"),
+        macd_signal_col=oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
+        funding_col=oracle_cfg.get("stress_funding_col", "funding_rate"),
+        fast_vol_threshold=oracle_cfg.get("stress_fast_vol_threshold", 0.8),
+        slow_vol_threshold=oracle_cfg.get("stress_slow_vol_threshold", 0.8),
+        shock_threshold=oracle_cfg.get("stress_shock_threshold", 0.8),
+        drift_threshold=oracle_cfg.get("stress_drift_threshold", 0.2),
+        trend_threshold=oracle_cfg.get("stress_trend_threshold", 0.1),
+        funding_threshold=oracle_cfg.get("stress_funding_threshold", -0.5),
+        fast_vol_weight=oracle_cfg.get("stress_fast_vol_weight", 0.45),
+        slow_vol_weight=oracle_cfg.get("stress_slow_vol_weight", 0.25),
+        shock_weight=oracle_cfg.get("stress_shock_weight", 0.20),
+        drift_weight=oracle_cfg.get("stress_drift_weight", 0.10),
+        trend_weight=oracle_cfg.get("stress_trend_weight", 0.15),
+        funding_weight=oracle_cfg.get("stress_funding_weight", 0.05),
+        entry_threshold=oracle_cfg.get("stress_entry_threshold", 0.15),
+        signal_scale=oracle_cfg.get("stress_signal_scale", 1.0),
+    )
+    _positions_fold, fold_signal = feature_stress_teacher(
+        fold_features,
+        feature_columns=feature_columns,
+        benchmark_position=benchmark_position,
+        min_position=oracle_cfg.get("stress_floor_position", abs_min_position),
+        max_position=oracle_cfg.get("stress_ceiling_position", abs_max_position),
+        fast_vol_col=oracle_cfg.get("stress_fast_vol_col", "rv_16"),
+        slow_vol_col=oracle_cfg.get("stress_slow_vol_col", "rv_96"),
+        shock_col=oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
+        drift_col=oracle_cfg.get("stress_drift_col", "open_ret"),
+        macd_col=oracle_cfg.get("stress_macd_col", "macd"),
+        macd_signal_col=oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
+        funding_col=oracle_cfg.get("stress_funding_col", "funding_rate"),
+        fast_vol_threshold=oracle_cfg.get("stress_fast_vol_threshold", 0.8),
+        slow_vol_threshold=oracle_cfg.get("stress_slow_vol_threshold", 0.8),
+        shock_threshold=oracle_cfg.get("stress_shock_threshold", 0.8),
+        drift_threshold=oracle_cfg.get("stress_drift_threshold", 0.2),
+        trend_threshold=oracle_cfg.get("stress_trend_threshold", 0.1),
+        funding_threshold=oracle_cfg.get("stress_funding_threshold", -0.5),
+        fast_vol_weight=oracle_cfg.get("stress_fast_vol_weight", 0.45),
+        slow_vol_weight=oracle_cfg.get("stress_slow_vol_weight", 0.25),
+        shock_weight=oracle_cfg.get("stress_shock_weight", 0.20),
+        drift_weight=oracle_cfg.get("stress_drift_weight", 0.10),
+        trend_weight=oracle_cfg.get("stress_trend_weight", 0.15),
+        funding_weight=oracle_cfg.get("stress_funding_weight", 0.05),
+        entry_threshold=oracle_cfg.get("stress_entry_threshold", 0.15),
+        signal_scale=oracle_cfg.get("stress_signal_scale", 1.0),
+    )
+    if train_signal_stats is None:
+        train_pos = train_signal[train_signal > 0.0]
+        if train_pos.size > 0:
+            center = float(np.quantile(train_pos, 0.50))
+            scale = float(np.quantile(train_pos, 0.90) - center)
+        else:
+            center = 0.0
+            scale = 1.0
+        train_signal_stats = (center, max(scale, 1e-6))
+    center, scale = train_signal_stats
+    fold_stress = np.clip((np.asarray(fold_signal, dtype=np.float32) - center) / scale, 0.0, 1.0).astype(np.float32)
+    fold_stress = fold_stress[:, None]
+    if regime_probs is None:
+        augmented = fold_stress
+    else:
+        augmented = np.concatenate([regime_probs.astype(np.float32), fold_stress], axis=1)
+    return augmented, train_signal_stats
 
 
 def prepare_fold_inputs(
@@ -109,6 +197,44 @@ def prepare_fold_inputs(
         print(f"[Regime] HMM fitted, regime_dim={regime_dim}")
     except Exception as e:
         print(f"[Regime] HMM skipped: {e}")
+
+    if oracle_cfg.get("append_stress_regime_signal", False):
+        feature_columns = getattr(wfo_dataset, "feature_columns", [])
+        stress_stats = None
+        train_regime_probs, stress_stats = _append_exogenous_stress_signal(
+            train_regime_probs,
+            train_features=wfo_dataset.train_features,
+            fold_features=wfo_dataset.train_features,
+            feature_columns=feature_columns,
+            oracle_cfg=oracle_cfg,
+            benchmark_position=oracle_benchmark_position,
+            abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+            abs_max_position=ac_cfg.get("abs_max_position", 1.0),
+        )
+        val_regime_probs, stress_stats = _append_exogenous_stress_signal(
+            val_regime_probs,
+            train_features=wfo_dataset.train_features,
+            fold_features=wfo_dataset.val_features,
+            feature_columns=feature_columns,
+            oracle_cfg=oracle_cfg,
+            benchmark_position=oracle_benchmark_position,
+            abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+            abs_max_position=ac_cfg.get("abs_max_position", 1.0),
+            train_signal_stats=stress_stats,
+        )
+        test_regime_probs, _ = _append_exogenous_stress_signal(
+            test_regime_probs,
+            train_features=wfo_dataset.train_features,
+            fold_features=wfo_dataset.test_features,
+            feature_columns=feature_columns,
+            oracle_cfg=oracle_cfg,
+            benchmark_position=oracle_benchmark_position,
+            abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+            abs_max_position=ac_cfg.get("abs_max_position", 1.0),
+            train_signal_stats=stress_stats,
+        )
+        regime_dim = int(train_regime_probs.shape[1]) if train_regime_probs is not None else 1
+        print(f"[Regime] Stress signal appended, regime_dim={regime_dim}")
 
     oracle_bundle["oracle_values"] = oracle_values
     return {
