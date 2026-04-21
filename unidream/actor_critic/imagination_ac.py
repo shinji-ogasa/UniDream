@@ -1060,7 +1060,20 @@ class ImagACTrainer:
 
     def load(self, path: str) -> None:
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
-        self.actor.load_state_dict(ckpt["actor"])
+        incompatible = self.actor.load_state_dict(ckpt["actor"], strict=False)
+        optional_missing = {
+            "residual_head_a.weight",
+            "residual_head_a.bias",
+            "residual_head_b.weight",
+            "residual_head_b.bias",
+        }
+        missing = [key for key in incompatible.missing_keys if key not in optional_missing]
+        unexpected = list(incompatible.unexpected_keys)
+        if missing or unexpected:
+            raise RuntimeError(
+                f"AC checkpoint incompatibility while loading {path}: "
+                f"missing={missing}, unexpected={unexpected}"
+            )
         self.critic.load_state_dict(ckpt["critic"])
         self.actor_optimizer.load_state_dict(ckpt["actor_optimizer"])
         self.critic_optimizer.load_state_dict(ckpt["critic_optimizer"])

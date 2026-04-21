@@ -48,6 +48,7 @@ def prepare_bc_setup(
     actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
     actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
+    actor.use_dual_residual_controller = bool(ac_cfg.get("use_dual_residual_controller", False))
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
     actor.use_regime_target_bias = bool(ac_cfg.get("use_regime_target_bias", False))
     actor.regime_target_bias_scale = float(ac_cfg.get("regime_target_bias_scale", 1.0))
@@ -100,6 +101,16 @@ def prepare_bc_setup(
             residual_bias = float(np.log(init_frac / (1.0 - init_frac)))
             torch.nn.init.constant_(actor.residual_head.bias, residual_bias)
             torch.nn.init.zeros_(actor.residual_head.weight)
+            if actor.use_dual_residual_controller:
+                bench_overlay = 0.0
+                bench_frac = np.clip((bench_overlay - residual_min) / (residual_max - residual_min), 1e-4, 1.0 - 1e-4)
+                bench_bias = float(np.log(bench_frac / (1.0 - bench_frac)))
+                torch.nn.init.constant_(actor.residual_head_a.bias, bench_bias)
+                torch.nn.init.zeros_(actor.residual_head_a.weight)
+                torch.nn.init.constant_(actor.residual_head_b.bias, residual_bias)
+                torch.nn.init.zeros_(actor.residual_head_b.weight)
+                torch.nn.init.constant_(actor.target_mode_gate.bias, -0.5)
+                torch.nn.init.zeros_(actor.target_mode_gate.weight)
     try:
         current_abs_positions = np.empty_like(oracle_positions)
         current_abs_positions[0] = benchmark_position

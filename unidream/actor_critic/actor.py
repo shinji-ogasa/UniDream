@@ -73,6 +73,8 @@ class Actor(nn.Module):
             nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
         )
         self.residual_head = nn.Linear(hidden_dim, 1)
+        self.residual_head_a = nn.Linear(hidden_dim, 1)
+        self.residual_head_b = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
 
@@ -109,6 +111,9 @@ class Actor(nn.Module):
 
     def _use_residual_controller(self) -> bool:
         return bool(getattr(self, "use_residual_controller", False))
+
+    def _use_dual_residual_controller(self) -> bool:
+        return bool(getattr(self, "use_dual_residual_controller", False))
 
     def _use_separate_execution_head(self) -> bool:
         return bool(getattr(self, "separate_execution_head", False))
@@ -327,8 +332,16 @@ class Actor(nn.Module):
             if residual_max <= residual_min + 1e-6:
                 target_mean = torch.full_like(trade_logits, residual_max)
             else:
-                residual_frac = torch.sigmoid(self.residual_head(hidden).squeeze(-1))
-                target_mean = residual_min + (residual_max - residual_min) * residual_frac
+                if self._use_dual_residual_controller():
+                    residual_frac_a = torch.sigmoid(self.residual_head_a(hidden).squeeze(-1))
+                    residual_frac_b = torch.sigmoid(self.residual_head_b(hidden).squeeze(-1))
+                    target_mean_a = residual_min + (residual_max - residual_min) * residual_frac_a
+                    target_mean_b = residual_min + (residual_max - residual_min) * residual_frac_b
+                    mode_gate = torch.sigmoid(self.target_mode_gate(hidden).squeeze(-1))
+                    target_mean = (1.0 - mode_gate) * target_mean_a + mode_gate * target_mean_b
+                else:
+                    residual_frac = torch.sigmoid(self.residual_head(hidden).squeeze(-1))
+                    target_mean = residual_min + (residual_max - residual_min) * residual_frac
             regime_caps = getattr(self, "regime_overlay_caps", None)
             if regime_caps is not None and regime is not None and regime.shape[-1] > 0:
                 cap_tensor = torch.as_tensor(regime_caps, dtype=target_mean.dtype, device=target_mean.device)

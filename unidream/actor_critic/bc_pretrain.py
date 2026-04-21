@@ -561,7 +561,10 @@ class BCPretrainer:
                 recovery_band_loss = recovery_band_loss * recovery_mask_f
         if (
             self.mode_target_coef > 0.0
-            and bool(getattr(self.actor, "use_dual_regime_target_bias", False))
+            and (
+                bool(getattr(self.actor, "use_dual_regime_target_bias", False))
+                or bool(getattr(self.actor, "use_dual_residual_controller", False))
+            )
         ):
             mode_logits = self.actor.target_mode_logits(
                 z,
@@ -1096,7 +1099,15 @@ class BCPretrainer:
     def load(self, path: str) -> None:
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
         incompatible = self.actor.load_state_dict(ckpt["actor"], strict=False)
-        missing = [key for key in incompatible.missing_keys if key not in {"execution_head.weight", "execution_head.bias"}]
+        optional_missing = {
+            "execution_head.weight",
+            "execution_head.bias",
+            "residual_head_a.weight",
+            "residual_head_a.bias",
+            "residual_head_b.weight",
+            "residual_head_b.bias",
+        }
+        missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)
         if missing or unexpected:
             raise RuntimeError(
