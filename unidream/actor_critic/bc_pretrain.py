@@ -174,6 +174,7 @@ class BCPretrainer:
         mode_target_neutral_margin: float = 0.0,
         mode_target_gap_min: float = 0.0,
         mode_target_positive_only: bool = False,
+        mode_target_use_underweight_strength: bool = False,
         mode_rate_match_coef: float = 0.0,
         mode_regime_rate_match_coef: float = 0.0,
         dual_head_anchor_coef: float = 0.0,
@@ -259,6 +260,7 @@ class BCPretrainer:
         self.mode_target_neutral_margin = float(max(mode_target_neutral_margin, 0.0))
         self.mode_target_gap_min = float(max(mode_target_gap_min, 0.0))
         self.mode_target_positive_only = bool(mode_target_positive_only)
+        self.mode_target_use_underweight_strength = bool(mode_target_use_underweight_strength)
         self.mode_rate_match_coef = float(max(mode_rate_match_coef, 0.0))
         self.mode_regime_rate_match_coef = float(max(mode_regime_rate_match_coef, 0.0))
         self.dual_head_anchor_coef = float(max(dual_head_anchor_coef, 0.0))
@@ -606,7 +608,12 @@ class BCPretrainer:
                     mode_supervision_mask = torch.ones_like(positive_mode_mask, dtype=torch.bool)
             if self.mode_target_gap_min > 0.0:
                 mode_supervision_mask = mode_supervision_mask & (target_gap >= self.mode_target_gap_min)
-            mode_targets = positive_mode_mask.to(dtype=mode_logits.dtype)
+            if self.mode_target_use_underweight_strength:
+                overlay_low, _overlay_high = self.actor._overlay_bounds()
+                underweight_scale = max(abs(float(overlay_low)), 1e-6)
+                mode_targets = (-oracle_target / underweight_scale).clamp(0.0, 1.0).to(dtype=mode_logits.dtype)
+            else:
+                mode_targets = positive_mode_mask.to(dtype=mode_logits.dtype)
             mode_loss = F.binary_cross_entropy_with_logits(mode_logits, mode_targets, reduction="none")
             mode_loss = mode_loss * self._normalized_mask(mode_supervision_mask.to(mode_loss.dtype))
             mode_probs = torch.sigmoid(mode_logits)

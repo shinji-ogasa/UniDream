@@ -67,6 +67,7 @@ def build_bc_trainer(
         mode_target_neutral_margin=bc_cfg.get("mode_target_neutral_margin", 0.0),
         mode_target_gap_min=bc_cfg.get("mode_target_gap_min", 0.0),
         mode_target_positive_only=bc_cfg.get("mode_target_positive_only", False),
+        mode_target_use_underweight_strength=bc_cfg.get("mode_target_use_underweight_strength", False),
         mode_rate_match_coef=bc_cfg.get("mode_rate_match_coef", 0.0),
         mode_regime_rate_match_coef=bc_cfg.get("mode_regime_rate_match_coef", 0.0),
         dual_head_anchor_coef=bc_cfg.get("dual_head_anchor_coef", 0.0),
