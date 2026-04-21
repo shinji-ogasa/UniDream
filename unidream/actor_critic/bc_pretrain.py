@@ -167,6 +167,8 @@ class BCPretrainer:
         position_mean_match_coef: float = 0.0,
         target_regime_dist_match_coef: float = 0.0,
         short_mass_match_coef: float = 0.0,
+        support_prior_coef: float = 0.0,
+        support_prior_underweight_only: bool = True,
         mode_target_coef: float = 0.0,
         mode_target_margin: float = 0.05,
         mode_target_neutral_margin: float = 0.0,
@@ -242,6 +244,8 @@ class BCPretrainer:
         self.position_mean_match_coef = float(max(position_mean_match_coef, 0.0))
         self.target_regime_dist_match_coef = float(max(target_regime_dist_match_coef, 0.0))
         self.short_mass_match_coef = float(max(short_mass_match_coef, 0.0))
+        self.support_prior_coef = float(max(support_prior_coef, 0.0))
+        self.support_prior_underweight_only = bool(support_prior_underweight_only)
         self.mode_target_coef = float(max(mode_target_coef, 0.0))
         self.mode_target_margin = float(max(mode_target_margin, 0.0))
         self.mode_target_neutral_margin = float(max(mode_target_neutral_margin, 0.0))
@@ -421,6 +425,7 @@ class BCPretrainer:
         position_mean_penalty = None
         target_regime_penalty = None
         short_mass_penalty = None
+        support_prior_penalty = None
         if self.actor._use_residual_controller():
             target_loss = self.residual_target_coef * target_reg_loss
             target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
@@ -480,6 +485,36 @@ class BCPretrainer:
                 pred_short_mass = pred_probs[:, short_mask].sum(dim=-1)
                 target_short_mass = target_soft_labels[:, short_mask].sum(dim=-1)
                 short_mass_penalty = torch.abs(pred_short_mass - target_short_mass).mean()
+        if self.support_prior_coef > 0.0:
+            support_counts = getattr(self.actor, "support_transition_counts", None)
+            if support_counts is not None:
+                support_tensor = torch.as_tensor(
+                    support_counts,
+                    dtype=target_logits.dtype,
+                    device=target_logits.device,
+                )
+                if regime is not None and regime.ndim == 2 and regime.shape[-1] > 0:
+                    regime_idx = regime.argmax(dim=-1).to(dtype=torch.long)
+                else:
+                    regime_idx = torch.zeros_like(oracle_target, dtype=torch.long)
+                current_abs_position = current_inventory + benchmark_position
+                current_target_idx = self.actor.target_indices(current_abs_position).to(dtype=torch.long)
+                regime_idx = regime_idx.clamp(min=0, max=support_tensor.shape[0] - 1)
+                current_target_idx = current_target_idx.clamp(min=0, max=support_tensor.shape[1] - 1)
+                support_row = support_tensor[regime_idx, current_target_idx]
+                support_probs = support_row + 1e-4
+                support_probs = support_probs / support_probs.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+                support_mask = torch.ones_like(oracle_target, dtype=torch.bool)
+                if self.support_prior_underweight_only:
+                    support_mask = oracle_target < -1e-6
+                support_prior_penalty = F.kl_div(
+                    F.log_softmax(target_logits, dim=-1),
+                    support_probs,
+                    reduction="none",
+                ).sum(dim=-1)
+                support_prior_penalty = support_prior_penalty * self._normalized_mask(
+                    support_mask.to(target_logits.dtype)
+                )
         recovery_mask_f = None
         if (
             self.recovery_trade_coef > 0.0
@@ -580,6 +615,8 @@ class BCPretrainer:
             loss_terms = loss_terms + self.target_regime_dist_match_coef * target_regime_penalty
         if short_mass_penalty is not None:
             loss_terms = loss_terms + self.short_mass_match_coef * short_mass_penalty
+        if support_prior_penalty is not None:
+            loss_terms = loss_terms + self.support_prior_coef * support_prior_penalty
         if recovery_band_loss is not None:
             loss_terms = loss_terms + self.recovery_band_coef * recovery_band_loss
 

@@ -60,6 +60,8 @@ def build_bc_trainer(
         position_mean_match_coef=bc_cfg.get("position_mean_match_coef", 0.0),
         target_regime_dist_match_coef=bc_cfg.get("target_regime_dist_match_coef", 0.0),
         short_mass_match_coef=bc_cfg.get("short_mass_match_coef", 0.0),
+        support_prior_coef=bc_cfg.get("support_prior_coef", 0.0),
+        support_prior_underweight_only=bc_cfg.get("support_prior_underweight_only", True),
         mode_target_coef=bc_cfg.get("mode_target_coef", 0.0),
         mode_target_margin=bc_cfg.get("mode_target_margin", 0.05),
         mode_target_neutral_margin=bc_cfg.get("mode_target_neutral_margin", 0.0),
