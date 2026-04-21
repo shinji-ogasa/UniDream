@@ -197,6 +197,7 @@ class BCPretrainer:
         recovery_target_margin: float = 0.05,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
+        trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -283,17 +284,33 @@ class BCPretrainer:
         self.recovery_target_margin = float(max(recovery_target_margin, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
+        self.trainable_actor_prefixes = tuple(trainable_actor_prefixes or [])
 
         # SIRL 重みネット
         self.use_sirl = sirl_hidden > 0
+        self._configure_actor_trainability()
         if self.use_sirl:
             self.weight_net = SIRLWeightNet(z_dim + h_dim, sirl_hidden).to(self.device)
-            params = list(actor.parameters()) + list(self.weight_net.parameters())
+            params = list(self._actor_trainable_parameters()) + list(self.weight_net.parameters())
         else:
             self.weight_net = None
-            params = list(actor.parameters())
+            params = list(self._actor_trainable_parameters())
 
         self.optimizer = torch.optim.Adam(params, lr=lr)
+
+    def _configure_actor_trainability(self) -> None:
+        if not self.trainable_actor_prefixes:
+            for _name, param in self.actor.named_parameters():
+                param.requires_grad_(True)
+            return
+        for name, param in self.actor.named_parameters():
+            trainable = any(name.startswith(prefix) for prefix in self.trainable_actor_prefixes)
+            param.requires_grad_(trainable)
+
+    def _actor_trainable_parameters(self):
+        for param in self.actor.parameters():
+            if param.requires_grad:
+                yield param
 
     @staticmethod
     def _normalized_mask(mask: torch.Tensor) -> torch.Tensor:
@@ -1205,6 +1222,7 @@ class BCPretrainer:
             "residual_head_a.bias",
             "residual_head_b.weight",
             "residual_head_b.bias",
+            "regime_mode_gate_head.weight",
         }
         missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)

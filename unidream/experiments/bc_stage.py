@@ -90,6 +90,7 @@ def build_bc_trainer(
         recovery_target_margin=bc_cfg.get("recovery_target_margin", 0.05),
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
         sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
+        trainable_actor_prefixes=bc_cfg.get("trainable_actor_prefixes"),
         device=device,
     )
 
@@ -131,6 +132,10 @@ def run_bc_stage(
         return bc_trainer
 
     if start_idx <= bc_stage_idx:
+        init_bc_path = bc_cfg.get("init_checkpoint")
+        if init_bc_path:
+            print(f"\n[{log_ts()}] [Step 3] BC - warm start from: {init_bc_path}")
+            bc_trainer.load(init_bc_path)
         print(f"\n[{log_ts()}] [Step 3] BC Pre-training...")
         t_enc = min(len(z_train), len(oracle_positions))
         bc_trainer.train(
