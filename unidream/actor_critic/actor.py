@@ -118,6 +118,14 @@ class Actor(nn.Module):
     def _use_separate_execution_head(self) -> bool:
         return bool(getattr(self, "separate_execution_head", False))
 
+    def _residual_overlay_range(self) -> tuple[float, float]:
+        overlay_low, overlay_high = self._overlay_bounds()
+        residual_min = float(getattr(self, "residual_min_overlay", overlay_low))
+        residual_max = float(getattr(self, "residual_max_overlay", overlay_high))
+        residual_min = max(overlay_low, residual_min)
+        residual_max = min(overlay_high, residual_max)
+        return residual_min, residual_max
+
     def _ensure_advantage(
         self,
         advantage: torch.Tensor | None,
@@ -325,19 +333,12 @@ class Actor(nn.Module):
         target_values = self._target_overlay_values_tensor(hidden.device, hidden.dtype)
         if self._use_residual_controller():
             overlay_low, overlay_high = self._overlay_bounds()
-            residual_min = float(getattr(self, "residual_min_overlay", overlay_low))
-            residual_max = float(getattr(self, "residual_max_overlay", overlay_high))
-            residual_min = max(overlay_low, residual_min)
-            residual_max = min(overlay_high, residual_max)
+            residual_min, residual_max = self._residual_overlay_range()
             if residual_max <= residual_min + 1e-6:
                 target_mean = torch.full_like(trade_logits, residual_max)
             else:
                 if self._use_dual_residual_controller():
-                    residual_frac_a = torch.sigmoid(self.residual_head_a(hidden).squeeze(-1))
-                    residual_frac_b = torch.sigmoid(self.residual_head_b(hidden).squeeze(-1))
-                    target_mean_a = residual_min + (residual_max - residual_min) * residual_frac_a
-                    target_mean_b = residual_min + (residual_max - residual_min) * residual_frac_b
-                    mode_gate = torch.sigmoid(self.target_mode_gate(hidden).squeeze(-1))
+                    target_mean_a, target_mean_b, mode_gate = self._dual_residual_components_from_hidden(hidden)
                     target_mean = (1.0 - mode_gate) * target_mean_a + mode_gate * target_mean_b
                 else:
                     residual_frac = torch.sigmoid(self.residual_head(hidden).squeeze(-1))
@@ -430,6 +431,39 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
         return self.target_mode_gate(hidden).squeeze(-1)
+
+    def _dual_residual_components_from_hidden(
+        self,
+        hidden: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        residual_min, residual_max = self._residual_overlay_range()
+        if residual_max <= residual_min + 1e-6:
+            target_mean_a = torch.full(
+                hidden.shape[:-1],
+                residual_max,
+                dtype=hidden.dtype,
+                device=hidden.device,
+            )
+            target_mean_b = target_mean_a
+            mode_gate = torch.sigmoid(self.target_mode_gate(hidden).squeeze(-1))
+            return target_mean_a, target_mean_b, mode_gate
+        residual_frac_a = torch.sigmoid(self.residual_head_a(hidden).squeeze(-1))
+        residual_frac_b = torch.sigmoid(self.residual_head_b(hidden).squeeze(-1))
+        target_mean_a = residual_min + (residual_max - residual_min) * residual_frac_a
+        target_mean_b = residual_min + (residual_max - residual_min) * residual_frac_b
+        mode_gate = torch.sigmoid(self.target_mode_gate(hidden).squeeze(-1))
+        return target_mean_a, target_mean_b, mode_gate
+
+    def dual_residual_components(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
+        return self._dual_residual_components_from_hidden(hidden)
 
     def target_mode_prob(
         self,

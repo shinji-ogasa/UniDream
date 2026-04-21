@@ -174,6 +174,12 @@ class BCPretrainer:
         mode_target_neutral_margin: float = 0.0,
         mode_target_gap_min: float = 0.0,
         mode_target_positive_only: bool = False,
+        dual_head_anchor_coef: float = 0.0,
+        dual_head_underweight_coef: float = 0.0,
+        dual_head_separation_coef: float = 0.0,
+        dual_head_neutral_margin: float = 0.0,
+        dual_head_underweight_margin: float = 0.05,
+        dual_head_separation_margin: float = 0.05,
         direct_band_target_coef: float = 0.0,
         direct_band_margin: float = 0.05,
         direct_hold_band_margin: float = 0.02,
@@ -251,6 +257,12 @@ class BCPretrainer:
         self.mode_target_neutral_margin = float(max(mode_target_neutral_margin, 0.0))
         self.mode_target_gap_min = float(max(mode_target_gap_min, 0.0))
         self.mode_target_positive_only = bool(mode_target_positive_only)
+        self.dual_head_anchor_coef = float(max(dual_head_anchor_coef, 0.0))
+        self.dual_head_underweight_coef = float(max(dual_head_underweight_coef, 0.0))
+        self.dual_head_separation_coef = float(max(dual_head_separation_coef, 0.0))
+        self.dual_head_neutral_margin = float(max(dual_head_neutral_margin, 0.0))
+        self.dual_head_underweight_margin = float(max(dual_head_underweight_margin, 0.0))
+        self.dual_head_separation_margin = float(max(dual_head_separation_margin, 0.0))
         self.direct_band_target_coef = float(max(direct_band_target_coef, 0.0))
         self.direct_band_margin = float(max(direct_band_margin, 0.0))
         self.direct_hold_band_margin = float(max(direct_hold_band_margin, 0.0))
@@ -541,6 +553,9 @@ class BCPretrainer:
         recovery_trade_loss = None
         recovery_band_loss = None
         mode_loss = None
+        dual_head_anchor_loss = None
+        dual_head_underweight_loss = None
+        dual_head_separation_loss = None
         if recovery_mask_f is not None:
             if self.recovery_trade_coef > 0.0:
                 recovery_trade_targets = torch.ones_like(trade_logits)
@@ -588,6 +603,48 @@ class BCPretrainer:
             mode_targets = positive_mode_mask.to(dtype=mode_logits.dtype)
             mode_loss = F.binary_cross_entropy_with_logits(mode_logits, mode_targets, reduction="none")
             mode_loss = mode_loss * self._normalized_mask(mode_supervision_mask.to(mode_loss.dtype))
+        if (
+            bool(getattr(self.actor, "use_dual_residual_controller", False))
+            and (
+                self.dual_head_anchor_coef > 0.0
+                or self.dual_head_underweight_coef > 0.0
+                or self.dual_head_separation_coef > 0.0
+            )
+        ):
+            target_mean_a, target_mean_b, _mode_gate = self.actor.dual_residual_components(
+                z,
+                h,
+                inventory=inventory,
+                regime=regime,
+                advantage=advantage,
+            )
+            if self.dual_head_anchor_coef > 0.0:
+                neutral_mask = oracle_target > -self.dual_head_neutral_margin
+                dual_head_anchor_loss = F.smooth_l1_loss(
+                    target_mean_a,
+                    torch.zeros_like(target_mean_a),
+                    reduction="none",
+                )
+                dual_head_anchor_loss = dual_head_anchor_loss * self._normalized_mask(
+                    neutral_mask.to(target_mean_a.dtype)
+                )
+            if self.dual_head_underweight_coef > 0.0:
+                underweight_mask = oracle_target < -self.dual_head_underweight_margin
+                dual_head_underweight_loss = F.smooth_l1_loss(
+                    target_mean_b,
+                    oracle_target,
+                    reduction="none",
+                )
+                dual_head_underweight_loss = dual_head_underweight_loss * self._normalized_mask(
+                    underweight_mask.to(target_mean_b.dtype)
+                )
+            if self.dual_head_separation_coef > 0.0:
+                separation_margin = self.dual_head_separation_margin
+                separation_violation = F.relu(target_mean_b - (target_mean_a - separation_margin))
+                separation_mask = oracle_target < -self.dual_head_underweight_margin
+                dual_head_separation_loss = separation_violation * self._normalized_mask(
+                    separation_mask.to(separation_violation.dtype)
+                )
         if trade_pos_weight is not None:
             trade_w = torch.where(
                 trade_mask > 0.5,
@@ -610,6 +667,12 @@ class BCPretrainer:
                 )
                 mode_loss = mode_loss * mode_w
             loss_terms = loss_terms + self.mode_target_coef * mode_loss
+        if dual_head_anchor_loss is not None:
+            loss_terms = loss_terms + self.dual_head_anchor_coef * dual_head_anchor_loss
+        if dual_head_underweight_loss is not None:
+            loss_terms = loss_terms + self.dual_head_underweight_coef * dual_head_underweight_loss
+        if dual_head_separation_loss is not None:
+            loss_terms = loss_terms + self.dual_head_separation_coef * dual_head_separation_loss
         if target_dist_penalty is not None:
             loss_terms = loss_terms + self.target_dist_match_coef * target_dist_penalty
         if position_mean_penalty is not None:
