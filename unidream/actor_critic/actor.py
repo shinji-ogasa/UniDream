@@ -66,6 +66,9 @@ class Actor(nn.Module):
             nn.Linear(regime_dim, act_dim, bias=False) if regime_dim > 0 else None
         )
         self.target_mode_gate = nn.Linear(hidden_dim, 1)
+        self.regime_mode_gate_head = (
+            nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
+        )
         self.regime_residual_shift_head = (
             nn.Linear(regime_dim, 1, bias=False) if regime_dim > 0 else None
         )
@@ -338,7 +341,10 @@ class Actor(nn.Module):
                 target_mean = torch.full_like(trade_logits, residual_max)
             else:
                 if self._use_dual_residual_controller():
-                    target_mean_a, target_mean_b, mode_gate = self._dual_residual_components_from_hidden(hidden)
+                    target_mean_a, target_mean_b, mode_gate = self._dual_residual_components_from_hidden(
+                        hidden,
+                        regime=regime,
+                    )
                     target_mean = (1.0 - mode_gate) * target_mean_a + mode_gate * target_mean_b
                 else:
                     residual_frac = torch.sigmoid(self.residual_head(hidden).squeeze(-1))
@@ -373,7 +379,7 @@ class Actor(nn.Module):
             and regime.shape[-1] > 0
         ):
             bias_scale = float(getattr(self, "dual_regime_target_bias_scale", 1.0))
-            mode_gate = torch.sigmoid(self.target_mode_gate(hidden))
+            mode_gate = torch.sigmoid(self._mode_gate_logits_from_hidden(hidden, regime=regime)).unsqueeze(-1)
             dual_bias = (
                 mode_gate * self.regime_target_bias_head_a(regime)
                 + (1.0 - mode_gate) * self.regime_target_bias_head_b(regime)
@@ -430,11 +436,28 @@ class Actor(nn.Module):
         advantage: torch.Tensor | None = None,
     ) -> torch.Tensor:
         hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
-        return self.target_mode_gate(hidden).squeeze(-1)
+        return self._mode_gate_logits_from_hidden(hidden, regime=regime)
+
+    def _mode_gate_logits_from_hidden(
+        self,
+        hidden: torch.Tensor,
+        regime: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        logits = self.target_mode_gate(hidden).squeeze(-1)
+        if (
+            bool(getattr(self, "use_regime_mode_gate_bias", False))
+            and self.regime_mode_gate_head is not None
+            and regime is not None
+            and regime.shape[-1] > 0
+        ):
+            gate_scale = float(getattr(self, "regime_mode_gate_scale", 1.0))
+            logits = logits + gate_scale * self.regime_mode_gate_head(regime).squeeze(-1)
+        return logits
 
     def _dual_residual_components_from_hidden(
         self,
         hidden: torch.Tensor,
+        regime: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         residual_min, residual_max = self._residual_overlay_range()
         if residual_max <= residual_min + 1e-6:
@@ -445,13 +468,13 @@ class Actor(nn.Module):
                 device=hidden.device,
             )
             target_mean_b = target_mean_a
-            mode_gate = torch.sigmoid(self.target_mode_gate(hidden).squeeze(-1))
+            mode_gate = torch.sigmoid(self._mode_gate_logits_from_hidden(hidden, regime=regime))
             return target_mean_a, target_mean_b, mode_gate
         residual_frac_a = torch.sigmoid(self.residual_head_a(hidden).squeeze(-1))
         residual_frac_b = torch.sigmoid(self.residual_head_b(hidden).squeeze(-1))
         target_mean_a = residual_min + (residual_max - residual_min) * residual_frac_a
         target_mean_b = residual_min + (residual_max - residual_min) * residual_frac_b
-        mode_gate = torch.sigmoid(self.target_mode_gate(hidden).squeeze(-1))
+        mode_gate = torch.sigmoid(self._mode_gate_logits_from_hidden(hidden, regime=regime))
         return target_mean_a, target_mean_b, mode_gate
 
     def dual_residual_components(
@@ -463,7 +486,7 @@ class Actor(nn.Module):
         advantage: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
-        return self._dual_residual_components_from_hidden(hidden)
+        return self._dual_residual_components_from_hidden(hidden, regime=regime)
 
     def target_mode_prob(
         self,
