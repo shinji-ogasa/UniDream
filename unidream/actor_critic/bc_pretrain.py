@@ -575,6 +575,7 @@ class BCPretrainer:
         trade_loss = F.smooth_l1_loss(trade_pred, trade_targets, reduction="none")
         recovery_trade_loss = None
         recovery_band_loss = None
+        entropy_bonus = None
         mode_loss = None
         mode_rate_penalty = None
         mode_regime_rate_penalty = None
@@ -599,6 +600,11 @@ class BCPretrainer:
                     reduction="none",
                 )
                 recovery_band_loss = recovery_band_loss * recovery_mask_f
+        if self.entropy_coef > 0.0:
+            trade_entropy = -(trade_pred.clamp(1e-6, 1.0 - 1e-6).log() * trade_pred + (1.0 - trade_pred).clamp(1e-6, 1.0).log() * (1.0 - trade_pred))
+            target_probs_for_entropy = F.softmax(target_logits, dim=-1)
+            target_entropy = -(target_probs_for_entropy * torch.log(target_probs_for_entropy.clamp_min(1e-6))).sum(dim=-1)
+            entropy_bonus = trade_entropy + target_entropy
         if (
             self.mode_target_coef > 0.0
             and (
@@ -738,6 +744,8 @@ class BCPretrainer:
             loss_terms = loss_terms + self.support_prior_coef * support_prior_penalty
         if recovery_band_loss is not None:
             loss_terms = loss_terms + self.recovery_band_coef * recovery_band_loss
+        if entropy_bonus is not None:
+            loss_terms = loss_terms - self.entropy_coef * entropy_bonus
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05
