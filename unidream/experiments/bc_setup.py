@@ -4,6 +4,65 @@ import torch
 from unidream.actor_critic.actor import Actor
 
 
+def _safe_logit(prob: np.ndarray) -> np.ndarray:
+    prob = np.clip(prob, 1e-4, 1.0 - 1e-4)
+    return np.log(prob / (1.0 - prob))
+
+
+def _initialize_regime_mode_gate_from_teacher(
+    *,
+    actor,
+    oracle_positions,
+    train_regime_probs,
+    benchmark_position: float,
+    bc_cfg: dict,
+) -> None:
+    if actor.regime_mode_gate_head is None or train_regime_probs is None:
+        return
+    if len(oracle_positions) == 0 or len(train_regime_probs) == 0:
+        return
+
+    underweight_margin = float(
+        bc_cfg.get(
+            "init_regime_mode_gate_margin",
+            bc_cfg.get("dual_head_underweight_margin", bc_cfg.get("mode_target_margin", 0.10)),
+        )
+    )
+    min_samples = float(max(bc_cfg.get("init_regime_mode_gate_min_samples", 64.0), 1.0))
+    prior_scale = float(max(bc_cfg.get("init_regime_mode_gate_weight_scale", 1.0), 0.0))
+
+    oracle_positions = np.asarray(oracle_positions, dtype=np.float32)
+    regime_probs = np.asarray(train_regime_probs[: len(oracle_positions)], dtype=np.float32)
+    if regime_probs.ndim != 2 or regime_probs.shape[1] == 0:
+        return
+
+    underweight_mask = (oracle_positions < (benchmark_position - underweight_margin)).astype(np.float32)
+    regime_mass = regime_probs.sum(axis=0)
+    total_mass = float(regime_mass.sum())
+    if total_mass <= 0.0:
+        return
+
+    global_rate = float((regime_probs * underweight_mask[:, None]).sum() / max(total_mass, 1e-6))
+    global_logit = float(_safe_logit(np.asarray(global_rate, dtype=np.float32)))
+
+    raw_regime_rate = (regime_probs * underweight_mask[:, None]).sum(axis=0) / np.clip(regime_mass, 1e-6, None)
+    shrink = regime_mass / (regime_mass + min_samples)
+    shrunk_rate = shrink * raw_regime_rate + (1.0 - shrink) * global_rate
+    regime_logits = _safe_logit(shrunk_rate)
+
+    occupancy = regime_mass / total_mass
+    centered_logits = regime_logits - float(np.sum(occupancy * regime_logits))
+
+    torch.nn.init.constant_(actor.target_mode_gate.bias, global_logit)
+    torch.nn.init.zeros_(actor.target_mode_gate.weight)
+    with torch.no_grad():
+        actor.regime_mode_gate_head.weight.zero_()
+        actor.regime_mode_gate_head.weight[0, : centered_logits.shape[0]] = (
+            torch.as_tensor(centered_logits, dtype=actor.regime_mode_gate_head.weight.dtype)
+            * prior_scale
+        )
+
+
 def prepare_bc_setup(
     *,
     ensemble,
@@ -115,6 +174,14 @@ def prepare_bc_setup(
                 torch.nn.init.zeros_(actor.target_mode_gate.weight)
                 if actor.regime_mode_gate_head is not None:
                     torch.nn.init.zeros_(actor.regime_mode_gate_head.weight)
+    if bc_cfg.get("init_regime_mode_gate_from_teacher", False):
+        _initialize_regime_mode_gate_from_teacher(
+            actor=actor,
+            oracle_positions=oracle_positions,
+            train_regime_probs=train_regime_probs,
+            benchmark_position=benchmark_position,
+            bc_cfg=bc_cfg,
+        )
     try:
         current_abs_positions = np.empty_like(oracle_positions)
         current_abs_positions[0] = benchmark_position
