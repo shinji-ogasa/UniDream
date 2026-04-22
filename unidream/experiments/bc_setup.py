@@ -28,6 +28,7 @@ def _initialize_regime_mode_gate_from_teacher(
             bc_cfg.get("dual_head_underweight_margin", bc_cfg.get("mode_target_margin", 0.10)),
         )
     )
+    prior_alpha = float(np.clip(bc_cfg.get("init_regime_mode_gate_alpha", 1.0), 0.0, 1.0))
     min_samples = float(max(bc_cfg.get("init_regime_mode_gate_min_samples", 64.0), 1.0))
     prior_scale = float(max(bc_cfg.get("init_regime_mode_gate_weight_scale", 1.0), 0.0))
 
@@ -53,14 +54,13 @@ def _initialize_regime_mode_gate_from_teacher(
     occupancy = regime_mass / total_mass
     centered_logits = regime_logits - float(np.sum(occupancy * regime_logits))
 
-    torch.nn.init.constant_(actor.target_mode_gate.bias, global_logit)
-    torch.nn.init.zeros_(actor.target_mode_gate.weight)
     with torch.no_grad():
-        actor.regime_mode_gate_head.weight.zero_()
-        actor.regime_mode_gate_head.weight[0, : centered_logits.shape[0]] = (
-            torch.as_tensor(centered_logits, dtype=actor.regime_mode_gate_head.weight.dtype)
-            * prior_scale
-        )
+        base_bias = float(actor.target_mode_gate.bias.item())
+        actor.target_mode_gate.bias.fill_((1.0 - prior_alpha) * base_bias + prior_alpha * global_logit)
+        actor.target_mode_gate.weight.mul_(1.0 - prior_alpha)
+        regime_prior = torch.as_tensor(centered_logits, dtype=actor.regime_mode_gate_head.weight.dtype) * prior_scale
+        actor.regime_mode_gate_head.weight.mul_(1.0 - prior_alpha)
+        actor.regime_mode_gate_head.weight[0, : centered_logits.shape[0]] += prior_alpha * regime_prior
 
 
 def _initialize_regime_residual_shift_from_teacher(
@@ -81,6 +81,7 @@ def _initialize_regime_residual_shift_from_teacher(
 
     min_samples = float(max(bc_cfg.get("init_regime_residual_shift_min_samples", 64.0), 1.0))
     clip_ratio = float(np.clip(bc_cfg.get("init_regime_residual_shift_clip_ratio", 0.9), 1e-3, 0.999))
+    prior_alpha = float(np.clip(bc_cfg.get("init_regime_residual_shift_alpha", 1.0), 0.0, 1.0))
 
     oracle_overlay = np.asarray(oracle_positions, dtype=np.float32) - float(benchmark_position)
     regime_probs = np.asarray(train_regime_probs[: len(oracle_overlay)], dtype=np.float32)
@@ -104,8 +105,8 @@ def _initialize_regime_residual_shift_from_teacher(
     raw_weights = np.arctanh(normalized_shift)
 
     with torch.no_grad():
-        actor.regime_residual_shift_head.weight.zero_()
-        actor.regime_residual_shift_head.weight[0, : raw_weights.shape[0]] = torch.as_tensor(
+        actor.regime_residual_shift_head.weight.mul_(1.0 - prior_alpha)
+        actor.regime_residual_shift_head.weight[0, : raw_weights.shape[0]] += prior_alpha * torch.as_tensor(
             raw_weights,
             dtype=actor.regime_residual_shift_head.weight.dtype,
         )
