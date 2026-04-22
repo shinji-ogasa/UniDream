@@ -9,8 +9,7 @@ from .oracle_teacher import compute_teacher_oracle
 from .regime_runtime import fit_fold_regimes
 
 
-def _append_exogenous_stress_signal(
-    regime_probs: np.ndarray | None,
+def _normalized_feature_stress_signal(
     *,
     train_features,
     fold_features,
@@ -88,6 +87,91 @@ def _append_exogenous_stress_signal(
         train_signal_stats = (center, max(scale, 1e-6))
     center, scale = train_signal_stats
     fold_stress = np.clip((np.asarray(fold_signal, dtype=np.float32) - center) / scale, 0.0, 1.0).astype(np.float32)
+    return fold_stress, train_signal_stats
+
+
+def _triangular_regime_probs(values: np.ndarray, centers: tuple[float, ...]) -> np.ndarray:
+    x = np.asarray(values, dtype=np.float32)[:, None]
+    centers_arr = np.asarray(centers, dtype=np.float32)[None, :]
+    if centers_arr.shape[1] <= 1:
+        return np.ones((len(values), 1), dtype=np.float32)
+    spacing = float(np.min(np.diff(np.asarray(centers, dtype=np.float32))))
+    spacing = max(spacing, 1e-6)
+    weights = np.clip(1.0 - np.abs(x - centers_arr) / spacing, 0.0, 1.0)
+    denom = weights.sum(axis=1, keepdims=True)
+    fallback = np.zeros_like(weights)
+    fallback[:, int(np.argmin(np.abs(np.asarray(centers) - 0.5)))] = 1.0
+    probs = np.where(denom > 1e-6, weights / np.clip(denom, 1e-6, None), fallback)
+    return probs.astype(np.float32)
+
+
+def _build_feature_stress_regimes(
+    *,
+    wfo_dataset,
+    oracle_cfg: dict,
+    benchmark_position: float,
+    abs_min_position: float,
+    abs_max_position: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+    feature_columns = getattr(wfo_dataset, "feature_columns", [])
+    train_signal, stress_stats = _normalized_feature_stress_signal(
+        train_features=wfo_dataset.train_features,
+        fold_features=wfo_dataset.train_features,
+        feature_columns=feature_columns,
+        oracle_cfg=oracle_cfg,
+        benchmark_position=benchmark_position,
+        abs_min_position=abs_min_position,
+        abs_max_position=abs_max_position,
+    )
+    val_signal, stress_stats = _normalized_feature_stress_signal(
+        train_features=wfo_dataset.train_features,
+        fold_features=wfo_dataset.val_features,
+        feature_columns=feature_columns,
+        oracle_cfg=oracle_cfg,
+        benchmark_position=benchmark_position,
+        abs_min_position=abs_min_position,
+        abs_max_position=abs_max_position,
+        train_signal_stats=stress_stats,
+    )
+    test_signal, _ = _normalized_feature_stress_signal(
+        train_features=wfo_dataset.train_features,
+        fold_features=wfo_dataset.test_features,
+        feature_columns=feature_columns,
+        oracle_cfg=oracle_cfg,
+        benchmark_position=benchmark_position,
+        abs_min_position=abs_min_position,
+        abs_max_position=abs_max_position,
+        train_signal_stats=stress_stats,
+    )
+    centers = tuple(oracle_cfg.get("stress_regime_centers", [0.0, 0.5, 1.0]))
+    train_probs = _triangular_regime_probs(train_signal, centers)
+    val_probs = _triangular_regime_probs(val_signal, centers)
+    test_probs = _triangular_regime_probs(test_signal, centers)
+    return train_probs, val_probs, test_probs, int(train_probs.shape[1])
+
+
+def _append_exogenous_stress_signal(
+    regime_probs: np.ndarray | None,
+    *,
+    train_features,
+    fold_features,
+    feature_columns,
+    oracle_cfg: dict,
+    benchmark_position: float,
+    abs_min_position: float,
+    abs_max_position: float,
+    train_signal_stats: tuple[float, float] | None = None,
+) -> tuple[np.ndarray, tuple[float, float]]:
+    fold_stress, train_signal_stats = _normalized_feature_stress_signal(
+        train_features=train_features,
+        fold_features=fold_features,
+        feature_columns=feature_columns,
+        oracle_cfg=oracle_cfg,
+        benchmark_position=benchmark_position,
+        abs_min_position=abs_min_position,
+        abs_max_position=abs_max_position,
+        train_signal_stats=train_signal_stats,
+    )
     fold_stress = fold_stress[:, None]
     if regime_probs is None:
         augmented = fold_stress
@@ -182,21 +266,32 @@ def prepare_fold_inputs(
     train_regime_probs = None
     val_regime_probs = None
     test_regime_probs = None
-    try:
-        regime_bundle = fit_fold_regimes(
-            train_returns=wfo_dataset.train_returns,
-            val_returns=wfo_dataset.val_returns,
-            test_returns=wfo_dataset.test_returns,
-            n_states=n_states,
+    regime_source = str(cfg.get("eval", {}).get("regime_source", "hmm")).lower()
+    if regime_source == "feature_stress_tri":
+        train_regime_probs, val_regime_probs, test_regime_probs, regime_dim = _build_feature_stress_regimes(
+            wfo_dataset=wfo_dataset,
+            oracle_cfg=oracle_cfg,
+            benchmark_position=oracle_benchmark_position,
+            abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+            abs_max_position=ac_cfg.get("abs_max_position", 1.0),
         )
-        hmm_det = regime_bundle["detector"]
-        regime_dim = regime_bundle["regime_dim"]
-        train_regime_probs = regime_bundle["train_regime_probs"]
-        val_regime_probs = regime_bundle["val_regime_probs"]
-        test_regime_probs = regime_bundle["test_regime_probs"]
-        print(f"[Regime] HMM fitted, regime_dim={regime_dim}")
-    except Exception as e:
-        print(f"[Regime] HMM skipped: {e}")
+        print(f"[Regime] Feature-stress tri regime built, regime_dim={regime_dim}")
+    else:
+        try:
+            regime_bundle = fit_fold_regimes(
+                train_returns=wfo_dataset.train_returns,
+                val_returns=wfo_dataset.val_returns,
+                test_returns=wfo_dataset.test_returns,
+                n_states=n_states,
+            )
+            hmm_det = regime_bundle["detector"]
+            regime_dim = regime_bundle["regime_dim"]
+            train_regime_probs = regime_bundle["train_regime_probs"]
+            val_regime_probs = regime_bundle["val_regime_probs"]
+            test_regime_probs = regime_bundle["test_regime_probs"]
+            print(f"[Regime] HMM fitted, regime_dim={regime_dim}")
+        except Exception as e:
+            print(f"[Regime] HMM skipped: {e}")
 
     if oracle_cfg.get("append_stress_regime_signal", False):
         feature_columns = getattr(wfo_dataset, "feature_columns", [])
