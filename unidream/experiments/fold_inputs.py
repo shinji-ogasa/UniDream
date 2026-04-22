@@ -266,6 +266,9 @@ def prepare_fold_inputs(
     train_regime_probs = None
     val_regime_probs = None
     test_regime_probs = None
+    train_advantage_values = None
+    val_advantage_values = None
+    test_advantage_values = None
     regime_source = str(cfg.get("eval", {}).get("regime_source", "hmm")).lower()
     if regime_source == "feature_stress_tri":
         train_regime_probs, val_regime_probs, test_regime_probs, regime_dim = _build_feature_stress_regimes(
@@ -331,6 +334,41 @@ def prepare_fold_inputs(
         regime_dim = int(train_regime_probs.shape[1]) if train_regime_probs is not None else 1
         print(f"[Regime] Stress signal appended, regime_dim={regime_dim}")
 
+    if ac_cfg.get("advantage_conditioned", False):
+        advantage_source = str(ac_cfg.get("advantage_source", "default")).lower()
+        if advantage_source == "feature_stress":
+            feature_columns = getattr(wfo_dataset, "feature_columns", [])
+            train_advantage_values, stress_stats = _normalized_feature_stress_signal(
+                train_features=wfo_dataset.train_features,
+                fold_features=wfo_dataset.train_features,
+                feature_columns=feature_columns,
+                oracle_cfg=oracle_cfg,
+                benchmark_position=oracle_benchmark_position,
+                abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+                abs_max_position=ac_cfg.get("abs_max_position", 1.0),
+            )
+            val_advantage_values, stress_stats = _normalized_feature_stress_signal(
+                train_features=wfo_dataset.train_features,
+                fold_features=wfo_dataset.val_features,
+                feature_columns=feature_columns,
+                oracle_cfg=oracle_cfg,
+                benchmark_position=oracle_benchmark_position,
+                abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+                abs_max_position=ac_cfg.get("abs_max_position", 1.0),
+                train_signal_stats=stress_stats,
+            )
+            test_advantage_values, _ = _normalized_feature_stress_signal(
+                train_features=wfo_dataset.train_features,
+                fold_features=wfo_dataset.test_features,
+                feature_columns=feature_columns,
+                oracle_cfg=oracle_cfg,
+                benchmark_position=oracle_benchmark_position,
+                abs_min_position=ac_cfg.get("abs_min_position", 0.0),
+                abs_max_position=ac_cfg.get("abs_max_position", 1.0),
+                train_signal_stats=stress_stats,
+            )
+            print("[Advantage] Feature-stress signal prepared")
+
     oracle_bundle["oracle_values"] = oracle_values
     return {
         "train_returns": train_returns,
@@ -344,4 +382,7 @@ def prepare_fold_inputs(
         "train_regime_probs": train_regime_probs,
         "val_regime_probs": val_regime_probs,
         "test_regime_probs": test_regime_probs,
+        "train_advantage_values": train_advantage_values,
+        "val_advantage_values": val_advantage_values,
+        "test_advantage_values": test_advantage_values,
     }

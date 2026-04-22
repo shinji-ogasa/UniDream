@@ -35,6 +35,7 @@ def _rollout_head_metrics(
     z: np.ndarray,
     h: np.ndarray,
     regime_probs: np.ndarray | None,
+    advantage_values: np.ndarray | None,
     device: str,
 ) -> dict[str, np.ndarray | float]:
     dev = torch.device(resolve_device(device))
@@ -43,6 +44,11 @@ def _rollout_head_metrics(
     regime_t = None
     if regime_probs is not None:
         regime_t = torch.as_tensor(regime_probs, dtype=torch.float32, device=dev)
+    advantage_t = None
+    if advantage_values is not None:
+        advantage_t = torch.as_tensor(advantage_values, dtype=torch.float32, device=dev)
+        if advantage_t.ndim == 1:
+            advantage_t = advantage_t.unsqueeze(-1)
 
     benchmark = float(getattr(actor, "benchmark_position", 1.0))
     target_values = actor._target_values_tensor(dev, torch.float32)
@@ -62,11 +68,13 @@ def _rollout_head_metrics(
     with torch.no_grad():
         for i in range(len(z)):
             reg_i = regime_t[i : i + 1] if regime_t is not None else None
+            adv_i = advantage_t[i : i + 1] if advantage_t is not None else None
             trade_logits, target_logits, target_mean, target_std, _band, _current = actor.controller_outputs_full(
                 z_t[i : i + 1],
                 h_t[i : i + 1],
                 inventory=controller_state,
                 regime=reg_i,
+                advantage=adv_i,
             )
             probs = F.softmax(target_logits, dim=-1).squeeze(0)
             entropy = float((-(probs * probs.clamp_min(1e-9).log()).sum()).item())
@@ -80,6 +88,7 @@ def _rollout_head_metrics(
                         h_t[i : i + 1],
                         inventory=controller_state,
                         regime=reg_i,
+                        advantage=adv_i,
                     )
                 )
             trade_probs.append(float(execution_prob.item()))
@@ -92,6 +101,7 @@ def _rollout_head_metrics(
                 h_t[i : i + 1],
                 inventory=controller_state,
                 regime=reg_i,
+                advantage=adv_i,
             )
             positions.append(float(next_position.item()))
             controller_state = actor.update_controller_state(controller_state, next_position)
@@ -276,10 +286,22 @@ def run_policy_collapse_audit(
         bc_trainer.load(bc_path)
 
         split_specs = [
-            ("train", wfo_dataset.train_features, fold_inputs["oracle_positions"], fold_inputs["train_regime_probs"]),
-            ("val", wfo_dataset.val_features, fold_inputs["val_oracle_positions"], fold_inputs["val_regime_probs"]),
+            (
+                "train",
+                wfo_dataset.train_features,
+                fold_inputs["oracle_positions"],
+                fold_inputs["train_regime_probs"],
+                fold_inputs.get("train_advantage_values"),
+            ),
+            (
+                "val",
+                wfo_dataset.val_features,
+                fold_inputs["val_oracle_positions"],
+                fold_inputs["val_regime_probs"],
+                fold_inputs.get("val_advantage_values"),
+            ),
         ]
-        for split_name, split_features, teacher_positions, regime_probs in split_specs:
+        for split_name, split_features, teacher_positions, regime_probs, advantage_values in split_specs:
             if split_name not in split_filter:
                 continue
             if max_bars is not None and len(split_features) > max_bars:
@@ -287,6 +309,8 @@ def run_policy_collapse_audit(
                 teacher_positions = teacher_positions[-max_bars:]
                 if regime_probs is not None:
                     regime_probs = regime_probs[-max_bars:]
+                if advantage_values is not None:
+                    advantage_values = advantage_values[-max_bars:]
 
             enc = wm_trainer.encode_sequence(split_features, seq_len=seq_len)
             head_metrics = _rollout_head_metrics(
@@ -294,6 +318,7 @@ def run_policy_collapse_audit(
                 z=enc["z"],
                 h=enc["h"],
                 regime_probs=regime_probs,
+                advantage_values=advantage_values,
                 device=device,
             )
             bc_positions = head_metrics["positions"]

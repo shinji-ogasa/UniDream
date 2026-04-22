@@ -463,6 +463,9 @@ def run_fold(
     train_regime_probs = fold_inputs["train_regime_probs"]
     val_regime_probs = fold_inputs["val_regime_probs"]
     test_regime_probs = fold_inputs["test_regime_probs"]
+    train_advantage_values = fold_inputs.get("train_advantage_values")
+    val_advantage_values = fold_inputs.get("val_advantage_values")
+    test_advantage_values = fold_inputs.get("test_advantage_values")
 
     # --------- Step 2: 世界モデル学習 ---------
     ensemble, wm_trainer = prepare_world_model_stage(
@@ -512,7 +515,9 @@ def run_fold(
     )
     actor = bc_setup["actor"]
     bc_sample_quality = bc_setup["bc_sample_quality"]
-    bc_advantage_values = bc_setup["bc_advantage_values"]
+    bc_advantage_values = (
+        train_advantage_values if train_advantage_values is not None else bc_setup["bc_advantage_values"]
+    )
 
     bc_trainer = run_bc_stage(
         actor=actor,
@@ -562,10 +567,12 @@ def run_fold(
         h_train=h_train,
         oracle_positions=oracle_positions,
         train_regime_probs=train_regime_probs,
+        train_advantage_values=train_advantage_values,
         wfo_dataset=wfo_dataset,
         wm_trainer=wm_trainer,
         seq_len=seq_len,
         val_regime_probs=val_regime_probs,
+        val_advantage_values=val_advantage_values,
         val_oracle_positions=val_oracle_positions,
         start_idx=start_idx,
         stop_idx=stop_idx,
@@ -593,6 +600,7 @@ def run_fold(
         wfo_dataset=wfo_dataset,
         seq_len=seq_len,
         val_regime_probs=val_regime_probs,
+        val_advantage_values=val_advantage_values,
         device=device,
         cfg=cfg,
         ac_cfg=ac_cfg,
@@ -614,6 +622,7 @@ def run_fold(
         wfo_dataset=wfo_dataset,
         seq_len=seq_len,
         test_regime_probs=test_regime_probs,
+        test_advantage_values=test_advantage_values,
         device=device,
         cfg=cfg,
         costs_cfg=costs_cfg,

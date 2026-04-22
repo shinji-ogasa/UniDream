@@ -8,6 +8,7 @@ def run_test_stage(
     wfo_dataset,
     seq_len: int,
     test_regime_probs,
+    test_advantage_values,
     device: str,
     cfg: dict,
     costs_cfg: dict,
@@ -28,7 +29,11 @@ def run_test_stage(
 
     enc_test = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
     positions = actor.predict_positions(
-        enc_test["z"], enc_test["h"], regime_np=test_regime_probs, device=device
+        enc_test["z"],
+        enc_test["h"],
+        regime_np=test_regime_probs,
+        advantage_np=test_advantage_values,
+        device=device,
     )
 
     t_min = min(len(test_returns), len(positions))

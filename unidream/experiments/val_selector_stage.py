@@ -8,6 +8,7 @@ def run_val_selector_stage(
     wfo_dataset,
     seq_len: int,
     val_regime_probs,
+    val_advantage_values,
     device: str,
     cfg: dict,
     ac_cfg: dict,
@@ -41,7 +42,11 @@ def run_val_selector_stage(
         for candidate in adjust_scale_grid:
             actor.infer_adjust_rate_scale = float(candidate)
             pos = actor.predict_positions(
-                enc_val["z"], enc_val["h"], regime_np=val_regime_probs, device=device
+                enc_val["z"],
+                enc_val["h"],
+                regime_np=val_regime_probs,
+                advantage_np=val_advantage_values,
+                device=device,
             )
             t_min = min(len(val_returns_arr), len(pos))
             metrics = backtest_cls(

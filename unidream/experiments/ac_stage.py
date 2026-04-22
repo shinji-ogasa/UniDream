@@ -50,10 +50,12 @@ def run_ac_stage(
     h_train,
     oracle_positions,
     train_regime_probs,
+    train_advantage_values,
     wfo_dataset,
     wm_trainer,
     seq_len: int,
     val_regime_probs,
+    val_advantage_values,
     val_oracle_positions,
     start_idx: int,
     stop_idx: int,
@@ -116,7 +118,11 @@ def run_ac_stage(
         if z_val_fixed is None:
             return -float("inf"), "raw=-inf score=-inf"
         pos = actor.predict_positions(
-            z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
+            z_val_fixed,
+            h_val_fixed,
+            regime_np=val_regime_probs,
+            advantage_np=val_advantage_values,
+            device=device,
         )
         t_min = min(len(val_returns_arr), len(pos))
         metrics = backtest_cls(
@@ -145,7 +151,11 @@ def run_ac_stage(
         print(f"[AC] BC-only val score: {bc_val_label}")
         if z_val_fixed is not None:
             bc_pos = actor.predict_positions(
-                z_val_fixed, h_val_fixed, regime_np=val_regime_probs, device=device
+                z_val_fixed,
+                h_val_fixed,
+                regime_np=val_regime_probs,
+                advantage_np=val_advantage_values,
+                device=device,
             )
             bc_t = min(len(val_returns_arr), len(bc_pos))
             bc_metrics = backtest_cls(
@@ -201,7 +211,13 @@ def run_ac_stage(
         recent_regime = train_regime_probs[window_start:t_train] if train_regime_probs is not None else None
         enc_recent = wm_trainer.encode_sequence(recent_feat, seq_len=seq_len)
         recent_pos = actor.predict_positions(
-            enc_recent["z"], enc_recent["h"], regime_np=recent_regime, device=device
+            enc_recent["z"],
+            enc_recent["h"],
+            regime_np=recent_regime,
+            advantage_np=(
+                None if train_advantage_values is None else train_advantage_values[window_start:t_train]
+            ),
+            device=device,
         )
         recent_ds = sequence_dataset_cls(
             recent_feat,
