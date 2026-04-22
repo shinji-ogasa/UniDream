@@ -63,6 +63,54 @@ def _initialize_regime_mode_gate_from_teacher(
         )
 
 
+def _initialize_regime_residual_shift_from_teacher(
+    *,
+    actor,
+    oracle_positions,
+    train_regime_probs,
+    benchmark_position: float,
+    bc_cfg: dict,
+) -> None:
+    if actor.regime_residual_shift_head is None or train_regime_probs is None:
+        return
+    shift_scale = float(getattr(actor, "regime_residual_shift_scale", 0.0))
+    if shift_scale <= 0.0:
+        return
+    if len(oracle_positions) == 0 or len(train_regime_probs) == 0:
+        return
+
+    min_samples = float(max(bc_cfg.get("init_regime_residual_shift_min_samples", 64.0), 1.0))
+    clip_ratio = float(np.clip(bc_cfg.get("init_regime_residual_shift_clip_ratio", 0.9), 1e-3, 0.999))
+
+    oracle_overlay = np.asarray(oracle_positions, dtype=np.float32) - float(benchmark_position)
+    regime_probs = np.asarray(train_regime_probs[: len(oracle_overlay)], dtype=np.float32)
+    if regime_probs.ndim != 2 or regime_probs.shape[1] == 0:
+        return
+
+    regime_mass = regime_probs.sum(axis=0)
+    total_mass = float(regime_mass.sum())
+    if total_mass <= 0.0:
+        return
+
+    global_overlay = float((regime_probs * oracle_overlay[:, None]).sum() / max(total_mass, 1e-6))
+    raw_regime_overlay = (regime_probs * oracle_overlay[:, None]).sum(axis=0) / np.clip(regime_mass, 1e-6, None)
+    shrink = regime_mass / (regime_mass + min_samples)
+    shrunk_overlay = shrink * raw_regime_overlay + (1.0 - shrink) * global_overlay
+    centered_shift = shrunk_overlay - float(np.sum((regime_mass / total_mass) * shrunk_overlay))
+
+    max_abs_shift = max(shift_scale * clip_ratio, 1e-6)
+    clipped_shift = np.clip(centered_shift, -max_abs_shift, max_abs_shift)
+    normalized_shift = np.clip(clipped_shift / shift_scale, -clip_ratio, clip_ratio)
+    raw_weights = np.arctanh(normalized_shift)
+
+    with torch.no_grad():
+        actor.regime_residual_shift_head.weight.zero_()
+        actor.regime_residual_shift_head.weight[0, : raw_weights.shape[0]] = torch.as_tensor(
+            raw_weights,
+            dtype=actor.regime_residual_shift_head.weight.dtype,
+        )
+
+
 def prepare_bc_setup(
     *,
     ensemble,
@@ -176,6 +224,14 @@ def prepare_bc_setup(
                     torch.nn.init.zeros_(actor.regime_mode_gate_head.weight)
     if bc_cfg.get("init_regime_mode_gate_from_teacher", False):
         _initialize_regime_mode_gate_from_teacher(
+            actor=actor,
+            oracle_positions=oracle_positions,
+            train_regime_probs=train_regime_probs,
+            benchmark_position=benchmark_position,
+            bc_cfg=bc_cfg,
+        )
+    if bc_cfg.get("init_regime_residual_shift_from_teacher", False):
+        _initialize_regime_residual_shift_from_teacher(
             actor=actor,
             oracle_positions=oracle_positions,
             train_regime_probs=train_regime_probs,
