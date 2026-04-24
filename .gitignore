@@ -4,3 +4,4 @@ __pycache__/
 *.egg-info/
 checkpoints/
 local_dl_data/
+.env

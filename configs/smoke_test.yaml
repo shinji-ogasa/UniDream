@@ -1,6 +1,6 @@
 # UniDream — Smoke Test Configuration
 # パイプライン全体の動作確認用。ステップ数を大幅に削減。
-# Usage: uv run python train.py --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
+# Usage: uv run python -m unidream.cli.train --config configs/smoke_test.yaml --start 2022-01-01 --end 2023-06-01
 
 data:
   symbol: "BTCUSDT"

@@ -11,9 +11,17 @@ dependencies = [
     "pandas-ta",
     "scikit-learn",
     "hmmlearn",
-    "matplotlib",
     "requests",
     "scipy",
     "pyyaml",
-    "pyarrow",
 ]
+
+[project.scripts]
+unidream-train = "unidream.cli.train:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["unidream*"]
