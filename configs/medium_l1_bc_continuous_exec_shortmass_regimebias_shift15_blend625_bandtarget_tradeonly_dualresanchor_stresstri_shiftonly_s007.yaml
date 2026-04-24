@@ -144,6 +144,7 @@ ac:
   infer_target_from_logits: true
   infer_logits_target_blend: 0.625
   infer_direct_track_scale: 1.0
+  val_adjust_rate_scale_grid: [0.75, 1.00, 1.50]
   max_position_step: 1.00
   abs_min_position: 0.0
   abs_max_position: 1.0
