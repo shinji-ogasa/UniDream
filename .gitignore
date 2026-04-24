@@ -5,3 +5,4 @@ __pycache__/
 checkpoints/
 local_dl_data/
 .env
+/dogs/
