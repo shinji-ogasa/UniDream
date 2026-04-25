@@ -718,3 +718,83 @@ Validation adjust:
 - `short_mass_match_coef` / `mode_rate_match_coef` を弱める。
 - `recovery_*` loss を有効化する。
 - まず fold4 で実行し、fold4 の `short 90%` が下がるかを見る。
+
+### 2026-04-25 Experiment A: recovery loss + weak short-copy fold4
+
+実行:
+
+```powershell
+uv run python -m unidream.cli.train `
+  --config configs/medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend625_bandtarget_tradeonly_dualresanchor_stresstri_shiftonly_s007_recovery_weakshortcopy.yaml `
+  --start 2020-01-01 `
+  --end 2024-01-01 `
+  --folds 4 `
+  --device auto
+```
+
+ログ:
+
+- `documents/logs/20260425_expA_recovery_weakshortcopy_fold4.log`
+
+config 差分:
+
+```yaml
+short_mass_match_coef: 0.50
+mode_rate_match_coef: 0.375
+mode_regime_rate_match_coef: 0.1875
+recovery_trade_coef: 0.25
+recovery_band_coef: 0.05
+recovery_target_coef: 0.50
+recovery_execution_coef: 0.25
+recovery_underweight_margin: 0.05
+recovery_target_margin: 0.05
+```
+
+実行上の補足:
+
+- 新規実験 config は path 長回避のため `checkpoint_dir: checkpoints/expA_recovery_weakshortcopy` に短縮した。
+- data cache は `cache_dir: checkpoints/data_cache` を明示した。
+- 1回目は長い checkpoint path により parquet cache 保存で失敗。config を短縮して再実行済み。
+
+結果:
+
+| fold | stage | alpha_excess | sharpe_delta | maxdd_delta | win_rate | M2 | collapse_guard |
+|---:|---|---:|---:|---:|---:|---|---|
+| 4 | test | -0.13 pt/yr | -0.003 | -0.21 pt | 50.0% | MISS | pass |
+
+Test metrics:
+
+- Sharpe: `0.022`
+- Sortino: `0.027`
+- MaxDD: `-0.182`
+- Calmar: `0.049`
+- TotalRet: `0.0022`
+- PnL attr: `long=+0.0028`, `short=+0.0000`, `cost=0.0006`, `net=+0.0022`
+- Test dist: `long=0% short=0% flat=100% mean=-0.015 switches=3 avg_hold=2912.3b turnover=0.14`
+
+Validation adjust:
+
+| scale | alpha | sharpe_delta | maxdd_delta | dist | M2 |
+|---:|---:|---:|---:|---|---|
+| 0.750 | -6.42 pt | +0.007 | -0.28 pt | long 0% / short 0% / flat 100% | miss |
+| 1.000 | -6.28 pt | +0.008 | -0.29 pt | long 0% / short 0% / flat 100% | miss |
+| 1.500 | -6.12 pt | +0.009 | -0.29 pt | long 0% / short 0% / flat 100% | miss |
+
+BC / AC observations:
+
+- BC-only val: `AlphaExcess=-30.18pt`, dist `flat=100% mean=-0.029`, turnover `16.30`。
+- AC 後の train/val/test はすべてほぼ `flat=100%`。
+- `recovery + weak short-copy` は fold4 の `short 90%` を止めたが、benchmark/flat hold 側へ倒した。
+
+判定:
+
+- Experiment A は単独では不採用。
+- `short_mass_match` / `mode_rate_match` の急な 0.25倍化と recovery loss の同時投入は、underweight 使用を消しすぎた。
+- ただし、underweight collapse を抑える方向には効いている。
+- 次は `short_mass/mode_rate` を完全には落としすぎず、価値重み付けを入れる Experiment B に進む。
+
+次アクション:
+
+- Experiment B を作る。
+- A をベースに `sample_quality_mode: outcome_edge` と `sample_quality_coef` を入れる。
+- ただし A は flat へ寄りすぎたため、B では `short_mass_match_coef` / `mode_rate_match_coef` を少し戻す案も検討する。
