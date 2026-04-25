@@ -98,11 +98,13 @@ def run_ac_stage(
         h=h_train[:t_enc],
         oracle_positions=oracle_positions[:t_enc],
         regime_probs=train_regime_probs[:t_enc] if train_regime_probs is not None else None,
+        advantage_values=train_advantage_values[:t_enc] if train_advantage_values is not None else None,
     )
     encoded_list = [{
         "z": z_train,
         "h": h_train,
         "regime": train_regime_probs if train_regime_probs is not None else None,
+        "advantage": train_advantage_values if train_advantage_values is not None else None,
     }]
 
     val_features_arr = wfo_dataset.val_features

@@ -1017,8 +1017,13 @@ class BCPretrainer:
                     q_repr_arr = q_arr[np.arange(n_chunks), repr_idx]
                     tensors.append(torch.tensor(q_repr_arr, dtype=torch.float32))
                 if use_adv:
-                    adv_arr = np.asarray(advantage_values[:T_use], dtype=np.float32).reshape(n_chunks, k)
-                    adv_repr_arr = adv_arr[np.arange(n_chunks), repr_idx]
+                    adv_arr = np.asarray(advantage_values[:T_use], dtype=np.float32)
+                    if adv_arr.ndim == 1:
+                        adv_arr = adv_arr.reshape(n_chunks, k)
+                        adv_repr_arr = adv_arr[np.arange(n_chunks), repr_idx]
+                    else:
+                        adv_arr = adv_arr.reshape(n_chunks, k, -1)
+                        adv_repr_arr = adv_arr[np.arange(n_chunks), repr_idx, :]
                     tensors.append(torch.tensor(adv_repr_arr, dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)

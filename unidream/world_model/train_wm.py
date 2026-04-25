@@ -811,3 +811,53 @@ class WorldModelTrainer:
         if self.regime_head is not None and "regime_head" in ckpt:
             self.regime_head.load_state_dict(ckpt["regime_head"])
         print(f"[WM] Checkpoint loaded: {path} (step={self.global_step})")
+
+    @torch.no_grad()
+    def predict_auxiliary_from_encoded(
+        self,
+        z: np.ndarray,
+        h: np.ndarray,
+        batch_size: int = 8192,
+    ) -> dict[str, np.ndarray]:
+        """Return predictive auxiliary head outputs for already encoded states."""
+        heads = {
+            "return": self.return_head,
+            "vol": self.vol_head,
+            "drawdown": self.drawdown_head,
+        }
+        active = {name: head for name, head in heads.items() if head is not None}
+        if not active:
+            return {}
+
+        was_training = self.ensemble.training
+        self.ensemble.eval()
+        for head in active.values():
+            head.eval()
+
+        z_arr = np.asarray(z, dtype=np.float32)
+        h_arr = np.asarray(h, dtype=np.float32)
+        outputs: dict[str, list[np.ndarray]] = {name: [] for name in active}
+        n = min(len(z_arr), len(h_arr))
+        for start in range(0, n, batch_size):
+            end = min(start + batch_size, n)
+            z_t = torch.as_tensor(z_arr[start:end], dtype=torch.float32, device=self.device)
+            h_t = torch.as_tensor(h_arr[start:end], dtype=torch.float32, device=self.device)
+            for name, head in active.items():
+                pred = head(z_t, h_t)
+                if pred.ndim == 1:
+                    pred = pred.unsqueeze(-1)
+                outputs[name].append(pred.detach().cpu().numpy().astype(np.float32))
+
+        if was_training:
+            self.ensemble.train()
+        return {name: np.concatenate(chunks, axis=0) for name, chunks in outputs.items()}
+
+    def predictive_feature_names(self) -> list[str]:
+        names: list[str] = []
+        if self.return_head is not None:
+            names.extend([f"wm_pred_return_h{h}" for h in self.return_horizons])
+        if self.vol_head is not None:
+            names.extend([f"wm_pred_vol_h{h}" for h in self.risk_horizons])
+        if self.drawdown_head is not None:
+            names.extend([f"wm_pred_drawdown_h{h}" for h in self.risk_horizons])
+        return names

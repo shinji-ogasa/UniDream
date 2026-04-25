@@ -211,6 +211,7 @@ class ImagACTrainer:
         self._oracle_anchor_h: Optional[torch.Tensor] = None
         self._oracle_anchor_inventory: Optional[torch.Tensor] = None
         self._oracle_anchor_regime: Optional[torch.Tensor] = None
+        self._oracle_anchor_advantage: Optional[torch.Tensor] = None
         self._oracle_anchor_overlay: Optional[torch.Tensor] = None
 
         # DSR EMA trackers
@@ -230,6 +231,7 @@ class ImagACTrainer:
         # Regime conditioning
         self.regime_dim: int = 0  # set later via set_regime_dim()
         self._oracle_regime: Optional[torch.Tensor] = None
+        self._oracle_advantage: Optional[torch.Tensor] = None
 
         # Online WM update interval
         self.online_wm_interval: int = ac_cfg.get("online_wm_interval", 0)
@@ -244,6 +246,7 @@ class ImagACTrainer:
         h: np.ndarray,
         oracle_positions: np.ndarray,
         regime_probs: "np.ndarray | None" = None,
+        advantage_values: "np.ndarray | None" = None,
     ) -> None:
         """BC 損失用の Oracle データを設定する."""
         T = min(len(z), len(h), len(oracle_positions))
@@ -274,6 +277,17 @@ class ImagACTrainer:
             )
         else:
             self._oracle_regime = None
+        if advantage_values is not None and self.actor.advantage_dim > 0:
+            advantage_arr = np.asarray(advantage_values[:T], dtype=np.float32)
+            if advantage_arr.ndim == 1:
+                advantage_arr = advantage_arr[:, None]
+            self._oracle_advantage = torch.tensor(
+                advantage_arr[:, : self.actor.advantage_dim],
+                dtype=torch.float32,
+                device=self.device,
+            )
+        else:
+            self._oracle_advantage = None
 
         bank_size = int(self.nn_anchor_bank_size)
         if bank_size > 0 and T > 0:
@@ -291,11 +305,16 @@ class ImagACTrainer:
                 self._oracle_anchor_regime = self._oracle_regime.index_select(0, anchor_idx_t)
             else:
                 self._oracle_anchor_regime = None
+            if self._oracle_advantage is not None:
+                self._oracle_anchor_advantage = self._oracle_advantage.index_select(0, anchor_idx_t)
+            else:
+                self._oracle_anchor_advantage = None
         else:
             self._oracle_anchor_h = None
             self._oracle_anchor_inventory = None
             self._oracle_anchor_overlay = None
             self._oracle_anchor_regime = None
+            self._oracle_anchor_advantage = None
 
     def _get_alpha(self) -> float:
         """現在の BC/AC 混合比率 α を返す（単調非増加で線形減衰: alpha_init→alpha_final）.
@@ -334,6 +353,7 @@ class ImagACTrainer:
         past_as: Optional[torch.Tensor] = None,
         inventory0: Optional[torch.Tensor] = None,
         regime0: Optional[torch.Tensor] = None,
+        advantage0: Optional[torch.Tensor] = None,
     ) -> dict[str, torch.Tensor]:
         """Imagination rollout を実行する（horizon ステップ）.
 
@@ -355,7 +375,7 @@ class ImagACTrainer:
 
         for _ in range(self.horizon):
             next_inventory, log_prob, entropy = self.actor.get_action(
-                z, h, inventory=inventory, regime=regime0
+                z, h, inventory=inventory, regime=regime0, advantage=advantage0
             )
 
             with torch.no_grad():
@@ -453,12 +473,14 @@ class ImagACTrainer:
         T = self._oracle_z.shape[0]
         idx = torch.randint(0, T, (min(batch_size, T),), device=self.device)
         regime_batch = self._oracle_regime[idx] if self._oracle_regime is not None else None
+        advantage_batch = self._oracle_advantage[idx] if self._oracle_advantage is not None else None
         inventory_batch = self._oracle_inventory[idx] if self._oracle_inventory is not None else None
         trade_logits, target_mean, target_std, band_width, current_inventory = self.actor.controller_outputs(
             self._oracle_z[idx],
             self._oracle_h[idx],
             inventory=inventory_batch,
             regime=regime_batch,
+            advantage=advantage_batch,
         )
         oracle_pos = self._oracle_positions[idx].to(device=self.device, dtype=current_inventory.dtype)
         oracle_overlay = oracle_pos - self.benchmark_position
@@ -519,6 +541,7 @@ class ImagACTrainer:
         h: torch.Tensor,
         inventory: torch.Tensor,
         regime: Optional[torch.Tensor] = None,
+        advantage: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """BC 初期 policy からの trust-region 正則化."""
         if (
@@ -530,11 +553,11 @@ class ImagACTrainer:
             return torch.tensor(0.0, device=self.device)
 
         cur_trade_logits, cur_target_mean, cur_target_std, cur_band, _ = self.actor.controller_outputs(
-            z, h, inventory=inventory, regime=regime
+            z, h, inventory=inventory, regime=regime, advantage=advantage
         )
         with torch.no_grad():
             ref_trade_logits, ref_target_mean, ref_target_std, ref_band, _ = self.actor_prior.controller_outputs(
-                z, h, inventory=inventory, regime=regime
+                z, h, inventory=inventory, regime=regime, advantage=advantage
             )
 
         loss = torch.tensor(0.0, device=self.device)
@@ -580,6 +603,7 @@ class ImagACTrainer:
         h: torch.Tensor,
         inventory: torch.Tensor,
         regime: Optional[torch.Tensor] = None,
+        advantage: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Nearest-dataset action anchor, inspired by dataset-constrained offline RL."""
         if (
@@ -591,7 +615,7 @@ class ImagACTrainer:
             return torch.tensor(0.0, device=self.device)
 
         cur_trade_logits, cur_target_mean, _, cur_band, _ = self.actor.controller_outputs(
-            z, h, inventory=inventory, regime=regime
+            z, h, inventory=inventory, regime=regime, advantage=advantage
         )
 
         query_parts = [F.normalize(h, dim=-1), inventory]
@@ -602,6 +626,9 @@ class ImagACTrainer:
         if regime is not None and self._oracle_anchor_regime is not None:
             query_parts.append(regime)
             bank_parts.append(self._oracle_anchor_regime)
+        if advantage is not None and self._oracle_anchor_advantage is not None:
+            query_parts.append(advantage)
+            bank_parts.append(self._oracle_anchor_advantage)
         query = torch.cat(query_parts, dim=-1)
         bank = torch.cat(bank_parts, dim=-1)
 
@@ -634,6 +661,7 @@ class ImagACTrainer:
         past_zs: Optional[torch.Tensor] = None,
         past_as: Optional[torch.Tensor] = None,
         regime0: Optional[torch.Tensor] = None,
+        advantage0: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         """1 ステップの Actor-Critic 更新."""
         B = z0.shape[0]
@@ -646,7 +674,13 @@ class ImagACTrainer:
 
         # --- Imagination rollout ---
         rollout = self._imagination_rollout(
-            z0, h0, past_zs, past_as, inventory0=inventory0, regime0=regime0
+            z0,
+            h0,
+            past_zs,
+            past_as,
+            inventory0=inventory0,
+            regime0=regime0,
+            advantage0=advantage0,
         )
 
         zs = rollout["zs"]            # (B, H, z_dim)
@@ -743,8 +777,8 @@ class ImagACTrainer:
 
         pg_advantage = F.relu(advantage) if self.positive_advantages else advantage
         ac_loss = -(norm_q * pg_advantage * log_probs).mean() - self.entropy_scale * entropies.mean()
-        prior_loss = self._prior_anchor_loss(z0, h0, inventory0, regime=regime0)
-        nn_anchor_loss = self._nearest_oracle_anchor_loss(z0, h0, inventory0, regime=regime0)
+        prior_loss = self._prior_anchor_loss(z0, h0, inventory0, regime=regime0, advantage=advantage0)
+        nn_anchor_loss = self._nearest_oracle_anchor_loss(z0, h0, inventory0, regime=regime0, advantage=advantage0)
         bc_loss = self._bc_loss_batch()
         actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss + prior_loss + nn_anchor_loss
 
@@ -887,6 +921,13 @@ class ImagACTrainer:
             all_regime = np.concatenate([s["regime"] for s in encoded_sequences], axis=0)
         else:
             all_regime = None
+        has_advantage = all(
+            "advantage" in s and s["advantage"] is not None for s in encoded_sequences
+        )
+        if has_advantage:
+            all_advantage = np.concatenate([s["advantage"] for s in encoded_sequences], axis=0)
+        else:
+            all_advantage = None
 
         # context action 配列: flat（no-action）で統一する。
         # oracle actions を使うと WM は oracle context 空間で imagination するが、
@@ -922,6 +963,12 @@ class ImagACTrainer:
                 )
             else:
                 regime0 = None
+            if all_advantage is not None:
+                advantage0 = torch.tensor(
+                    all_advantage[idx], dtype=torch.float32, device=self.device
+                )
+            else:
+                advantage0 = None
 
             # 各サンプルの直前 L ステップを context として取得（左端はゼロパディング）
             past_zs_np = np.zeros((batch_size, L, z_dim), dtype=np.float32)
@@ -939,7 +986,12 @@ class ImagACTrainer:
             past_as = torch.tensor(past_as_np, dtype=torch.float32, device=self.device)
 
             step_log = self.train_step(
-                z0, h0, past_zs=past_zs, past_as=past_as, regime0=regime0
+                z0,
+                h0,
+                past_zs=past_zs,
+                past_as=past_as,
+                regime0=regime0,
+                advantage0=advantage0,
             )
             logs.append({"step": self.global_step, **step_log})
             self.loss_history.append(logs[-1])
@@ -980,6 +1032,10 @@ class ImagACTrainer:
                         regime_np=(
                             self._oracle_regime[:n_sample].cpu().numpy()
                             if self._oracle_regime is not None else None
+                        ),
+                        advantage_np=(
+                            self._oracle_advantage[:n_sample].cpu().numpy()
+                            if self._oracle_advantage is not None else None
                         ),
                         device=str(self.device),
                     )

@@ -30,6 +30,7 @@ class Actor(nn.Module):
         dropout_p: float = 0.0,
         inventory_dim: int = 1,
         advantage_dim: int = 0,
+        advantage_input_mode: str = "concat",
     ):
         super().__init__()
         self.act_dim = act_dim
@@ -37,8 +38,12 @@ class Actor(nn.Module):
         self.regime_dim = regime_dim
         self.inventory_dim = inventory_dim
         self.advantage_dim = advantage_dim
+        self.advantage_input_mode = str(advantage_input_mode).lower()
 
-        in_dim = z_dim + h_dim + regime_dim + inventory_dim + advantage_dim
+        use_advantage_adapter = self.advantage_dim > 0 and self.advantage_input_mode == "adapter"
+        in_dim = z_dim + h_dim + regime_dim + inventory_dim
+        if self.advantage_dim > 0 and not use_advantage_adapter:
+            in_dim += advantage_dim
         layers: list[nn.Module] = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
         if dropout_p > 0.0:
             layers.append(nn.Dropout(dropout_p))
@@ -80,6 +85,11 @@ class Actor(nn.Module):
         self.residual_head_b = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
+        self.advantage_adapter = (
+            nn.Linear(self.advantage_dim, hidden_dim, bias=False) if use_advantage_adapter else None
+        )
+        if self.advantage_adapter is not None:
+            nn.init.zeros_(self.advantage_adapter.weight)
 
         # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
         nn.init.constant_(self.trade_head.bias, -0.5)
@@ -285,10 +295,13 @@ class Actor(nn.Module):
             if regime is None:
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
             parts.append(regime)
-        if advantage is not None:
+        if advantage is not None and self.advantage_adapter is None:
             parts.append(advantage)
         x = torch.cat(parts, dim=-1)
-        return self.trunk(x), inventory
+        hidden = self.trunk(x)
+        if advantage is not None and self.advantage_adapter is not None:
+            hidden = hidden + self.advantage_adapter(advantage)
+        return hidden, inventory
 
     def _target_overlay_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         return self._target_values_tensor(device, dtype) - self._benchmark_position()

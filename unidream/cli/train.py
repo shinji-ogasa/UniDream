@@ -50,6 +50,7 @@ from unidream.experiments.bc_stage import run_bc_stage
 from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
+from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 
 
 def _ts() -> str:
@@ -418,6 +419,22 @@ def run_fold(
     )
     z_train = encoded["z"]
     h_train = encoded["h"]
+
+    predictive_bundle = build_wm_predictive_state_bundle(
+        wm_trainer=wm_trainer,
+        wfo_dataset=wfo_dataset,
+        z_train=z_train,
+        h_train=h_train,
+        seq_len=seq_len,
+        ac_cfg=ac_cfg,
+        log_ts=_ts,
+    )
+    if predictive_bundle is not None:
+        ac_cfg["advantage_conditioned"] = True
+        ac_cfg["advantage_dim"] = int(predictive_bundle["train"].shape[1])
+        train_advantage_values = predictive_bundle["train"]
+        val_advantage_values = predictive_bundle["val"]
+        test_advantage_values = predictive_bundle["test"]
 
     # --------- Step 3: BC 初期化 ---------
     bc_setup = prepare_bc_setup(

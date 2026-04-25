@@ -134,8 +134,27 @@ def prepare_bc_setup(
         regime_dim=0 if train_regime_probs is None else int(train_regime_probs.shape[1]),
         dropout_p=ac_cfg.get("actor_dropout", 0.0),
         inventory_dim=ac_cfg.get("controller_state_dim", 1),
-        advantage_dim=1 if ac_cfg.get("advantage_conditioned", False) else 0,
+        advantage_dim=int(ac_cfg.get("advantage_dim", 1 if ac_cfg.get("advantage_conditioned", False) else 0)),
+        advantage_input_mode=str(
+            ac_cfg.get(
+                "advantage_input_mode",
+                "adapter" if ac_cfg.get("use_wm_predictive_state", False) else "concat",
+            )
+        ),
     )
+    if actor.advantage_dim > 0 and actor.advantage_adapter is None and bool(
+        ac_cfg.get("wm_predictive_state_zero_init", ac_cfg.get("use_wm_predictive_state", False))
+    ):
+        first_layer = actor.trunk[0]
+        if isinstance(first_layer, torch.nn.Linear):
+            with torch.no_grad():
+                in_dim = int(first_layer.weight.shape[1])
+                non_adv_dim = max(in_dim - int(actor.advantage_dim), 1)
+                # Preserve the effective initialization scale of the original z/h/regime/inventory inputs.
+                first_layer.weight[:, :non_adv_dim].mul_((in_dim / non_adv_dim) ** 0.5)
+                first_layer.weight[:, non_adv_dim:].mul_(
+                    float(ac_cfg.get("wm_predictive_state_init_scale", 0.0))
+                )
     benchmark_position = float(reward_cfg.get("benchmark_position", 1.0))
     actor.target_values = oracle_action_values.astype(np.float32)
     actor.benchmark_position = benchmark_position
