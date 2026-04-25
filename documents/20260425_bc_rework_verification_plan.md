@@ -875,3 +875,87 @@ BC / AC observations:
 - Experiment C は self-conditioned BC を追加するが、B をそのままベースにすると悪化リスクが高い。
 - C は `sample_quality_coef` を弱めた `0.25`、`short_mass/mode_rate` は A 寄りに戻して実行する。
 - 目的は、self-conditioned inventory state が recovery と turnover を改善するかを見ること。
+
+### 2026-04-25 Experiment C: recovery + weak outcome-edge + self-conditioned BC fold4
+
+実行:
+
+```powershell
+uv run python -m unidream.cli.train `
+  --config configs/medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend625_bandtarget_tradeonly_dualresanchor_stresstri_shiftonly_s007_recovery_weighted_selfcond.yaml `
+  --start 2020-01-01 `
+  --end 2024-01-01 `
+  --folds 4 `
+  --device auto
+```
+
+ログ:
+
+- `documents/logs/20260425_expC_recovery_weighted_selfcond_fold4.log`
+
+config 差分:
+
+```yaml
+sample_quality_mode: "outcome_edge"
+sample_quality_coef: 0.25
+sample_quality_clip: 2.0
+self_condition_prob: 0.50
+self_condition_warmup_epochs: 2
+self_condition_interval: 1
+self_condition_mode: "dagger"
+self_condition_max_underweight_gap: 0.10
+self_condition_relabel_step: 0.10
+self_condition_relabel_band: 0.02
+short_mass_match_coef: 0.50
+mode_rate_match_coef: 0.375
+mode_regime_rate_match_coef: 0.1875
+recovery_*: Experiment A と同じ
+```
+
+意図:
+
+- B の `sample_quality_coef: 1.0` は強すぎたため `0.25` に弱めた。
+- A の flat 偏りを避けるため、self-conditioned inventory state で underweight からの戻り訓練を入れた。
+
+結果:
+
+| fold | stage | alpha_excess | sharpe_delta | maxdd_delta | win_rate | M2 | collapse_guard |
+|---:|---|---:|---:|---:|---:|---|---|
+| 4 | test | -0.57 pt/yr | -0.014 | -0.17 pt | 50.0% | MISS | pass |
+
+Test metrics:
+
+- Sharpe: `0.011`
+- Sortino: `0.014`
+- MaxDD: `-0.183`
+- Calmar: `0.025`
+- TotalRet: `0.0011`
+- PnL attr: `long=+0.0017`, `short=+0.0000`, `cost=0.0006`, `net=+0.0011`
+- Test dist: `long=0% short=0% flat=100% mean=-0.014 switches=1 avg_hold=8737.0b turnover=0.03`
+
+Validation adjust:
+
+| scale | alpha | sharpe_delta | maxdd_delta | dist | M2 |
+|---:|---:|---:|---:|---|---|
+| 0.750 | -7.40 pt | +0.001 | -0.26 pt | long 0% / short 0% / flat 100% | miss |
+| 1.000 | -7.94 pt | +0.003 | -0.30 pt | long 0% / short 0% / flat 100% | miss |
+| 1.500 | -8.37 pt | +0.005 | -0.33 pt | long 0% / short 0% / flat 100% | miss |
+
+BC / AC observations:
+
+- BC-only val: `AlphaExcess=-7.92pt`, dist `flat=100% mean=-0.013`, turnover `0.03`。
+- self-conditioned BC は B の high-turnover collapse を止めた。
+- ただし underweight 活用もほぼ消え、A と同じ benchmark/flat hold へ倒れた。
+- BC stage が大幅に重くなった。fold4 の BC だけで約27分かかっている。
+
+判定:
+
+- Experiment C は不採用。
+- self-conditioned BC は分布ズレ/turnover 抑制には効くが、現設定では active decision を消しすぎる。
+- `self_condition_prob: 0.50` は強すぎる可能性が高い。
+- 再検討するなら `0.10-0.25` からにする。
+
+次アクション:
+
+- Experiment D で path / turnover aware BC を確認する。
+- ただし C で既に turnover は十分低く、問題は active underweight が消えることなので、D は A ベースではなく現本線寄りの active policy に対して path cost を入れる方が良い。
