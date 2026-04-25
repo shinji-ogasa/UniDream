@@ -132,14 +132,6 @@ class ImagACTrainer:
         self.actor_prior = copy.deepcopy(self.actor).to(self.device).eval()
         for p in self.actor_prior.parameters():
             p.requires_grad_(False)
-        # MPS最適化: torch.compileで演算オーバーヘッド削減
-        if hasattr(torch, 'compile'):
-            try:
-                self.actor = torch.compile(self.actor, mode='reduce-overhead')
-                self.critic = torch.compile(self.critic, mode='reduce-overhead')
-                print("[AC] Applied torch.compile to actor and critic")
-            except Exception as e:
-                print(f"[AC] torch.compile failed: {e}, continuing without compile")
 
         cfg = cfg or {}
         ac_cfg = cfg.get("ac", {})

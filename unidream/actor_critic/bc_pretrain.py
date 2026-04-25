@@ -966,6 +966,11 @@ class BCPretrainer:
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
             use_adv = advantage_values is not None
+            loader_options = {
+                "num_workers": 2,
+                "pin_memory": self.device.type == "cuda",
+                "persistent_workers": True,
+            }
             for epoch in range(self.n_epochs):
                 state_all = teacher_state_all
                 target_all = np.asarray(oracle_positions[:T], dtype=np.float32)
@@ -1017,14 +1022,11 @@ class BCPretrainer:
                     tensors.append(torch.tensor(adv_repr_arr, dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)
-                # MPS最適化: pin_memoryでCPU→GPU高速転送
                 loader = DataLoader(
                     dataset,
                     batch_size=self.batch_size,
                     shuffle=True,
-                    pin_memory=True,
-                    num_workers=2,
-                    persistent_workers=True,
+                    **loader_options,
                 )
                 epoch_loss = 0.0
                 count = 0
@@ -1087,6 +1089,11 @@ class BCPretrainer:
         use_adv = advantage_values is not None
         logs = []
         rollout_positions = None
+        loader_options = {
+            "num_workers": 2,
+            "pin_memory": self.device.type == "cuda",
+            "persistent_workers": True,
+        }
         for epoch in range(self.n_epochs):
             state_all = teacher_state_all
             target_all = np.asarray(oracle_positions[:T], dtype=np.float32)
@@ -1133,14 +1140,11 @@ class BCPretrainer:
                 if adv_t is not None:
                     tensors.append(adv_t)
                 dataset = TensorDataset(*tensors)
-            # MPS最適化: pin_memoryでCPU→GPU高速転送
             loader = DataLoader(
                 dataset,
                 batch_size=self.batch_size,
                 shuffle=True,
-                pin_memory=True,
-                num_workers=2,
-                persistent_workers=True,
+                **loader_options,
             )
             epoch_loss = 0.0
             count = 0

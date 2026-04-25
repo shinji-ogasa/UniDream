@@ -206,6 +206,14 @@ class WorldModelTrainer:
         self.global_step = 0
         self.loss_history: list[dict] = []
 
+    def _loader_options(self, num_workers: int) -> dict:
+        workers = max(0, int(num_workers))
+        return {
+            "num_workers": workers,
+            "pin_memory": self.device.type == "cuda",
+            "persistent_workers": workers > 0,
+        }
+
     def _compute_net_returns(
         self,
         actions: torch.Tensor,
@@ -272,24 +280,14 @@ class WorldModelTrainer:
 
         # dataset が batch_size 未満の場合 drop_last=True で loader が空になり無限ループする
         drop_last = len(dataset) >= self.batch_size
-        # MPS最適化: num_workers>0でCPU並列ロード、pin_memoryで高速転送
         loader = DataLoader(
             dataset,
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=drop_last,
-            num_workers=4,
-            pin_memory=True,
-            persistent_workers=True,
+            **self._loader_options(4),
         )
         self.ensemble.train()
-        # MPS最適化: torch.compileでMPS演算のオーバーヘッド削減
-        if hasattr(torch, 'compile'):
-            try:
-                self.ensemble = torch.compile(self.ensemble, mode='reduce-overhead')
-                print("[WM] Applied torch.compile for MPS optimization")
-            except Exception as e:
-                print(f"[WM] torch.compile failed: {e}, continuing without compile")
         step = 0
         logs = []
 
@@ -480,9 +478,7 @@ class WorldModelTrainer:
             dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=2,
-            pin_memory=True,
-            persistent_workers=True,
+            **self._loader_options(2),
         )
         total = 0.0
         count = 0
