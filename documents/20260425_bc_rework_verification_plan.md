@@ -959,3 +959,90 @@ BC / AC observations:
 
 - Experiment D で path / turnover aware BC を確認する。
 - ただし C で既に turnover は十分低く、問題は active underweight が消えることなので、D は A ベースではなく現本線寄りの active policy に対して path cost を入れる方が良い。
+
+### 2026-04-25 Experiment D: path / turnover aware BC fold4
+
+実行:
+
+```powershell
+uv run python -m unidream.cli.train `
+  --config configs/medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend625_bandtarget_tradeonly_dualresanchor_stresstri_shiftonly_s007_pathcost.yaml `
+  --start 2020-01-01 `
+  --end 2024-01-01 `
+  --folds 4 `
+  --device auto
+```
+
+ログ:
+
+- `documents/logs/20260425_expD_pathcost_fold4.log`
+
+config 差分:
+
+```yaml
+chunk_size: 1
+path_aux_coef: 0.25
+path_horizon: 8
+path_position_coef: 1.0
+path_turnover_coef: 0.25
+path_shortfall_coef: 0.25
+short_mass_match_coef: 2.0
+mode_rate_match_coef: 1.50
+mode_regime_rate_match_coef: 0.75
+```
+
+実装上の注意:
+
+- `path_aux_coef` は現状 `chunk_size > 1` の branch では使われない。
+- そのため D では `chunk_size: 1` に変更して path loss を実際に有効化した。
+
+結果:
+
+| fold | stage | alpha_excess | sharpe_delta | maxdd_delta | win_rate | M2 | collapse_guard |
+|---:|---|---:|---:|---:|---:|---|---|
+| 4 | test | -0.42 pt/yr | -0.010 | -0.70 pt | 50.0% | MISS | pass |
+
+Test metrics:
+
+- Sharpe: `0.016`
+- Sortino: `0.019`
+- MaxDD: `-0.177`
+- Calmar: `0.034`
+- TotalRet: `0.0015`
+- PnL attr: `long=+0.0021`, `short=+0.0000`, `cost=0.0006`, `net=+0.0015`
+- Test dist: `long=0% short=1% flat=99% mean=-0.048 switches=3 avg_hold=2912.3b turnover=0.17`
+
+Validation adjust:
+
+| scale | alpha | sharpe_delta | maxdd_delta | dist | 判定 |
+|---:|---:|---:|---:|---|---|
+| 0.750 | -26.75 pt | +0.013 | -0.94 pt | long 0% / short 0% / flat 100% | reject alpha<-25 |
+| 1.000 | -26.93 pt | +0.013 | -0.94 pt | long 0% / short 1% / flat 99% | reject alpha<-25 |
+| 1.500 | -27.10 pt | +0.013 | -0.95 pt | long 0% / short 2% / flat 98% | reject alpha<-25 |
+
+BC / AC observations:
+
+- BC-only val: `AlphaExcess=-24.59pt`, dist `flat=100% mean=-0.043`, turnover `1.76`。
+- AC 中間では train/val の short 比率が一時的に上がったが、best checkpoint は最終的に `flat=100%` 側。
+- test でも `short=1% flat=99%` で、active underweight はほぼ消えた。
+
+判定:
+
+- Experiment D は不採用。
+- path/turnover 制約は turnover/cost を抑えるが、現設定では active decision も消す。
+- `chunk_size: 1` への変更自体も挙動を大きく変えている。
+- path loss を再検討するなら、chunk branch でも path loss が効くように実装するか、係数をかなり弱くする必要がある。
+
+ここまでの A-D 暫定まとめ:
+
+| 実験 | 主効果 | 問題 | 判定 |
+|---|---|---|---|
+| A | underweight collapse を止める | flat 100% | 不採用 |
+| B | underweight を戻す | BC short 98%, high turnover, alpha/DD悪化 | 不採用 |
+| C | turnover を止める | self-condition が重く flat 100% | 不採用 |
+| D | path cost で low turnover | active decision 消失 | 不採用 |
+
+次アクション:
+
+- 条件は十分ではないが、表現力不足の切り分けとして Experiment E の long-only mild overweight を実行する。
+- 目的は `overweight 使用率 0% になるか` の確認。
