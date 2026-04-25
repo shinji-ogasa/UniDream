@@ -71,6 +71,9 @@ class ControllerPathDataset(Dataset):
         soft_labels: torch.Tensor | None = None,
         sample_quality: torch.Tensor | None = None,
         advantage: torch.Tensor | None = None,
+        route_labels: torch.Tensor | None = None,
+        route_soft_labels: torch.Tensor | None = None,
+        route_advantage: torch.Tensor | None = None,
     ):
         self.z = z
         self.h = h
@@ -81,6 +84,9 @@ class ControllerPathDataset(Dataset):
         self.soft_labels = soft_labels
         self.sample_quality = sample_quality
         self.advantage = advantage
+        self.route_labels = route_labels
+        self.route_soft_labels = route_soft_labels
+        self.route_advantage = route_advantage
         self.length = max(0, len(z) - self.horizon + 1)
 
     def __len__(self) -> int:
@@ -98,6 +104,12 @@ class ControllerPathDataset(Dataset):
             items.append(self.sample_quality[s:e])
         if self.advantage is not None:
             items.append(self.advantage[s:e])
+        if self.route_labels is not None:
+            items.append(self.route_labels[s:e])
+        if self.route_soft_labels is not None:
+            items.append(self.route_soft_labels[s:e])
+        if self.route_advantage is not None:
+            items.append(self.route_advantage[s:e])
         return tuple(items)
 
 
@@ -195,6 +207,10 @@ class BCPretrainer:
         recovery_execution_coef: float = 0.0,
         recovery_underweight_margin: float = 0.05,
         recovery_target_margin: float = 0.05,
+        route_target_coef: float = 0.0,
+        route_advantage_weight_coef: float = 0.0,
+        route_advantage_clip: float = 2.0,
+        route_entropy_coef: float = 0.0,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
@@ -282,6 +298,10 @@ class BCPretrainer:
         self.recovery_execution_coef = float(max(recovery_execution_coef, 0.0))
         self.recovery_underweight_margin = float(max(recovery_underweight_margin, 0.0))
         self.recovery_target_margin = float(max(recovery_target_margin, 0.0))
+        self.route_target_coef = float(max(route_target_coef, 0.0))
+        self.route_advantage_weight_coef = float(max(route_advantage_weight_coef, 0.0))
+        self.route_advantage_clip = float(max(route_advantage_clip, 0.0))
+        self.route_entropy_coef = float(max(route_entropy_coef, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
         self.trainable_actor_prefixes = tuple(trainable_actor_prefixes or [])
@@ -429,6 +449,9 @@ class BCPretrainer:
         trade_pos_weight: Optional[torch.Tensor] = None,
         sample_quality: Optional[torch.Tensor] = None,
         advantage: Optional[torch.Tensor] = None,
+        route_labels: Optional[torch.Tensor] = None,
+        route_soft_labels: Optional[torch.Tensor] = None,
+        route_advantage: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
         trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = (
@@ -576,6 +599,8 @@ class BCPretrainer:
         recovery_trade_loss = None
         recovery_band_loss = None
         entropy_bonus = None
+        route_loss = None
+        route_entropy_bonus = None
         mode_loss = None
         mode_rate_penalty = None
         mode_regime_rate_penalty = None
@@ -605,6 +630,50 @@ class BCPretrainer:
             target_probs_for_entropy = F.softmax(target_logits, dim=-1)
             target_entropy = -(target_probs_for_entropy * torch.log(target_probs_for_entropy.clamp_min(1e-6))).sum(dim=-1)
             entropy_bonus = trade_entropy + target_entropy
+        if (
+            self.route_target_coef > 0.0
+            and getattr(self.actor, "route_head", None) is not None
+            and (route_labels is not None or route_soft_labels is not None)
+        ):
+            route_logits = self.actor.route_logits(
+                z,
+                h,
+                inventory=inventory,
+                regime=regime,
+                advantage=advantage,
+            )
+            route_log_probs = F.log_softmax(route_logits, dim=-1)
+            if route_soft_labels is not None:
+                route_targets = route_soft_labels.to(device=route_logits.device, dtype=route_logits.dtype)
+                if route_targets.shape[-1] > route_logits.shape[-1]:
+                    route_targets = route_targets[..., : route_logits.shape[-1]]
+                elif route_targets.shape[-1] < route_logits.shape[-1]:
+                    pad_shape = list(route_targets.shape)
+                    pad_shape[-1] = route_logits.shape[-1] - route_targets.shape[-1]
+                    route_targets = torch.cat(
+                        [
+                            route_targets,
+                            torch.zeros(*pad_shape, dtype=route_targets.dtype, device=route_targets.device),
+                        ],
+                        dim=-1,
+                    )
+                route_targets = route_targets / route_targets.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+                route_loss = -(route_targets * route_log_probs).sum(dim=-1)
+            else:
+                route_targets_hard = route_labels.to(device=route_logits.device, dtype=torch.long)
+                route_loss = F.nll_loss(route_log_probs, route_targets_hard, reduction="none")
+            if route_advantage is not None and self.route_advantage_weight_coef > 0.0:
+                route_adv = route_advantage.to(device=route_loss.device, dtype=route_loss.dtype)
+                if route_adv.ndim > route_loss.ndim:
+                    route_adv = route_adv.squeeze(-1)
+                route_weight = 1.0 + self.route_advantage_weight_coef * route_adv.clamp(
+                    min=0.0,
+                    max=self.route_advantage_clip,
+                )
+                route_loss = route_loss * route_weight
+            if self.route_entropy_coef > 0.0:
+                route_probs = torch.exp(route_log_probs)
+                route_entropy_bonus = -(route_probs * route_log_probs).sum(dim=-1)
         if (
             self.mode_target_coef > 0.0
             and (
@@ -746,6 +815,10 @@ class BCPretrainer:
             loss_terms = loss_terms + self.recovery_band_coef * recovery_band_loss
         if entropy_bonus is not None:
             loss_terms = loss_terms - self.entropy_coef * entropy_bonus
+        if route_loss is not None:
+            loss_terms = loss_terms + self.route_target_coef * route_loss
+        if route_entropy_bonus is not None:
+            loss_terms = loss_terms - self.route_entropy_coef * route_entropy_bonus
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05
@@ -922,6 +995,9 @@ class BCPretrainer:
         soft_labels: "np.ndarray | None" = None,
         sample_quality: "np.ndarray | None" = None,
         advantage_values: "np.ndarray | None" = None,
+        route_labels: "np.ndarray | None" = None,
+        route_soft_labels: "np.ndarray | None" = None,
+        route_advantage: "np.ndarray | None" = None,
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
@@ -939,7 +1015,14 @@ class BCPretrainer:
         Returns:
             各エポックのロスログ
         """
-        T = min(len(z), len(h), len(oracle_positions))
+        lengths = [len(z), len(h), len(oracle_positions)]
+        if route_labels is not None:
+            lengths.append(len(route_labels))
+        if route_soft_labels is not None:
+            lengths.append(len(route_soft_labels))
+        if route_advantage is not None:
+            lengths.append(len(route_advantage))
+        T = min(lengths)
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         teacher_state_all = self.actor.controller_states_from_positions(oracle_positions[:T])
         inv_all = teacher_state_all[:, 0]
@@ -966,6 +1049,9 @@ class BCPretrainer:
             use_regime = regime_probs is not None
             use_soft = soft_labels is not None
             use_adv = advantage_values is not None
+            use_route_hard = route_labels is not None
+            use_route_soft = route_soft_labels is not None
+            use_route_adv = route_advantage is not None
             loader_options = {
                 "num_workers": 2,
                 "pin_memory": self.device.type == "cuda",
@@ -1025,6 +1111,18 @@ class BCPretrainer:
                         adv_arr = adv_arr.reshape(n_chunks, k, -1)
                         adv_repr_arr = adv_arr[np.arange(n_chunks), repr_idx, :]
                     tensors.append(torch.tensor(adv_repr_arr, dtype=torch.float32))
+                if use_route_hard:
+                    route_arr = np.asarray(route_labels[:T_use], dtype=np.int64).reshape(n_chunks, k)
+                    route_repr_arr = route_arr[np.arange(n_chunks), repr_idx]
+                    tensors.append(torch.tensor(route_repr_arr, dtype=torch.long))
+                if use_route_soft:
+                    route_soft_arr = np.asarray(route_soft_labels[:T_use], dtype=np.float32).reshape(n_chunks, k, -1)
+                    route_soft_repr_arr = route_soft_arr[np.arange(n_chunks), repr_idx]
+                    tensors.append(torch.tensor(route_soft_repr_arr, dtype=torch.float32))
+                if use_route_adv:
+                    route_adv_arr = np.asarray(route_advantage[:T_use], dtype=np.float32).reshape(n_chunks, k)
+                    route_adv_repr_arr = route_adv_arr[np.arange(n_chunks), repr_idx]
+                    tensors.append(torch.tensor(route_adv_repr_arr, dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)
                 loader = DataLoader(
@@ -1051,6 +1149,15 @@ class BCPretrainer:
                     if sample_quality is not None:
                         bi += 1
                     adv_repr = batch[bi].to(self.device) if use_adv else None
+                    if use_adv:
+                        bi += 1
+                    route_repr = batch[bi].to(self.device) if use_route_hard else None
+                    if use_route_hard:
+                        bi += 1
+                    route_soft_repr = batch[bi].to(self.device) if use_route_soft else None
+                    if use_route_soft:
+                        bi += 1
+                    route_adv_repr = batch[bi].to(self.device) if use_route_adv else None
 
                     if self.use_sirl:
                         state = torch.cat([z_b, h_b], dim=-1)
@@ -1069,6 +1176,9 @@ class BCPretrainer:
                         trade_pos_weight=trade_pos_weight_t,
                         sample_quality=q_repr,
                         advantage=adv_repr,
+                        route_labels=route_repr,
+                        route_soft_labels=route_soft_repr,
+                        route_advantage=route_adv_repr,
                     )
 
                     self.optimizer.zero_grad()
@@ -1092,6 +1202,9 @@ class BCPretrainer:
         use_regime = regime_probs is not None
         use_soft = soft_labels is not None
         use_adv = advantage_values is not None
+        use_route_hard = route_labels is not None
+        use_route_soft = route_soft_labels is not None
+        use_route_adv = route_advantage is not None
         logs = []
         rollout_positions = None
         loader_options = {
@@ -1122,6 +1235,9 @@ class BCPretrainer:
             soft_t = torch.tensor(soft_labels[:T], dtype=torch.float32) if use_soft else None
             quality_t = torch.tensor(sample_quality[:T], dtype=torch.float32) if sample_quality is not None else None
             adv_t = torch.tensor(advantage_values[:T], dtype=torch.float32) if use_adv else None
+            route_t = torch.tensor(route_labels[:T], dtype=torch.long) if use_route_hard else None
+            route_soft_t = torch.tensor(route_soft_labels[:T], dtype=torch.float32) if use_route_soft else None
+            route_adv_t = torch.tensor(route_advantage[:T], dtype=torch.float32) if use_route_adv else None
             if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                 dataset = ControllerPathDataset(
                     z_t,
@@ -1133,6 +1249,9 @@ class BCPretrainer:
                     soft_labels=soft_t,
                     sample_quality=quality_t,
                     advantage=adv_t,
+                    route_labels=route_t,
+                    route_soft_labels=route_soft_t,
+                    route_advantage=route_adv_t,
                 )
             else:
                 tensors = [z_t, h_t, a_t, inv_t]
@@ -1144,6 +1263,12 @@ class BCPretrainer:
                     tensors.append(quality_t)
                 if adv_t is not None:
                     tensors.append(adv_t)
+                if route_t is not None:
+                    tensors.append(route_t)
+                if route_soft_t is not None:
+                    tensors.append(route_soft_t)
+                if route_adv_t is not None:
+                    tensors.append(route_adv_t)
                 dataset = TensorDataset(*tensors)
             loader = DataLoader(
                 dataset,
@@ -1179,6 +1304,21 @@ class BCPretrainer:
                 adv_b = batch[bi].to(self.device) if use_adv else None
                 if adv_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     adv_b = adv_b[:, 0]
+                if use_adv:
+                    bi += 1
+                route_b = batch[bi].to(self.device) if use_route_hard else None
+                if route_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    route_b = route_b[:, 0]
+                if use_route_hard:
+                    bi += 1
+                route_soft_b = batch[bi].to(self.device) if use_route_soft else None
+                if route_soft_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    route_soft_b = route_soft_b[:, 0]
+                if use_route_soft:
+                    bi += 1
+                route_adv_b = batch[bi].to(self.device) if use_route_adv else None
+                if route_adv_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
+                    route_adv_b = route_adv_b[:, 0]
 
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
@@ -1201,6 +1341,9 @@ class BCPretrainer:
                     trade_pos_weight=trade_pos_weight_t,
                     sample_quality=q_b,
                     advantage=adv_b,
+                    route_labels=route_b,
+                    route_soft_labels=route_soft_b,
+                    route_advantage=route_adv_b,
                 )
                 if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     z_seq = z_seq.to(self.device)
@@ -1256,6 +1399,10 @@ class BCPretrainer:
             "residual_head_b.weight",
             "residual_head_b.bias",
             "regime_mode_gate_head.weight",
+            "route_head.weight",
+            "route_head.bias",
+            "route_delta_head.weight",
+            "route_delta_head.bias",
         }
         missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)

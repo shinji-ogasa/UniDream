@@ -31,6 +31,7 @@ class Actor(nn.Module):
         inventory_dim: int = 1,
         advantage_dim: int = 0,
         advantage_input_mode: str = "concat",
+        route_dim: int = 0,
     ):
         super().__init__()
         self.act_dim = act_dim
@@ -39,6 +40,7 @@ class Actor(nn.Module):
         self.inventory_dim = inventory_dim
         self.advantage_dim = advantage_dim
         self.advantage_input_mode = str(advantage_input_mode).lower()
+        self.route_dim = int(max(route_dim, 0))
 
         use_advantage_adapter = self.advantage_dim > 0 and self.advantage_input_mode == "adapter"
         in_dim = z_dim + h_dim + regime_dim + inventory_dim
@@ -85,6 +87,8 @@ class Actor(nn.Module):
         self.residual_head_b = nn.Linear(hidden_dim, 1)
         self.target_std_head = nn.Linear(hidden_dim, 1)
         self.band_head = nn.Linear(hidden_dim, 1)
+        self.route_head = nn.Linear(hidden_dim, self.route_dim) if self.route_dim > 0 else None
+        self.route_delta_head = nn.Linear(hidden_dim, self.route_dim) if self.route_dim > 0 else None
         self.advantage_adapter = (
             nn.Linear(self.advantage_dim, hidden_dim, bias=False) if use_advantage_adapter else None
         )
@@ -127,6 +131,9 @@ class Actor(nn.Module):
 
     def _use_dual_residual_controller(self) -> bool:
         return bool(getattr(self, "use_dual_residual_controller", False))
+
+    def _use_route_controller(self) -> bool:
+        return bool(getattr(self, "use_route_controller", False)) and self.route_head is not None
 
     def _use_separate_execution_head(self) -> bool:
         return bool(getattr(self, "separate_execution_head", False))
@@ -306,6 +313,60 @@ class Actor(nn.Module):
     def _target_overlay_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         return self._target_values_tensor(device, dtype) - self._benchmark_position()
 
+    def _route_logits_from_hidden(self, hidden: torch.Tensor) -> torch.Tensor:
+        if self.route_head is None:
+            raise RuntimeError("route_head is not configured for this actor")
+        return self.route_head(hidden)
+
+    def route_logits(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
+        return self._route_logits_from_hidden(hidden)
+
+    def _route_target_overlays_from_hidden(
+        self,
+        hidden: torch.Tensor,
+        current_inventory: torch.Tensor,
+    ) -> torch.Tensor:
+        if self.route_dim != 4:
+            raise RuntimeError("route controller requires route_dim == 4")
+        residual_min, residual_max = self._residual_overlay_range()
+        step = float(getattr(self, "route_max_step", getattr(self, "max_position_step", 0.10)))
+        step = max(step, 1e-6)
+        low = torch.full_like(current_inventory, residual_min)
+        high = torch.full_like(current_inventory, residual_max)
+
+        neutral = torch.zeros_like(current_inventory).clamp(min=residual_min, max=residual_max)
+        de_risk = torch.maximum(current_inventory - step, low)
+        recovery_step = (-current_inventory).clamp(min=-step, max=step)
+        recovery = (current_inventory + recovery_step).clamp(min=residual_min, max=residual_max)
+        overweight = torch.minimum(current_inventory + step, high)
+        route_targets = torch.stack([neutral, de_risk, recovery, overweight], dim=-1)
+
+        if self.route_delta_head is not None:
+            delta_scale = float(getattr(self, "route_delta_scale", 0.0))
+            if delta_scale > 0.0:
+                raw = torch.abs(torch.tanh(self.route_delta_head(hidden))) * delta_scale
+                recovery_dir = torch.sign(-current_inventory)
+                route_delta = torch.stack(
+                    [
+                        torch.zeros_like(current_inventory),
+                        -raw[..., 1],
+                        recovery_dir * raw[..., 2],
+                        raw[..., 3],
+                    ],
+                    dim=-1,
+                )
+                route_targets = route_targets + route_delta
+                route_targets = route_targets.clamp(min=residual_min, max=residual_max)
+        return route_targets
+
     def controller_outputs_full(
         self,
         z: torch.Tensor,
@@ -347,13 +408,19 @@ class Actor(nn.Module):
             self.target_std_head(hidden).squeeze(-1)
         )
         target_values = self._target_overlay_values_tensor(hidden.device, hidden.dtype)
+        current_inventory = self._current_inventory_from_state(inventory_t)
         if self._use_residual_controller():
             overlay_low, overlay_high = self._overlay_bounds()
             residual_min, residual_max = self._residual_overlay_range()
             if residual_max <= residual_min + 1e-6:
                 target_mean = torch.full_like(trade_logits, residual_max)
             else:
-                if self._use_dual_residual_controller():
+                if self._use_route_controller():
+                    route_logits = self._route_logits_from_hidden(hidden)
+                    route_probs = F.softmax(route_logits, dim=-1)
+                    route_targets = self._route_target_overlays_from_hidden(hidden, current_inventory)
+                    target_mean = (route_probs * route_targets).sum(dim=-1)
+                elif self._use_dual_residual_controller():
                     target_mean_a, target_mean_b, mode_gate = self._dual_residual_components_from_hidden(
                         hidden,
                         regime=regime,
@@ -415,7 +482,7 @@ class Actor(nn.Module):
             target_mean,
             target_std,
             band_width,
-            self._current_inventory_from_state(inventory_t),
+            current_inventory,
         )
 
     def controller_outputs(

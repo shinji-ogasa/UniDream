@@ -93,6 +93,10 @@ def build_bc_trainer(
         recovery_execution_coef=bc_cfg.get("recovery_execution_coef", 0.0),
         recovery_underweight_margin=bc_cfg.get("recovery_underweight_margin", 0.05),
         recovery_target_margin=bc_cfg.get("recovery_target_margin", 0.05),
+        route_target_coef=bc_cfg.get("route_target_coef", 0.0),
+        route_advantage_weight_coef=bc_cfg.get("route_advantage_weight_coef", 0.0),
+        route_advantage_clip=bc_cfg.get("route_advantage_clip", 2.0),
+        route_entropy_coef=bc_cfg.get("route_entropy_coef", 0.0),
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
         sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
         trainable_actor_prefixes=bc_cfg.get("trainable_actor_prefixes"),
@@ -149,6 +153,9 @@ def run_bc_stage(
     oracle_soft_labels,
     bc_sample_quality,
     bc_advantage_values,
+    train_route_labels=None,
+    train_route_soft_labels=None,
+    train_route_advantage=None,
     log_ts,
 ):
     bc_trainer = build_bc_trainer(
@@ -183,6 +190,9 @@ def run_bc_stage(
             soft_labels=oracle_soft_labels[:t_enc] if oracle_soft_labels is not None else None,
             sample_quality=bc_sample_quality[:t_enc] if bc_sample_quality is not None else None,
             advantage_values=bc_advantage_values[:t_enc] if bc_advantage_values is not None else None,
+            route_labels=train_route_labels[:t_enc] if train_route_labels is not None else None,
+            route_soft_labels=train_route_soft_labels[:t_enc] if train_route_soft_labels is not None else None,
+            route_advantage=train_route_advantage[:t_enc] if train_route_advantage is not None else None,
         )
         bc_trainer.save(bc_path)
         return bc_trainer

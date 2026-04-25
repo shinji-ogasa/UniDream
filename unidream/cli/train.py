@@ -386,6 +386,9 @@ def run_fold(
     train_advantage_values = fold_inputs.get("train_advantage_values")
     val_advantage_values = fold_inputs.get("val_advantage_values")
     test_advantage_values = fold_inputs.get("test_advantage_values")
+    train_route_labels = fold_inputs.get("train_route_labels")
+    train_route_soft_labels = fold_inputs.get("train_route_soft_labels")
+    train_route_advantage = fold_inputs.get("train_route_advantage")
 
     # --------- Step 2: 世界モデル学習 ---------
     ensemble, wm_trainer = prepare_world_model_stage(
@@ -474,6 +477,9 @@ def run_fold(
         oracle_soft_labels=oracle_soft_labels,
         bc_sample_quality=bc_sample_quality,
         bc_advantage_values=bc_advantage_values,
+        train_route_labels=train_route_labels,
+        train_route_soft_labels=train_route_soft_labels,
+        train_route_advantage=train_route_advantage,
         log_ts=_ts,
     )
 

@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import numpy as np
+import torch
+
+
+ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
+
 
 def run_test_stage(
     *,
@@ -35,6 +41,52 @@ def run_test_stage(
         advantage_np=test_advantage_values,
         device=device,
     )
+    if getattr(actor, "route_head", None) is not None:
+        with torch.no_grad():
+            dev = torch.device(device)
+            z_t = torch.tensor(enc_test["z"], dtype=torch.float32, device=dev)
+            h_t = torch.tensor(enc_test["h"], dtype=torch.float32, device=dev)
+            regime_t = (
+                torch.tensor(test_regime_probs, dtype=torch.float32, device=dev)
+                if test_regime_probs is not None and getattr(actor, "regime_dim", 0) > 0
+                else None
+            )
+            advantage_t = (
+                torch.tensor(test_advantage_values, dtype=torch.float32, device=dev)
+                if test_advantage_values is not None and getattr(actor, "advantage_dim", 0) > 0
+                else None
+            )
+            controller_state = torch.zeros(1, actor.inventory_dim, dtype=torch.float32, device=dev)
+            pred_routes = []
+            route_conf = []
+            t_route = min(len(z_t), len(positions))
+            if regime_t is not None:
+                t_route = min(t_route, len(regime_t))
+            if advantage_t is not None:
+                t_route = min(t_route, len(advantage_t))
+            for i in range(t_route):
+                reg_i = regime_t[i:i + 1] if regime_t is not None else None
+                adv_i = advantage_t[i:i + 1] if advantage_t is not None else None
+                logits = actor.route_logits(
+                    z_t[i:i + 1],
+                    h_t[i:i + 1],
+                    inventory=controller_state,
+                    regime=reg_i,
+                    advantage=adv_i,
+                )
+                probs = torch.softmax(logits, dim=-1)
+                pred_routes.append(int(torch.argmax(probs, dim=-1).item()))
+                route_conf.append(float(torch.max(probs, dim=-1).values.item()))
+                pos_i = torch.tensor([[float(positions[i])]], dtype=torch.float32, device=dev)
+                controller_state = actor.update_controller_state(controller_state, pos_i)
+            if pred_routes:
+                counts = np.bincount(np.asarray(pred_routes, dtype=np.int64), minlength=len(ROUTE_NAMES))
+                rates = counts / max(counts.sum(), 1)
+                route_dist = " ".join(f"{name}={rates[idx]:.0%}" for idx, name in enumerate(ROUTE_NAMES))
+                print(
+                    f"  Route dist: {route_dist} "
+                    f"active={1.0 - rates[0]:.1%} conf={np.mean(route_conf):.3f}"
+                )
 
     t_min = min(len(test_returns), len(positions))
     metrics = backtest_cls(

@@ -1122,6 +1122,10 @@ class ImagACTrainer:
             "residual_head_a.bias",
             "residual_head_b.weight",
             "residual_head_b.bias",
+            "route_head.weight",
+            "route_head.bias",
+            "route_delta_head.weight",
+            "route_delta_head.bias",
         }
         missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)

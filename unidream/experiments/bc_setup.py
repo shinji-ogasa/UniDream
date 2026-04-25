@@ -125,6 +125,18 @@ def prepare_bc_setup(
     reward_cfg: dict,
     oracle_teacher_mode: str,
 ):
+    route_dim = int(
+        ac_cfg.get(
+            "route_dim",
+            4
+            if (
+                ac_cfg.get("use_route_controller", False)
+                or bc_cfg.get("transition_route_labels", False)
+                or float(bc_cfg.get("route_target_coef", 0.0)) > 0.0
+            )
+            else 0,
+        )
+    )
     actor = Actor(
         z_dim=ensemble.get_z_dim(),
         h_dim=ensemble.get_d_model(),
@@ -141,6 +153,7 @@ def prepare_bc_setup(
                 "adapter" if ac_cfg.get("use_wm_predictive_state", False) else "concat",
             )
         ),
+        route_dim=route_dim,
     )
     if actor.advantage_dim > 0 and actor.advantage_adapter is None and bool(
         ac_cfg.get("wm_predictive_state_zero_init", ac_cfg.get("use_wm_predictive_state", False))
@@ -176,6 +189,9 @@ def prepare_bc_setup(
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
     actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
     actor.use_dual_residual_controller = bool(ac_cfg.get("use_dual_residual_controller", False))
+    actor.use_route_controller = bool(ac_cfg.get("use_route_controller", False))
+    actor.route_max_step = ac_cfg.get("route_max_step", ac_cfg.get("max_position_step", 0.10))
+    actor.route_delta_scale = ac_cfg.get("route_delta_scale", 0.0)
     actor.use_regime_mode_gate_bias = bool(ac_cfg.get("use_regime_mode_gate_bias", False))
     actor.regime_mode_gate_scale = float(ac_cfg.get("regime_mode_gate_scale", 1.0))
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
@@ -242,6 +258,15 @@ def prepare_bc_setup(
                 torch.nn.init.zeros_(actor.target_mode_gate.weight)
                 if actor.regime_mode_gate_head is not None:
                     torch.nn.init.zeros_(actor.regime_mode_gate_head.weight)
+    if actor.route_head is not None:
+        with torch.no_grad():
+            torch.nn.init.zeros_(actor.route_head.weight)
+            torch.nn.init.zeros_(actor.route_head.bias)
+            neutral_bias = float(ac_cfg.get("route_neutral_init_bias", 1.0))
+            actor.route_head.bias[0] = neutral_bias
+            if actor.route_delta_head is not None:
+                torch.nn.init.zeros_(actor.route_delta_head.weight)
+                torch.nn.init.zeros_(actor.route_delta_head.bias)
     if bc_cfg.get("init_regime_mode_gate_from_teacher", False):
         _initialize_regime_mode_gate_from_teacher(
             actor=actor,

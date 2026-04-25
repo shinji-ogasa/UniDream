@@ -10,8 +10,10 @@ from .oracle_teacher import compute_teacher_oracle
 from .regime_runtime import fit_fold_regimes
 from .transition_advantage import (
     compute_transition_advantage,
+    compute_route_targets,
     config_from_dict as transition_advantage_config_from_dict,
     current_positions_from_path,
+    summarize_route_targets,
     summarize_transition_advantage,
 )
 
@@ -260,7 +262,15 @@ def prepare_fold_inputs(
         train_returns=train_returns,
         forward_window_stats_fn=forward_window_stats_fn,
     )
-    if bc_cfg.get("transition_advantage_relabel", False):
+    train_route_labels = None
+    train_route_soft_labels = None
+    train_route_advantage = None
+    train_transition_bundle = None
+    val_transition_bundle = None
+    needs_transition_advantage = bool(
+        bc_cfg.get("transition_advantage_relabel", False) or bc_cfg.get("transition_route_labels", False)
+    )
+    if needs_transition_advantage:
         ta_cfg = transition_advantage_config_from_dict(
             bc_cfg,
             costs_cfg=costs_cfg,
@@ -269,6 +279,37 @@ def prepare_fold_inputs(
         )
         current_train = current_positions_from_path(oracle_positions, oracle_benchmark_position)
         train_transition_bundle = compute_transition_advantage(train_returns, current_train, ta_cfg)
+        if bc_cfg.get("transition_route_labels", False):
+            route_margin = float(
+                bc_cfg.get(
+                    "transition_route_margin",
+                    bc_cfg.get("transition_advantage_margin", ta_cfg.margin),
+                )
+            )
+            route_bundle = compute_route_targets(
+                train_transition_bundle,
+                tau=float(bc_cfg.get("route_adv_tau", 0.001)),
+                label_smoothing=float(bc_cfg.get("route_label_smoothing", 0.05)),
+                margin=route_margin,
+            )
+            train_route_labels = route_bundle["route_labels"]
+            train_route_soft_labels = route_bundle["route_soft_labels"]
+            train_route_advantage = route_bundle["route_advantage"]
+            route_summary = summarize_route_targets(route_bundle)
+            route_dist = " ".join(
+                f"{row['route']}={row['rate']:.0%}" for row in route_summary["routes"]
+            )
+            print(
+                "  Transition route labels: "
+                f"{route_dist} active={route_summary['active_rate']:.1%} "
+                f"mean_adv={route_summary['mean_route_advantage']:.6f} "
+                f"top_decile_adv={route_summary['top_decile_route_advantage']:.6f}"
+            )
+            if bc_cfg.get("transition_route_outcome_edge", True) or outcome_edge is None:
+                outcome_edge = train_route_advantage
+            oracle_bundle["oracle_soft_labels"] = None
+
+    if bc_cfg.get("transition_advantage_relabel", False) and train_transition_bundle is not None:
         oracle_positions = train_transition_bundle["target_positions"]
         if bc_cfg.get("transition_relabel_smooth", False):
             oracle_positions = smooth_aim_positions(
@@ -450,4 +491,7 @@ def prepare_fold_inputs(
         "train_advantage_values": train_advantage_values,
         "val_advantage_values": val_advantage_values,
         "test_advantage_values": test_advantage_values,
+        "train_route_labels": train_route_labels,
+        "train_route_soft_labels": train_route_soft_labels,
+        "train_route_advantage": train_route_advantage,
     }

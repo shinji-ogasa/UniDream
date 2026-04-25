@@ -6,6 +6,10 @@ from dataclasses import dataclass
 import numpy as np
 
 
+ROUTE_NAMES: tuple[str, ...] = ("neutral", "de_risk", "recovery", "overweight")
+ROUTE_TO_ID = {name: idx for idx, name in enumerate(ROUTE_NAMES)}
+
+
 @dataclass(frozen=True)
 class TransitionAdvantageConfig:
     horizons: tuple[int, ...] = (4, 8, 16, 32)
@@ -110,6 +114,119 @@ def transition_classes(
     cls[benchmark_target & under_now] = "recovery"
     cls[benchmark_target & (~under_now)] = "neutral"
     return cls
+
+
+def route_ids_from_classes(classes: np.ndarray) -> np.ndarray:
+    """Map fine-grained transition classes to the four routing heads."""
+    arr = np.asarray(classes, dtype=object)
+    route = np.zeros(arr.shape, dtype=np.int64)
+    route[(arr == "de_risk") | (arr == "stay_underweight")] = ROUTE_TO_ID["de_risk"]
+    route[arr == "recovery"] = ROUTE_TO_ID["recovery"]
+    route[arr == "overweight"] = ROUTE_TO_ID["overweight"]
+    return route
+
+
+def compute_route_targets(
+    bundle: dict,
+    *,
+    tau: float = 0.001,
+    label_smoothing: float = 0.05,
+    margin: float = 0.0,
+) -> dict:
+    """Build no-trade-aware soft route labels from transition advantages.
+
+    The route score is the best non-negative cost-adjusted advantage available
+    to each route.  Non-neutral routes whose advantage fails the margin are
+    masked out, which turns small/noisy edge into a neutral no-trade target.
+    """
+    class_matrix = np.asarray(bundle["class_matrix"], dtype=object)
+    adv_neutral = np.asarray(bundle["advantage_vs_neutral"], dtype=np.float64)
+    adv_current = np.asarray(bundle["advantage_vs_current"], dtype=np.float64)
+    valid = np.isfinite(adv_neutral) | np.isfinite(adv_current)
+    route_ids = route_ids_from_classes(class_matrix)
+
+    raw_score = np.maximum(
+        np.nan_to_num(adv_neutral, nan=-np.inf),
+        np.nan_to_num(adv_current, nan=-np.inf),
+    )
+    raw_score = np.where(valid, np.maximum(raw_score, 0.0), -np.inf)
+
+    T = raw_score.shape[0]
+    n_routes = len(ROUTE_NAMES)
+    route_scores = np.full((T, n_routes), -np.inf, dtype=np.float64)
+    route_action_idx = np.full((T, n_routes), -1, dtype=np.int64)
+    for route_id in range(n_routes):
+        masked = np.where(route_ids == route_id, raw_score, -np.inf)
+        route_action_idx[:, route_id] = np.argmax(masked, axis=1)
+        route_scores[:, route_id] = masked[np.arange(T), route_action_idx[:, route_id]]
+
+    # Neutral is the benchmark/no-trade fallback.  It must remain available even
+    # when all forward advantage estimates are invalid near the right edge.
+    route_scores[:, ROUTE_TO_ID["neutral"]] = 0.0
+
+    non_neutral_scores = route_scores[:, 1:]
+    best_non_idx = np.argmax(non_neutral_scores, axis=1) + 1
+    best_non_score = non_neutral_scores[np.arange(T), best_non_idx - 1]
+    route_labels = np.where(best_non_score > float(margin), best_non_idx, ROUTE_TO_ID["neutral"]).astype(np.int64)
+    route_advantage = np.where(route_labels == ROUTE_TO_ID["neutral"], 0.0, best_non_score).astype(np.float32)
+
+    gated_scores = route_scores.copy()
+    gated_scores[:, 1:] = np.where(gated_scores[:, 1:] > float(margin), gated_scores[:, 1:], -np.inf)
+    gated_scores[:, ROUTE_TO_ID["neutral"]] = 0.0
+    scale = max(float(tau), 1e-8)
+    scaled = np.clip(gated_scores / scale, -60.0, 60.0)
+    row_max = np.max(scaled, axis=1, keepdims=True)
+    exp_scores = np.exp(scaled - row_max)
+    exp_scores[~np.isfinite(exp_scores)] = 0.0
+    denom = exp_scores.sum(axis=1, keepdims=True)
+    soft_labels = np.divide(
+        exp_scores,
+        np.clip(denom, 1e-12, None),
+        out=np.zeros_like(exp_scores),
+        where=denom > 0.0,
+    )
+    empty = denom.squeeze(-1) <= 0.0
+    if empty.any():
+        soft_labels[empty, ROUTE_TO_ID["neutral"]] = 1.0
+    smoothing = float(np.clip(label_smoothing, 0.0, 0.99))
+    if smoothing > 0.0:
+        soft_labels = (1.0 - smoothing) * soft_labels + smoothing / n_routes
+
+    return {
+        "route_names": ROUTE_NAMES,
+        "route_scores": route_scores.astype(np.float32),
+        "route_labels": route_labels,
+        "route_soft_labels": soft_labels.astype(np.float32),
+        "route_advantage": route_advantage,
+        "route_action_idx": route_action_idx,
+    }
+
+
+def summarize_route_targets(route_bundle: dict) -> dict:
+    labels = np.asarray(route_bundle["route_labels"], dtype=np.int64)
+    scores = np.asarray(route_bundle["route_scores"], dtype=np.float64)
+    adv = np.asarray(route_bundle["route_advantage"], dtype=np.float64)
+    rows = []
+    for idx, name in enumerate(route_bundle.get("route_names", ROUTE_NAMES)):
+        mask = labels == idx
+        vals = adv[mask]
+        rows.append(
+            {
+                "route": name,
+                "count": int(mask.sum()),
+                "rate": float(mask.mean()) if len(mask) else 0.0,
+                "mean_adv": float(vals.mean()) if vals.size else 0.0,
+                "top_decile_adv": float(vals[vals >= np.quantile(vals, 0.90)].mean()) if vals.size else 0.0,
+                "mean_score": float(np.nanmean(scores[:, idx])) if scores.size else 0.0,
+            }
+        )
+    non_neutral = labels != ROUTE_TO_ID["neutral"]
+    return {
+        "routes": rows,
+        "active_rate": float(non_neutral.mean()) if len(non_neutral) else 0.0,
+        "mean_route_advantage": float(np.mean(adv)) if len(adv) else 0.0,
+        "top_decile_route_advantage": float(adv[adv >= np.quantile(adv, 0.90)].mean()) if len(adv) else 0.0,
+    }
 
 
 def compute_transition_advantage(
