@@ -1017,7 +1017,15 @@ class BCPretrainer:
                     tensors.append(torch.tensor(adv_repr_arr, dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)
-                loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+                # MPS最適化: pin_memoryでCPU→GPU高速転送
+                loader = DataLoader(
+                    dataset,
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    pin_memory=True,
+                    num_workers=2,
+                    persistent_workers=True,
+                )
                 epoch_loss = 0.0
                 count = 0
                 for batch in loader:
@@ -1125,7 +1133,15 @@ class BCPretrainer:
                 if adv_t is not None:
                     tensors.append(adv_t)
                 dataset = TensorDataset(*tensors)
-            loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+            # MPS最適化: pin_memoryでCPU→GPU高速転送
+            loader = DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                pin_memory=True,
+                num_workers=2,
+                persistent_workers=True,
+            )
             epoch_loss = 0.0
             count = 0
 

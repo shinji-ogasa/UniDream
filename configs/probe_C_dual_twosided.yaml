@@ -74,7 +74,7 @@ world_model:
  return_scale: 0.1
  return_horizon: 10
  lr: 1.0e-4
- batch_size: 64
+ batch_size: 128
  max_steps: 1000
  grad_clip: 100.0
  n_bins: 255
