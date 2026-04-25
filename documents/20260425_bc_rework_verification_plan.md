@@ -1046,3 +1046,128 @@ BC / AC observations:
 
 - 条件は十分ではないが、表現力不足の切り分けとして Experiment E の long-only mild overweight を実行する。
 - 目的は `overweight 使用率 0% になるか` の確認。
+
+### 2026-04-25 Experiment E: long-only mild overweight fold4
+
+実行:
+
+```powershell
+uv run python -m unidream.cli.train `
+  --config configs/medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend625_bandtarget_tradeonly_dualresanchor_stresstri_shiftonly_s007_longonly_ow125.yaml `
+  --start 2020-01-01 `
+  --end 2024-01-01 `
+  --folds 4 `
+  --device auto
+```
+
+ログ:
+
+- `documents/logs/20260425_expE_longonly_ow125_fold4.log`
+
+config 差分:
+
+```yaml
+actions:
+  n: 4
+  values: [0.0, 0.5, 1.0, 1.25]
+oracle:
+  action_values: [0.0, 0.5, 1.0, 1.25]
+  teacher_mode: "dp"
+ac:
+  abs_max_position: 1.25
+  residual_max_overlay: 0.25
+logging:
+  checkpoint_dir: "checkpoints/expE_longonly_ow125"
+```
+
+意図:
+
+- `signal_aim` は構造上 overweight label を作らないため、E では `teacher_mode: dp` に切り替えた。
+- 目的は `overweight 使用率が 0% なのか、使えるが collapse するのか` の切り分け。
+
+Teacher / BC observations:
+
+- DP oracle dist: `long=50% short=50% flat=0% mean=-0.376 turnover=1338.75`
+- Oracle aim dist: `long=43% short=55% flat=2% mean=-0.376 turnover=1337.92`
+- BC-only val: `long=32% short=63% flat=5%`, `AlphaExcess=-253.27pt`, turnover `38.71`
+
+結果:
+
+| fold | stage | alpha_excess | sharpe_delta | maxdd_delta | win_rate | M2 | collapse_guard |
+|---:|---|---:|---:|---:|---:|---|---|
+| 4 | test | +2.31 pt/yr | +0.042 | +2.87 pt | 49.9% | MISS | pass |
+
+Test metrics:
+
+- Sharpe: `0.067`
+- Sortino: `0.082`
+- MaxDD: `-0.213`
+- Calmar: `0.155`
+- TotalRet: `0.0082`
+- PnL attr: `long=+0.0093`, `short=+0.0000`, `cost=0.0011`, `net=+0.0082`
+- Test dist: `long=99% short=0% flat=1% mean=+0.207 switches=20 avg_hold=436.9b turnover=1.01`
+
+Validation adjust:
+
+| scale | alpha | sharpe_delta | maxdd_delta | dist | M2 |
+|---:|---:|---:|---:|---|---|
+| 0.750 | +139.78 pt | -0.051 | +4.03 pt | long 98% / short 0% / flat 2% | miss |
+| 1.000 | +147.54 pt | -0.039 | +4.05 pt | long 98% / short 0% / flat 2% | miss |
+| 1.500 | +152.33 pt | -0.032 | +4.06 pt | long 99% / short 0% / flat 1% | miss |
+
+判定:
+
+- Experiment E は不採用。
+- overweight は使える。`overweight 使用率 0%` ではない。
+- ただし AC が `long 98-99%` に collapse し、MaxDD が悪化した。
+- `alpha_excess +2.31pt` は出たが、M2条件には届かず `maxdd_delta +2.87pt` が撤退理由。
+- long-only overweight は表現力不足を解決する可能性はあるが、teacher/routing/risk penalty なしでは long collapse する。
+
+### 2026-04-25 Experiment F: mild short 判定
+
+判定:
+
+- Experiment F は実行しない。
+
+理由:
+
+- F の前提は「Experiment E で overweight が使われ、collapse していないこと」。
+- E は `long=99%` で long collapse に近く、`maxdd_delta +2.87pt` と悪化した。
+- この状態で mild short を足すと、two-sided collapse の切り分けよりもリスクが増えるだけ。
+
+## 2026-04-25 実験バッチ総括
+
+今回完了したもの:
+
+| 実験 | fold | 結果 | 判定 |
+|---|---:|---|---|
+| Experiment 0 | 0 | alpha +0.88pt, maxdd -1.65pt, flat 100% | 現本線はfold0ではbenchmark hold寄り |
+| Experiment A | 4 | recovery + weak short-copy, flat 100% | 不採用 |
+| Experiment B | 4 | outcome-edge weighting, high turnover, alpha/DD悪化 | 不採用 |
+| Experiment C | 4 | self-conditioned, flat 100%,低turnover | 不採用 |
+| Experiment D | 4 | path-cost, flat 99%,低turnover | 不採用 |
+| Experiment E | 4 | overweight 使用, long 99%, DD悪化 | 不採用 |
+| Experiment F | - | 条件未達でスキップ | 未実行 |
+
+分かったこと:
+
+1. 現本線は fold4/fold5 では underweight collapse 寄り、fold0 では benchmark hold 寄りに倒れる。
+2. `short_mass/mode_rate` を弱めると underweight は止まるが、すぐ flat/benchmark hold に倒れる。
+3. `outcome_edge` weighting は素直には効かず、BC 初期 policy を high-turnover underweight に壊した。
+4. self-conditioned BC は turnover を抑えるが、現設定では active decision も消す。
+5. path-cost も同様に active decision を消しやすい。
+6. mild overweight は使えるが、risk penalty / routing がないと long collapse する。
+
+暫定結論:
+
+- 今の設計は「頻度コピーを強めると underweight collapse、弱めると benchmark hold、overweightを足すと long collapse」という三択になっている。
+- 次の本線は単純な係数探索ではなく、policy を `benchmark / de-risk / recovery / overweight` に分ける routing 設計が必要。
+- AWR-style weighting はまだ有望だが、現在の `outcome_edge` 実装は粗すぎる。action別・transition別の cost-adjusted advantage を明示計算する必要がある。
+
+次にやるべき実装:
+
+1. test report に recovery latency / transition matrix / action bucket別PnL を追加する。
+2. action transition 単位の `cost_adjusted_advantage` を計算する。
+3. `short_mass_match` のような頻度コピーではなく、advantage-weighted transition loss に置き換える。
+4. overweight には drawdown/leverage penalty を入れる。
+5. routing を `neutral`, `de-risk`, `recovery`, `overweight` の少なくとも3-4役割に分解する。
