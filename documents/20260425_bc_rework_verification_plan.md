@@ -798,3 +798,80 @@ BC / AC observations:
 - Experiment B を作る。
 - A をベースに `sample_quality_mode: outcome_edge` と `sample_quality_coef` を入れる。
 - ただし A は flat へ寄りすぎたため、B では `short_mass_match_coef` / `mode_rate_match_coef` を少し戻す案も検討する。
+
+### 2026-04-25 Experiment B: recovery + outcome-edge weighted BC fold4
+
+実行:
+
+```powershell
+uv run python -m unidream.cli.train `
+  --config configs/medium_l1_bc_continuous_exec_shortmass_regimebias_shift15_blend625_bandtarget_tradeonly_dualresanchor_stresstri_shiftonly_s007_recovery_weighted_outcomeedge.yaml `
+  --start 2020-01-01 `
+  --end 2024-01-01 `
+  --folds 4 `
+  --device auto
+```
+
+ログ:
+
+- `documents/logs/20260425_expB_recovery_weighted_outcomeedge_fold4.log`
+
+config 差分:
+
+```yaml
+sample_quality_mode: "outcome_edge"
+sample_quality_coef: 1.0
+sample_quality_clip: 4.0
+short_mass_match_coef: 1.00
+mode_rate_match_coef: 0.75
+mode_regime_rate_match_coef: 0.375
+recovery_*: Experiment A と同じ
+```
+
+意図:
+
+- Experiment A は flat 100% へ倒れたため、`short_mass/mode_rate` を元値の半分まで戻した。
+- `outcome_edge` で事後的に価値がある underweight sample を強く学習させる狙い。
+
+結果:
+
+| fold | stage | alpha_excess | sharpe_delta | maxdd_delta | win_rate | M2 | collapse_guard |
+|---:|---|---:|---:|---:|---:|---|---|
+| 4 | test | -8.60 pt/yr | -0.225 | +0.59 pt | 47.6% | MISS | pass |
+
+Test metrics:
+
+- Sharpe: `-0.200`
+- Sortino: `-0.247`
+- MaxDD: `-0.190`
+- Calmar: `-0.410`
+- TotalRet: `-0.0194`
+- PnL attr: `long=+0.0093`, `short=+0.0000`, `cost=0.0289`, `net=-0.0196`
+- Test dist: `long=0% short=4% flat=96% mean=-0.034 switches=1031 avg_hold=8.5b turnover=51.57`
+
+Validation adjust:
+
+| scale | alpha | sharpe_delta | maxdd_delta | dist | 判定 |
+|---:|---:|---:|---:|---|---|
+| 0.750 | -64.28 pt | -0.226 | -0.20 pt | long 0% / short 3% / flat 97% | reject alpha<-25 |
+| 1.000 | -83.08 pt | -0.327 | -0.04 pt | long 0% / short 4% / flat 96% | reject alpha<-25 |
+| 1.500 | -83.95 pt | -0.333 | -0.03 pt | long 0% / short 4% / flat 96% | reject alpha<-25 |
+
+BC / AC observations:
+
+- BC-only val: `AlphaExcess=-381.64pt`, dist `short=98% flat=2%`, turnover `638.11`, cost `0.3515`。
+- AC は最終的に `short=4% flat=96%` まで戻したが、turnover `51.57` と cost `0.0289` が大きい。
+- `outcome_edge` weighting は underweight を選別するより、BC 初期 policy を extreme underweight/high-turnover に押した。
+
+判定:
+
+- Experiment B は不採用。
+- `sample_quality_coef: 1.0` + `short_mass/mode_rate` 半戻しは強すぎる。
+- cost-aware どころか cost を増やして net return を削った。
+- A は underweight を消しすぎ、B は underweight/high-turnover を戻しすぎ。中間探索が必要。
+
+次アクション:
+
+- Experiment C は self-conditioned BC を追加するが、B をそのままベースにすると悪化リスクが高い。
+- C は `sample_quality_coef` を弱めた `0.25`、`short_mass/mode_rate` は A 寄りに戻して実行する。
+- 目的は、self-conditioned inventory state が recovery と turnover を改善するかを見ること。
