@@ -2,11 +2,18 @@ import numpy as np
 
 from unidream.data.oracle import ACTIONS as DEFAULT_ACTIONS
 from unidream.data.oracle import feature_stress_teacher
+from unidream.data.oracle import smooth_aim_positions
 
 from .oracle_post import apply_oracle_postprocess
 from .oracle_stage import compute_base_oracle
 from .oracle_teacher import compute_teacher_oracle
 from .regime_runtime import fit_fold_regimes
+from .transition_advantage import (
+    compute_transition_advantage,
+    config_from_dict as transition_advantage_config_from_dict,
+    current_positions_from_path,
+    summarize_transition_advantage,
+)
 
 
 def _normalized_feature_stress_signal(
@@ -253,6 +260,64 @@ def prepare_fold_inputs(
         train_returns=train_returns,
         forward_window_stats_fn=forward_window_stats_fn,
     )
+    if bc_cfg.get("transition_advantage_relabel", False):
+        ta_cfg = transition_advantage_config_from_dict(
+            bc_cfg,
+            costs_cfg=costs_cfg,
+            benchmark_position=oracle_benchmark_position,
+            default_actions=oracle_action_values,
+        )
+        current_train = current_positions_from_path(oracle_positions, oracle_benchmark_position)
+        train_transition_bundle = compute_transition_advantage(train_returns, current_train, ta_cfg)
+        oracle_positions = train_transition_bundle["target_positions"]
+        if bc_cfg.get("transition_relabel_smooth", False):
+            oracle_positions = smooth_aim_positions(
+                oracle_positions,
+                max_step=bc_cfg.get("transition_relabel_max_step", oracle_cfg.get("aim_max_step", 0.10)),
+                band=bc_cfg.get("transition_relabel_band", oracle_cfg.get("aim_band", 0.02)),
+                initial_position=oracle_benchmark_position,
+                min_position=ac_cfg.get("abs_min_position", 0.0),
+                max_position=ac_cfg.get("abs_max_position", 1.0),
+                benchmark_position=oracle_benchmark_position,
+                underweight_confirm_bars=bc_cfg.get("transition_relabel_underweight_confirm_bars", 8),
+                underweight_min_scale=bc_cfg.get("transition_relabel_underweight_min_scale", 0.25),
+                underweight_step_scale=bc_cfg.get("transition_relabel_underweight_step_scale", 0.5),
+            ).astype(np.float32)
+        outcome_edge = train_transition_bundle["best_advantage"]
+        oracle_bundle["oracle_soft_labels"] = None
+
+        current_val = current_positions_from_path(val_oracle_positions, oracle_benchmark_position)
+        val_transition_bundle = compute_transition_advantage(wfo_dataset.val_returns, current_val, ta_cfg)
+        val_oracle_positions = val_transition_bundle["target_positions"]
+        if bc_cfg.get("transition_relabel_smooth", False):
+            val_oracle_positions = smooth_aim_positions(
+                val_oracle_positions,
+                max_step=bc_cfg.get("transition_relabel_max_step", oracle_cfg.get("aim_max_step", 0.10)),
+                band=bc_cfg.get("transition_relabel_band", oracle_cfg.get("aim_band", 0.02)),
+                initial_position=oracle_benchmark_position,
+                min_position=ac_cfg.get("abs_min_position", 0.0),
+                max_position=ac_cfg.get("abs_max_position", 1.0),
+                benchmark_position=oracle_benchmark_position,
+                underweight_confirm_bars=bc_cfg.get("transition_relabel_underweight_confirm_bars", 8),
+                underweight_min_scale=bc_cfg.get("transition_relabel_underweight_min_scale", 0.25),
+                underweight_step_scale=bc_cfg.get("transition_relabel_underweight_step_scale", 0.5),
+            ).astype(np.float32)
+
+        transition_summary = summarize_transition_advantage(
+            train_transition_bundle,
+            current_train,
+            oracle_benchmark_position,
+        )
+        dist = (
+            f"short={transition_summary['target_short_rate']:.0%} "
+            f"bench={transition_summary['target_benchmark_rate']:.0%} "
+            f"ow={transition_summary['target_overweight_rate']:.0%}"
+        )
+        print(
+            "  Transition relabel: "
+            f"{dist} mean_adv={transition_summary['mean_best_advantage']:.6f} "
+            f"recovery_rate={transition_summary['recovery_rate_from_underweight']:.1%}"
+        )
     if oracle_cfg.get("use_aim_targets", False):
         aim_stats = action_stats_fn(oracle_positions, benchmark_position=benchmark_position)
         print(f"  Oracle aim dist: {format_action_stats_fn(aim_stats)}")
