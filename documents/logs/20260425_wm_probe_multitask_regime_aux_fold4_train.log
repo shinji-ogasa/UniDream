@@ -1,0 +1,75 @@
+﻿UniDream Training | BTCUSDT 15m | 2020-01-01 �� 2024-01-01
+Device: cuda | Seed: 42 | Resume: False
+Stages: wm -> wm
+Costs: profile=base | spread=3.00bps fee=3.00bps slip=1.00bps => one-way ��pos=1 cost=5.50bps
+
+[Data] Loading cached features...
+  Cached: (138607, 17) | obs_dim=17
+[Data] WFO splits...
+  6 folds
+  Running selected folds only: [4]
+
+============================================================
+Fold 4: train 2021-01-16 �� 2023-01-16 | test 2023-04-16 �� 2023-07-16
+============================================================
+
+[18:30:06] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 70011 steps, mean value=30.0372
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=0% short=50% flat=50% mean=-0.501 switches=1071 avg_hold=65.4b turnover=1071.00
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Oracle aim dist: long=0% short=40% flat=60% mean=-0.122 switches=22794 avg_hold=3.1b turnover=2166.04
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[18:30:11] [Step 2] World Model Training...
+[18:30:30] [WM] Step 100/2000 | Loss: 1.8733 | BaseLoss: 0.9120 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3478 | Vol: 0.0267 | DD: 0.1639 | Reg: 0.6677
+       Val Loss: 1.6953 �� best
+[18:30:49] [WM] Step 200/2000 | Loss: 2.0072 | BaseLoss: 0.9849 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3424 | Vol: 0.0359 | DD: 0.1985 | Reg: 0.7007
+       Val Loss: 1.6727 �� best
+[18:31:08] [WM] Step 300/2000 | Loss: 2.1678 | BaseLoss: 1.0540 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.3966 | Vol: 0.0388 | DD: 0.2124 | Reg: 0.6459
+       Val Loss: 1.7472 (no improve 1/10)
+[18:31:26] [WM] Step 400/2000 | Loss: 1.9649 | BaseLoss: 1.0168 | Disagree: 0.0004 | IDM: 0.0000 | Ret: 0.3474 | Vol: 0.0233 | DD: 0.1819 | Reg: 0.5240
+       Val Loss: 1.8330 (no improve 2/10)
+[18:31:45] [WM] Step 500/2000 | Loss: 1.7930 | BaseLoss: 1.0040 | Disagree: 0.0012 | IDM: 0.0000 | Ret: 0.2922 | Vol: 0.0213 | DD: 0.1479 | Reg: 0.4300
+       Val Loss: 1.6932 (no improve 3/10)
+[18:32:04] [WM] Step 600/2000 | Loss: 1.9736 | BaseLoss: 1.0186 | Disagree: 0.0027 | IDM: 0.0000 | Ret: 0.3446 | Vol: 0.0258 | DD: 0.2065 | Reg: 0.4106
+       Val Loss: 1.6338 �� best
+[18:32:23] [WM] Step 700/2000 | Loss: 1.8260 | BaseLoss: 0.9715 | Disagree: 0.0034 | IDM: 0.0000 | Ret: 0.3024 | Vol: 0.0237 | DD: 0.1830 | Reg: 0.4109
+       Val Loss: 1.6623 (no improve 1/10)
+[18:32:42] [WM] Step 800/2000 | Loss: 1.8738 | BaseLoss: 1.0073 | Disagree: 0.0051 | IDM: 0.0000 | Ret: 0.3250 | Vol: 0.0212 | DD: 0.1616 | Reg: 0.4615
+       Val Loss: 1.6609 (no improve 2/10)
+[18:33:00] [WM] Step 900/2000 | Loss: 1.9267 | BaseLoss: 1.0065 | Disagree: 0.0072 | IDM: 0.0000 | Ret: 0.3275 | Vol: 0.0319 | DD: 0.1984 | Reg: 0.3979
+       Val Loss: 1.6750 (no improve 3/10)
+[18:33:19] [WM] Step 1000/2000 | Loss: 1.8466 | BaseLoss: 1.0085 | Disagree: 0.0081 | IDM: 0.0000 | Ret: 0.3057 | Vol: 0.0227 | DD: 0.1686 | Reg: 0.4153
+       Val Loss: 1.6469 (no improve 4/10)
+[WM] Checkpoint saved: checkpoints/wm_probe_multitask_regime_aux_s007\fold_4\world_model.pt
+[18:33:38] [WM] Step 1100/2000 | Loss: 1.9121 | BaseLoss: 1.0055 | Disagree: 0.0093 | IDM: 0.0000 | Ret: 0.3531 | Vol: 0.0225 | DD: 0.1607 | Reg: 0.4547
+       Val Loss: 1.6883 (no improve 5/10)
+[18:33:58] [WM] Step 1200/2000 | Loss: 1.7303 | BaseLoss: 0.9754 | Disagree: 0.0101 | IDM: 0.0000 | Ret: 0.2612 | Vol: 0.0221 | DD: 0.1597 | Reg: 0.4057
+       Val Loss: 1.6127 �� best
+[18:34:17] [WM] Step 1300/2000 | Loss: 1.9015 | BaseLoss: 1.0081 | Disagree: 0.0107 | IDM: 0.0000 | Ret: 0.3050 | Vol: 0.0366 | DD: 0.1966 | Reg: 0.4173
+       Val Loss: 1.7191 (no improve 1/10)
+[18:34:36] [WM] Step 1400/2000 | Loss: 1.9652 | BaseLoss: 1.0424 | Disagree: 0.0119 | IDM: 0.0000 | Ret: 0.3549 | Vol: 0.0257 | DD: 0.1842 | Reg: 0.3534
+       Val Loss: 1.7141 (no improve 2/10)
+[18:34:55] [WM] Step 1500/2000 | Loss: 1.9084 | BaseLoss: 1.0452 | Disagree: 0.0122 | IDM: 0.0000 | Ret: 0.3107 | Vol: 0.0240 | DD: 0.1777 | Reg: 0.4269
+       Val Loss: 1.6367 (no improve 3/10)
+[18:35:15] [WM] Step 1600/2000 | Loss: 1.9583 | BaseLoss: 1.0149 | Disagree: 0.0124 | IDM: 0.0000 | Ret: 0.3416 | Vol: 0.0245 | DD: 0.1949 | Reg: 0.4571
+       Val Loss: 1.6239 (no improve 4/10)
+[18:35:34] [WM] Step 1700/2000 | Loss: 1.9361 | BaseLoss: 1.0050 | Disagree: 0.0130 | IDM: 0.0000 | Ret: 0.3394 | Vol: 0.0380 | DD: 0.1901 | Reg: 0.3953
+       Val Loss: 1.5953 �� best
+[18:35:53] [WM] Step 1800/2000 | Loss: 1.8125 | BaseLoss: 0.9933 | Disagree: 0.0128 | IDM: 0.0000 | Ret: 0.3096 | Vol: 0.0219 | DD: 0.1515 | Reg: 0.4219
+       Val Loss: 1.6652 (no improve 1/10)
+[18:36:13] [WM] Step 1900/2000 | Loss: 1.9011 | BaseLoss: 1.0117 | Disagree: 0.0132 | IDM: 0.0000 | Ret: 0.3284 | Vol: 0.0261 | DD: 0.1877 | Reg: 0.3562
+       Val Loss: 1.6927 (no improve 2/10)
+[18:36:32] [WM] Step 2000/2000 | Loss: 1.9922 | BaseLoss: 1.0264 | Disagree: 0.0135 | IDM: 0.0000 | Ret: 0.3672 | Vol: 0.0267 | DD: 0.1927 | Reg: 0.3971
+       Val Loss: 1.6201 (no improve 3/10)
+[WM] Checkpoint saved: checkpoints/wm_probe_multitask_regime_aux_s007\fold_4\world_model.pt
+[WM] Restored best model (val loss: 1.5953)
+[WM] Checkpoint saved: checkpoints/wm_probe_multitask_regime_aux_s007\fold_4\world_model.pt
+
+[18:36:40] [Stop] Requested stop after WM
+
+============================================================
+Stage Summary
+============================================================
+  Fold 4: completed_stage=wm

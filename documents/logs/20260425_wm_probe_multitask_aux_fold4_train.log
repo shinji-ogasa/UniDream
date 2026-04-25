@@ -1,0 +1,65 @@
+﻿UniDream Training | BTCUSDT 15m | 2020-01-01 �� 2024-01-01
+Device: cuda | Seed: 42 | Resume: False
+Stages: wm -> wm
+Costs: profile=base | spread=3.00bps fee=3.00bps slip=1.00bps => one-way ��pos=1 cost=5.50bps
+
+[Data] Loading cached features...
+  Cached: (138607, 17) | obs_dim=17
+[Data] WFO splits...
+  6 folds
+  Running selected folds only: [4]
+
+============================================================
+Fold 4: train 2021-01-16 �� 2023-01-16 | test 2023-04-16 �� 2023-07-16
+============================================================
+
+[18:19:38] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 70011 steps, mean value=30.0372
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=0% short=50% flat=50% mean=-0.501 switches=1071 avg_hold=65.4b turnover=1071.00
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Oracle aim dist: long=0% short=40% flat=60% mean=-0.122 switches=22794 avg_hold=3.1b turnover=2166.04
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[18:19:42] [Step 2] World Model Training...
+[18:19:59] [WM] Step 100/1500 | Loss: 1.9929 | BaseLoss: 0.9689 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.3780 | Vol: 0.0380 | DD: 0.2300
+       Val Loss: 1.5429 �� best
+[18:20:17] [WM] Step 200/1500 | Loss: 1.6504 | BaseLoss: 0.9047 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.2938 | Vol: 0.0274 | DD: 0.1306
+       Val Loss: 1.4914 �� best
+[18:20:36] [WM] Step 300/1500 | Loss: 1.7366 | BaseLoss: 0.9404 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3129 | Vol: 0.0275 | DD: 0.1429
+       Val Loss: 1.5220 (no improve 1/10)
+[18:20:54] [WM] Step 400/1500 | Loss: 2.0261 | BaseLoss: 0.9679 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3894 | Vol: 0.0415 | DD: 0.2379
+       Val Loss: 1.4904 �� best
+[18:21:13] [WM] Step 500/1500 | Loss: 1.6479 | BaseLoss: 0.9211 | Disagree: 0.0002 | IDM: 0.0000 | Ret: 0.2788 | Vol: 0.0178 | DD: 0.1515
+       Val Loss: 1.5164 (no improve 1/10)
+[18:21:33] [WM] Step 600/1500 | Loss: 1.7920 | BaseLoss: 0.9790 | Disagree: 0.0009 | IDM: 0.0000 | Ret: 0.3085 | Vol: 0.0238 | DD: 0.1723
+       Val Loss: 1.5372 (no improve 2/10)
+[18:21:51] [WM] Step 700/1500 | Loss: 1.8604 | BaseLoss: 0.9507 | Disagree: 0.0023 | IDM: 0.0000 | Ret: 0.3431 | Vol: 0.0284 | DD: 0.1951
+       Val Loss: 1.5119 (no improve 3/10)
+[18:22:10] [WM] Step 800/1500 | Loss: 1.7423 | BaseLoss: 0.9332 | Disagree: 0.0038 | IDM: 0.0000 | Ret: 0.3052 | Vol: 0.0292 | DD: 0.1695
+       Val Loss: 1.5853 (no improve 4/10)
+[18:22:28] [WM] Step 900/1500 | Loss: 2.0730 | BaseLoss: 0.9667 | Disagree: 0.0062 | IDM: 0.0000 | Ret: 0.4138 | Vol: 0.0475 | DD: 0.2312
+       Val Loss: 1.5453 (no improve 5/10)
+[18:22:47] [WM] Step 1000/1500 | Loss: 1.7494 | BaseLoss: 0.9341 | Disagree: 0.0069 | IDM: 0.0000 | Ret: 0.3058 | Vol: 0.0324 | DD: 0.1712
+       Val Loss: 1.5307 (no improve 6/10)
+[WM] Checkpoint saved: checkpoints/wm_probe_multitask_aux_s007\fold_4\world_model.pt
+[18:23:05] [WM] Step 1100/1500 | Loss: 1.6849 | BaseLoss: 0.9424 | Disagree: 0.0083 | IDM: 0.0000 | Ret: 0.2918 | Vol: 0.0254 | DD: 0.1334
+       Val Loss: 1.5724 (no improve 7/10)
+[18:23:24] [WM] Step 1200/1500 | Loss: 1.8913 | BaseLoss: 0.9903 | Disagree: 0.0095 | IDM: 0.0000 | Ret: 0.3291 | Vol: 0.0270 | DD: 0.2158
+       Val Loss: 1.4809 �� best
+[18:23:42] [WM] Step 1300/1500 | Loss: 1.7495 | BaseLoss: 0.9347 | Disagree: 0.0105 | IDM: 0.0000 | Ret: 0.3165 | Vol: 0.0244 | DD: 0.1573
+       Val Loss: 1.4757 �� best
+[18:24:01] [WM] Step 1400/1500 | Loss: 1.8325 | BaseLoss: 0.9660 | Disagree: 0.0112 | IDM: 0.0000 | Ret: 0.3385 | Vol: 0.0291 | DD: 0.1605
+       Val Loss: 1.5593 (no improve 1/10)
+[18:24:20] [WM] Step 1500/1500 | Loss: 1.7085 | BaseLoss: 0.9641 | Disagree: 0.0118 | IDM: 0.0000 | Ret: 0.2849 | Vol: 0.0204 | DD: 0.1540
+       Val Loss: 1.4998 (no improve 2/10)
+[WM] Checkpoint saved: checkpoints/wm_probe_multitask_aux_s007\fold_4\world_model.pt
+[WM] Restored best model (val loss: 1.4757)
+[WM] Checkpoint saved: checkpoints/wm_probe_multitask_aux_s007\fold_4\world_model.pt
+
+[18:24:27] [Stop] Requested stop after WM
+
+============================================================
+Stage Summary
+============================================================
+  Fold 4: completed_stage=wm

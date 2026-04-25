@@ -56,12 +56,12 @@ class ReturnHead(nn.Module):
     WM の潜在表現に将来リターンの情報を埋め込む。
     """
 
-    def __init__(self, z_dim: int, d_model: int, hidden: int):
+    def __init__(self, z_dim: int, d_model: int, hidden: int, out_dim: int = 1):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(z_dim + d_model, hidden),
             nn.ELU(),
-            nn.Linear(hidden, 1),
+            nn.Linear(hidden, out_dim),
         )
 
     def forward(self, z: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
@@ -70,9 +70,9 @@ class ReturnHead(nn.Module):
             z: (B, T, z_dim)
             h: (B, T, d_model)
         Returns:
-            pred: (B, T)
+            pred: (B, T, out_dim)
         """
-        return self.net(torch.cat([z, h], dim=-1)).squeeze(-1)
+        return self.net(torch.cat([z, h], dim=-1))
 
 
 class RegimeHead(nn.Module):
@@ -154,6 +154,17 @@ class WorldModelTrainer:
         self.idm_scale = wm_cfg.get("idm_scale", 0.0)
         self.return_scale = wm_cfg.get("return_scale", 0.0)
         self.return_horizon = wm_cfg.get("return_horizon", 10)
+        self.return_horizons = [
+            int(h) for h in wm_cfg.get("return_horizons", [self.return_horizon])
+        ]
+        self.return_include_current = bool(wm_cfg.get("return_include_current", True))
+        self.return_target_scale = float(wm_cfg.get("return_target_scale", 1.0))
+        self.vol_scale = float(wm_cfg.get("vol_scale", 0.0))
+        self.drawdown_scale = float(wm_cfg.get("drawdown_scale", 0.0))
+        self.risk_horizons = [
+            int(h) for h in wm_cfg.get("risk_horizons", self.return_horizons)
+        ]
+        self.risk_target_scale = float(wm_cfg.get("risk_target_scale", 1.0))
         self.regime_aux_scale = wm_cfg.get("regime_aux_scale", 0.0)
         self.regime_dim = int(wm_cfg.get("regime_dim", 0))
 
@@ -186,10 +197,37 @@ class WorldModelTrainer:
             self.idm_head = None
 
         if self.return_scale > 0.0:
-            self.return_head = ReturnHead(z_dim, d_model, hidden=256).to(self.device)
+            self.return_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.return_horizons),
+            ).to(self.device)
             aux_params.extend(self.return_head.parameters())
         else:
             self.return_head = None
+
+        if self.vol_scale > 0.0:
+            self.vol_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.risk_horizons),
+            ).to(self.device)
+            aux_params.extend(self.vol_head.parameters())
+        else:
+            self.vol_head = None
+
+        if self.drawdown_scale > 0.0:
+            self.drawdown_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.risk_horizons),
+            ).to(self.device)
+            aux_params.extend(self.drawdown_head.parameters())
+        else:
+            self.drawdown_head = None
 
         if self.regime_aux_scale > 0.0 and self.regime_dim > 0:
             self.regime_head = RegimeHead(z_dim, d_model, hidden=256, regime_dim=self.regime_dim).to(self.device)
@@ -248,6 +286,74 @@ class WorldModelTrainer:
             benchmark_returns = self.benchmark_position * raw_returns
             return net_returns - benchmark_returns
         return net_returns
+
+    def _future_return_targets(
+        self,
+        raw_returns: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Build multi-horizon return targets and valid masks."""
+        B, T = raw_returns.shape
+        offset0 = 0 if self.return_include_current else 1
+        targets = []
+        masks = []
+        for horizon in self.return_horizons:
+            horizon = max(1, int(horizon))
+            target = torch.zeros_like(raw_returns)
+            for k in range(offset0, offset0 + horizon):
+                if k < T:
+                    target[:, : T - k] += raw_returns[:, k:]
+            valid_len = T - (offset0 + horizon - 1)
+            mask = torch.zeros((B, T), dtype=torch.bool, device=raw_returns.device)
+            if valid_len > 0:
+                mask[:, :valid_len] = True
+            targets.append(target * self.return_target_scale)
+            masks.append(mask)
+        return torch.stack(targets, dim=-1), torch.stack(masks, dim=-1)
+
+    def _future_risk_targets(
+        self,
+        raw_returns: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Build future realized volatility and drawdown-risk targets."""
+        B, T = raw_returns.shape
+        vol_targets = []
+        dd_targets = []
+        masks = []
+        for horizon in self.risk_horizons:
+            horizon = max(1, int(horizon))
+            cum = torch.zeros_like(raw_returns)
+            min_cum = torch.zeros_like(raw_returns)
+            sq_sum = torch.zeros_like(raw_returns)
+            for k in range(1, horizon + 1):
+                if k < T:
+                    shifted = torch.zeros_like(raw_returns)
+                    shifted[:, : T - k] = raw_returns[:, k:]
+                    cum = cum + shifted
+                    min_cum = torch.minimum(min_cum, cum)
+                    sq_sum = sq_sum + shifted.square()
+            valid_len = T - horizon
+            mask = torch.zeros((B, T), dtype=torch.bool, device=raw_returns.device)
+            if valid_len > 0:
+                mask[:, :valid_len] = True
+            vol_targets.append(torch.sqrt(sq_sum / float(horizon) + 1e-12) * self.risk_target_scale)
+            dd_targets.append((-min_cum) * self.risk_target_scale)
+            masks.append(mask)
+        return (
+            torch.stack(vol_targets, dim=-1),
+            torch.stack(dd_targets, dim=-1),
+            torch.stack(masks, dim=-1),
+        )
+
+    @staticmethod
+    def _masked_smooth_l1(
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        valid = mask & torch.isfinite(target) & torch.isfinite(pred)
+        if not torch.any(valid):
+            return pred.sum() * 0.0
+        return F.smooth_l1_loss(pred[valid], target[valid])
 
     def train_on_dataset(
         self,
@@ -350,9 +456,17 @@ class WorldModelTrainer:
                 # --- Auxiliary losses ---
                 idm_loss_val = 0.0
                 return_loss_val = 0.0
+                vol_loss_val = 0.0
+                drawdown_loss_val = 0.0
                 regime_loss_val = 0.0
 
-                if self.idm_head is not None or self.return_head is not None or self.regime_head is not None:
+                has_predictive_head = (
+                    self.return_head is not None
+                    or self.vol_head is not None
+                    or self.drawdown_head is not None
+                    or self.regime_head is not None
+                )
+                if self.idm_head is not None or has_predictive_head:
                     z, _ = self.ensemble.encode(obs)  # (B, T, z_dim)
 
                     if self.idm_head is not None and "actions" in batch and not torch.is_floating_point(batch["actions"]):
@@ -369,20 +483,28 @@ class WorldModelTrainer:
                         idm_loss_val = idm_loss.item()
 
                     h = None
-                    if self.return_head is not None or self.regime_head is not None:
+                    if has_predictive_head:
                         out_h = self.ensemble.forward(z, actions)
                         h = out_h["h"]  # (B, T, d_model)
                     if self.return_head is not None and raw_returns is not None and h is not None:
-                        # N-step cumulative raw return: n_step[t] = sum_{k=0}^{N-1} raw_returns[t+k]
-                        T_ = raw_returns.shape[1]
-                        n_step = torch.zeros_like(raw_returns)
-                        for k in range(self.return_horizon):
-                            if k < T_:
-                                n_step[:, :T_ - k] += raw_returns[:, k:]
-                        pred = self.return_head(z, h)  # (B, T)
-                        return_loss = F.mse_loss(pred, n_step)
+                        target, mask = self._future_return_targets(raw_returns)
+                        pred = self.return_head(z, h)
+                        return_loss = self._masked_smooth_l1(pred, target, mask)
                         total_loss = total_loss + self.return_scale * return_loss
                         return_loss_val = return_loss.item()
+
+                    if (self.vol_head is not None or self.drawdown_head is not None) and raw_returns is not None and h is not None:
+                        vol_target, dd_target, risk_mask = self._future_risk_targets(raw_returns)
+                        if self.vol_head is not None:
+                            vol_pred = self.vol_head(z, h)
+                            vol_loss = self._masked_smooth_l1(vol_pred, vol_target, risk_mask)
+                            total_loss = total_loss + self.vol_scale * vol_loss
+                            vol_loss_val = vol_loss.item()
+                        if self.drawdown_head is not None:
+                            dd_pred = self.drawdown_head(z, h)
+                            drawdown_loss = self._masked_smooth_l1(dd_pred, dd_target, risk_mask)
+                            total_loss = total_loss + self.drawdown_scale * drawdown_loss
+                            drawdown_loss_val = drawdown_loss.item()
 
                     regime_probs = batch.get("regime")
                     if self.regime_head is not None and regime_probs is not None and h is not None:
@@ -408,6 +530,8 @@ class WorldModelTrainer:
                     "disagreement": loss_dict["disagreement"].item(),
                     "idm_loss": idm_loss_val,
                     "return_loss": return_loss_val,
+                    "vol_loss": vol_loss_val,
+                    "drawdown_loss": drawdown_loss_val,
                     "regime_loss": regime_loss_val,
                 }
                 logs.append(log)
@@ -420,6 +544,10 @@ class WorldModelTrainer:
                         aux_str += f" | IDM: {log['idm_loss']:.4f}"
                     if self.return_head is not None:
                         aux_str += f" | Ret: {log['return_loss']:.4f}"
+                    if self.vol_head is not None:
+                        aux_str += f" | Vol: {log['vol_loss']:.4f}"
+                    if self.drawdown_head is not None:
+                        aux_str += f" | DD: {log['drawdown_loss']:.4f}"
                     if self.regime_head is not None:
                         aux_str += f" | Reg: {log['regime_loss']:.4f}"
                     print(
@@ -519,9 +647,36 @@ class WorldModelTrainer:
                 done_scale=self.done_scale,
             )
             total_loss = loss_dict["loss"]
-            if self.regime_head is not None and "regime" in batch:
+            has_predictive_head = (
+                self.return_head is not None
+                or self.vol_head is not None
+                or self.drawdown_head is not None
+                or self.regime_head is not None
+            )
+            if has_predictive_head:
                 z, _ = self.ensemble.encode(obs)
                 h = self.ensemble.forward(z, actions)["h"]
+                if self.return_head is not None and raw_returns is not None:
+                    target, mask = self._future_return_targets(raw_returns)
+                    pred = self.return_head(z, h)
+                    total_loss = total_loss + self.return_scale * self._masked_smooth_l1(pred, target, mask)
+                if (self.vol_head is not None or self.drawdown_head is not None) and raw_returns is not None:
+                    vol_target, dd_target, risk_mask = self._future_risk_targets(raw_returns)
+                    if self.vol_head is not None:
+                        vol_pred = self.vol_head(z, h)
+                        total_loss = total_loss + self.vol_scale * self._masked_smooth_l1(
+                            vol_pred,
+                            vol_target,
+                            risk_mask,
+                        )
+                    if self.drawdown_head is not None:
+                        dd_pred = self.drawdown_head(z, h)
+                        total_loss = total_loss + self.drawdown_scale * self._masked_smooth_l1(
+                            dd_pred,
+                            dd_target,
+                            risk_mask,
+                        )
+            if self.regime_head is not None and "regime" in batch:
                 regime_probs = batch["regime"].to(self.device)
                 regime_logits = self.regime_head(z, h)
                 log_probs = F.log_softmax(regime_logits, dim=-1)
@@ -627,6 +782,10 @@ class WorldModelTrainer:
             ckpt["idm_head"] = self.idm_head.state_dict()
         if self.return_head is not None:
             ckpt["return_head"] = self.return_head.state_dict()
+        if self.vol_head is not None:
+            ckpt["vol_head"] = self.vol_head.state_dict()
+        if self.drawdown_head is not None:
+            ckpt["drawdown_head"] = self.drawdown_head.state_dict()
         if self.regime_head is not None:
             ckpt["regime_head"] = self.regime_head.state_dict()
         torch.save(ckpt, path)
@@ -636,12 +795,19 @@ class WorldModelTrainer:
         """チェックポイントをロードする."""
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.ensemble.load_state_dict(ckpt["ensemble"])
-        self.optimizer.load_state_dict(ckpt["optimizer"])
+        try:
+            self.optimizer.load_state_dict(ckpt["optimizer"])
+        except ValueError as exc:
+            print(f"[WM] Optimizer state skipped: {exc}")
         self.global_step = ckpt.get("global_step", 0)
         if self.idm_head is not None and "idm_head" in ckpt:
             self.idm_head.load_state_dict(ckpt["idm_head"])
         if self.return_head is not None and "return_head" in ckpt:
             self.return_head.load_state_dict(ckpt["return_head"])
+        if self.vol_head is not None and "vol_head" in ckpt:
+            self.vol_head.load_state_dict(ckpt["vol_head"])
+        if self.drawdown_head is not None and "drawdown_head" in ckpt:
+            self.drawdown_head.load_state_dict(ckpt["drawdown_head"])
         if self.regime_head is not None and "regime_head" in ckpt:
             self.regime_head.load_state_dict(ckpt["regime_head"])
         print(f"[WM] Checkpoint loaded: {path} (step={self.global_step})")
