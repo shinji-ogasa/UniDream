@@ -223,8 +223,6 @@ class BCPretrainer:
         inventory_recovery_pos_weight: float = 1.0,
         inventory_recovery_underweight_margin: float = 0.05,
         inventory_recovery_target_margin: float = 0.02,
-        residual_adv_bc_coef: float = 0.0,
-        residual_adv_bc_execute_coef: float = 0.0,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
@@ -328,8 +326,6 @@ class BCPretrainer:
         self.inventory_recovery_pos_weight = float(max(inventory_recovery_pos_weight, 1.0))
         self.inventory_recovery_underweight_margin = float(max(inventory_recovery_underweight_margin, 0.0))
         self.inventory_recovery_target_margin = float(max(inventory_recovery_target_margin, 0.0))
-        self.residual_adv_bc_coef = float(max(residual_adv_bc_coef, 0.0))
-        self.residual_adv_bc_execute_coef = float(max(residual_adv_bc_execute_coef, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
         self.trainable_actor_prefixes = tuple(trainable_actor_prefixes or [])
@@ -506,9 +502,6 @@ class BCPretrainer:
         route_labels: Optional[torch.Tensor] = None,
         route_soft_labels: Optional[torch.Tensor] = None,
         route_advantage: Optional[torch.Tensor] = None,
-        residual_bc_target: Optional[torch.Tensor] = None,
-        residual_bc_weight: Optional[torch.Tensor] = None,
-        residual_bc_inventory: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Inventory controller 向けの BC 損失."""
         trade_logits, target_logits, target_mean, target_std, band_width, current_inventory = (
@@ -660,7 +653,6 @@ class BCPretrainer:
         route_entropy_bonus = None
         route_exposure_penalty = None
         inventory_recovery_loss = None
-        residual_adv_loss = None
         mode_loss = None
         mode_rate_penalty = None
         mode_regime_rate_penalty = None
@@ -829,51 +821,6 @@ class BCPretrainer:
                 reduction="none",
             )
         if (
-            self.residual_adv_bc_coef > 0.0
-            and residual_bc_target is not None
-            and residual_bc_weight is not None
-            and residual_bc_inventory is not None
-        ):
-            residual_w = residual_bc_weight.to(device=target_mean.device, dtype=target_mean.dtype).clamp_min(0.0)
-            if bool((residual_w > 0.0).any().item()):
-                residual_target = residual_bc_target.to(device=target_mean.device, dtype=target_mean.dtype)
-                residual_inventory = residual_bc_inventory.to(device=target_mean.device, dtype=target_mean.dtype)
-                (
-                    residual_trade_logits,
-                    _residual_target_logits,
-                    residual_target_mean,
-                    _residual_target_std,
-                    residual_band_width,
-                    residual_current_inventory,
-                ) = self.actor.controller_outputs_full(
-                    z,
-                    h,
-                    inventory=residual_inventory,
-                    regime=regime,
-                    advantage=advantage,
-                )
-                residual_target_overlay = residual_target - benchmark_position
-                residual_adv_loss = F.smooth_l1_loss(
-                    residual_target_mean,
-                    residual_target_overlay,
-                    reduction="none",
-                )
-                if self.residual_adv_bc_execute_coef > 0.0:
-                    residual_executed = self.actor.soft_execute_controller(
-                        trade_signal=torch.sigmoid(residual_trade_logits),
-                        target_inventory=residual_target_mean,
-                        band_width=residual_band_width,
-                        current_inventory=residual_current_inventory,
-                    )
-                    residual_exec_loss = F.smooth_l1_loss(
-                        residual_executed,
-                        residual_target_overlay,
-                        reduction="none",
-                    )
-                    residual_adv_loss = residual_adv_loss + self.residual_adv_bc_execute_coef * residual_exec_loss
-                residual_w = residual_w / residual_w.mean().clamp_min(1e-6)
-                residual_adv_loss = residual_adv_loss * residual_w
-        if (
             self.mode_target_coef > 0.0
             and (
                 bool(getattr(self.actor, "use_dual_regime_target_bias", False))
@@ -1022,8 +969,6 @@ class BCPretrainer:
             loss_terms = loss_terms + route_exposure_penalty
         if inventory_recovery_loss is not None:
             loss_terms = loss_terms + self.inventory_recovery_coef * inventory_recovery_loss
-        if residual_adv_loss is not None:
-            loss_terms = loss_terms + self.residual_adv_bc_coef * residual_adv_loss
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05
@@ -1203,9 +1148,6 @@ class BCPretrainer:
         route_labels: "np.ndarray | None" = None,
         route_soft_labels: "np.ndarray | None" = None,
         route_advantage: "np.ndarray | None" = None,
-        residual_bc_targets: "np.ndarray | None" = None,
-        residual_bc_weights: "np.ndarray | None" = None,
-        residual_bc_inventory: "np.ndarray | None" = None,
     ) -> list[dict]:
         """BC 事前学習を実行する.
 
@@ -1230,12 +1172,6 @@ class BCPretrainer:
             lengths.append(len(route_soft_labels))
         if route_advantage is not None:
             lengths.append(len(route_advantage))
-        if residual_bc_targets is not None:
-            lengths.append(len(residual_bc_targets))
-        if residual_bc_weights is not None:
-            lengths.append(len(residual_bc_weights))
-        if residual_bc_inventory is not None:
-            lengths.append(len(residual_bc_inventory))
         T = min(lengths)
         benchmark_position = float(getattr(self.actor, "benchmark_position", 0.0))
         teacher_state_all = self.actor.controller_states_from_positions(oracle_positions[:T])
@@ -1266,11 +1202,6 @@ class BCPretrainer:
             use_route_hard = route_labels is not None
             use_route_soft = route_soft_labels is not None
             use_route_adv = route_advantage is not None
-            use_residual_adv_bc = (
-                residual_bc_targets is not None
-                and residual_bc_weights is not None
-                and residual_bc_inventory is not None
-            )
             loader_options = {
                 "num_workers": 2,
                 "pin_memory": self.device.type == "cuda",
@@ -1342,13 +1273,6 @@ class BCPretrainer:
                     route_adv_arr = np.asarray(route_advantage[:T_use], dtype=np.float32).reshape(n_chunks, k)
                     route_adv_repr_arr = route_adv_arr[np.arange(n_chunks), repr_idx]
                     tensors.append(torch.tensor(route_adv_repr_arr, dtype=torch.float32))
-                if use_residual_adv_bc:
-                    res_target_arr = np.asarray(residual_bc_targets[:T_use], dtype=np.float32).reshape(n_chunks, k)
-                    res_weight_arr = np.asarray(residual_bc_weights[:T_use], dtype=np.float32).reshape(n_chunks, k)
-                    res_inv_arr = np.asarray(residual_bc_inventory[:T_use], dtype=np.float32).reshape(n_chunks, k, -1)
-                    tensors.append(torch.tensor(res_target_arr[np.arange(n_chunks), repr_idx], dtype=torch.float32))
-                    tensors.append(torch.tensor(res_weight_arr[np.arange(n_chunks), repr_idx], dtype=torch.float32))
-                    tensors.append(torch.tensor(res_inv_arr[np.arange(n_chunks), repr_idx, :], dtype=torch.float32))
 
                 dataset = TensorDataset(*tensors)
                 loader = DataLoader(
@@ -1384,15 +1308,6 @@ class BCPretrainer:
                     if use_route_soft:
                         bi += 1
                     route_adv_repr = batch[bi].to(self.device) if use_route_adv else None
-                    if use_route_adv:
-                        bi += 1
-                    residual_target_repr = batch[bi].to(self.device) if use_residual_adv_bc else None
-                    if use_residual_adv_bc:
-                        bi += 1
-                    residual_weight_repr = batch[bi].to(self.device) if use_residual_adv_bc else None
-                    if use_residual_adv_bc:
-                        bi += 1
-                    residual_inventory_repr = batch[bi].to(self.device) if use_residual_adv_bc else None
 
                     if self.use_sirl:
                         state = torch.cat([z_b, h_b], dim=-1)
@@ -1414,9 +1329,6 @@ class BCPretrainer:
                         route_labels=route_repr,
                         route_soft_labels=route_soft_repr,
                         route_advantage=route_adv_repr,
-                        residual_bc_target=residual_target_repr,
-                        residual_bc_weight=residual_weight_repr,
-                        residual_bc_inventory=residual_inventory_repr,
                     )
 
                     self.optimizer.zero_grad()
@@ -1443,12 +1355,6 @@ class BCPretrainer:
         use_route_hard = route_labels is not None
         use_route_soft = route_soft_labels is not None
         use_route_adv = route_advantage is not None
-        use_residual_adv_bc = (
-            residual_bc_targets is not None
-            and residual_bc_weights is not None
-            and residual_bc_inventory is not None
-            and not (self.path_aux_coef > 0.0 and self.path_horizon > 1)
-        )
         logs = []
         rollout_positions = None
         loader_options = {
@@ -1482,9 +1388,6 @@ class BCPretrainer:
             route_t = torch.tensor(route_labels[:T], dtype=torch.long) if use_route_hard else None
             route_soft_t = torch.tensor(route_soft_labels[:T], dtype=torch.float32) if use_route_soft else None
             route_adv_t = torch.tensor(route_advantage[:T], dtype=torch.float32) if use_route_adv else None
-            residual_target_t = torch.tensor(residual_bc_targets[:T], dtype=torch.float32) if use_residual_adv_bc else None
-            residual_weight_t = torch.tensor(residual_bc_weights[:T], dtype=torch.float32) if use_residual_adv_bc else None
-            residual_inventory_t = torch.tensor(residual_bc_inventory[:T], dtype=torch.float32) if use_residual_adv_bc else None
             if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                 dataset = ControllerPathDataset(
                     z_t,
@@ -1516,10 +1419,6 @@ class BCPretrainer:
                     tensors.append(route_soft_t)
                 if route_adv_t is not None:
                     tensors.append(route_adv_t)
-                if residual_target_t is not None:
-                    tensors.append(residual_target_t)
-                    tensors.append(residual_weight_t)
-                    tensors.append(residual_inventory_t)
                 dataset = TensorDataset(*tensors)
             loader = DataLoader(
                 dataset,
@@ -1570,21 +1469,6 @@ class BCPretrainer:
                 route_adv_b = batch[bi].to(self.device) if use_route_adv else None
                 if route_adv_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     route_adv_b = route_adv_b[:, 0]
-                if use_route_adv:
-                    bi += 1
-                residual_target_b = batch[bi].to(self.device) if use_residual_adv_bc else None
-                if residual_target_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
-                    residual_target_b = residual_target_b[:, 0]
-                if use_residual_adv_bc:
-                    bi += 1
-                residual_weight_b = batch[bi].to(self.device) if use_residual_adv_bc else None
-                if residual_weight_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
-                    residual_weight_b = residual_weight_b[:, 0]
-                if use_residual_adv_bc:
-                    bi += 1
-                residual_inventory_b = batch[bi].to(self.device) if use_residual_adv_bc else None
-                if residual_inventory_b is not None and self.path_aux_coef > 0.0 and self.path_horizon > 1:
-                    residual_inventory_b = residual_inventory_b[:, 0]
 
                 z_b = z_b.to(self.device)
                 h_b = h_b.to(self.device)
@@ -1610,9 +1494,6 @@ class BCPretrainer:
                     route_labels=route_b,
                     route_soft_labels=route_soft_b,
                     route_advantage=route_adv_b,
-                    residual_bc_target=residual_target_b,
-                    residual_bc_weight=residual_weight_b,
-                    residual_bc_inventory=residual_inventory_b,
                 )
                 if self.path_aux_coef > 0.0 and self.path_horizon > 1:
                     z_seq = z_seq.to(self.device)
