@@ -593,8 +593,11 @@ def main():
     parser.add_argument("--end", default="2024-01-01")
     add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--resume", action="store_true",
-                        help="保存済みチェックポイントから再開する")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from existing checkpoints",
+    )
     parser.add_argument(
         "--start-from",
         default="wm",
