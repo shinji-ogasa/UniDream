@@ -213,6 +213,12 @@ class BCPretrainer:
         route_entropy_coef: float = 0.0,
         route_class_weights: dict | list | tuple | None = None,
         route_focal_gamma: float = 0.0,
+        route_active_rate_coef: float = 0.0,
+        route_active_rate_max: float = 0.0,
+        route_short_rate_coef: float = 0.0,
+        route_short_rate_max: float = 0.0,
+        route_neutral_rate_coef: float = 0.0,
+        route_neutral_rate_target: float = 0.0,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
@@ -306,6 +312,12 @@ class BCPretrainer:
         self.route_entropy_coef = float(max(route_entropy_coef, 0.0))
         self.route_class_weights = route_class_weights
         self.route_focal_gamma = float(max(route_focal_gamma, 0.0))
+        self.route_active_rate_coef = float(max(route_active_rate_coef, 0.0))
+        self.route_active_rate_max = float(route_active_rate_max)
+        self.route_short_rate_coef = float(max(route_short_rate_coef, 0.0))
+        self.route_short_rate_max = float(route_short_rate_max)
+        self.route_neutral_rate_coef = float(max(route_neutral_rate_coef, 0.0))
+        self.route_neutral_rate_target = float(route_neutral_rate_target)
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
         self.trainable_actor_prefixes = tuple(trainable_actor_prefixes or [])
@@ -626,6 +638,7 @@ class BCPretrainer:
         entropy_bonus = None
         route_loss = None
         route_entropy_bonus = None
+        route_exposure_penalty = None
         mode_loss = None
         mode_rate_penalty = None
         mode_regime_rate_penalty = None
@@ -719,6 +732,29 @@ class BCPretrainer:
             if self.route_entropy_coef > 0.0:
                 route_probs = torch.exp(route_log_probs)
                 route_entropy_bonus = -(route_probs * route_log_probs).sum(dim=-1)
+            if (
+                self.route_active_rate_coef > 0.0
+                or self.route_short_rate_coef > 0.0
+                or self.route_neutral_rate_coef > 0.0
+            ):
+                route_probs = torch.exp(route_log_probs)
+                neutral_rate = route_probs[..., 0].mean()
+                active_rate = 1.0 - neutral_rate
+                de_risk_rate = route_probs[..., 1].mean() if route_probs.shape[-1] > 1 else torch.zeros_like(active_rate)
+                penalty = torch.zeros((), dtype=route_probs.dtype, device=route_probs.device)
+                if self.route_active_rate_coef > 0.0 and self.route_active_rate_max > 0.0:
+                    penalty = penalty + self.route_active_rate_coef * F.relu(
+                        active_rate - self.route_active_rate_max
+                    ).pow(2)
+                if self.route_short_rate_coef > 0.0 and self.route_short_rate_max > 0.0:
+                    penalty = penalty + self.route_short_rate_coef * F.relu(
+                        de_risk_rate - self.route_short_rate_max
+                    ).pow(2)
+                if self.route_neutral_rate_coef > 0.0 and self.route_neutral_rate_target > 0.0:
+                    penalty = penalty + self.route_neutral_rate_coef * torch.abs(
+                        neutral_rate - self.route_neutral_rate_target
+                    )
+                route_exposure_penalty = penalty
         if (
             self.mode_target_coef > 0.0
             and (
@@ -864,6 +900,8 @@ class BCPretrainer:
             loss_terms = loss_terms + self.route_target_coef * route_loss
         if route_entropy_bonus is not None:
             loss_terms = loss_terms - self.route_entropy_coef * route_entropy_bonus
+        if route_exposure_penalty is not None:
+            loss_terms = loss_terms + route_exposure_penalty
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05

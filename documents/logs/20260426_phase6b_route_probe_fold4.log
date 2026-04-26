@@ -1,0 +1,18 @@
+
+[Data] Loading cached features...
+  Cached: (208305, 17) | obs_dim=17
+
+[10:13:03] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69973 steps, mean value=39.6874
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=57% de_risk=28% recovery=2% overweight=13% active=42.9% mean_adv=0.001550 top_decile_adv=0.009145
+  Transition relabel: short=26% bench=52% ow=22% mean_adv=0.001652 recovery_rate=50.3%
+  Oracle aim dist: long=24% short=30% flat=46% mean=-0.029 switches=21458 avg_hold=3.3b turnover=2024.68
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[10:13:09] [Step 2] World Model - loading checkpoint: checkpoints/bcplan5_phase6b_exposure_loss_s007\fold_4\world_model.pt
+[WM] Checkpoint loaded: checkpoints/bcplan5_phase6b_exposure_loss_s007\fold_4\world_model.pt (step=1500)
+[10:13:22] [PredictiveState] enabled: dim=15 heads=return,vol,drawdown standardize=True scale=0.25
+[RouteProbe] wrote documents\route_probe\20260426_phase6b_route_probe_fold4.json and documents\route_probe\20260426_phase6b_route_probe_fold4.md

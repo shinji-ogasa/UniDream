@@ -376,6 +376,83 @@ class Actor(nn.Module):
             logits = logits + gate_scale * self.route_advantage_gate(advantage)
         return logits
 
+    def _route_controller_probs_from_logits(
+        self,
+        route_logits: torch.Tensor,
+        current_inventory: torch.Tensor,
+        inventory_state: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Apply inference-only route safety rules before route targets are mixed."""
+        logits = route_logits
+        if self.route_dim == 4:
+            raw_probs = F.softmax(logits, dim=-1)
+            boost = float(
+                getattr(
+                    self,
+                    "recovery_logit_boost",
+                    getattr(self, "infer_recovery_fallback_boost", 0.0),
+                )
+            )
+            if boost > 0.0:
+                gap = float(
+                    getattr(
+                        self,
+                        "recovery_fallback_gap",
+                        getattr(self, "infer_recovery_fallback_gap", 0.05),
+                    )
+                )
+                min_duration = float(
+                    getattr(
+                        self,
+                        "recovery_fallback_min_duration",
+                        getattr(self, "infer_recovery_fallback_min_duration", 0.0),
+                    )
+                )
+                de_risk_conf_max = float(
+                    getattr(
+                        self,
+                        "recovery_fallback_derisk_conf_max",
+                        getattr(self, "infer_recovery_fallback_derisk_conf_max", 1.0),
+                    )
+                )
+                if inventory_state is not None and inventory_state.shape[-1] >= 4:
+                    underweight_duration = inventory_state[..., 3]
+                else:
+                    underweight_duration = torch.zeros_like(current_inventory)
+                duration_ready = torch.ones_like(current_inventory, dtype=torch.bool)
+                if min_duration > 0.0:
+                    duration_ready = underweight_duration >= (
+                        min_duration / max(self._state_hold_scale(), 1.0)
+                    )
+                underweight_ready = current_inventory < -gap
+                de_risk_not_dominant = torch.ones_like(current_inventory, dtype=torch.bool)
+                if de_risk_conf_max < 1.0:
+                    de_risk_not_dominant = raw_probs[..., 1] <= de_risk_conf_max
+                recover_mask = underweight_ready & duration_ready & de_risk_not_dominant
+                if recover_mask.any():
+                    logits = logits.clone()
+                    logits[..., 2] = logits[..., 2] + boost * recover_mask.to(logits.dtype)
+                    down = float(
+                        getattr(
+                            self,
+                            "de_risk_duration_logit_down",
+                            getattr(self, "infer_derisk_duration_logit_down", 0.0),
+                        )
+                    )
+                    if down > 0.0:
+                        logits[..., 1] = logits[..., 1] - down * recover_mask.to(logits.dtype)
+
+        probs = F.softmax(logits, dim=-1)
+        min_conf = float(getattr(self, "min_route_confidence_for_active", 0.0))
+        if min_conf > 0.0 and bool(getattr(self, "low_confidence_neutral_fallback", True)):
+            top_prob, selected = probs.max(dim=-1)
+            fallback = (selected != 0) & (top_prob < min_conf)
+            if fallback.any():
+                neutral = torch.zeros_like(probs)
+                neutral[..., 0] = 1.0
+                probs = torch.where(fallback.unsqueeze(-1), neutral, probs)
+        return probs
+
     def route_logits(
         self,
         z: torch.Tensor,
@@ -387,6 +464,20 @@ class Actor(nn.Module):
         advantage_t = self._ensure_advantage(advantage, z)
         hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage_t)
         return self._route_logits_from_hidden(hidden, advantage=advantage_t)
+
+    def route_controller_probs(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        advantage_t = self._ensure_advantage(advantage, z)
+        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage_t)
+        current_inventory = self._current_inventory_from_state(inventory_t)
+        logits = self._route_logits_from_hidden(hidden, advantage=advantage_t)
+        return self._route_controller_probs_from_logits(logits, current_inventory, inventory_t)
 
     def _route_target_overlays_from_hidden(
         self,
@@ -492,7 +583,11 @@ class Actor(nn.Module):
             else:
                 if self._use_route_controller():
                     route_logits = self._route_logits_from_hidden(hidden, advantage=advantage_t)
-                    route_probs = F.softmax(route_logits, dim=-1)
+                    route_probs = self._route_controller_probs_from_logits(
+                        route_logits,
+                        current_inventory,
+                        inventory_t,
+                    )
                     route_targets = self._route_target_overlays_from_hidden(hidden, current_inventory)
                     target_mean = (route_probs * route_targets).sum(dim=-1)
                 elif self._use_dual_residual_controller():
@@ -1065,6 +1160,12 @@ class Actor(nn.Module):
 
         positions = np.zeros(len(z_np), dtype=np.float32)
         controller_state = torch.zeros(1, self.inventory_dim, dtype=torch.float32, device=dev)
+        active_count = 0
+        underweight_count = 0
+        active_rate_max = float(getattr(self, "active_rate_max", 0.0))
+        short_rate_max = float(getattr(self, "short_underweight_rate_max", 0.0))
+        bench = self._benchmark_position()
+        eps = float(getattr(self, "rate_cap_active_eps", 0.05))
         for i in range(len(z_np)):
             reg_t = regime[i:i + 1] if regime is not None else None
             adv_t = advantage[i:i + 1] if advantage is not None else None
@@ -1076,7 +1177,27 @@ class Actor(nn.Module):
                 advantage=adv_t,
             )
             next_position = self._quantize_inference(next_position)
-            positions[i] = float(next_position.item())
+            pos_value = float(next_position.item())
+            overlay_value = pos_value - bench
+            is_active = abs(overlay_value) > eps
+            is_underweight = overlay_value < -eps
+            step_n = i + 1
+            force_neutral = False
+            if 0.0 < active_rate_max < 1.0 and is_active:
+                allowed_active = int(np.ceil(active_rate_max * step_n))
+                force_neutral = (active_count + 1) > allowed_active
+            if 0.0 < short_rate_max < 1.0 and is_underweight:
+                allowed_underweight = int(np.ceil(short_rate_max * step_n))
+                force_neutral = force_neutral or ((underweight_count + 1) > allowed_underweight)
+            if force_neutral:
+                pos_value = float(bench)
+                next_position = torch.full_like(next_position, pos_value)
+                overlay_value = 0.0
+                is_active = False
+                is_underweight = False
+            positions[i] = pos_value
+            active_count += int(is_active)
+            underweight_count += int(is_underweight)
             controller_state = self.update_controller_state(controller_state, next_position)
 
         if was_training:

@@ -67,14 +67,13 @@ def run_test_stage(
             for i in range(t_route):
                 reg_i = regime_t[i:i + 1] if regime_t is not None else None
                 adv_i = advantage_t[i:i + 1] if advantage_t is not None else None
-                logits = actor.route_logits(
+                probs = actor.route_controller_probs(
                     z_t[i:i + 1],
                     h_t[i:i + 1],
                     inventory=controller_state,
                     regime=reg_i,
                     advantage=adv_i,
                 )
-                probs = torch.softmax(logits, dim=-1)
                 pred_routes.append(int(torch.argmax(probs, dim=-1).item()))
                 route_conf.append(float(torch.max(probs, dim=-1).values.item()))
                 pos_i = torch.tensor([[float(positions[i])]], dtype=torch.float32, device=dev)
