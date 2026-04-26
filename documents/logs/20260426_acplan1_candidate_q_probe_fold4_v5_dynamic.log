@@ -1,0 +1,37 @@
+
+[Data] Loading cached features...
+  Cached: (208305, 17) | obs_dim=17
+[CandidateQ] fold=4 mode=dynamic fixed_candidates=[0.0, 0.5, 1.0, 1.0499999523162842, 1.100000023841858, 1.25]
+
+[15:45:23] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69973 steps, mean value=39.6874
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=57% de_risk=28% recovery=2% overweight=13% active=42.9% mean_adv=0.001550 top_decile_adv=0.009145
+  Transition relabel: short=26% bench=52% ow=22% mean_adv=0.001652 recovery_rate=50.3%
+  Oracle aim dist: long=24% short=30% flat=46% mean=-0.029 switches=21458 avg_hold=3.3b turnover=2024.68
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[15:45:28] [Step 2] World Model - loading checkpoint: checkpoints/bcplan5_phase8_state_machine_s007\fold_4\world_model.pt
+[WM] Checkpoint loaded: checkpoints/bcplan5_phase8_state_machine_s007\fold_4\world_model.pt (step=1500)
+[15:45:42] [PredictiveState] enabled: dim=15 heads=return,vol,drawdown standardize=True scale=0.25
+  [ValAdj] scale=0.100 adv=0.00 alpha=-75.12pt sharpe��=-0.014 maxdd��=-1.10pt win=50.0% score=-669.527 long=0% short=15% flat=85% M2=miss reject=alpha<-25.0
+  [ValAdj] scale=0.150 adv=0.00 alpha=-76.55pt sharpe��=-0.017 maxdd��=-1.09pt win=50.0% score=-676.043 long=0% short=15% flat=85% M2=miss reject=alpha<-25.0
+  [ValAdj] scale=0.250 adv=0.00 alpha=-78.83pt sharpe��=-0.021 maxdd��=-1.09pt win=49.9% score=-688.115 long=0% short=15% flat=85% M2=miss reject=alpha<-25.0
+  [ValAdj] scale=0.500 adv=0.00 alpha=-84.29pt sharpe��=-0.033 maxdd��=-1.07pt win=49.9% score=-717.788 long=0% short=16% flat=84% M2=miss reject=alpha<-25.0
+  [ValAdj] scale=0.750 adv=0.00 alpha=-86.13pt sharpe��=-0.038 maxdd��=-1.02pt win=49.8% score=-740.734 long=0% short=16% flat=84% M2=miss reject=alpha<-25.0
+  [ValAdj] selected scale=0.100 adv=0.00 (default=scale=1.000 adv=0.00) alpha=-75.12pt sharpe��=-0.014 maxdd��=-1.10pt win=50.0% score=-669.527 long=0% short=15% flat=85% M2=miss reject=alpha<-25.0
+[CandidateQ] training variant=mse_ensemble_mean reduce=mean
+[CandidateQ] mse_ensemble_mean test row_spearman=0.2364 selected_adv=0.000000 short=0.0% flat=100.0% long=0.0%
+[CandidateQ] training variant=cql_lite_minq reduce=min
+[CandidateQ] cql_lite_minq test row_spearman=0.2364 selected_adv=0.000000 short=0.0% flat=100.0% long=0.0%
+[CandidateQ] training variant=anchor_adv_mse_mean reduce=mean
+[CandidateQ] anchor_adv_mse_mean test row_spearman=0.2364 selected_adv=0.000000 short=0.0% flat=100.0% long=0.0%
+[CandidateQ] training variant=anchor_adv_cql_minq reduce=min
+[CandidateQ] anchor_adv_cql_minq test row_spearman=0.2364 selected_adv=0.000000 short=0.0% flat=100.0% long=0.0%
+[CandidateQ] training variant=anchor_rank_ce_mean reduce=mean
+[CandidateQ] anchor_rank_ce_mean test row_spearman=0.0499 selected_adv=-0.000185 short=100.0% flat=0.0% long=0.0%
+[CandidateQ] training variant=anchor_rank_ce_cql_minq reduce=min
+[CandidateQ] anchor_rank_ce_cql_minq test row_spearman=0.0270 selected_adv=-0.000185 short=100.0% flat=0.0% long=0.0%
+[CandidateQ] wrote documents\ac_candidate_q\20260426_acplan1_candidate_q_probe_fold4_v5_dynamic.json and documents\ac_candidate_q\20260426_acplan1_candidate_q_probe_fold4_v5_dynamic.md
