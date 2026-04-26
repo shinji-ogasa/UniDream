@@ -589,12 +589,10 @@ def main():
         description="UniDream training pipeline",
     )
     parser.add_argument("--config", default="configs/trading.yaml")
-    parser.add_argument("--symbol", default=None, help="Binance symbol (overrides config)")
     parser.add_argument("--start", default="2018-01-01")
     parser.add_argument("--end", default="2024-01-01")
     add_device_argument(parser)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--checkpoint_dir", default=None)
     parser.add_argument("--resume", action="store_true",
                         help="保存済みチェックポイントから再開する")
     parser.add_argument(
@@ -610,11 +608,6 @@ def main():
         help="Stop pipeline after this stage",
     )
     parser.add_argument(
-        "--cost-profile",
-        default=None,
-        help="Named cost profile from config cost_profiles (for example: base, stress)",
-    )
-    parser.add_argument(
         "--folds",
         default=None,
         help="Comma-separated fold indices to run (for example: 0,1,4)",
@@ -626,9 +619,8 @@ def main():
         parser.error("--start-from must be earlier than or equal to --stop-after")
 
     cfg = load_config(args.config)
-    cfg, active_cost_profile = resolve_costs(cfg, args.cost_profile)
-    if args.checkpoint_dir is None:
-        args.checkpoint_dir = cfg.get("logging", {}).get("checkpoint_dir", "checkpoints")
+    cfg, active_cost_profile = resolve_costs(cfg)
+    args.checkpoint_dir = cfg.get("logging", {}).get("checkpoint_dir", "checkpoints")
     set_seed(args.seed)
     run_training_app(
         args=args,

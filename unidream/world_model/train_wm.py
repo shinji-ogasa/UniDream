@@ -182,12 +182,12 @@ class WorldModelTrainer:
         # Auxiliary heads（スケール > 0 の場合のみ構築）
         z_dim = ensemble.get_z_dim()
         d_model = ensemble.get_d_model()
-        n_actions = cfg.get("actions", {}).get("n", 5)
         self.action_values = torch.tensor(
             cfg.get("actions", {}).get("values", [-1.0, -0.5, 0.0, 0.5, 1.0]),
             dtype=torch.float32,
             device=self.device,
         )
+        n_actions = int(cfg.get("actions", {}).get("n", len(self.action_values)))
         aux_params: list[nn.Parameter] = []
 
         if self.idm_scale > 0.0:

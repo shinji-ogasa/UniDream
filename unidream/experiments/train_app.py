@@ -41,7 +41,7 @@ def run_training_app(
     format_m2_scorecard_fn,
     parser_error_fn,
 ):
-    symbol = args.symbol or cfg.get("data", {}).get("symbol", "BTCUSDT")
+    symbol = cfg.get("data", {}).get("symbol", "BTCUSDT")
     interval = cfg.get("data", {}).get("interval", "15m")
 
     print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")

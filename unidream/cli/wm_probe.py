@@ -20,7 +20,6 @@ from sklearn.preprocessing import StandardScaler
 
 from unidream.data.dataset import WFODataset
 from unidream.data.oracle import (
-    feature_dual_teacher,
     feature_stress_teacher,
     hindsight_oracle_dp,
     hindsight_signal_teacher,
@@ -262,14 +261,6 @@ def _teacher_positions(
             benchmark_position=benchmark,
             min_position=oracle_cfg.get("stress_floor_position", abs_min),
             max_position=oracle_cfg.get("stress_ceiling_position", abs_max),
-        )
-    elif mode == "feature_dual":
-        positions, _signal = feature_dual_teacher(
-            features,
-            feature_columns=feature_columns,
-            benchmark_position=benchmark,
-            min_position=oracle_cfg.get("dual_floor_position", abs_min),
-            max_position=oracle_cfg.get("dual_ceiling_position", abs_max),
         )
     else:
         actions, _values, _soft = hindsight_oracle_dp(
