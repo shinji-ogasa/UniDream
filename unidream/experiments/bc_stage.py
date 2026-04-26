@@ -97,6 +97,8 @@ def build_bc_trainer(
         route_advantage_weight_coef=bc_cfg.get("route_advantage_weight_coef", 0.0),
         route_advantage_clip=bc_cfg.get("route_advantage_clip", 2.0),
         route_entropy_coef=bc_cfg.get("route_entropy_coef", 0.0),
+        route_class_weights=bc_cfg.get("route_class_weights"),
+        route_focal_gamma=bc_cfg.get("route_focal_gamma", 0.0),
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
         sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
         trainable_actor_prefixes=bc_cfg.get("trainable_actor_prefixes"),

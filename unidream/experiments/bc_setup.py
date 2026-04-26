@@ -190,8 +190,11 @@ def prepare_bc_setup(
     actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
     actor.use_dual_residual_controller = bool(ac_cfg.get("use_dual_residual_controller", False))
     actor.use_route_controller = bool(ac_cfg.get("use_route_controller", False))
+    actor.use_two_stage_route_head = bool(ac_cfg.get("use_two_stage_route_head", False))
     actor.route_max_step = ac_cfg.get("route_max_step", ac_cfg.get("max_position_step", 0.10))
+    actor.route_max_step_by_route = ac_cfg.get("route_max_step_by_route")
     actor.route_delta_scale = ac_cfg.get("route_delta_scale", 0.0)
+    actor.route_advantage_gate_scale = ac_cfg.get("route_advantage_gate_scale", 1.0)
     actor.use_regime_mode_gate_bias = bool(ac_cfg.get("use_regime_mode_gate_bias", False))
     actor.regime_mode_gate_scale = float(ac_cfg.get("regime_mode_gate_scale", 1.0))
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
@@ -267,6 +270,17 @@ def prepare_bc_setup(
             if actor.route_delta_head is not None:
                 torch.nn.init.zeros_(actor.route_delta_head.weight)
                 torch.nn.init.zeros_(actor.route_delta_head.bias)
+            if actor.route_active_head is not None:
+                torch.nn.init.zeros_(actor.route_active_head.weight)
+                torch.nn.init.constant_(
+                    actor.route_active_head.bias,
+                    float(ac_cfg.get("route_active_init_bias", -0.5)),
+                )
+            if actor.route_active_class_head is not None:
+                torch.nn.init.zeros_(actor.route_active_class_head.weight)
+                torch.nn.init.zeros_(actor.route_active_class_head.bias)
+            if actor.route_advantage_gate is not None:
+                torch.nn.init.zeros_(actor.route_advantage_gate.weight)
     if bc_cfg.get("init_regime_mode_gate_from_teacher", False):
         _initialize_regime_mode_gate_from_teacher(
             actor=actor,

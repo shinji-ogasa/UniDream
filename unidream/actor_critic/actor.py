@@ -43,8 +43,9 @@ class Actor(nn.Module):
         self.route_dim = int(max(route_dim, 0))
 
         use_advantage_adapter = self.advantage_dim > 0 and self.advantage_input_mode == "adapter"
+        use_route_advantage_gate = self.advantage_dim > 0 and self.advantage_input_mode == "route_gate"
         in_dim = z_dim + h_dim + regime_dim + inventory_dim
-        if self.advantage_dim > 0 and not use_advantage_adapter:
+        if self.advantage_dim > 0 and not use_advantage_adapter and not use_route_advantage_gate:
             in_dim += advantage_dim
         layers: list[nn.Module] = [nn.Linear(in_dim, hidden_dim), nn.ELU()]
         if dropout_p > 0.0:
@@ -89,6 +90,13 @@ class Actor(nn.Module):
         self.band_head = nn.Linear(hidden_dim, 1)
         self.route_head = nn.Linear(hidden_dim, self.route_dim) if self.route_dim > 0 else None
         self.route_delta_head = nn.Linear(hidden_dim, self.route_dim) if self.route_dim > 0 else None
+        self.route_active_head = nn.Linear(hidden_dim, 1) if self.route_dim == 4 else None
+        self.route_active_class_head = nn.Linear(hidden_dim, 3) if self.route_dim == 4 else None
+        self.route_advantage_gate = (
+            nn.Linear(self.advantage_dim, self.route_dim, bias=False)
+            if self.route_dim > 0 and use_route_advantage_gate
+            else None
+        )
         self.advantage_adapter = (
             nn.Linear(self.advantage_dim, hidden_dim, bias=False) if use_advantage_adapter else None
         )
@@ -202,6 +210,7 @@ class Actor(nn.Module):
         current_inventory: torch.Tensor,
         prev_delta: torch.Tensor | None = None,
         hold_feature: torch.Tensor | None = None,
+        underweight_feature: torch.Tensor | None = None,
     ) -> torch.Tensor:
         pieces = [current_inventory]
         if self.inventory_dim >= 2:
@@ -212,6 +221,10 @@ class Actor(nn.Module):
             if hold_feature is None:
                 hold_feature = torch.zeros_like(current_inventory)
             pieces.append(hold_feature)
+        if self.inventory_dim >= 4:
+            if underweight_feature is None:
+                underweight_feature = torch.zeros_like(current_inventory)
+            pieces.append(underweight_feature)
         if self.inventory_dim > len(pieces):
             for _ in range(self.inventory_dim - len(pieces)):
                 pieces.append(torch.zeros_like(current_inventory))
@@ -236,7 +249,15 @@ class Actor(nn.Module):
                 torch.zeros_like(prev_hold),
                 (prev_hold + 1.0 / self._state_hold_scale()).clamp(max=1.0),
             )
-        return self.make_controller_state(next_overlay, next_delta, hold_feature)
+        underweight_feature = None
+        if self.inventory_dim >= 4:
+            prev_underweight = state[..., 3]
+            underweight_feature = torch.where(
+                next_overlay < -self._trade_state_eps(),
+                (prev_underweight + 1.0 / self._state_hold_scale()).clamp(max=1.0),
+                torch.zeros_like(prev_underweight),
+            )
+        return self.make_controller_state(next_overlay, next_delta, hold_feature, underweight_feature)
 
     def controller_states_from_positions(self, positions: np.ndarray) -> np.ndarray:
         positions = np.asarray(positions, dtype=np.float32)
@@ -246,6 +267,7 @@ class Actor(nn.Module):
             return states
         bench = self._benchmark_position()
         hold = 0.0
+        underweight = 0.0
         hold_step = 1.0 / self._state_hold_scale()
         for t in range(1, T):
             prev_overlay = float(positions[t - 1] - bench)
@@ -260,6 +282,9 @@ class Actor(nn.Module):
             if self.inventory_dim >= 3:
                 hold = 0.0 if traded else min(1.0, hold + hold_step)
                 states[t, 2] = hold
+            if self.inventory_dim >= 4:
+                underweight = min(1.0, underweight + hold_step) if prev_overlay < -self._trade_state_eps() else 0.0
+                states[t, 3] = underweight
         return states
 
     def controller_state_from_history(self, positions: torch.Tensor) -> torch.Tensor:
@@ -284,7 +309,17 @@ class Actor(nn.Module):
                     traded = abs(prev_overlay - prev_prev_overlay) > eps
                     hold = 0.0 if traded else min(1.0, hold + hold_step)
                 hold_feature[b] = hold
-        return self.make_controller_state(current_overlay, prev_delta, hold_feature)
+        underweight_feature = torch.zeros_like(current_overlay)
+        if self.inventory_dim >= 4:
+            eps = self._trade_state_eps()
+            hold_step = 1.0 / self._state_hold_scale()
+            for b in range(B):
+                underweight = 0.0
+                for t in range(max(0, T - 256), T):
+                    overlay = float(positions[b, t] - bench)
+                    underweight = min(1.0, underweight + hold_step) if overlay < -eps else 0.0
+                underweight_feature[b] = underweight
+        return self.make_controller_state(current_overlay, prev_delta, hold_feature, underweight_feature)
 
     def _prepare_inputs(
         self,
@@ -303,7 +338,8 @@ class Actor(nn.Module):
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
             parts.append(regime)
         if advantage is not None and self.advantage_adapter is None:
-            parts.append(advantage)
+            if self.advantage_input_mode != "route_gate":
+                parts.append(advantage)
         x = torch.cat(parts, dim=-1)
         hidden = self.trunk(x)
         if advantage is not None and self.advantage_adapter is not None:
@@ -313,10 +349,32 @@ class Actor(nn.Module):
     def _target_overlay_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         return self._target_values_tensor(device, dtype) - self._benchmark_position()
 
-    def _route_logits_from_hidden(self, hidden: torch.Tensor) -> torch.Tensor:
+    def _route_logits_from_hidden(
+        self,
+        hidden: torch.Tensor,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         if self.route_head is None:
             raise RuntimeError("route_head is not configured for this actor")
-        return self.route_head(hidden)
+        if bool(getattr(self, "use_two_stage_route_head", False)) and self.route_active_head is not None:
+            active_logit = self.route_active_head(hidden).squeeze(-1)
+            active_prob = torch.sigmoid(active_logit).clamp(1e-6, 1.0 - 1e-6)
+            active_class_logits = self.route_active_class_head(hidden)
+            active_class_probs = F.softmax(active_class_logits, dim=-1)
+            route_probs = torch.cat(
+                [
+                    (1.0 - active_prob).unsqueeze(-1),
+                    active_prob.unsqueeze(-1) * active_class_probs,
+                ],
+                dim=-1,
+            ).clamp_min(1e-8)
+            logits = torch.log(route_probs)
+        else:
+            logits = self.route_head(hidden)
+        if self.route_advantage_gate is not None and advantage is not None:
+            gate_scale = float(getattr(self, "route_advantage_gate_scale", 1.0))
+            logits = logits + gate_scale * self.route_advantage_gate(advantage)
+        return logits
 
     def route_logits(
         self,
@@ -326,8 +384,9 @@ class Actor(nn.Module):
         regime: torch.Tensor | None = None,
         advantage: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
-        return self._route_logits_from_hidden(hidden)
+        advantage_t = self._ensure_advantage(advantage, z)
+        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage_t)
+        return self._route_logits_from_hidden(hidden, advantage=advantage_t)
 
     def _route_target_overlays_from_hidden(
         self,
@@ -337,16 +396,31 @@ class Actor(nn.Module):
         if self.route_dim != 4:
             raise RuntimeError("route controller requires route_dim == 4")
         residual_min, residual_max = self._residual_overlay_range()
-        step = float(getattr(self, "route_max_step", getattr(self, "max_position_step", 0.10)))
-        step = max(step, 1e-6)
+        step_cfg = getattr(self, "route_max_step_by_route", None)
+        if isinstance(step_cfg, dict):
+            steps = [
+                float(step_cfg.get("neutral", 0.0)),
+                float(step_cfg.get("de_risk", step_cfg.get("active", getattr(self, "route_max_step", 0.10)))),
+                float(step_cfg.get("recovery", step_cfg.get("active", getattr(self, "route_max_step", 0.10)))),
+                float(step_cfg.get("overweight", step_cfg.get("active", getattr(self, "route_max_step", 0.10)))),
+            ]
+            step_tensor = torch.as_tensor(steps, dtype=current_inventory.dtype, device=current_inventory.device)
+        elif isinstance(step_cfg, (tuple, list)):
+            raw = [float(x) for x in step_cfg]
+            raw = (raw + [raw[-1] if raw else float(getattr(self, "route_max_step", 0.10))] * 4)[:4]
+            step_tensor = torch.as_tensor(raw, dtype=current_inventory.dtype, device=current_inventory.device)
+        else:
+            step = float(getattr(self, "route_max_step", getattr(self, "max_position_step", 0.10)))
+            step_tensor = torch.as_tensor([0.0, step, step, step], dtype=current_inventory.dtype, device=current_inventory.device)
+        step_tensor = step_tensor.clamp_min(1e-6)
         low = torch.full_like(current_inventory, residual_min)
         high = torch.full_like(current_inventory, residual_max)
 
         neutral = torch.zeros_like(current_inventory).clamp(min=residual_min, max=residual_max)
-        de_risk = torch.maximum(current_inventory - step, low)
-        recovery_step = (-current_inventory).clamp(min=-step, max=step)
+        de_risk = torch.maximum(current_inventory - step_tensor[1], low)
+        recovery_step = (-current_inventory).clamp(min=-step_tensor[2], max=step_tensor[2])
         recovery = (current_inventory + recovery_step).clamp(min=residual_min, max=residual_max)
-        overweight = torch.minimum(current_inventory + step, high)
+        overweight = torch.minimum(current_inventory + step_tensor[3], high)
         route_targets = torch.stack([neutral, de_risk, recovery, overweight], dim=-1)
 
         if self.route_delta_head is not None:
@@ -377,7 +451,8 @@ class Actor(nn.Module):
         temperature: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """trade logit, target logits/mean/std, band width, current inventory."""
-        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage)
+        advantage_t = self._ensure_advantage(advantage, z)
+        hidden, inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage_t)
         trade_logits = self.trade_head(hidden).squeeze(-1)
         if (
             bool(getattr(self, "use_regime_trade_bias", False))
@@ -416,7 +491,7 @@ class Actor(nn.Module):
                 target_mean = torch.full_like(trade_logits, residual_max)
             else:
                 if self._use_route_controller():
-                    route_logits = self._route_logits_from_hidden(hidden)
+                    route_logits = self._route_logits_from_hidden(hidden, advantage=advantage_t)
                     route_probs = F.softmax(route_logits, dim=-1)
                     route_targets = self._route_target_overlays_from_hidden(hidden, current_inventory)
                     target_mean = (route_probs * route_targets).sum(dim=-1)

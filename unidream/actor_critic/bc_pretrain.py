@@ -211,6 +211,8 @@ class BCPretrainer:
         route_advantage_weight_coef: float = 0.0,
         route_advantage_clip: float = 2.0,
         route_entropy_coef: float = 0.0,
+        route_class_weights: dict | list | tuple | None = None,
+        route_focal_gamma: float = 0.0,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
@@ -302,6 +304,8 @@ class BCPretrainer:
         self.route_advantage_weight_coef = float(max(route_advantage_weight_coef, 0.0))
         self.route_advantage_clip = float(max(route_advantage_clip, 0.0))
         self.route_entropy_coef = float(max(route_entropy_coef, 0.0))
+        self.route_class_weights = route_class_weights
+        self.route_focal_gamma = float(max(route_focal_gamma, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
         self.trainable_actor_prefixes = tuple(trainable_actor_prefixes or [])
@@ -331,6 +335,27 @@ class BCPretrainer:
         for param in self.actor.parameters():
             if param.requires_grad:
                 yield param
+
+    def _route_class_weights_tensor(
+        self,
+        *,
+        device: torch.device,
+        dtype: torch.dtype,
+        n_routes: int,
+    ) -> torch.Tensor | None:
+        cfg = self.route_class_weights
+        if cfg is None:
+            return None
+        names = ("neutral", "de_risk", "recovery", "overweight")
+        if isinstance(cfg, dict):
+            default = float(cfg.get("default", 1.0))
+            values = [float(cfg.get(name, default)) for name in names[:n_routes]]
+        else:
+            raw = [float(x) for x in cfg]
+            if not raw:
+                return None
+            values = (raw + [raw[-1]] * n_routes)[:n_routes]
+        return torch.as_tensor(values, device=device, dtype=dtype).clamp_min(0.0)
 
     @staticmethod
     def _normalized_mask(mask: torch.Tensor) -> torch.Tensor:
@@ -659,9 +684,29 @@ class BCPretrainer:
                     )
                 route_targets = route_targets / route_targets.sum(dim=-1, keepdim=True).clamp_min(1e-6)
                 route_loss = -(route_targets * route_log_probs).sum(dim=-1)
+                route_probs = torch.exp(route_log_probs)
+                route_pt = (route_targets * route_probs).sum(dim=-1).clamp(1e-6, 1.0)
+                route_class_w = self._route_class_weights_tensor(
+                    device=route_logits.device,
+                    dtype=route_logits.dtype,
+                    n_routes=route_logits.shape[-1],
+                )
+                if route_class_w is not None:
+                    route_loss = route_loss * (route_targets * route_class_w).sum(dim=-1)
             else:
                 route_targets_hard = route_labels.to(device=route_logits.device, dtype=torch.long)
                 route_loss = F.nll_loss(route_log_probs, route_targets_hard, reduction="none")
+                route_probs = torch.exp(route_log_probs)
+                route_pt = route_probs.gather(-1, route_targets_hard.unsqueeze(-1)).squeeze(-1).clamp(1e-6, 1.0)
+                route_class_w = self._route_class_weights_tensor(
+                    device=route_logits.device,
+                    dtype=route_logits.dtype,
+                    n_routes=route_logits.shape[-1],
+                )
+                if route_class_w is not None:
+                    route_loss = route_loss * route_class_w[route_targets_hard.clamp(max=route_logits.shape[-1] - 1)]
+            if self.route_focal_gamma > 0.0:
+                route_loss = route_loss * (1.0 - route_pt).pow(self.route_focal_gamma)
             if route_advantage is not None and self.route_advantage_weight_coef > 0.0:
                 route_adv = route_advantage.to(device=route_loss.device, dtype=route_loss.dtype)
                 if route_adv.ndim > route_loss.ndim:
@@ -1403,6 +1448,11 @@ class BCPretrainer:
             "route_head.bias",
             "route_delta_head.weight",
             "route_delta_head.bias",
+            "route_active_head.weight",
+            "route_active_head.bias",
+            "route_active_class_head.weight",
+            "route_active_class_head.bias",
+            "route_advantage_gate.weight",
         }
         missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)

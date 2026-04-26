@@ -131,7 +131,8 @@ def compute_route_targets(
     *,
     tau: float = 0.001,
     label_smoothing: float = 0.05,
-    margin: float = 0.0,
+    margin: float | dict | tuple | list = 0.0,
+    route_penalties: dict | tuple | list | None = None,
 ) -> dict:
     """Build no-trade-aware soft route labels from transition advantages.
 
@@ -153,12 +154,34 @@ def compute_route_targets(
 
     T = raw_score.shape[0]
     n_routes = len(ROUTE_NAMES)
+    if isinstance(margin, dict):
+        default_margin = float(margin.get("neutral", margin.get("default", 0.0)))
+        margin_arr = np.asarray(
+            [float(margin.get(name, default_margin)) for name in ROUTE_NAMES],
+            dtype=np.float64,
+        )
+    elif isinstance(margin, (tuple, list)):
+        raw = np.asarray([float(x) for x in margin], dtype=np.float64)
+        margin_arr = np.full(n_routes, float(raw[-1]) if raw.size else 0.0, dtype=np.float64)
+        margin_arr[: min(n_routes, raw.size)] = raw[: min(n_routes, raw.size)]
+    else:
+        margin_arr = np.full(n_routes, float(margin), dtype=np.float64)
+    margin_arr[ROUTE_TO_ID["neutral"]] = 0.0
+
+    penalty_arr = np.zeros(n_routes, dtype=np.float64)
+    if isinstance(route_penalties, dict):
+        for idx, name in enumerate(ROUTE_NAMES):
+            penalty_arr[idx] = float(route_penalties.get(name, route_penalties.get("default", 0.0)))
+    elif isinstance(route_penalties, (tuple, list)):
+        raw = np.asarray([float(x) for x in route_penalties], dtype=np.float64)
+        penalty_arr[: min(n_routes, raw.size)] = raw[: min(n_routes, raw.size)]
+
     route_scores = np.full((T, n_routes), -np.inf, dtype=np.float64)
     route_action_idx = np.full((T, n_routes), -1, dtype=np.int64)
     for route_id in range(n_routes):
         masked = np.where(route_ids == route_id, raw_score, -np.inf)
         route_action_idx[:, route_id] = np.argmax(masked, axis=1)
-        route_scores[:, route_id] = masked[np.arange(T), route_action_idx[:, route_id]]
+        route_scores[:, route_id] = masked[np.arange(T), route_action_idx[:, route_id]] - penalty_arr[route_id]
 
     # Neutral is the benchmark/no-trade fallback.  It must remain available even
     # when all forward advantage estimates are invalid near the right edge.
@@ -167,11 +190,12 @@ def compute_route_targets(
     non_neutral_scores = route_scores[:, 1:]
     best_non_idx = np.argmax(non_neutral_scores, axis=1) + 1
     best_non_score = non_neutral_scores[np.arange(T), best_non_idx - 1]
-    route_labels = np.where(best_non_score > float(margin), best_non_idx, ROUTE_TO_ID["neutral"]).astype(np.int64)
+    best_margin = margin_arr[best_non_idx]
+    route_labels = np.where(best_non_score > best_margin, best_non_idx, ROUTE_TO_ID["neutral"]).astype(np.int64)
     route_advantage = np.where(route_labels == ROUTE_TO_ID["neutral"], 0.0, best_non_score).astype(np.float32)
 
     gated_scores = route_scores.copy()
-    gated_scores[:, 1:] = np.where(gated_scores[:, 1:] > float(margin), gated_scores[:, 1:], -np.inf)
+    gated_scores[:, 1:] = np.where(gated_scores[:, 1:] > margin_arr[1:], gated_scores[:, 1:], -np.inf)
     gated_scores[:, ROUTE_TO_ID["neutral"]] = 0.0
     scale = max(float(tau), 1e-8)
     scaled = np.clip(gated_scores / scale, -60.0, 60.0)
