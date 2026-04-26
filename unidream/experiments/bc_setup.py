@@ -217,6 +217,8 @@ def prepare_bc_setup(
     actor.state_machine_underweight_min_duration = ac_cfg.get("state_machine_underweight_min_duration", 0.0)
     actor.state_machine_derisk_logit_down = ac_cfg.get("state_machine_derisk_logit_down", 8.0)
     actor.state_machine_recovery_logit_boost = ac_cfg.get("state_machine_recovery_logit_boost", 2.0)
+    actor.state_machine_recovery_cooldown_bars = ac_cfg.get("state_machine_recovery_cooldown_bars", 0.0)
+    actor.cooldown_state_scale = ac_cfg.get("cooldown_state_scale", actor.hold_state_scale)
     actor.use_regime_mode_gate_bias = bool(ac_cfg.get("use_regime_mode_gate_bias", False))
     actor.regime_mode_gate_scale = float(ac_cfg.get("regime_mode_gate_scale", 1.0))
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))

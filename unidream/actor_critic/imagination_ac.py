@@ -168,6 +168,9 @@ class ImagACTrainer:
         self.nn_anchor_flow_coef = ac_cfg.get("nn_anchor_flow_coef", 0.0)
         self.nn_anchor_bank_size = ac_cfg.get("nn_anchor_bank_size", 4096)
         self.positive_advantages = ac_cfg.get("positive_advantages", False)
+        self.critic_only = bool(ac_cfg.get("critic_only", False))
+        raw_prefixes = ac_cfg.get("trainable_actor_prefixes")
+        self.trainable_actor_prefixes = tuple(raw_prefixes or [])
 
         # SPEC: R_t = DSR(r_t - costs_t) - β·DD_t
         # WM は net_return（コスト控除済み）を予測するため、
@@ -175,9 +178,11 @@ class ImagACTrainer:
         # DD_t は rollout 内 running peak からの累積ドローダウンレベル。
         self.beta = reward_cfg.get("beta", 0.1)
 
-        self.actor_optimizer = torch.optim.Adam(
-            self.actor.parameters(), lr=ac_cfg.get("actor_lr", 3e-5)
-        )
+        self._apply_actor_trainable_mask()
+        actor_params = [p for p in self.actor.parameters() if p.requires_grad]
+        if not actor_params:
+            actor_params = list(self.actor.parameters())
+        self.actor_optimizer = torch.optim.Adam(actor_params, lr=ac_cfg.get("actor_lr", 3e-5))
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=ac_cfg.get("critic_lr", 3e-4)
         )
@@ -235,6 +240,19 @@ class ImagACTrainer:
 
         # Online WM update interval
         self.online_wm_interval: int = ac_cfg.get("online_wm_interval", 0)
+
+    def _apply_actor_trainable_mask(self) -> None:
+        if self.critic_only:
+            for param in self.actor.parameters():
+                param.requires_grad_(False)
+            return
+        if not self.trainable_actor_prefixes:
+            for param in self.actor.parameters():
+                param.requires_grad_(True)
+            return
+        prefixes = tuple(str(prefix) for prefix in self.trainable_actor_prefixes)
+        for name, param in self.actor.named_parameters():
+            param.requires_grad_(name.startswith(prefixes))
 
     def set_regime_dim(self, regime_dim: int) -> None:
         """regime_dim を後から設定する（Actor が外部で構築される場合用）."""
@@ -819,6 +837,7 @@ class ImagACTrainer:
         z_dim = all_z.shape[1]
         L = self.context_len
 
+        prev_requires_grad = [p.requires_grad for p in self.actor.parameters()]
         for p in self.actor.parameters():
             p.requires_grad_(False)
 
@@ -889,8 +908,9 @@ class ImagACTrainer:
             if (step + 1) % log_every == 0:
                 print(f"[AC] Critic pretrain step {step+1}/{n_steps} | Loss: {last_loss:.4f}")
 
-        for p in self.actor.parameters():
-            p.requires_grad_(True)
+        for p, requires_grad in zip(self.actor.parameters(), prev_requires_grad):
+            p.requires_grad_(requires_grad)
+        self._apply_actor_trainable_mask()
         print(f"[AC] Critic pre-training done.")
 
     def train(

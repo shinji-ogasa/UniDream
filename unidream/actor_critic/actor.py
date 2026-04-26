@@ -226,6 +226,8 @@ class Actor(nn.Module):
             if underweight_feature is None:
                 underweight_feature = torch.zeros_like(current_inventory)
             pieces.append(underweight_feature)
+        if self.inventory_dim >= 5:
+            pieces.append(torch.zeros_like(current_inventory))
         if self.inventory_dim > len(pieces):
             for _ in range(self.inventory_dim - len(pieces)):
                 pieces.append(torch.zeros_like(current_inventory))
@@ -258,7 +260,22 @@ class Actor(nn.Module):
                 (prev_underweight + 1.0 / self._state_hold_scale()).clamp(max=1.0),
                 torch.zeros_like(prev_underweight),
             )
-        return self.make_controller_state(next_overlay, next_delta, hold_feature, underweight_feature)
+        next_state = self.make_controller_state(next_overlay, next_delta, hold_feature, underweight_feature)
+        if self.inventory_dim >= 5:
+            cooldown_scale = max(float(getattr(self, "cooldown_state_scale", self._state_hold_scale())), 1.0)
+            cooldown_step = 1.0 / cooldown_scale
+            prev_cooldown = state[..., 4]
+            cooldown = (prev_cooldown - cooldown_step).clamp(min=0.0)
+            cooldown_bars = float(getattr(self, "state_machine_recovery_cooldown_bars", 0.0))
+            recovered = (self._current_inventory_from_state(state) < -self._trade_state_eps()) & (
+                next_delta > self._trade_state_eps()
+            )
+            if cooldown_bars > 0.0:
+                cooldown_start = min(1.0, cooldown_bars / cooldown_scale)
+                cooldown = torch.where(recovered, torch.full_like(cooldown, cooldown_start), cooldown)
+            next_state = next_state.clone()
+            next_state[..., 4] = cooldown
+        return next_state
 
     def controller_states_from_positions(self, positions: np.ndarray) -> np.ndarray:
         positions = np.asarray(positions, dtype=np.float32)
@@ -286,6 +303,15 @@ class Actor(nn.Module):
             if self.inventory_dim >= 4:
                 underweight = min(1.0, underweight + hold_step) if prev_overlay < -self._trade_state_eps() else 0.0
                 states[t, 3] = underweight
+            if self.inventory_dim >= 5:
+                cooldown_scale = max(float(getattr(self, "cooldown_state_scale", self._state_hold_scale())), 1.0)
+                cooldown_step = 1.0 / cooldown_scale
+                cooldown_bars = float(getattr(self, "state_machine_recovery_cooldown_bars", 0.0))
+                prev_cooldown = float(states[t - 1, 4])
+                cooldown = max(0.0, prev_cooldown - cooldown_step)
+                if cooldown_bars > 0.0 and prev_overlay < -self._trade_state_eps() and prev_delta > self._trade_state_eps():
+                    cooldown = min(1.0, cooldown_bars / cooldown_scale)
+                states[t, 4] = cooldown
         return states
 
     def controller_state_from_history(self, positions: torch.Tensor) -> torch.Tensor:
@@ -450,12 +476,15 @@ class Actor(nn.Module):
                 underweight_duration = inventory_state[..., 3]
             else:
                 underweight_duration = torch.zeros_like(current_inventory)
+            cooldown_active = torch.zeros_like(current_inventory, dtype=torch.bool)
+            if inventory_state is not None and inventory_state.shape[-1] >= 5:
+                cooldown_active = inventory_state[..., 4] > 0.0
             duration_ready = torch.ones_like(current_inventory, dtype=torch.bool)
             if min_duration > 0.0:
                 duration_ready = underweight_duration >= (
                     min_duration / max(self._state_hold_scale(), 1.0)
                 )
-            underweight_state = (current_inventory < -gap) & duration_ready
+            underweight_state = ((current_inventory < -gap) & duration_ready) | cooldown_active
             if underweight_state.any():
                 logits = logits.clone()
                 down = float(getattr(self, "state_machine_derisk_logit_down", 8.0))

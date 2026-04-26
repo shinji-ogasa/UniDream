@@ -1,0 +1,108 @@
+UniDream Training | BTCUSDT 15m | 2018-01-01 �� 2024-01-01
+Device: cuda | Seed: 7 | Resume: False
+Stages: bc -> test
+Costs: profile=base | spread=3.00bps fee=3.00bps slip=1.00bps => one-way ��pos=1 cost=5.50bps
+
+[Data] Loading cached features...
+  Cached: (208305, 17) | obs_dim=17
+[Data] WFO splits...
+  14 folds
+  Running selected folds only: [4]
+
+============================================================
+Fold 4: train 2019-01-16 �� 2021-01-16 | test 2021-04-16 �� 2021-07-16
+============================================================
+
+[11:48:29] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69973 steps, mean value=39.6874
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=57% de_risk=28% recovery=2% overweight=13% active=42.9% mean_adv=0.001550 top_decile_adv=0.009145
+  Transition relabel: short=26% bench=52% ow=22% mean_adv=0.001652 recovery_rate=50.3%
+  Oracle aim dist: long=24% short=30% flat=46% mean=-0.029 switches=21458 avg_hold=3.3b turnover=2024.68
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[11:48:37] [Step 2] World Model - loading checkpoint: checkpoints/bcplan5_phase9_cooldown_s007\fold_4\world_model.pt
+[WM] Checkpoint loaded: checkpoints/bcplan5_phase9_cooldown_s007\fold_4\world_model.pt (step=1500)
+[11:48:52] [PredictiveState] enabled: dim=15 heads=return,vol,drawdown standardize=True scale=0.25
+
+[11:48:52] [Step 3] BC Pre-training...
+[BC] Epoch 1/8 | Loss: 7.1258
+[BC] Epoch 2/8 | Loss: 7.0313
+[BC] Epoch 3/8 | Loss: 6.9422
+[BC] Epoch 4/8 | Loss: 6.6945
+[BC] Epoch 5/8 | Loss: 6.3245
+[BC] Epoch 6/8 | Loss: 6.1240
+[BC] Epoch 7/8 | Loss: 6.0249
+[BC] Epoch 8/8 | Loss: 5.9955
+
+[11:49:54] [Step 4] AC - skipped (BC actor only for test)
+  [ValAdj] scale=0.100 adv=0.00 alpha=+0.40pt sharpe��=-0.001 maxdd��=-0.01pt win=49.5% score=-13.597 long=0% short=0% flat=100% M2=miss
+  [ValAdj] scale=0.150 adv=0.00 alpha=-6.08pt sharpe��=-0.010 maxdd��=-0.02pt win=49.4% score=-27.256 long=0% short=0% flat=100% M2=miss
+  [ValAdj] scale=0.250 adv=0.00 alpha=-7.00pt sharpe��=-0.014 maxdd��=+0.01pt win=49.1% score=-30.298 long=0% short=0% flat=100% M2=miss
+  [ValAdj] scale=0.500 adv=0.00 alpha=-3.92pt sharpe��=-0.013 maxdd��=-0.01pt win=48.1% score=-27.024 long=0% short=0% flat=100% M2=miss
+  [ValAdj] scale=0.750 adv=0.00 alpha=+0.89pt sharpe��=-0.007 maxdd��=+0.02pt win=48.5% score=-19.761 long=0% short=0% flat=100% M2=miss
+  [ValAdj] selected scale=0.100 adv=0.00 (default=scale=1.000 adv=0.00) alpha=+0.40pt sharpe��=-0.001 maxdd��=-0.01pt win=49.5% score=-13.597 long=0% short=0% flat=100% M2=miss
+
+[11:54:18] [Step 5] Test Backtest...
+  Route dist: neutral=97% de_risk=2% overweight=1% active=3.5% conf=0.839
+  Recovery gate: mean=0.313 active=3.4%
+  Sharpe:   -2.378
+  Sortino:  -3.125
+  MaxDD:    -0.532
+  Calmar:   -3.619
+  TotalRet: -0.4787
+  AlphaEx:  -0.01 pt/yr
+  Sharpe��:  +0.006
+  MaxDD��:   +0.03 pt
+  WinRate:  49.3%
+  Score:    M2=MISS stretch=miss alpha=-0.01pt sharpe��=+0.006 maxdd��=+0.03pt win=49.3% guard=pass
+  PnL attr: long=-0.6507  short=+0.0000  cost=0.0008  net=-0.6515
+  Test dist: long=0% short=0% flat=100% mean=-0.000 switches=9 avg_hold=967.7b turnover=0.43
+
+[Eval] Overfitting Diagnostics (simplified)...
+  PBO (simplified): 0.5000 (< 0.5 is better)
+  Sharpe t-stat (DSR, n_trials=1): -113.4241 (> 0 is better)
+
+[Eval] Regime Analysis...
+============================================================
+Regime-based Backtest Report
+============================================================
+
+Regime Statistics (returns):
+ regime      mean      std    sharpe
+      0 -0.000271 0.013271 -0.020385
+      1 -0.000077 0.004337 -0.017666
+      2 -0.000017 0.004160 -0.004080
+
+Backtest Metrics by Regime:
+
+  Regime 0 (12.6% of bars, 1097 bars):
+    Sharpe:    -3.508
+    Sortino:   -5.209
+    MaxDD:     -0.412
+    Calmar:    -18.093
+    TotalRet:  -0.2332
+
+  Regime 1 (43.6% of bars, 3801 bars):
+    Sharpe:    -5.136
+    Sortino:   -7.724
+    MaxDD:     -0.372
+    Calmar:    -8.628
+    TotalRet:  -0.3480
+
+  Regime 2 (43.8% of bars, 3811 bars):
+    Sharpe:    0.522
+    Sortino:   0.796
+    MaxDD:     -0.185
+    Calmar:    2.048
+    TotalRet:  0.0412
+
+============================================================
+Summary
+============================================================
+  Fold 4: Sharpe=-2.378, MaxDD=-0.532, Calmar=-3.619, TotalRet=-0.4787 | M2=MISS stretch=miss alpha=-0.01pt sharpe��=+0.006 maxdd��=+0.03pt win=49.3% guard=pass
+  Mean Sharpe: -2.378
+  Aggregate M2: M2=MISS stretch=miss alpha=-0.01pt sharpe��=+0.006 maxdd��=+0.03pt win=49.3% guard=pass
+  PBO (simplified): 0.5000 | Sharpe t-stat: -113.4241

@@ -197,6 +197,11 @@ def run_ac_stage(
                 n_steps=critic_pretrain_steps,
                 batch_size=ac_cfg.get("batch_size", 32),
             )
+        if ac_cfg.get("critic_only", False):
+            if ac_path:
+                ac_trainer.save(ac_path)
+            print(f"[{log_ts()}] [Step 4] AC critic-only requested; actor update skipped")
+            return ac_trainer
 
     interval = cfg.get("data", {}).get("interval", "15m")
     bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(interval, 96)
