@@ -205,6 +205,18 @@ def prepare_bc_setup(
     actor.recovery_fallback_derisk_conf_max = ac_cfg.get("recovery_fallback_derisk_conf_max", 1.0)
     actor.recovery_logit_boost = ac_cfg.get("recovery_logit_boost", 0.0)
     actor.de_risk_duration_logit_down = ac_cfg.get("de_risk_duration_logit_down", 0.0)
+    actor.use_inventory_recovery_controller = bool(ac_cfg.get("use_inventory_recovery_controller", False))
+    actor.inventory_recovery_gap = ac_cfg.get("inventory_recovery_gap", 0.05)
+    actor.inventory_recovery_min_duration = ac_cfg.get("inventory_recovery_min_duration", 0.0)
+    actor.inventory_recovery_max_step = ac_cfg.get("inventory_recovery_max_step", actor.route_max_step)
+    actor.inventory_recovery_scale = ac_cfg.get("inventory_recovery_scale", 1.0)
+    actor.inventory_recovery_logit_boost = ac_cfg.get("inventory_recovery_logit_boost", 0.0)
+    actor.inventory_recovery_hard_threshold = ac_cfg.get("inventory_recovery_hard_threshold", 0.0)
+    actor.use_state_machine_route = bool(ac_cfg.get("use_state_machine_route", False))
+    actor.state_machine_underweight_gap = ac_cfg.get("state_machine_underweight_gap", 0.05)
+    actor.state_machine_underweight_min_duration = ac_cfg.get("state_machine_underweight_min_duration", 0.0)
+    actor.state_machine_derisk_logit_down = ac_cfg.get("state_machine_derisk_logit_down", 8.0)
+    actor.state_machine_recovery_logit_boost = ac_cfg.get("state_machine_recovery_logit_boost", 2.0)
     actor.use_regime_mode_gate_bias = bool(ac_cfg.get("use_regime_mode_gate_bias", False))
     actor.regime_mode_gate_scale = float(ac_cfg.get("regime_mode_gate_scale", 1.0))
     actor.separate_execution_head = bool(ac_cfg.get("separate_execution_head", False))
@@ -291,6 +303,12 @@ def prepare_bc_setup(
                 torch.nn.init.zeros_(actor.route_active_class_head.bias)
             if actor.route_advantage_gate is not None:
                 torch.nn.init.zeros_(actor.route_advantage_gate.weight)
+            if actor.inventory_recovery_head is not None:
+                torch.nn.init.zeros_(actor.inventory_recovery_head.weight)
+                torch.nn.init.constant_(
+                    actor.inventory_recovery_head.bias,
+                    float(ac_cfg.get("inventory_recovery_init_bias", -1.5)),
+                )
     if bc_cfg.get("init_regime_mode_gate_from_teacher", False):
         _initialize_regime_mode_gate_from_teacher(
             actor=actor,

@@ -90,6 +90,7 @@ class Actor(nn.Module):
         self.band_head = nn.Linear(hidden_dim, 1)
         self.route_head = nn.Linear(hidden_dim, self.route_dim) if self.route_dim > 0 else None
         self.route_delta_head = nn.Linear(hidden_dim, self.route_dim) if self.route_dim > 0 else None
+        self.inventory_recovery_head = nn.Linear(hidden_dim, 1) if self.route_dim > 0 else None
         self.route_active_head = nn.Linear(hidden_dim, 1) if self.route_dim == 4 else None
         self.route_active_class_head = nn.Linear(hidden_dim, 3) if self.route_dim == 4 else None
         self.route_advantage_gate = (
@@ -442,6 +443,27 @@ class Actor(nn.Module):
                     if down > 0.0:
                         logits[..., 1] = logits[..., 1] - down * recover_mask.to(logits.dtype)
 
+        if bool(getattr(self, "use_state_machine_route", False)) and self.route_dim in (3, 4):
+            gap = float(getattr(self, "state_machine_underweight_gap", 0.05))
+            min_duration = float(getattr(self, "state_machine_underweight_min_duration", 0.0))
+            if inventory_state is not None and inventory_state.shape[-1] >= 4:
+                underweight_duration = inventory_state[..., 3]
+            else:
+                underweight_duration = torch.zeros_like(current_inventory)
+            duration_ready = torch.ones_like(current_inventory, dtype=torch.bool)
+            if min_duration > 0.0:
+                duration_ready = underweight_duration >= (
+                    min_duration / max(self._state_hold_scale(), 1.0)
+                )
+            underweight_state = (current_inventory < -gap) & duration_ready
+            if underweight_state.any():
+                logits = logits.clone()
+                down = float(getattr(self, "state_machine_derisk_logit_down", 8.0))
+                logits[..., 1] = logits[..., 1] - down * underweight_state.to(logits.dtype)
+                if self.route_dim == 4:
+                    boost = float(getattr(self, "state_machine_recovery_logit_boost", 2.0))
+                    logits[..., 2] = logits[..., 2] + boost * underweight_state.to(logits.dtype)
+
         probs = F.softmax(logits, dim=-1)
         min_conf = float(getattr(self, "min_route_confidence_for_active", 0.0))
         if min_conf > 0.0 and bool(getattr(self, "low_confidence_neutral_fallback", True)):
@@ -479,58 +501,135 @@ class Actor(nn.Module):
         logits = self._route_logits_from_hidden(hidden, advantage=advantage_t)
         return self._route_controller_probs_from_logits(logits, current_inventory, inventory_t)
 
+    def inventory_recovery_logits(
+        self,
+        z: torch.Tensor,
+        h: torch.Tensor,
+        inventory: torch.Tensor | None = None,
+        regime: torch.Tensor | None = None,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if self.inventory_recovery_head is None:
+            raise RuntimeError("inventory_recovery_head is not configured for this actor")
+        advantage_t = self._ensure_advantage(advantage, z)
+        hidden, _inventory_t = self._prepare_inputs(z, h, inventory=inventory, regime=regime, advantage=advantage_t)
+        return self.inventory_recovery_head(hidden).squeeze(-1)
+
     def _route_target_overlays_from_hidden(
         self,
         hidden: torch.Tensor,
         current_inventory: torch.Tensor,
     ) -> torch.Tensor:
-        if self.route_dim != 4:
-            raise RuntimeError("route controller requires route_dim == 4")
+        if self.route_dim not in (3, 4):
+            raise RuntimeError("route controller requires route_dim == 3 or 4")
         residual_min, residual_max = self._residual_overlay_range()
         step_cfg = getattr(self, "route_max_step_by_route", None)
+        default_step = float(getattr(self, "route_max_step", getattr(self, "max_position_step", 0.10)))
         if isinstance(step_cfg, dict):
+            if self.route_dim == 4:
+                step_names = ("neutral", "de_risk", "recovery", "overweight")
+            else:
+                step_names = ("neutral", "de_risk", "overweight")
             steps = [
-                float(step_cfg.get("neutral", 0.0)),
-                float(step_cfg.get("de_risk", step_cfg.get("active", getattr(self, "route_max_step", 0.10)))),
-                float(step_cfg.get("recovery", step_cfg.get("active", getattr(self, "route_max_step", 0.10)))),
-                float(step_cfg.get("overweight", step_cfg.get("active", getattr(self, "route_max_step", 0.10)))),
+                float(step_cfg.get(name, 0.0 if name == "neutral" else step_cfg.get("active", default_step)))
+                for name in step_names
             ]
             step_tensor = torch.as_tensor(steps, dtype=current_inventory.dtype, device=current_inventory.device)
         elif isinstance(step_cfg, (tuple, list)):
             raw = [float(x) for x in step_cfg]
-            raw = (raw + [raw[-1] if raw else float(getattr(self, "route_max_step", 0.10))] * 4)[:4]
+            n_routes = self.route_dim
+            raw = (raw + [raw[-1] if raw else default_step] * n_routes)[:n_routes]
             step_tensor = torch.as_tensor(raw, dtype=current_inventory.dtype, device=current_inventory.device)
         else:
-            step = float(getattr(self, "route_max_step", getattr(self, "max_position_step", 0.10)))
-            step_tensor = torch.as_tensor([0.0, step, step, step], dtype=current_inventory.dtype, device=current_inventory.device)
+            if self.route_dim == 4:
+                values = [0.0, default_step, default_step, default_step]
+            else:
+                values = [0.0, default_step, default_step]
+            step_tensor = torch.as_tensor(values, dtype=current_inventory.dtype, device=current_inventory.device)
         step_tensor = step_tensor.clamp_min(1e-6)
         low = torch.full_like(current_inventory, residual_min)
         high = torch.full_like(current_inventory, residual_max)
 
         neutral = torch.zeros_like(current_inventory).clamp(min=residual_min, max=residual_max)
         de_risk = torch.maximum(current_inventory - step_tensor[1], low)
-        recovery_step = (-current_inventory).clamp(min=-step_tensor[2], max=step_tensor[2])
-        recovery = (current_inventory + recovery_step).clamp(min=residual_min, max=residual_max)
-        overweight = torch.minimum(current_inventory + step_tensor[3], high)
-        route_targets = torch.stack([neutral, de_risk, recovery, overweight], dim=-1)
+        if self.route_dim == 4:
+            recovery_step = (-current_inventory).clamp(min=-step_tensor[2], max=step_tensor[2])
+            recovery = (current_inventory + recovery_step).clamp(min=residual_min, max=residual_max)
+            overweight = torch.minimum(current_inventory + step_tensor[3], high)
+            route_targets = torch.stack([neutral, de_risk, recovery, overweight], dim=-1)
+        else:
+            overweight = torch.minimum(current_inventory + step_tensor[2], high)
+            route_targets = torch.stack([neutral, de_risk, overweight], dim=-1)
 
         if self.route_delta_head is not None:
             delta_scale = float(getattr(self, "route_delta_scale", 0.0))
             if delta_scale > 0.0:
                 raw = torch.abs(torch.tanh(self.route_delta_head(hidden))) * delta_scale
-                recovery_dir = torch.sign(-current_inventory)
-                route_delta = torch.stack(
-                    [
-                        torch.zeros_like(current_inventory),
-                        -raw[..., 1],
-                        recovery_dir * raw[..., 2],
-                        raw[..., 3],
-                    ],
-                    dim=-1,
-                )
+                if self.route_dim == 4:
+                    recovery_dir = torch.sign(-current_inventory)
+                    route_delta = torch.stack(
+                        [
+                            torch.zeros_like(current_inventory),
+                            -raw[..., 1],
+                            recovery_dir * raw[..., 2],
+                            raw[..., 3],
+                        ],
+                        dim=-1,
+                    )
+                else:
+                    route_delta = torch.stack(
+                        [
+                            torch.zeros_like(current_inventory),
+                            -raw[..., 1],
+                            raw[..., 2],
+                        ],
+                        dim=-1,
+                    )
                 route_targets = route_targets + route_delta
                 route_targets = route_targets.clamp(min=residual_min, max=residual_max)
         return route_targets
+
+    def _apply_inventory_recovery_controller(
+        self,
+        target_mean: torch.Tensor,
+        hidden: torch.Tensor,
+        current_inventory: torch.Tensor,
+        inventory_state: torch.Tensor,
+    ) -> torch.Tensor:
+        if not bool(getattr(self, "use_inventory_recovery_controller", False)):
+            return target_mean
+        if self.inventory_recovery_head is None:
+            return target_mean
+        gap = float(getattr(self, "inventory_recovery_gap", 0.05))
+        min_duration = float(getattr(self, "inventory_recovery_min_duration", 0.0))
+        if inventory_state is not None and inventory_state.shape[-1] >= 4:
+            underweight_duration = inventory_state[..., 3]
+        else:
+            underweight_duration = torch.zeros_like(current_inventory)
+        duration_ready = torch.ones_like(current_inventory, dtype=torch.bool)
+        if min_duration > 0.0:
+            duration_ready = underweight_duration >= (
+                min_duration / max(self._state_hold_scale(), 1.0)
+            )
+        recovery_mask = (current_inventory < -gap) & duration_ready
+        if not recovery_mask.any():
+            return target_mean
+        logit = self.inventory_recovery_head(hidden).squeeze(-1)
+        boost = float(getattr(self, "inventory_recovery_logit_boost", 0.0))
+        if boost != 0.0:
+            logit = logit + boost * recovery_mask.to(logit.dtype)
+        recovery_prob = torch.sigmoid(logit) * recovery_mask.to(logit.dtype)
+        threshold = float(getattr(self, "inventory_recovery_hard_threshold", 0.0))
+        if threshold > 0.0:
+            recovery_prob = (recovery_prob >= threshold).to(target_mean.dtype)
+        scale = float(getattr(self, "inventory_recovery_scale", 1.0))
+        recovery_prob = (scale * recovery_prob).clamp(0.0, 1.0)
+        step = float(getattr(self, "inventory_recovery_max_step", getattr(self, "route_max_step", 0.10)))
+        recovery_step = (-current_inventory).clamp(min=-step, max=step)
+        recovery_target = current_inventory + recovery_step
+        residual_min, residual_max = self._residual_overlay_range()
+        recovery_target = recovery_target.clamp(min=residual_min, max=residual_max)
+        return (1.0 - recovery_prob) * target_mean + recovery_prob * recovery_target
 
     def controller_outputs_full(
         self,
@@ -590,6 +689,12 @@ class Actor(nn.Module):
                     )
                     route_targets = self._route_target_overlays_from_hidden(hidden, current_inventory)
                     target_mean = (route_probs * route_targets).sum(dim=-1)
+                    target_mean = self._apply_inventory_recovery_controller(
+                        target_mean,
+                        hidden,
+                        current_inventory,
+                        inventory_t,
+                    )
                 elif self._use_dual_residual_controller():
                     target_mean_a, target_mean_b, mode_gate = self._dual_residual_components_from_hidden(
                         hidden,

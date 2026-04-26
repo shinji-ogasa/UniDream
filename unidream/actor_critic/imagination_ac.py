@@ -1131,6 +1131,8 @@ class ImagACTrainer:
             "route_active_class_head.weight",
             "route_active_class_head.bias",
             "route_advantage_gate.weight",
+            "inventory_recovery_head.weight",
+            "inventory_recovery_head.bias",
         }
         missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)

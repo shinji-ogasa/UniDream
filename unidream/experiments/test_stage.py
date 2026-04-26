@@ -5,6 +5,7 @@ import torch
 
 
 ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
+EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
 
 
 def run_test_stage(
@@ -59,6 +60,7 @@ def run_test_stage(
             controller_state = torch.zeros(1, actor.inventory_dim, dtype=torch.float32, device=dev)
             pred_routes = []
             route_conf = []
+            recovery_gate = []
             t_route = min(len(z_t), len(positions))
             if regime_t is not None:
                 t_route = min(t_route, len(regime_t))
@@ -76,16 +78,35 @@ def run_test_stage(
                 )
                 pred_routes.append(int(torch.argmax(probs, dim=-1).item()))
                 route_conf.append(float(torch.max(probs, dim=-1).values.item()))
+                if (
+                    bool(getattr(actor, "use_inventory_recovery_controller", False))
+                    and getattr(actor, "inventory_recovery_head", None) is not None
+                ):
+                    rec_logit = actor.inventory_recovery_logits(
+                        z_t[i:i + 1],
+                        h_t[i:i + 1],
+                        inventory=controller_state,
+                        regime=reg_i,
+                        advantage=adv_i,
+                    )
+                    recovery_gate.append(float(torch.sigmoid(rec_logit).item()))
                 pos_i = torch.tensor([[float(positions[i])]], dtype=torch.float32, device=dev)
                 controller_state = actor.update_controller_state(controller_state, pos_i)
             if pred_routes:
-                counts = np.bincount(np.asarray(pred_routes, dtype=np.int64), minlength=len(ROUTE_NAMES))
+                route_names = EXPOSURE_ROUTE_NAMES if getattr(actor, "route_dim", len(ROUTE_NAMES)) == 3 else ROUTE_NAMES
+                counts = np.bincount(np.asarray(pred_routes, dtype=np.int64), minlength=len(route_names))
                 rates = counts / max(counts.sum(), 1)
-                route_dist = " ".join(f"{name}={rates[idx]:.0%}" for idx, name in enumerate(ROUTE_NAMES))
+                route_dist = " ".join(f"{name}={rates[idx]:.0%}" for idx, name in enumerate(route_names))
                 print(
                     f"  Route dist: {route_dist} "
                     f"active={1.0 - rates[0]:.1%} conf={np.mean(route_conf):.3f}"
                 )
+                if recovery_gate:
+                    rec_arr = np.asarray(recovery_gate, dtype=np.float64)
+                    print(
+                        f"  Recovery gate: mean={rec_arr.mean():.3f} "
+                        f"active={(rec_arr >= 0.5).mean():.1%}"
+                    )
 
     t_min = min(len(test_returns), len(positions))
     metrics = backtest_cls(

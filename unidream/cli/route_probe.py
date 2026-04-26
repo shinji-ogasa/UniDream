@@ -35,6 +35,9 @@ from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 from unidream.experiments.wm_stage import prepare_world_model_stage
 
 
+EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
+
+
 def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
@@ -64,9 +67,14 @@ def _safe_float(x) -> float | None:
     return v
 
 
-def _macro_f1(y_true: np.ndarray, y_pred: np.ndarray, n_classes: int) -> tuple[float, list[dict]]:
+def _macro_f1(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    route_names: tuple[str, ...],
+) -> tuple[float, list[dict]]:
     rows = []
     f1s = []
+    n_classes = len(route_names)
     for cls in range(n_classes):
         tp = int(((y_true == cls) & (y_pred == cls)).sum())
         fp = int(((y_true != cls) & (y_pred == cls)).sum())
@@ -77,7 +85,7 @@ def _macro_f1(y_true: np.ndarray, y_pred: np.ndarray, n_classes: int) -> tuple[f
         f1s.append(f1)
         rows.append(
             {
-                "route": ROUTE_NAMES[cls],
+                "route": route_names[cls],
                 "precision": precision,
                 "recall": recall,
                 "f1": f1,
@@ -152,12 +160,18 @@ def _evaluate_split(
     probs = probs[:n]
     labels = labels[:n].astype(np.int64)
     route_advantage = route_advantage[:n].astype(np.float64)
+    route_names = EXPOSURE_ROUTE_NAMES if probs.shape[-1] == 3 else ROUTE_NAMES
+    if probs.shape[-1] == 3:
+        mapped = np.zeros_like(labels)
+        mapped[labels == 1] = 1
+        mapped[labels == 3] = 2
+        labels = mapped
     pred = np.argmax(probs, axis=1).astype(np.int64)
     conf = probs.max(axis=1)
     correct = pred == labels
-    n_routes = len(ROUTE_NAMES)
+    n_routes = len(route_names)
     ce = -np.log(np.clip(probs[np.arange(n), labels], 1e-8, 1.0)).mean()
-    macro_f1, route_rows = _macro_f1(labels, pred, n_routes)
+    macro_f1, route_rows = _macro_f1(labels, pred, route_names)
     active_true = labels != 0
     active_pred = pred != 0
     neutral_true = labels == 0
@@ -173,7 +187,7 @@ def _evaluate_split(
         if mask.any():
             top_active_adv = float(np.mean(route_advantage[mask]))
     pred_route_adv = []
-    for idx, route in enumerate(ROUTE_NAMES):
+    for idx, route in enumerate(route_names):
         mask = pred == idx
         pred_route_adv.append(
             {
@@ -191,7 +205,7 @@ def _evaluate_split(
         slippage_bps=costs_cfg.get("slippage_bps", 1.0),
     )
     route_pnl = []
-    for idx, route in enumerate(ROUTE_NAMES):
+    for idx, route in enumerate(route_names):
         mask = pred == idx
         route_pnl.append(
             {
@@ -307,6 +321,9 @@ def _write_md(path: str, *, config: str, fold_results: dict) -> None:
         lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
         for split_name, row in split_rows.items():
             by_route = {r["route"]: r for r in row["routes"]}
+            def recall(name: str) -> str:
+                route = by_route.get(name)
+                return "NA" if route is None else f"{route['recall']:.3f}"
             lines.append(
                 "| "
                 + " | ".join(
@@ -316,9 +333,9 @@ def _write_md(path: str, *, config: str, fold_results: dict) -> None:
                         f"{row['accuracy']:.3f}",
                         f"{row['macro_f1']:.3f}",
                         f"{row['active_recall']:.3f}",
-                        f"{by_route['de_risk']['recall']:.3f}",
-                        f"{by_route['recovery']['recall']:.3f}",
-                        f"{by_route['overweight']['recall']:.3f}",
+                        recall("de_risk"),
+                        recall("recovery"),
+                        recall("overweight"),
                         f"{row['false_active_rate']:.3f}",
                         f"{row['neutral_precision']:.3f}",
                         f"{row['ece']:.3f}",

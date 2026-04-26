@@ -219,6 +219,10 @@ class BCPretrainer:
         route_short_rate_max: float = 0.0,
         route_neutral_rate_coef: float = 0.0,
         route_neutral_rate_target: float = 0.0,
+        inventory_recovery_coef: float = 0.0,
+        inventory_recovery_pos_weight: float = 1.0,
+        inventory_recovery_underweight_margin: float = 0.05,
+        inventory_recovery_target_margin: float = 0.02,
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
@@ -318,6 +322,10 @@ class BCPretrainer:
         self.route_short_rate_max = float(route_short_rate_max)
         self.route_neutral_rate_coef = float(max(route_neutral_rate_coef, 0.0))
         self.route_neutral_rate_target = float(route_neutral_rate_target)
+        self.inventory_recovery_coef = float(max(inventory_recovery_coef, 0.0))
+        self.inventory_recovery_pos_weight = float(max(inventory_recovery_pos_weight, 1.0))
+        self.inventory_recovery_underweight_margin = float(max(inventory_recovery_underweight_margin, 0.0))
+        self.inventory_recovery_target_margin = float(max(inventory_recovery_target_margin, 0.0))
         self.sample_quality_coef = float(max(sample_quality_coef, 0.0))
         self.sample_quality_clip = float(max(sample_quality_clip, 0.0))
         self.trainable_actor_prefixes = tuple(trainable_actor_prefixes or [])
@@ -358,7 +366,12 @@ class BCPretrainer:
         cfg = self.route_class_weights
         if cfg is None:
             return None
-        names = ("neutral", "de_risk", "recovery", "overweight")
+        names = ("neutral", "de_risk", "overweight") if n_routes == 3 else (
+            "neutral",
+            "de_risk",
+            "recovery",
+            "overweight",
+        )
         if isinstance(cfg, dict):
             default = float(cfg.get("default", 1.0))
             values = [float(cfg.get(name, default)) for name in names[:n_routes]]
@@ -639,6 +652,7 @@ class BCPretrainer:
         route_loss = None
         route_entropy_bonus = None
         route_exposure_penalty = None
+        inventory_recovery_loss = None
         mode_loss = None
         mode_rate_penalty = None
         mode_regime_rate_penalty = None
@@ -683,6 +697,16 @@ class BCPretrainer:
             route_log_probs = F.log_softmax(route_logits, dim=-1)
             if route_soft_labels is not None:
                 route_targets = route_soft_labels.to(device=route_logits.device, dtype=route_logits.dtype)
+                if route_logits.shape[-1] == 3 and route_targets.shape[-1] >= 4:
+                    # Exposure route removes recovery from the softmax; recovery mass becomes neutral.
+                    route_targets = torch.stack(
+                        [
+                            route_targets[..., 0] + route_targets[..., 2],
+                            route_targets[..., 1],
+                            route_targets[..., 3],
+                        ],
+                        dim=-1,
+                    )
                 if route_targets.shape[-1] > route_logits.shape[-1]:
                     route_targets = route_targets[..., : route_logits.shape[-1]]
                 elif route_targets.shape[-1] < route_logits.shape[-1]:
@@ -708,6 +732,11 @@ class BCPretrainer:
                     route_loss = route_loss * (route_targets * route_class_w).sum(dim=-1)
             else:
                 route_targets_hard = route_labels.to(device=route_logits.device, dtype=torch.long)
+                if route_logits.shape[-1] == 3:
+                    mapped = torch.zeros_like(route_targets_hard)
+                    mapped = torch.where(route_targets_hard == 1, torch.ones_like(mapped), mapped)
+                    mapped = torch.where(route_targets_hard == 3, torch.full_like(mapped, 2), mapped)
+                    route_targets_hard = mapped
                 route_loss = F.nll_loss(route_log_probs, route_targets_hard, reduction="none")
                 route_probs = torch.exp(route_log_probs)
                 route_pt = route_probs.gather(-1, route_targets_hard.unsqueeze(-1)).squeeze(-1).clamp(1e-6, 1.0)
@@ -755,6 +784,42 @@ class BCPretrainer:
                         neutral_rate - self.route_neutral_rate_target
                     )
                 route_exposure_penalty = penalty
+        if (
+            self.inventory_recovery_coef > 0.0
+            and getattr(self.actor, "inventory_recovery_head", None) is not None
+        ):
+            recovery_logits = self.actor.inventory_recovery_logits(
+                z,
+                h,
+                inventory=inventory,
+                regime=regime,
+                advantage=advantage,
+            )
+            if route_soft_labels is not None and route_soft_labels.shape[-1] >= 3:
+                recovery_targets = route_soft_labels[..., 2].to(
+                    device=recovery_logits.device,
+                    dtype=recovery_logits.dtype,
+                )
+            elif route_labels is not None:
+                recovery_targets = (route_labels.to(device=recovery_logits.device) == 2).to(
+                    dtype=recovery_logits.dtype
+                )
+            else:
+                recovery_targets = (
+                    (current_inventory < -self.inventory_recovery_underweight_margin)
+                    & (oracle_target > current_inventory + self.inventory_recovery_target_margin)
+                ).to(dtype=recovery_logits.dtype)
+            pos_weight = torch.as_tensor(
+                self.inventory_recovery_pos_weight,
+                dtype=recovery_logits.dtype,
+                device=recovery_logits.device,
+            )
+            inventory_recovery_loss = F.binary_cross_entropy_with_logits(
+                recovery_logits,
+                recovery_targets,
+                pos_weight=pos_weight,
+                reduction="none",
+            )
         if (
             self.mode_target_coef > 0.0
             and (
@@ -902,6 +967,8 @@ class BCPretrainer:
             loss_terms = loss_terms - self.route_entropy_coef * route_entropy_bonus
         if route_exposure_penalty is not None:
             loss_terms = loss_terms + route_exposure_penalty
+        if inventory_recovery_loss is not None:
+            loss_terms = loss_terms + self.inventory_recovery_coef * inventory_recovery_loss
 
         if self.band_aux_coef > 0.0:
             trade_margin = 0.05
@@ -1491,6 +1558,8 @@ class BCPretrainer:
             "route_active_class_head.weight",
             "route_active_class_head.bias",
             "route_advantage_gate.weight",
+            "inventory_recovery_head.weight",
+            "inventory_recovery_head.bias",
         }
         missing = [key for key in incompatible.missing_keys if key not in optional_missing]
         unexpected = list(incompatible.unexpected_keys)
