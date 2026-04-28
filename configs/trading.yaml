@@ -88,6 +88,16 @@ ac:
   state_machine_underweight_gap: 0.05
   state_machine_underweight_min_duration: 8
   state_machine_derisk_logit_down: 10.0
+  use_benchmark_overweight_adapter: true
+  benchmark_overweight_epsilon: 0.20
+  benchmark_overweight_min_position: 0.93
+  benchmark_overweight_max_position: 1.22
+  benchmark_overweight_underweight_duration_max: 1.0
+  benchmark_overweight_min_hold_bars: 0
+  benchmark_overweight_require_base_near_bench: false
+  benchmark_overweight_long_rate_max: 0.03
+  benchmark_overweight_advantage_index: 0
+  benchmark_overweight_advantage_min: 1.00
 actions:
   values:
   - 0.0
