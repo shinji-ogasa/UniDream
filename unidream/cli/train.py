@@ -147,7 +147,8 @@ def _selector_candidate(
     max_dd = abs(float(metrics.max_drawdown or 0.0))
     maxdd_delta_pt = 100.0 * float(metrics.maxdd_delta or 0.0)
     win_rate_vs_bh = float(metrics.win_rate_vs_bh or 0.0)
-    period_win_rate_vs_bh = float(getattr(metrics, "period_win_rate_vs_bh", None) or win_rate_vs_bh)
+    period_win_raw = getattr(metrics, "period_win_rate_vs_bh", None)
+    period_win_rate_vs_bh = win_rate_vs_bh if period_win_raw is None else float(period_win_raw)
     selector_win_rate = period_win_rate_vs_bh if selector_cfg["win_rate_metric"] == "period" else win_rate_vs_bh
     overlay_mode = abs(float(benchmark_position)) > 1e-8
     benchmark_hold = _is_benchmark_hold(stats, benchmark_position)
