@@ -1162,7 +1162,12 @@ class ImagACTrainer:
                 f"missing={missing}, unexpected={unexpected}"
             )
         self.critic.load_state_dict(ckpt["critic"])
-        self.actor_optimizer.load_state_dict(ckpt["actor_optimizer"])
+        try:
+            self.actor_optimizer.load_state_dict(ckpt["actor_optimizer"])
+        except ValueError as exc:
+            # Curriculum stages can change the trainable actor subset. The actor
+            # weights are still valid; the stage runner rebuilds the optimizer.
+            print(f"[AC] Actor optimizer state skipped while loading {path}: {exc}")
         self.critic_optimizer.load_state_dict(ckpt["critic_optimizer"])
         self.global_step = ckpt.get("global_step", 0)
         self._adv_ema = ckpt.get("adv_ema", 1.0)

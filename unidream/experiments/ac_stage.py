@@ -1,7 +1,78 @@
 from __future__ import annotations
 
+import torch
+
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.imagination_ac import ImagACTrainer
+
+
+def _optimizer_lr(optimizer, default: float) -> float:
+    if not optimizer.param_groups:
+        return default
+    return float(optimizer.param_groups[0].get("lr", default))
+
+
+def _rebuild_actor_optimizer(ac_trainer: ImagACTrainer, lr: float) -> None:
+    ac_trainer._apply_actor_trainable_mask()
+    actor_params = [p for p in ac_trainer.actor.parameters() if p.requires_grad]
+    if not actor_params:
+        actor_params = list(ac_trainer.actor.parameters())
+    ac_trainer.actor_optimizer = torch.optim.Adam(actor_params, lr=lr)
+
+
+def _apply_curriculum_stage(
+    ac_trainer: ImagACTrainer,
+    actor,
+    stage_cfg: dict,
+    base_ac_cfg: dict,
+) -> None:
+    actor_overrides = dict(stage_cfg.get("actor") or {})
+    trainer_overrides = dict(stage_cfg.get("trainer") or stage_cfg.get("ac") or {})
+    for key in (
+        "actor_lr",
+        "critic_only",
+        "trainable_actor_prefixes",
+        "td3bc_alpha",
+        "alpha_init",
+        "alpha_final",
+        "alpha_decay_steps",
+        "prior_kl_coef",
+        "prior_trade_coef",
+        "prior_band_coef",
+        "prior_flow_coef",
+        "turnover_coef",
+        "flow_change_coef",
+        "entropy_scale",
+    ):
+        if key in stage_cfg:
+            trainer_overrides[key] = stage_cfg[key]
+
+    for key, value in actor_overrides.items():
+        if not hasattr(actor, key):
+            raise KeyError(f"Unknown AC curriculum actor override: {key}")
+        setattr(actor, key, value)
+
+    lr = float(trainer_overrides.pop(
+        "actor_lr",
+        _optimizer_lr(ac_trainer.actor_optimizer, float(base_ac_cfg.get("actor_lr", 3e-5))),
+    ))
+    rebuild_actor_optimizer = False
+
+    if "critic_only" in trainer_overrides:
+        ac_trainer.critic_only = bool(trainer_overrides.pop("critic_only"))
+        rebuild_actor_optimizer = True
+    if "trainable_actor_prefixes" in trainer_overrides:
+        raw_prefixes = trainer_overrides.pop("trainable_actor_prefixes") or []
+        ac_trainer.trainable_actor_prefixes = tuple(str(prefix) for prefix in raw_prefixes)
+        rebuild_actor_optimizer = True
+
+    for key, value in trainer_overrides.items():
+        if not hasattr(ac_trainer, key):
+            raise KeyError(f"Unknown AC curriculum trainer override: {key}")
+        setattr(ac_trainer, key, value)
+
+    if rebuild_actor_optimizer or abs(lr - _optimizer_lr(ac_trainer.actor_optimizer, lr)) > 0.0:
+        _rebuild_actor_optimizer(ac_trainer, lr)
 
 
 def build_ac_trainer(
@@ -139,7 +210,7 @@ def run_ac_stage(
         stats = action_stats_fn(pos[:t_min], benchmark_position=benchmark_position)
         return policy_score_fn(metrics, stats, benchmark_position=benchmark_position)
 
-    ac_max_steps = ac_cfg.get("max_steps", 200_000)
+    ac_max_steps = ac_max_steps_cfg
     if ac_trainer.global_step >= ac_max_steps:
         print(f"\n[{log_ts()}] [Step 4] AC - already complete (step={ac_trainer.global_step})")
         return ac_trainer
@@ -197,7 +268,7 @@ def run_ac_stage(
                 n_steps=critic_pretrain_steps,
                 batch_size=ac_cfg.get("batch_size", 32),
             )
-        if ac_cfg.get("critic_only", False):
+        if ac_cfg.get("critic_only", False) and not ac_cfg.get("curriculum"):
             if ac_path:
                 ac_trainer.save(ac_path)
             print(f"[{log_ts()}] [Step 4] AC critic-only requested; actor update skipped")
@@ -238,13 +309,58 @@ def run_ac_stage(
         wm_trainer.train_on_dataset(recent_ds, max_steps=online_wm_steps_val, checkpoint_path=None)
         wm_trainer.ensemble.eval()
 
-    ac_trainer.train(
-        encoded_sequences=encoded_list,
-        batch_size=ac_cfg.get("batch_size", 32),
-        checkpoint_path=ac_path,
-        val_eval_fn=_val_eval,
-        val_baseline_sharpe=bc_val_sharpe,
-        online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
-    )
+    curriculum = ac_cfg.get("curriculum") or []
+    if curriculum:
+        print(f"[{log_ts()}] [Step 4] AC curriculum enabled ({len(curriculum)} stages)")
+        for idx, stage_cfg in enumerate(curriculum, start=1):
+            until_step = int(stage_cfg.get("until_step", stage_cfg.get("max_steps", 0)))
+            if until_step <= 0:
+                raise ValueError(f"AC curriculum stage {idx} requires until_step/max_steps > 0")
+            if ac_trainer.global_step >= until_step:
+                print(
+                    f"[{log_ts()}] [AC curriculum] "
+                    f"{stage_cfg.get('name', f'stage{idx}')} already complete "
+                    f"(step={ac_trainer.global_step}/{until_step})"
+                )
+                continue
+
+            _apply_curriculum_stage(ac_trainer, actor, stage_cfg, ac_cfg)
+            stage_name = stage_cfg.get("name", f"stage{idx}")
+            print(
+                f"[{log_ts()}] [AC curriculum] {stage_name}: "
+                f"step {ac_trainer.global_step}->{until_step}"
+            )
+            batch_size = int(stage_cfg.get("batch_size", ac_cfg.get("batch_size", 32)))
+            if ac_trainer.critic_only:
+                ac_trainer.pretrain_critic(
+                    encoded_sequences=encoded_list,
+                    n_steps=until_step - ac_trainer.global_step,
+                    batch_size=batch_size,
+                )
+                ac_trainer.global_step = until_step
+                if ac_path:
+                    ac_trainer.save(ac_path)
+                continue
+
+            ac_trainer.train(
+                encoded_sequences=encoded_list,
+                max_steps=until_step,
+                batch_size=batch_size,
+                checkpoint_path=ac_path,
+                val_eval_fn=_val_eval,
+                val_baseline_sharpe=bc_val_sharpe,
+                online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
+            )
+            if ac_path:
+                ac_trainer.save(ac_path)
+    else:
+        ac_trainer.train(
+            encoded_sequences=encoded_list,
+            batch_size=ac_cfg.get("batch_size", 32),
+            checkpoint_path=ac_path,
+            val_eval_fn=_val_eval,
+            val_baseline_sharpe=bc_val_sharpe,
+            online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
+        )
     ac_trainer.save(ac_path)
     return ac_trainer

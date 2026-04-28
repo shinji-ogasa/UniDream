@@ -11,6 +11,18 @@ def stage_idx(stage: str) -> int:
     return _STAGE_TO_INDEX[stage]
 
 
+def resolve_ac_max_steps(ac_cfg: dict) -> int:
+    max_steps = int(ac_cfg.get("max_steps", 200_000))
+    curriculum = ac_cfg.get("curriculum") or []
+    if not curriculum:
+        return max_steps
+    stage_steps = [
+        int(stage.get("until_step", stage.get("max_steps", 0)))
+        for stage in curriculum
+    ]
+    return max(max_steps, max(stage_steps, default=0))
+
+
 def prepare_fold_runtime(
     *,
     fold_idx: int,
@@ -25,7 +37,7 @@ def prepare_fold_runtime(
     wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
     bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
     ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
-    ac_max_steps_cfg = int(ac_cfg.get("max_steps", 200_000))
+    ac_max_steps_cfg = resolve_ac_max_steps(ac_cfg)
     ignore_ac_ckpt = bool(ac_cfg.get("ignore_ac_checkpoint", False)) or ac_max_steps_cfg <= 0
 
     start_index = stage_idx(start_from)
