@@ -6,7 +6,6 @@ import numpy as np
 import torch
 
 from unidream.actor_critic.bc_pretrain import BCPretrainer
-from unidream.experiments.residual_advantage_bc import build_realized_candidate_advantage_targets
 
 
 def build_bc_trainer(
@@ -110,8 +109,6 @@ def build_bc_trainer(
         inventory_recovery_pos_weight=bc_cfg.get("inventory_recovery_pos_weight", 1.0),
         inventory_recovery_underweight_margin=bc_cfg.get("inventory_recovery_underweight_margin", 0.05),
         inventory_recovery_target_margin=bc_cfg.get("inventory_recovery_target_margin", 0.02),
-        realized_candidate_bc_coef=bc_cfg.get("realized_candidate_bc_coef", 0.0),
-        realized_candidate_execute_coef=bc_cfg.get("realized_candidate_execute_coef", 0.0),
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
         sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
         trainable_actor_prefixes=bc_cfg.get("trainable_actor_prefixes"),
@@ -156,7 +153,6 @@ def run_bc_stage(
     oracle_cfg: dict,
     ac_cfg: dict,
     reward_cfg: dict,
-    costs_cfg: dict,
     device: str,
     has_bc: bool,
     start_idx: int,
@@ -164,7 +160,6 @@ def run_bc_stage(
     bc_path: str,
     z_train,
     h_train,
-    train_returns,
     oracle_positions,
     train_regime_probs,
     oracle_soft_labels,
@@ -199,20 +194,6 @@ def run_bc_stage(
             _reinitialize_actor_prefixes(actor, reinit_prefixes)
         print(f"\n[{log_ts()}] [Step 3] BC Pre-training...")
         t_enc = min(len(z_train), len(oracle_positions))
-        realized_bundle = build_realized_candidate_advantage_targets(
-            actor=actor,
-            z=z_train[:t_enc],
-            h=h_train[:t_enc],
-            returns=train_returns[:t_enc],
-            cfg={"bc": bc_cfg, "ac": ac_cfg, "reward": reward_cfg},
-            costs_cfg=costs_cfg,
-            benchmark_position=float(reward_cfg.get("benchmark_position", 1.0)),
-            device=device,
-            regime_probs=train_regime_probs[:t_enc] if train_regime_probs is not None else None,
-            advantage_values=bc_advantage_values[:t_enc] if bc_advantage_values is not None else None,
-        )
-        if realized_bundle is not None:
-            print(f"[AWRBC] realized candidate summary: {realized_bundle.summary}")
         bc_trainer.train(
             z=z_train[:t_enc],
             h=h_train[:t_enc],
@@ -224,15 +205,6 @@ def run_bc_stage(
             route_labels=train_route_labels[:t_enc] if train_route_labels is not None else None,
             route_soft_labels=train_route_soft_labels[:t_enc] if train_route_soft_labels is not None else None,
             route_advantage=train_route_advantage[:t_enc] if train_route_advantage is not None else None,
-            realized_candidate_targets=(
-                realized_bundle.target_positions[:t_enc] if realized_bundle is not None else None
-            ),
-            realized_candidate_weights=(
-                realized_bundle.weights[:t_enc] if realized_bundle is not None else None
-            ),
-            realized_candidate_inventory=(
-                realized_bundle.inventory_states[:t_enc] if realized_bundle is not None else None
-            ),
         )
         bc_trainer.save(bc_path)
         return bc_trainer
