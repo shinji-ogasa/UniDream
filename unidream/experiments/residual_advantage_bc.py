@@ -153,6 +153,86 @@ def _rate(mask: np.ndarray) -> float:
     return float(np.mean(mask)) if mask.size else 0.0
 
 
+def _actor_override_context(actor, overrides: dict):
+    class _OverrideContext:
+        def __enter__(self_inner):
+            self_inner.previous = {}
+            for key, value in overrides.items():
+                self_inner.previous[key] = (hasattr(actor, key), getattr(actor, key, None))
+                setattr(actor, key, value)
+            return actor
+
+        def __exit__(self_inner, exc_type, exc, tb):
+            for key, (had_value, old_value) in self_inner.previous.items():
+                if had_value:
+                    setattr(actor, key, old_value)
+                else:
+                    delattr(actor, key)
+            return False
+
+    return _OverrideContext()
+
+
+def _configured_anchor_overrides(bc_cfg: dict) -> dict:
+    overrides = bc_cfg.get("realized_candidate_anchor_overrides", {})
+    if not isinstance(overrides, dict):
+        return {}
+    return dict(overrides)
+
+
+def _apply_candidate_rate_caps(
+    *,
+    valid: np.ndarray,
+    advantage: np.ndarray,
+    candidates: np.ndarray,
+    bc_cfg: dict,
+    benchmark_position: float,
+) -> np.ndarray:
+    capped = valid.copy()
+    n = capped.shape[0]
+    long_rate_max = float(bc_cfg.get("realized_candidate_long_rate_max", 0.0))
+    if 0.0 < long_rate_max < 1.0:
+        long_valid = capped & (candidates > float(benchmark_position) + 1e-6)
+        row_has_long = long_valid.any(axis=1)
+        allowed = int(np.ceil(long_rate_max * n))
+        if int(row_has_long.sum()) > allowed:
+            row_score = np.full(n, -np.inf, dtype=np.float64)
+            row_score[row_has_long] = np.max(
+                np.where(long_valid[row_has_long], advantage[row_has_long], -np.inf),
+                axis=1,
+            )
+            keep_rows = np.zeros(n, dtype=bool)
+            if allowed > 0:
+                keep_idx = np.argpartition(row_score, -allowed)[-allowed:]
+                keep_rows[keep_idx] = np.isfinite(row_score[keep_idx])
+            capped[row_has_long & ~keep_rows, :] = np.where(
+                candidates[row_has_long & ~keep_rows, :] > float(benchmark_position) + 1e-6,
+                False,
+                capped[row_has_long & ~keep_rows, :],
+            )
+    short_rate_max = float(bc_cfg.get("realized_candidate_short_rate_max", 0.0))
+    if 0.0 < short_rate_max < 1.0:
+        short_valid = capped & (candidates < float(benchmark_position) - 1e-6)
+        row_has_short = short_valid.any(axis=1)
+        allowed = int(np.ceil(short_rate_max * n))
+        if int(row_has_short.sum()) > allowed:
+            row_score = np.full(n, -np.inf, dtype=np.float64)
+            row_score[row_has_short] = np.max(
+                np.where(short_valid[row_has_short], advantage[row_has_short], -np.inf),
+                axis=1,
+            )
+            keep_rows = np.zeros(n, dtype=bool)
+            if allowed > 0:
+                keep_idx = np.argpartition(row_score, -allowed)[-allowed:]
+                keep_rows[keep_idx] = np.isfinite(row_score[keep_idx])
+            capped[row_has_short & ~keep_rows, :] = np.where(
+                candidates[row_has_short & ~keep_rows, :] < float(benchmark_position) - 1e-6,
+                False,
+                capped[row_has_short & ~keep_rows, :],
+            )
+    return capped
+
+
 def build_realized_candidate_advantage_targets(
     *,
     actor,
@@ -181,7 +261,9 @@ def build_realized_candidate_advantage_targets(
 
     reg = regime_probs[:n] if regime_probs is not None else None
     adv = advantage_values[:n] if advantage_values is not None else None
-    anchor = actor.predict_positions(z[:n], h[:n], regime_np=reg, advantage_np=adv, device=device).astype(np.float32)
+    anchor_overrides = _configured_anchor_overrides(bc_cfg)
+    with _actor_override_context(actor, anchor_overrides):
+        anchor = actor.predict_positions(z[:n], h[:n], regime_np=reg, advantage_np=adv, device=device).astype(np.float32)
     current = _current_positions_from_path(anchor, benchmark_position).astype(np.float32)
     candidates, labels = _candidate_matrix(
         anchor_positions=anchor,
@@ -204,6 +286,13 @@ def build_realized_candidate_advantage_targets(
     margin = float(bc_cfg.get("realized_candidate_margin", bc_cfg.get("transition_advantage_margin", 0.0)))
     valid = finite & (advantage > margin)
     valid[:, 0] = False
+    valid = _apply_candidate_rate_caps(
+        valid=valid,
+        advantage=advantage,
+        candidates=candidates,
+        bc_cfg=bc_cfg,
+        benchmark_position=benchmark_position,
+    )
     active = valid.any(axis=1)
 
     tau = max(float(bc_cfg.get("realized_candidate_tau", 0.002)), 1e-8)
@@ -252,6 +341,9 @@ def build_realized_candidate_advantage_targets(
         "target_short": _rate(target < benchmark_position - 1e-6),
         "target_flat": _rate(np.abs(target - benchmark_position) <= 1e-6),
         "target_long": _rate(target > benchmark_position + 1e-6),
+        "long_rate_cap": float(bc_cfg.get("realized_candidate_long_rate_max", 0.0)),
+        "short_rate_cap": float(bc_cfg.get("realized_candidate_short_rate_max", 0.0)),
+        "anchor_overrides": anchor_overrides,
         "candidate_labels": labels,
         "active_distribution": {labels[i]: _rate(active & (best_idx == i)) for i in range(len(labels))},
     }
