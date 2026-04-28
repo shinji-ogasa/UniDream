@@ -1032,6 +1032,48 @@ class Actor(nn.Module):
         overlay_low, overlay_high = self._overlay_bounds()
         return next_inventory.clamp(min=overlay_low, max=overlay_high)
 
+    def _apply_benchmark_overweight_adapter(
+        self,
+        next_position: torch.Tensor,
+        inventory_state: torch.Tensor,
+    ) -> torch.Tensor:
+        """Inference-only small overweight adapter gated around benchmark state."""
+        if not bool(getattr(self, "use_benchmark_overweight_adapter", False)):
+            return next_position
+        epsilon = float(getattr(self, "benchmark_overweight_epsilon", 0.0))
+        if epsilon <= 0.0:
+            return next_position
+
+        bench = self._benchmark_position()
+        current_overlay = self._current_inventory_from_state(inventory_state)
+        current_position = current_overlay + bench
+        next_abs = next_position.squeeze(-1) if next_position.ndim > current_overlay.ndim else next_position
+
+        min_position = float(getattr(self, "benchmark_overweight_min_position", bench - 0.05))
+        max_position = float(getattr(self, "benchmark_overweight_max_position", bench + epsilon))
+        max_position = min(max_position, float(getattr(self, "abs_max_position", max_position)))
+        underweight_max = float(getattr(self, "benchmark_overweight_underweight_duration_max", 0.0))
+        prev_delta_max = float(getattr(self, "benchmark_overweight_prev_delta_max", 0.0))
+        min_hold_bars = float(getattr(self, "benchmark_overweight_min_hold_bars", 0.0))
+        require_base_near_bench = bool(getattr(self, "benchmark_overweight_require_base_near_bench", True))
+
+        gate = current_position >= min_position
+        if require_base_near_bench:
+            gate = gate & (next_abs >= min_position)
+        if inventory_state is not None and inventory_state.shape[-1] >= 2 and prev_delta_max > 0.0:
+            gate = gate & (inventory_state[..., 1].abs() <= prev_delta_max)
+        if inventory_state is not None and inventory_state.shape[-1] >= 3 and min_hold_bars > 0.0:
+            hold_ready = inventory_state[..., 2] >= (min_hold_bars / max(self._state_hold_scale(), 1.0))
+            already_long = current_position > (bench + 0.5 * epsilon)
+            gate = gate & (hold_ready | already_long)
+        if inventory_state is not None and inventory_state.shape[-1] >= 4 and underweight_max >= 0.0:
+            gate = gate & (inventory_state[..., 3] <= underweight_max)
+
+        target = torch.maximum(next_abs, torch.full_like(next_abs, bench + epsilon))
+        target = target.clamp(min=bench, max=max_position)
+        adapted = torch.where(gate, target, next_abs)
+        return adapted.unsqueeze(-1) if next_position.ndim > current_overlay.ndim else adapted
+
     def get_action(
         self,
         z: torch.Tensor,
@@ -1259,7 +1301,8 @@ class Actor(nn.Module):
             current_inventory=current_inventory,
         )
         next_position = self._overlay_to_position(next_inventory)
-        return next_position.unsqueeze(-1)
+        next_position = next_position.unsqueeze(-1)
+        return self._apply_benchmark_overweight_adapter(next_position, inventory_state)
 
     @torch.no_grad()
     def predict_positions(
@@ -1296,8 +1339,10 @@ class Actor(nn.Module):
         controller_state = torch.zeros(1, self.inventory_dim, dtype=torch.float32, device=dev)
         active_count = 0
         underweight_count = 0
+        long_count = 0
         active_rate_max = float(getattr(self, "active_rate_max", 0.0))
         short_rate_max = float(getattr(self, "short_underweight_rate_max", 0.0))
+        long_rate_max = float(getattr(self, "benchmark_overweight_long_rate_max", 0.0))
         bench = self._benchmark_position()
         eps = float(getattr(self, "rate_cap_active_eps", 0.05))
         for i in range(len(z_np)):
@@ -1315,6 +1360,7 @@ class Actor(nn.Module):
             overlay_value = pos_value - bench
             is_active = abs(overlay_value) > eps
             is_underweight = overlay_value < -eps
+            is_long = overlay_value > eps
             step_n = i + 1
             force_neutral = False
             if 0.0 < active_rate_max < 1.0 and is_active:
@@ -1323,15 +1369,20 @@ class Actor(nn.Module):
             if 0.0 < short_rate_max < 1.0 and is_underweight:
                 allowed_underweight = int(np.ceil(short_rate_max * step_n))
                 force_neutral = force_neutral or ((underweight_count + 1) > allowed_underweight)
+            if 0.0 < long_rate_max < 1.0 and is_long:
+                allowed_long = int(np.ceil(long_rate_max * step_n))
+                force_neutral = force_neutral or ((long_count + 1) > allowed_long)
             if force_neutral:
                 pos_value = float(bench)
                 next_position = torch.full_like(next_position, pos_value)
                 overlay_value = 0.0
                 is_active = False
                 is_underweight = False
+                is_long = False
             positions[i] = pos_value
             active_count += int(is_active)
             underweight_count += int(is_underweight)
+            long_count += int(is_long)
             controller_state = self.update_controller_state(controller_state, next_position)
 
         if was_training:

@@ -263,6 +263,23 @@ def prepare_bc_setup(
     actor.infer_min_trade_floor = ac_cfg.get("infer_min_trade_floor", 0.0)
     actor.infer_min_trade_gap = ac_cfg.get("infer_min_trade_gap", 0.0)
     actor.infer_min_trade_scale = ac_cfg.get("infer_min_trade_scale", 0.0)
+    actor.use_benchmark_overweight_adapter = bool(ac_cfg.get("use_benchmark_overweight_adapter", False))
+    actor.benchmark_overweight_epsilon = ac_cfg.get("benchmark_overweight_epsilon", 0.0)
+    actor.benchmark_overweight_min_position = ac_cfg.get("benchmark_overweight_min_position", benchmark_position - 0.05)
+    actor.benchmark_overweight_max_position = ac_cfg.get(
+        "benchmark_overweight_max_position",
+        benchmark_position + actor.benchmark_overweight_epsilon,
+    )
+    actor.benchmark_overweight_underweight_duration_max = ac_cfg.get(
+        "benchmark_overweight_underweight_duration_max",
+        0.0,
+    )
+    actor.benchmark_overweight_prev_delta_max = ac_cfg.get("benchmark_overweight_prev_delta_max", 0.0)
+    actor.benchmark_overweight_min_hold_bars = ac_cfg.get("benchmark_overweight_min_hold_bars", 0.0)
+    actor.benchmark_overweight_require_base_near_bench = bool(
+        ac_cfg.get("benchmark_overweight_require_base_near_bench", True)
+    )
+    actor.benchmark_overweight_long_rate_max = ac_cfg.get("benchmark_overweight_long_rate_max", 0.0)
     actor.support_transition_counts = None
     if actor.use_residual_controller:
         residual_min = float(actor.residual_min_overlay)

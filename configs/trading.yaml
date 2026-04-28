@@ -6,6 +6,7 @@ ac:
   actor_dropout: 0.1
   actor_hidden: 256
   actor_lr: 3.0e-05
+  batch_size: 1024
   adaptive_bc: true
   advantage_input_mode: route_gate
   alpha_decay_steps: 800
@@ -95,7 +96,7 @@ actions:
 bc:
   band_aux_coef: 0.05
   band_aux_trade_only: true
-  batch_size: 256
+  batch_size: 1024
   chunk_size: 4
   class_balanced: false
   direct_band_gap_min: 0.1
