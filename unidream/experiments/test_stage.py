@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from unidream.eval.backtest import compute_pnl
+
 
 ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
 EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
@@ -18,14 +20,22 @@ def _predict_with_policy_flags(
     device: str,
     use_floor: bool,
     use_adapter: bool,
+    route_advantage_gate_scale: float | None = None,
+    overweight_advantage_index: int | None = None,
 ) -> np.ndarray:
     sentinel = object()
     saved = {
         "use_benchmark_exposure_floor": getattr(actor, "use_benchmark_exposure_floor", sentinel),
         "use_benchmark_overweight_adapter": getattr(actor, "use_benchmark_overweight_adapter", sentinel),
+        "route_advantage_gate_scale": getattr(actor, "route_advantage_gate_scale", sentinel),
+        "benchmark_overweight_advantage_index": getattr(actor, "benchmark_overweight_advantage_index", sentinel),
     }
     actor.use_benchmark_exposure_floor = use_floor
     actor.use_benchmark_overweight_adapter = use_adapter
+    if route_advantage_gate_scale is not None:
+        actor.route_advantage_gate_scale = route_advantage_gate_scale
+    if overweight_advantage_index is not None:
+        actor.benchmark_overweight_advantage_index = overweight_advantage_index
     try:
         return actor.predict_positions(
             z,
@@ -43,6 +53,30 @@ def _predict_with_policy_flags(
                     pass
             else:
                 setattr(actor, key, value)
+
+
+def _active_incremental_pnl(
+    *,
+    returns,
+    current: np.ndarray,
+    baseline: np.ndarray,
+    mask: np.ndarray,
+    costs_cfg: dict,
+) -> float:
+    t = min(len(returns), len(current), len(baseline), len(mask))
+    if t <= 0:
+        return 0.0
+    active = np.asarray(mask[:t], dtype=bool)
+    if not np.any(active):
+        return 0.0
+    cost_kwargs = {
+        "spread_bps": costs_cfg.get("spread_bps", 5.0),
+        "fee_rate": costs_cfg.get("fee_rate", 0.0004),
+        "slippage_bps": costs_cfg.get("slippage_bps", 2.0),
+    }
+    current_pnl = compute_pnl(np.asarray(returns[:t]), np.asarray(current[:t]), **cost_kwargs)
+    baseline_pnl = compute_pnl(np.asarray(returns[:t]), np.asarray(baseline[:t]), **cost_kwargs)
+    return float((current_pnl[active] - baseline_pnl[active]).sum())
 
 
 def _component_diagnostics(
@@ -122,6 +156,24 @@ def _component_diagnostics(
             use_adapter=False,
         )
 
+    uses_advantage_gate = (
+        getattr(actor, "route_advantage_gate", None) is not None
+        or int(getattr(actor, "benchmark_overweight_advantage_index", -1)) >= 0
+    )
+    if uses_advantage_gate:
+        variants["gate_off"] = _predict_with_policy_flags(
+            actor,
+            z,
+            h,
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+            use_floor=use_floor,
+            use_adapter=use_adapter,
+            route_advantage_gate_scale=0.0,
+            overweight_advantage_index=-1,
+        )
+
     result = {}
     for name, pos in variants.items():
         t = min(len(test_returns), len(pos))
@@ -148,12 +200,40 @@ def _component_diagnostics(
     current = variants["current"][: len(positions)]
     if "no_floor" in variants:
         delta = current - variants["no_floor"][: len(current)]
+        active = delta > 1e-6
         result["floor_effect_rate"] = float(np.mean(delta > 1e-6))
         result["floor_mean_increment"] = float(np.mean(delta[delta > 1e-6])) if np.any(delta > 1e-6) else 0.0
+        result["floor_incremental_net"] = _active_incremental_pnl(
+            returns=test_returns,
+            current=current,
+            baseline=variants["no_floor"][: len(current)],
+            mask=active,
+            costs_cfg=costs_cfg,
+        )
     if "no_adapter" in variants:
         delta = current - variants["no_adapter"][: len(current)]
+        active = np.abs(delta) > 1e-6
         result["adapter_effect_rate"] = float(np.mean(np.abs(delta) > 1e-6))
         result["adapter_mean_abs_delta"] = float(np.mean(np.abs(delta[np.abs(delta) > 1e-6]))) if np.any(np.abs(delta) > 1e-6) else 0.0
+        result["adapter_incremental_net"] = _active_incremental_pnl(
+            returns=test_returns,
+            current=current,
+            baseline=variants["no_adapter"][: len(current)],
+            mask=active,
+            costs_cfg=costs_cfg,
+        )
+    if "gate_off" in variants:
+        delta = current - variants["gate_off"][: len(current)]
+        active = np.abs(delta) > 1e-6
+        result["adv_gate_effect_rate"] = float(np.mean(active))
+        result["adv_gate_mean_abs_delta"] = float(np.mean(np.abs(delta[active]))) if np.any(active) else 0.0
+        result["adv_gate_incremental_net"] = _active_incremental_pnl(
+            returns=test_returns,
+            current=current,
+            baseline=variants["gate_off"][: len(current)],
+            mask=active,
+            costs_cfg=costs_cfg,
+        )
     return result
 
 
@@ -314,7 +394,7 @@ def run_test_stage(
         print(f"  Score:    {format_m2_scorecard_fn(test_scorecard)}")
     if policy_diagnostics:
         print("  Component attribution:")
-        for name in ("neither", "adapter_only", "floor_only", "current"):
+        for name in ("neither", "adapter_only", "floor_only", "gate_off", "current"):
             if name not in policy_diagnostics:
                 continue
             rec = policy_diagnostics[name]
@@ -330,11 +410,19 @@ def run_test_stage(
             effect_bits.append(
                 f"floor_effect={policy_diagnostics['floor_effect_rate']:.1%}"
                 f"/+{policy_diagnostics['floor_mean_increment']:.3f}"
+                f"/pnl={policy_diagnostics['floor_incremental_net']:+.4f}"
             )
         if "adapter_effect_rate" in policy_diagnostics:
             effect_bits.append(
                 f"adapter_effect={policy_diagnostics['adapter_effect_rate']:.1%}"
                 f"/{policy_diagnostics['adapter_mean_abs_delta']:.3f}"
+                f"/pnl={policy_diagnostics['adapter_incremental_net']:+.4f}"
+            )
+        if "adv_gate_effect_rate" in policy_diagnostics:
+            effect_bits.append(
+                f"adv_gate_effect={policy_diagnostics['adv_gate_effect_rate']:.1%}"
+                f"/{policy_diagnostics['adv_gate_mean_abs_delta']:.3f}"
+                f"/pnl={policy_diagnostics['adv_gate_incremental_net']:+.4f}"
             )
         if effect_bits:
             print(f"    effects: {' '.join(effect_bits)}")
