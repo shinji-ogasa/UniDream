@@ -208,8 +208,9 @@ def build_realized_candidate_advantage_targets(
 
     tau = max(float(bc_cfg.get("realized_candidate_tau", 0.002)), 1e-8)
     score = np.where(valid, np.clip((advantage - margin) / tau, -60.0, 60.0), -np.inf)
-    row_max = np.max(score, axis=1, keepdims=True)
-    exp_score = np.exp(score - row_max)
+    row_has_valid = np.isfinite(score).any(axis=1, keepdims=True)
+    row_max = np.where(row_has_valid, np.max(score, axis=1, keepdims=True), 0.0)
+    exp_score = np.where(row_has_valid, np.exp(score - row_max), 0.0)
     exp_score[~np.isfinite(exp_score)] = 0.0
     denom = exp_score.sum(axis=1, keepdims=True)
     soft = np.divide(exp_score, np.clip(denom, 1e-12, None), out=np.zeros_like(exp_score), where=denom > 0.0)
@@ -231,8 +232,9 @@ def build_realized_candidate_advantage_targets(
     abs_max = float(cfg.get("ac", {}).get("abs_max_position", 1.25))
     target = np.clip(target, abs_min, abs_max).astype(np.float32)
 
-    best_improvement = np.nanmax(np.where(valid, advantage, np.nan), axis=1)
-    best_improvement = np.where(np.isfinite(best_improvement), best_improvement, 0.0)
+    best_improvement = np.zeros(n, dtype=np.float32)
+    if active.any():
+        best_improvement[active] = np.max(np.where(valid[active], advantage[active], -np.inf), axis=1)
     weight_max = max(float(bc_cfg.get("realized_candidate_weight_max", 3.0)), 1.0)
     weights = np.where(
         active,
