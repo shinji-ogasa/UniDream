@@ -1081,6 +1081,35 @@ class Actor(nn.Module):
         adapted = torch.where(gate, target, next_abs)
         return adapted.unsqueeze(-1) if next_position.ndim > current_overlay.ndim else adapted
 
+    def _apply_benchmark_exposure_floor(
+        self,
+        next_position: torch.Tensor,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Inference-only floor to avoid unintended under-benchmark exposure."""
+        if not bool(getattr(self, "use_benchmark_exposure_floor", False)):
+            return next_position
+        bench = self._benchmark_position()
+        floor_position = float(getattr(self, "benchmark_exposure_floor_position", bench))
+        floor_position = min(
+            max(floor_position, float(getattr(self, "abs_min_position", floor_position))),
+            float(getattr(self, "abs_max_position", floor_position)),
+        )
+        next_abs = next_position.squeeze(-1) if next_position.ndim > 1 else next_position
+        gate = torch.ones_like(next_abs, dtype=torch.bool)
+        adv_idx = int(getattr(self, "benchmark_exposure_floor_advantage_index", -1))
+        adv_min = float(getattr(self, "benchmark_exposure_floor_advantage_min", -float("inf")))
+        if advantage is not None and adv_idx >= 0 and np.isfinite(adv_min):
+            adv_t = self._ensure_advantage(advantage, next_position)
+            if adv_t is not None and adv_t.shape[-1] > adv_idx:
+                gate = gate & (adv_t[..., adv_idx] >= adv_min)
+        floored = torch.where(
+            gate & (next_abs < floor_position),
+            torch.full_like(next_abs, floor_position),
+            next_abs,
+        )
+        return floored.unsqueeze(-1) if next_position.ndim > 1 else floored
+
     def get_action(
         self,
         z: torch.Tensor,
@@ -1309,7 +1338,8 @@ class Actor(nn.Module):
         )
         next_position = self._overlay_to_position(next_inventory)
         next_position = next_position.unsqueeze(-1)
-        return self._apply_benchmark_overweight_adapter(next_position, inventory_state, advantage=advantage)
+        next_position = self._apply_benchmark_overweight_adapter(next_position, inventory_state, advantage=advantage)
+        return self._apply_benchmark_exposure_floor(next_position, advantage=advantage)
 
     @torch.no_grad()
     def predict_positions(

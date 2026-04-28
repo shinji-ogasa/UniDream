@@ -282,6 +282,13 @@ def prepare_bc_setup(
     actor.benchmark_overweight_long_rate_max = ac_cfg.get("benchmark_overweight_long_rate_max", 0.0)
     actor.benchmark_overweight_advantage_index = ac_cfg.get("benchmark_overweight_advantage_index", -1)
     actor.benchmark_overweight_advantage_min = ac_cfg.get("benchmark_overweight_advantage_min", -float("inf"))
+    actor.use_benchmark_exposure_floor = bool(ac_cfg.get("use_benchmark_exposure_floor", False))
+    actor.benchmark_exposure_floor_position = ac_cfg.get("benchmark_exposure_floor_position", benchmark_position)
+    actor.benchmark_exposure_floor_advantage_index = ac_cfg.get("benchmark_exposure_floor_advantage_index", -1)
+    actor.benchmark_exposure_floor_advantage_min = ac_cfg.get(
+        "benchmark_exposure_floor_advantage_min",
+        -float("inf"),
+    )
     actor.support_transition_counts = None
     if actor.use_residual_controller:
         residual_min = float(actor.residual_min_overlay)
