@@ -1036,6 +1036,7 @@ class Actor(nn.Module):
         self,
         next_position: torch.Tensor,
         inventory_state: torch.Tensor,
+        advantage: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Inference-only small overweight adapter gated around benchmark state."""
         if not bool(getattr(self, "use_benchmark_overweight_adapter", False)):
@@ -1068,6 +1069,12 @@ class Actor(nn.Module):
             gate = gate & (hold_ready | already_long)
         if inventory_state is not None and inventory_state.shape[-1] >= 4 and underweight_max >= 0.0:
             gate = gate & (inventory_state[..., 3] <= underweight_max)
+        adv_idx = int(getattr(self, "benchmark_overweight_advantage_index", -1))
+        adv_min = float(getattr(self, "benchmark_overweight_advantage_min", -float("inf")))
+        if advantage is not None and adv_idx >= 0 and np.isfinite(adv_min):
+            adv_t = self._ensure_advantage(advantage, next_position)
+            if adv_t is not None and adv_t.shape[-1] > adv_idx:
+                gate = gate & (adv_t[..., adv_idx] >= adv_min)
 
         target = torch.maximum(next_abs, torch.full_like(next_abs, bench + epsilon))
         target = target.clamp(min=bench, max=max_position)
@@ -1302,7 +1309,7 @@ class Actor(nn.Module):
         )
         next_position = self._overlay_to_position(next_inventory)
         next_position = next_position.unsqueeze(-1)
-        return self._apply_benchmark_overweight_adapter(next_position, inventory_state)
+        return self._apply_benchmark_overweight_adapter(next_position, inventory_state, advantage=advantage)
 
     @torch.no_grad()
     def predict_positions(

@@ -280,6 +280,8 @@ def prepare_bc_setup(
         ac_cfg.get("benchmark_overweight_require_base_near_bench", True)
     )
     actor.benchmark_overweight_long_rate_max = ac_cfg.get("benchmark_overweight_long_rate_max", 0.0)
+    actor.benchmark_overweight_advantage_index = ac_cfg.get("benchmark_overweight_advantage_index", -1)
+    actor.benchmark_overweight_advantage_min = ac_cfg.get("benchmark_overweight_advantage_min", -float("inf"))
     actor.support_transition_counts = None
     if actor.use_residual_controller:
         residual_min = float(actor.residual_min_overlay)
