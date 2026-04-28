@@ -120,6 +120,7 @@ def run_training_app(
         start_from=args.start_from,
         stop_after=args.stop_after,
         run_fold_fn=run_fold_fn,
+        seed=args.seed,
     )
 
     if args.stop_after != "test":

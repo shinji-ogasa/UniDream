@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unidream.data.dataset import WFODataset
 
+from .runtime import set_seed
+
 
 def run_wfo_folds(
     *,
@@ -16,9 +18,12 @@ def run_wfo_folds(
     start_from: str,
     stop_after: str,
     run_fold_fn,
+    seed: int | None = None,
 ) -> dict:
     fold_results = {}
     for split in splits:
+        if seed is not None:
+            set_seed(seed)
         wfo_ds = WFODataset(
             features_df,
             raw_returns,
