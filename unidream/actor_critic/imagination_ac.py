@@ -1151,6 +1151,8 @@ class ImagACTrainer:
             "route_active_class_head.weight",
             "route_active_class_head.bias",
             "route_advantage_gate.weight",
+            "benchmark_overweight_sizing_adapter.weight",
+            "benchmark_overweight_sizing_adapter.bias",
             "inventory_recovery_head.weight",
             "inventory_recovery_head.bias",
         }

@@ -98,11 +98,14 @@ class Actor(nn.Module):
             if self.route_dim > 0 and use_route_advantage_gate
             else None
         )
+        self.benchmark_overweight_sizing_adapter = nn.Linear(hidden_dim, 1)
         self.advantage_adapter = (
             nn.Linear(self.advantage_dim, hidden_dim, bias=False) if use_advantage_adapter else None
         )
         if self.advantage_adapter is not None:
             nn.init.zeros_(self.advantage_adapter.weight)
+        nn.init.zeros_(self.benchmark_overweight_sizing_adapter.weight)
+        nn.init.zeros_(self.benchmark_overweight_sizing_adapter.bias)
 
         # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
         nn.init.constant_(self.trade_head.bias, -0.5)
@@ -751,6 +754,13 @@ class Actor(nn.Module):
                         self.regime_residual_shift_head(regime).squeeze(-1)
                     )
                     target_mean = target_mean.clamp(min=overlay_low, max=overlay_high)
+            target_mean = self._apply_trainable_benchmark_overweight_sizing(
+                target_mean,
+                hidden,
+                current_inventory,
+                inventory_t,
+                advantage=advantage_t,
+            )
             logit_scale = target_std.clamp_min(1e-4).unsqueeze(-1) * max(temperature, 1e-6)
             target_logits = -0.5 * ((target_values.unsqueeze(0) - target_mean.unsqueeze(-1)) / logit_scale) ** 2
         else:
@@ -1037,21 +1047,48 @@ class Actor(nn.Module):
         next_position: torch.Tensor,
         inventory_state: torch.Tensor,
         advantage: torch.Tensor | None = None,
+        hidden: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Inference-only small overweight adapter gated around benchmark state."""
         if not bool(getattr(self, "use_benchmark_overweight_adapter", False)):
             return next_position
-        epsilon = float(getattr(self, "benchmark_overweight_epsilon", 0.0))
-        if epsilon <= 0.0:
+        base_epsilon = float(getattr(self, "benchmark_overweight_epsilon", 0.0))
+        if base_epsilon <= 0.0:
             return next_position
 
         bench = self._benchmark_position()
         current_overlay = self._current_inventory_from_state(inventory_state)
-        current_position = current_overlay + bench
         next_abs = next_position.squeeze(-1) if next_position.ndim > current_overlay.ndim else next_position
+        gate, max_position = self._benchmark_overweight_gate(
+            next_abs,
+            current_overlay,
+            inventory_state,
+            advantage,
+            base_epsilon=base_epsilon,
+        )
+        epsilon = self._benchmark_overweight_epsilon(
+            next_abs,
+            hidden=hidden,
+            base_epsilon=base_epsilon,
+            max_position=max_position,
+        )
+        target = torch.maximum(next_abs, bench + epsilon)
+        target = target.clamp(min=bench, max=max_position)
+        adapted = torch.where(gate, target, next_abs)
+        return adapted.unsqueeze(-1) if next_position.ndim > current_overlay.ndim else adapted
 
+    def _benchmark_overweight_gate(
+        self,
+        next_abs: torch.Tensor,
+        current_overlay: torch.Tensor,
+        inventory_state: torch.Tensor,
+        advantage: torch.Tensor | None,
+        base_epsilon: float,
+    ) -> tuple[torch.Tensor, float]:
+        bench = self._benchmark_position()
+        current_position = current_overlay + bench
         min_position = float(getattr(self, "benchmark_overweight_min_position", bench - 0.05))
-        max_position = float(getattr(self, "benchmark_overweight_max_position", bench + epsilon))
+        max_position = float(getattr(self, "benchmark_overweight_max_position", bench + base_epsilon))
         max_position = min(max_position, float(getattr(self, "abs_max_position", max_position)))
         underweight_max = float(getattr(self, "benchmark_overweight_underweight_duration_max", 0.0))
         prev_delta_max = float(getattr(self, "benchmark_overweight_prev_delta_max", 0.0))
@@ -1065,21 +1102,72 @@ class Actor(nn.Module):
             gate = gate & (inventory_state[..., 1].abs() <= prev_delta_max)
         if inventory_state is not None and inventory_state.shape[-1] >= 3 and min_hold_bars > 0.0:
             hold_ready = inventory_state[..., 2] >= (min_hold_bars / max(self._state_hold_scale(), 1.0))
-            already_long = current_position > (bench + 0.5 * epsilon)
+            already_long = current_position > (bench + 0.5 * base_epsilon)
             gate = gate & (hold_ready | already_long)
         if inventory_state is not None and inventory_state.shape[-1] >= 4 and underweight_max >= 0.0:
             gate = gate & (inventory_state[..., 3] <= underweight_max)
         adv_idx = int(getattr(self, "benchmark_overweight_advantage_index", -1))
         adv_min = float(getattr(self, "benchmark_overweight_advantage_min", -float("inf")))
         if advantage is not None and adv_idx >= 0 and np.isfinite(adv_min):
-            adv_t = self._ensure_advantage(advantage, next_position)
+            adv_ref = next_abs.unsqueeze(-1) if next_abs.ndim == current_overlay.ndim else next_abs
+            adv_t = self._ensure_advantage(advantage, adv_ref)
             if adv_t is not None and adv_t.shape[-1] > adv_idx:
                 gate = gate & (adv_t[..., adv_idx] >= adv_min)
+        return gate, max_position
 
-        target = torch.maximum(next_abs, torch.full_like(next_abs, bench + epsilon))
-        target = target.clamp(min=bench, max=max_position)
-        adapted = torch.where(gate, target, next_abs)
-        return adapted.unsqueeze(-1) if next_position.ndim > current_overlay.ndim else adapted
+    def _benchmark_overweight_epsilon(
+        self,
+        next_abs: torch.Tensor,
+        *,
+        hidden: torch.Tensor | None,
+        base_epsilon: float,
+        max_position: float,
+    ) -> torch.Tensor:
+        bench = self._benchmark_position()
+        epsilon = torch.full_like(next_abs, float(base_epsilon))
+        if (
+            bool(getattr(self, "use_trainable_benchmark_overweight_sizing_adapter", False))
+            and hidden is not None
+        ):
+            delta_range = float(getattr(self, "benchmark_overweight_trainable_delta_range", 0.05))
+            if delta_range > 0.0:
+                raw = self.benchmark_overweight_sizing_adapter(hidden).squeeze(-1)
+                epsilon = epsilon + delta_range * torch.tanh(raw)
+        return epsilon.clamp(min=0.0, max=max(0.0, float(max_position) - bench))
+
+    def _apply_trainable_benchmark_overweight_sizing(
+        self,
+        target_overlay: torch.Tensor,
+        hidden: torch.Tensor,
+        current_overlay: torch.Tensor,
+        inventory_state: torch.Tensor,
+        advantage: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if not bool(getattr(self, "use_trainable_benchmark_overweight_sizing_adapter", False)):
+            return target_overlay
+        if not bool(getattr(self, "use_benchmark_overweight_adapter", False)):
+            return target_overlay
+        base_epsilon = float(getattr(self, "benchmark_overweight_epsilon", 0.0))
+        if base_epsilon <= 0.0:
+            return target_overlay
+        bench = self._benchmark_position()
+        target_abs = target_overlay + bench
+        gate, max_position = self._benchmark_overweight_gate(
+            target_abs,
+            current_overlay,
+            inventory_state,
+            advantage,
+            base_epsilon=base_epsilon,
+        )
+        epsilon = self._benchmark_overweight_epsilon(
+            target_abs,
+            hidden=hidden,
+            base_epsilon=base_epsilon,
+            max_position=max_position,
+        )
+        adapted_abs = torch.maximum(target_abs, bench + epsilon)
+        adapted_abs = adapted_abs.clamp(min=bench, max=max_position)
+        return torch.where(gate, adapted_abs - bench, target_overlay)
 
     def _apply_benchmark_exposure_floor(
         self,
@@ -1338,7 +1426,22 @@ class Actor(nn.Module):
         )
         next_position = self._overlay_to_position(next_inventory)
         next_position = next_position.unsqueeze(-1)
-        next_position = self._apply_benchmark_overweight_adapter(next_position, inventory_state, advantage=advantage)
+        adapter_hidden = None
+        if bool(getattr(self, "use_trainable_benchmark_overweight_sizing_adapter", False)):
+            advantage_t = self._ensure_advantage(advantage, z)
+            adapter_hidden, _ = self._prepare_inputs(
+                z,
+                h,
+                inventory=inventory_state,
+                regime=regime,
+                advantage=advantage_t,
+            )
+        next_position = self._apply_benchmark_overweight_adapter(
+            next_position,
+            inventory_state,
+            advantage=advantage,
+            hidden=adapter_hidden,
+        )
         return self._apply_benchmark_exposure_floor(next_position, advantage=advantage)
 
     @torch.no_grad()

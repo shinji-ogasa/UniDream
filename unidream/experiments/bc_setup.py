@@ -282,6 +282,13 @@ def prepare_bc_setup(
     actor.benchmark_overweight_long_rate_max = ac_cfg.get("benchmark_overweight_long_rate_max", 0.0)
     actor.benchmark_overweight_advantage_index = ac_cfg.get("benchmark_overweight_advantage_index", -1)
     actor.benchmark_overweight_advantage_min = ac_cfg.get("benchmark_overweight_advantage_min", -float("inf"))
+    actor.use_trainable_benchmark_overweight_sizing_adapter = bool(
+        ac_cfg.get("use_trainable_benchmark_overweight_sizing_adapter", False)
+    )
+    actor.benchmark_overweight_trainable_delta_range = ac_cfg.get(
+        "benchmark_overweight_trainable_delta_range",
+        0.05,
+    )
     actor.use_benchmark_exposure_floor = bool(ac_cfg.get("use_benchmark_exposure_floor", False))
     actor.benchmark_exposure_floor_position = ac_cfg.get("benchmark_exposure_floor_position", benchmark_position)
     actor.benchmark_exposure_floor_advantage_index = ac_cfg.get("benchmark_exposure_floor_advantage_index", -1)
