@@ -98,6 +98,9 @@ ac:
   benchmark_overweight_long_rate_max: 0.03
   benchmark_overweight_advantage_index: 0
   benchmark_overweight_advantage_min: 1.00
+  use_benchmark_exposure_floor: true
+  benchmark_exposure_floor_position: 1.0
+  benchmark_exposure_floor_advantage_index: -1
 actions:
   values:
   - 0.0
