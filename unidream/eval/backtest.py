@@ -57,6 +57,10 @@ class BacktestMetrics:
     sharpe_delta: float | None = None
     maxdd_delta: float | None = None
     win_rate_vs_bh: float | None = None
+    period_win_rate_vs_bh: float | None = None
+    upside_capture: float | None = None
+    downside_capture: float | None = None
+    max_underperformance_streak: int | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -76,6 +80,10 @@ class BacktestMetrics:
             "sharpe_delta": self.sharpe_delta,
             "maxdd_delta": self.maxdd_delta,
             "win_rate_vs_bh": self.win_rate_vs_bh,
+            "period_win_rate_vs_bh": self.period_win_rate_vs_bh,
+            "upside_capture": self.upside_capture,
+            "downside_capture": self.downside_capture,
+            "max_underperformance_streak": self.max_underperformance_streak,
         }
 
 
@@ -161,6 +169,40 @@ def compute_annual_return(total_return: float, period_years: float) -> float:
     return float(equity_end ** (1.0 / period_years) - 1.0)
 
 
+def compute_period_win_rate(pnl: np.ndarray, benchmark_pnl: np.ndarray, period_bars: int) -> float:
+    if len(pnl) == 0:
+        return 0.0
+    period_bars = max(int(period_bars), 1)
+    wins = []
+    for start in range(0, len(pnl), period_bars):
+        rel = float(pnl[start:start + period_bars].sum() - benchmark_pnl[start:start + period_bars].sum())
+        wins.append(rel > 0.0)
+    return float(np.mean(wins)) if wins else 0.0
+
+
+def compute_capture_ratio(pnl: np.ndarray, benchmark_pnl: np.ndarray, positive_benchmark: bool) -> float | None:
+    mask = benchmark_pnl > 0.0 if positive_benchmark else benchmark_pnl < 0.0
+    if not np.any(mask):
+        return None
+    denom = float(benchmark_pnl[mask].sum())
+    if abs(denom) < 1e-12:
+        return None
+    return float(pnl[mask].sum() / denom)
+
+
+def max_consecutive_underperformance(pnl: np.ndarray, benchmark_pnl: np.ndarray) -> int:
+    rel_under = pnl <= benchmark_pnl
+    longest = 0
+    current = 0
+    for under in rel_under:
+        if bool(under):
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return int(longest)
+
+
 class Backtest:
     """バックテスト実行クラス.
 
@@ -240,6 +282,10 @@ class Backtest:
         sharpe_delta = None
         maxdd_delta = None
         win_rate_vs_bh = None
+        period_win_rate_vs_bh = None
+        upside_capture = None
+        downside_capture = None
+        max_underperformance_streak = None
         if self.benchmark_positions is not None:
             bench_pnl = compute_pnl(
                 self.returns,
@@ -257,6 +303,11 @@ class Backtest:
             sharpe_delta = sharpe - benchmark_sharpe
             maxdd_delta = abs(max_dd) - abs(benchmark_max_drawdown)
             win_rate_vs_bh = float(np.mean(pnl > bench_pnl))
+            period_bars = max(int(round(self.ann_factor / 12)), 1)
+            period_win_rate_vs_bh = compute_period_win_rate(pnl, bench_pnl, period_bars)
+            upside_capture = compute_capture_ratio(pnl, bench_pnl, positive_benchmark=True)
+            downside_capture = compute_capture_ratio(pnl, bench_pnl, positive_benchmark=False)
+            max_underperformance_streak = max_consecutive_underperformance(pnl, bench_pnl)
 
         return BacktestMetrics(
             sharpe=sharpe,
@@ -275,6 +326,10 @@ class Backtest:
             sharpe_delta=sharpe_delta,
             maxdd_delta=maxdd_delta,
             win_rate_vs_bh=win_rate_vs_bh,
+            period_win_rate_vs_bh=period_win_rate_vs_bh,
+            upside_capture=upside_capture,
+            downside_capture=downside_capture,
+            max_underperformance_streak=max_underperformance_streak,
             equity_curve=equity,
             pnl_series=pnl,
         )

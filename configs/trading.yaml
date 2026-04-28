@@ -61,6 +61,7 @@ ac:
     overweight: 0.05
   route_neutral_init_bias: 0.5
   selector_max_turnover: 4.5
+  selector_win_rate_metric: period
   short_underweight_rate_max: 0.35
   target_aux_coef: 1.5
   td3bc_alpha: 2.5

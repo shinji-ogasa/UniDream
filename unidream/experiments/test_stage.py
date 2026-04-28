@@ -8,6 +8,155 @@ ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
 EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
 
 
+def _predict_with_policy_flags(
+    actor,
+    z,
+    h,
+    *,
+    regime_np,
+    advantage_np,
+    device: str,
+    use_floor: bool,
+    use_adapter: bool,
+) -> np.ndarray:
+    sentinel = object()
+    saved = {
+        "use_benchmark_exposure_floor": getattr(actor, "use_benchmark_exposure_floor", sentinel),
+        "use_benchmark_overweight_adapter": getattr(actor, "use_benchmark_overweight_adapter", sentinel),
+    }
+    actor.use_benchmark_exposure_floor = use_floor
+    actor.use_benchmark_overweight_adapter = use_adapter
+    try:
+        return actor.predict_positions(
+            z,
+            h,
+            regime_np=regime_np,
+            advantage_np=advantage_np,
+            device=device,
+        )
+    finally:
+        for key, value in saved.items():
+            if value is sentinel:
+                try:
+                    delattr(actor, key)
+                except AttributeError:
+                    pass
+            else:
+                setattr(actor, key, value)
+
+
+def _component_diagnostics(
+    *,
+    actor,
+    positions: np.ndarray,
+    z,
+    h,
+    test_returns,
+    test_regime_probs,
+    test_advantage_values,
+    device: str,
+    costs_cfg: dict,
+    cfg: dict,
+    benchmark_positions_fn,
+    benchmark_position: float,
+    backtest_cls,
+    action_stats_fn,
+) -> dict:
+    use_floor = bool(getattr(actor, "use_benchmark_exposure_floor", False))
+    use_adapter = bool(getattr(actor, "use_benchmark_overweight_adapter", False))
+    if not (use_floor or use_adapter):
+        return {}
+
+    variants: dict[str, np.ndarray] = {"current": positions}
+    if use_floor:
+        variants["no_floor"] = _predict_with_policy_flags(
+            actor,
+            z,
+            h,
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+            use_floor=False,
+            use_adapter=use_adapter,
+        )
+    if use_adapter:
+        variants["no_adapter"] = _predict_with_policy_flags(
+            actor,
+            z,
+            h,
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+            use_floor=use_floor,
+            use_adapter=False,
+        )
+    if use_floor and use_adapter:
+        variants["floor_only"] = _predict_with_policy_flags(
+            actor,
+            z,
+            h,
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+            use_floor=True,
+            use_adapter=False,
+        )
+        variants["adapter_only"] = _predict_with_policy_flags(
+            actor,
+            z,
+            h,
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+            use_floor=False,
+            use_adapter=True,
+        )
+        variants["neither"] = _predict_with_policy_flags(
+            actor,
+            z,
+            h,
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+            use_floor=False,
+            use_adapter=False,
+        )
+
+    result = {}
+    for name, pos in variants.items():
+        t = min(len(test_returns), len(pos))
+        metrics = backtest_cls(
+            test_returns[:t],
+            pos[:t],
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+            interval=cfg.get("data", {}).get("interval", "15m"),
+            benchmark_positions=benchmark_positions_fn(t),
+        ).run()
+        stats = action_stats_fn(pos[:t], benchmark_position=benchmark_position)
+        result[name] = {
+            "alpha_excess_pt": 100.0 * float(metrics.alpha_excess or 0.0),
+            "sharpe_delta": float(metrics.sharpe_delta or 0.0),
+            "maxdd_delta_pt": 100.0 * float(metrics.maxdd_delta or 0.0),
+            "turnover": float(stats["turnover"]),
+            "long": float(stats["long"]),
+            "short": float(stats["short"]),
+            "flat": float(stats["flat"]),
+        }
+
+    current = variants["current"][: len(positions)]
+    if "no_floor" in variants:
+        delta = current - variants["no_floor"][: len(current)]
+        result["floor_effect_rate"] = float(np.mean(delta > 1e-6))
+        result["floor_mean_increment"] = float(np.mean(delta[delta > 1e-6])) if np.any(delta > 1e-6) else 0.0
+    if "no_adapter" in variants:
+        delta = current - variants["no_adapter"][: len(current)]
+        result["adapter_effect_rate"] = float(np.mean(np.abs(delta) > 1e-6))
+        result["adapter_mean_abs_delta"] = float(np.mean(np.abs(delta[np.abs(delta) > 1e-6]))) if np.any(np.abs(delta) > 1e-6) else 0.0
+    return result
+
+
 def run_test_stage(
     *,
     actor,
@@ -128,6 +277,22 @@ def run_test_stage(
     )
     test_stats = action_stats_fn(positions[:t_min], benchmark_position=benchmark_position)
     test_scorecard = m2_scorecard_fn(metrics, test_stats, cfg)
+    policy_diagnostics = _component_diagnostics(
+        actor=actor,
+        positions=positions[:t_min],
+        z=enc_test["z"],
+        h=enc_test["h"],
+        test_returns=test_returns,
+        test_regime_probs=test_regime_probs,
+        test_advantage_values=test_advantage_values,
+        device=device,
+        costs_cfg=costs_cfg,
+        cfg=cfg,
+        benchmark_positions_fn=benchmark_positions_fn,
+        benchmark_position=benchmark_position,
+        backtest_cls=backtest_cls,
+        action_stats_fn=action_stats_fn,
+    )
 
     print(f"  Sharpe:   {metrics.sharpe:.3f}")
     print(f"  Sortino:  {metrics.sortino:.3f}")
@@ -139,7 +304,40 @@ def run_test_stage(
         print(f"  SharpeΔ:  {(metrics.sharpe_delta or 0.0):+.3f}")
         print(f"  MaxDDΔ:   {100.0 * (metrics.maxdd_delta or 0.0):+.2f} pt")
         print(f"  WinRate:  {(metrics.win_rate_vs_bh or 0.0):.1%}")
+        print(f"  PeriodWin:{(getattr(metrics, 'period_win_rate_vs_bh', None) or 0.0):.1%}")
+        if getattr(metrics, "upside_capture", None) is not None:
+            print(
+                f"  Capture:  up={metrics.upside_capture:.3f} "
+                f"down={metrics.downside_capture if metrics.downside_capture is not None else float('nan'):.3f} "
+                f"under_streak={metrics.max_underperformance_streak}"
+            )
         print(f"  Score:    {format_m2_scorecard_fn(test_scorecard)}")
+    if policy_diagnostics:
+        print("  Component attribution:")
+        for name in ("neither", "adapter_only", "floor_only", "current"):
+            if name not in policy_diagnostics:
+                continue
+            rec = policy_diagnostics[name]
+            print(
+                f"    {name}: alpha={rec['alpha_excess_pt']:+.2f}pt "
+                f"sharpeD={rec['sharpe_delta']:+.3f} "
+                f"maxddD={rec['maxdd_delta_pt']:+.2f}pt "
+                f"turnover={rec['turnover']:.2f} "
+                f"long={rec['long']:.0%} short={rec['short']:.0%} flat={rec['flat']:.0%}"
+            )
+        effect_bits = []
+        if "floor_effect_rate" in policy_diagnostics:
+            effect_bits.append(
+                f"floor_effect={policy_diagnostics['floor_effect_rate']:.1%}"
+                f"/+{policy_diagnostics['floor_mean_increment']:.3f}"
+            )
+        if "adapter_effect_rate" in policy_diagnostics:
+            effect_bits.append(
+                f"adapter_effect={policy_diagnostics['adapter_effect_rate']:.1%}"
+                f"/{policy_diagnostics['adapter_mean_abs_delta']:.3f}"
+            )
+        if effect_bits:
+            print(f"    effects: {' '.join(effect_bits)}")
     print(
         f"  PnL attr: long={test_attr['long_gross']:+.4f}  "
         f"short={test_attr['short_gross']:+.4f}  "
@@ -155,5 +353,6 @@ def run_test_stage(
         "scorecard": test_scorecard,
         "positions": positions[:t_min],
         "test_returns": test_returns[:t_min],
+        "policy_diagnostics": policy_diagnostics,
         "completed_stage": "test",
     }

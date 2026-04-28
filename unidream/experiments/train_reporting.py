@@ -27,6 +27,15 @@ def aggregate_scorecards(scorecards: list[dict]) -> dict | None:
         "sharpe_delta": float(np.mean([s["sharpe_delta"] for s in scorecards])),
         "maxdd_delta_pt": float(np.mean([s["maxdd_delta_pt"] for s in scorecards])),
         "win_rate_vs_bh": float(np.mean([s["win_rate_vs_bh"] for s in scorecards])),
+        "period_win_rate_vs_bh": float(np.mean([
+            s.get("period_win_rate_vs_bh", s["win_rate_vs_bh"]) for s in scorecards
+        ])),
+        "upside_capture": float(np.nanmean([
+            np.nan if s.get("upside_capture") is None else s["upside_capture"] for s in scorecards
+        ])),
+        "downside_capture": float(np.nanmean([
+            np.nan if s.get("downside_capture") is None else s["downside_capture"] for s in scorecards
+        ])),
         "collapse_guard_pass": all(s["collapse_guard_pass"] for s in scorecards),
         "collapse_guard_reasons": sorted(
             {reason for s in scorecards for reason in s["collapse_guard_reasons"]}

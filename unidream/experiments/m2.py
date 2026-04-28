@@ -44,12 +44,15 @@ def m2_scorecard(metrics, stats: dict, cfg: dict) -> dict:
     sharpe_delta = float(metrics.sharpe_delta or 0.0)
     maxdd_delta_pt = 100.0 * float(metrics.maxdd_delta or 0.0)
     win_rate_vs_bh = float(metrics.win_rate_vs_bh or 0.0)
+    period_win_rate_vs_bh = float(getattr(metrics, "period_win_rate_vs_bh", None) or win_rate_vs_bh)
+    upside_capture = getattr(metrics, "upside_capture", None)
+    downside_capture = getattr(metrics, "downside_capture", None)
     collapse_pass, collapse_reasons = collapse_guard(stats, benchmark_position)
     required = {
         "alpha_excess": alpha_excess_pt >= goals["alpha_excess_pt"],
         "sharpe_delta": sharpe_delta >= goals["sharpe_delta"],
         "maxdd_delta": maxdd_delta_pt <= goals["maxdd_delta_pt"],
-        "win_rate_vs_bh": win_rate_vs_bh >= goals["win_rate_vs_bh"],
+        "win_rate_vs_bh": period_win_rate_vs_bh >= goals["win_rate_vs_bh"],
         "collapse_guard": collapse_pass,
     }
     stretch = {
@@ -61,6 +64,9 @@ def m2_scorecard(metrics, stats: dict, cfg: dict) -> dict:
         "sharpe_delta": sharpe_delta,
         "maxdd_delta_pt": maxdd_delta_pt,
         "win_rate_vs_bh": win_rate_vs_bh,
+        "period_win_rate_vs_bh": period_win_rate_vs_bh,
+        "upside_capture": None if upside_capture is None else float(upside_capture),
+        "downside_capture": None if downside_capture is None else float(downside_capture),
         "collapse_guard_pass": collapse_pass,
         "collapse_guard_reasons": collapse_reasons,
         "required": required,
@@ -79,6 +85,7 @@ def format_m2_scorecard(scorecard: dict) -> str:
         f"alpha={scorecard['alpha_excess_pt']:+.2f}pt "
         f"sharpeΔ={scorecard['sharpe_delta']:+.3f} "
         f"maxddΔ={scorecard['maxdd_delta_pt']:+.2f}pt "
-        f"win={scorecard['win_rate_vs_bh']:.1%} "
+        f"barwin={scorecard['win_rate_vs_bh']:.1%} "
+        f"periodwin={scorecard['period_win_rate_vs_bh']:.1%} "
         f"guard={guard}"
     )

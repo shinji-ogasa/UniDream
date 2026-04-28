@@ -105,6 +105,7 @@ def _selector_cfg(ac_cfg: dict) -> dict:
         "reject_sharpe_floor": float(ac_cfg.get("selector_reject_sharpe_floor", -1.0)),
         "reject_maxdd_worse_pt": float(ac_cfg.get("selector_reject_maxdd_worse_pt", 5.0)),
         "reject_win_rate_floor": float(ac_cfg.get("selector_reject_win_rate_floor", 0.35)),
+        "win_rate_metric": str(ac_cfg.get("selector_win_rate_metric", "period")),
         "max_turnover": float(ac_cfg.get("selector_max_turnover", 8.0)),
         "min_avg_hold": float(ac_cfg.get("selector_min_avg_hold", 3.0)),
         "max_directional_ratio": float(ac_cfg.get("selector_max_directional_ratio", 1.01)),
@@ -146,6 +147,8 @@ def _selector_candidate(
     max_dd = abs(float(metrics.max_drawdown or 0.0))
     maxdd_delta_pt = 100.0 * float(metrics.maxdd_delta or 0.0)
     win_rate_vs_bh = float(metrics.win_rate_vs_bh or 0.0)
+    period_win_rate_vs_bh = float(getattr(metrics, "period_win_rate_vs_bh", None) or win_rate_vs_bh)
+    selector_win_rate = period_win_rate_vs_bh if selector_cfg["win_rate_metric"] == "period" else win_rate_vs_bh
     overlay_mode = abs(float(benchmark_position)) > 1e-8
     benchmark_hold = _is_benchmark_hold(stats, benchmark_position)
     directional_ratio = max(stats["long"], stats["short"])
@@ -160,7 +163,7 @@ def _selector_candidate(
             reject_reason = f"sharpeΔ<{selector_cfg['reject_sharpe_floor']:.2f}"
         elif maxdd_delta_pt > selector_cfg["reject_maxdd_worse_pt"]:
             reject_reason = f"maxddΔ>{selector_cfg['reject_maxdd_worse_pt']:.1f}pt"
-        elif win_rate_vs_bh < selector_cfg["reject_win_rate_floor"]:
+        elif selector_win_rate < selector_cfg["reject_win_rate_floor"]:
             reject_reason = f"win<{selector_cfg['reject_win_rate_floor']:.0%}"
         elif stats["turnover"] > selector_cfg["max_turnover"]:
             reject_reason = f"turnover>{selector_cfg['max_turnover']:.2f}"
@@ -186,7 +189,7 @@ def _selector_candidate(
         - selector_cfg["maxdd_score_coef"] * max_dd
         - selector_cfg["maxdd_worse_score_coef"] * max(0.0, maxdd_delta_pt)
         + selector_cfg["maxdd_improve_score_coef"] * max(0.0, -maxdd_delta_pt)
-        + selector_cfg["win_rate_score_coef"] * (win_rate_vs_bh - 0.5)
+        + selector_cfg["win_rate_score_coef"] * (selector_win_rate - 0.5)
         - directional_penalty
     )
     if scorecard["m2_pass"]:
@@ -205,7 +208,8 @@ def _selector_candidate(
     )
     label = label.replace(
         " score=",
-        f" maxddΔ={maxdd_delta_pt:+.2f}pt win={win_rate_vs_bh:.1%} score=",
+        f" maxddΔ={maxdd_delta_pt:+.2f}pt "
+        f"barwin={win_rate_vs_bh:.1%} periodwin={period_win_rate_vs_bh:.1%} score=",
         1,
     )
     label += f" M2={'pass' if scorecard['m2_pass'] else 'miss'}"
@@ -221,6 +225,8 @@ def _selector_candidate(
         "max_drawdown": max_dd,
         "maxdd_delta_pt": maxdd_delta_pt,
         "win_rate_vs_bh": win_rate_vs_bh,
+        "period_win_rate_vs_bh": period_win_rate_vs_bh,
+        "selector_win_rate": selector_win_rate,
         "stats": stats,
         "reject_reason": reject_reason,
         "benchmark_hold": benchmark_hold,
@@ -245,7 +251,7 @@ def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict
         active_is_strong = (
             best["alpha_excess_pt"] >= selector_cfg["active_alpha_min_pt"]
             and best["maxdd_delta_pt"] <= selector_cfg["active_maxdd_worse_pt"]
-            and best["win_rate_vs_bh"] >= selector_cfg["active_min_win_rate"]
+            and best["selector_win_rate"] >= selector_cfg["active_min_win_rate"]
             and best["score"] >= benchmark_hold["score"] + selector_cfg["active_score_margin"]
             and (
                 best["scorecard"]["m2_pass"]
@@ -274,7 +280,7 @@ def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict
             0 if c["benchmark_hold"] else 1,
             c["stats"]["turnover"],
             c["maxdd_delta_pt"],
-            -c["win_rate_vs_bh"],
+            -c["selector_win_rate"],
             -c["score"],
         ),
     )
