@@ -119,6 +119,15 @@ def _selector_cfg(ac_cfg: dict) -> dict:
         "maxdd_worse_score_coef": float(ac_cfg.get("selector_maxdd_worse_score_coef", 1.5)),
         "maxdd_improve_score_coef": float(ac_cfg.get("selector_maxdd_improve_score_coef", 0.5)),
         "win_rate_score_coef": float(ac_cfg.get("selector_win_rate_score_coef", 20.0)),
+        "alpha_score_coef": float(ac_cfg.get("selector_alpha_score_coef", 2.0)),
+        "sharpe_score_coef": float(ac_cfg.get("selector_sharpe_score_coef", 5.0)),
+        "turnover_target": float(ac_cfg.get("selector_turnover_target", ac_cfg.get("selector_max_turnover", 8.0))),
+        "turnover_excess_score_coef": float(ac_cfg.get("selector_turnover_excess_score_coef", 0.0)),
+        "period_win_bonus_coef": float(ac_cfg.get("selector_period_win_bonus_coef", 0.0)),
+        "max_long_rate": float(ac_cfg.get("selector_max_long_rate", 1.0)),
+        "max_short_rate": float(ac_cfg.get("selector_max_short_rate", 1.0)),
+        "hard_maxdd_delta_pt": float(ac_cfg.get("selector_hard_maxdd_delta_pt", float("inf"))),
+        "near_best_tiebreak": str(ac_cfg.get("selector_near_best_tiebreak", "conservative")),
         "m2_bonus": float(ac_cfg.get("selector_m2_bonus", 15.0)),
         "stretch_bonus": float(ac_cfg.get("selector_stretch_bonus", 5.0)),
         "active_alpha_min_pt": float(ac_cfg.get("selector_active_alpha_min_pt", 8.0)),
@@ -168,6 +177,12 @@ def _selector_candidate(
             reject_reason = f"win<{selector_cfg['reject_win_rate_floor']:.0%}"
         elif stats["turnover"] > selector_cfg["max_turnover"]:
             reject_reason = f"turnover>{selector_cfg['max_turnover']:.2f}"
+        elif stats["long"] > selector_cfg["max_long_rate"]:
+            reject_reason = f"long>{selector_cfg['max_long_rate']:.0%}"
+        elif stats["short"] > selector_cfg["max_short_rate"]:
+            reject_reason = f"short>{selector_cfg['max_short_rate']:.0%}"
+        elif maxdd_delta_pt > selector_cfg["hard_maxdd_delta_pt"]:
+            reject_reason = f"hard_maxddΔ>{selector_cfg['hard_maxdd_delta_pt']:.1f}pt"
         elif stats["avg_hold"] < selector_cfg["min_avg_hold"]:
             reject_reason = f"avg_hold<{selector_cfg['min_avg_hold']:.1f}"
         elif directional_collapse or not scorecard["collapse_guard_pass"]:
@@ -183,14 +198,22 @@ def _selector_candidate(
             0.0, directional_ratio - selector_cfg["directional_soft_limit"]
         )
 
+    turnover = float(stats["turnover"])
+    turnover_penalty = selector_cfg["turnover_score_coef"] * turnover
+    turnover_penalty += selector_cfg["turnover_excess_score_coef"] * max(
+        0.0,
+        turnover - selector_cfg["turnover_target"],
+    )
+    period_bonus = selector_cfg["period_win_bonus_coef"] * max(0.0, selector_win_rate - 0.5)
     score = (
-        2.0 * alpha_excess_pt
-        + 5.0 * sharpe_delta
-        - selector_cfg["turnover_score_coef"] * float(stats["turnover"])
+        selector_cfg["alpha_score_coef"] * alpha_excess_pt
+        + selector_cfg["sharpe_score_coef"] * sharpe_delta
+        - turnover_penalty
         - selector_cfg["maxdd_score_coef"] * max_dd
         - selector_cfg["maxdd_worse_score_coef"] * max(0.0, maxdd_delta_pt)
         + selector_cfg["maxdd_improve_score_coef"] * max(0.0, -maxdd_delta_pt)
         + selector_cfg["win_rate_score_coef"] * (selector_win_rate - 0.5)
+        + period_bonus
         - directional_penalty
     )
     if scorecard["m2_pass"]:
@@ -205,7 +228,7 @@ def _selector_candidate(
     label = (
         f"alpha={alpha_excess_pt:+.2f}pt sharpeΔ={sharpe_delta:+.3f} "
         f"score={score:.3f} long={stats['long']:.0%} short={stats['short']:.0%} "
-        f"flat={stats['flat']:.0%}"
+        f"flat={stats['flat']:.0%} turnover={turnover:.2f}"
     )
     label = label.replace(
         " score=",
@@ -275,16 +298,31 @@ def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict
     ]
     if not near_best:
         near_best = [best]
-    chosen = min(
-        near_best,
-        key=lambda c: (
+    tiebreak_mode = selector_cfg.get("near_best_tiebreak", "conservative")
+    if tiebreak_mode == "balanced":
+        key_fn = lambda c: (
+            -c["sharpe_delta"],
+            c["maxdd_delta_pt"],
+            -c["selector_win_rate"],
+            c["stats"]["turnover"],
+            -c["score"],
+        )
+    elif tiebreak_mode == "score":
+        key_fn = lambda c: (
+            -c["score"],
+            -c["sharpe_delta"],
+            c["maxdd_delta_pt"],
+            c["stats"]["turnover"],
+        )
+    else:
+        key_fn = lambda c: (
             0 if c["benchmark_hold"] else 1,
             c["stats"]["turnover"],
             c["maxdd_delta_pt"],
             -c["selector_win_rate"],
             -c["score"],
-        ),
-    )
+        )
+    chosen = min(near_best, key=key_fn)
     return chosen
 def run_fold(
     fold_idx: int,

@@ -79,6 +79,28 @@ def _active_incremental_pnl(
     return float((current_pnl[active] - baseline_pnl[active]).sum())
 
 
+def _masked_net_pnl(
+    *,
+    returns,
+    positions: np.ndarray,
+    mask: np.ndarray,
+    costs_cfg: dict,
+) -> float:
+    t = min(len(returns), len(positions), len(mask))
+    if t <= 0:
+        return 0.0
+    active = np.asarray(mask[:t], dtype=bool)
+    if not np.any(active):
+        return 0.0
+    cost_kwargs = {
+        "spread_bps": costs_cfg.get("spread_bps", 5.0),
+        "fee_rate": costs_cfg.get("fee_rate", 0.0004),
+        "slippage_bps": costs_cfg.get("slippage_bps", 2.0),
+    }
+    pnl = compute_pnl(np.asarray(returns[:t]), np.asarray(positions[:t]), **cost_kwargs)
+    return float(pnl[active].sum())
+
+
 def _component_diagnostics(
     *,
     actor,
@@ -215,6 +237,21 @@ def _component_diagnostics(
         active = np.abs(delta) > 1e-6
         result["adapter_effect_rate"] = float(np.mean(np.abs(delta) > 1e-6))
         result["adapter_mean_abs_delta"] = float(np.mean(np.abs(delta[np.abs(delta) > 1e-6]))) if np.any(np.abs(delta) > 1e-6) else 0.0
+        result["adapter_mean_delta"] = float(np.mean(delta[active])) if np.any(active) else 0.0
+        result["adapter_positive_delta_rate"] = float(np.mean(delta[active] > 0.0)) if np.any(active) else 0.0
+        result["adapter_long_state_rate"] = float(np.mean(current > (benchmark_position + 1e-6)))
+        result["adapter_fire_net"] = _masked_net_pnl(
+            returns=test_returns,
+            positions=current,
+            mask=active,
+            costs_cfg=costs_cfg,
+        )
+        result["adapter_nonfire_net"] = _masked_net_pnl(
+            returns=test_returns,
+            positions=current,
+            mask=~active,
+            costs_cfg=costs_cfg,
+        )
         result["adapter_incremental_net"] = _active_incremental_pnl(
             returns=test_returns,
             current=current,
@@ -426,6 +463,16 @@ def run_test_stage(
             )
         if effect_bits:
             print(f"    effects: {' '.join(effect_bits)}")
+        if "adapter_effect_rate" in policy_diagnostics:
+            print(
+                "    adapter_detail: "
+                f"fire={policy_diagnostics['adapter_effect_rate']:.1%} "
+                f"mean_delta={policy_diagnostics['adapter_mean_delta']:+.4f} "
+                f"positive={policy_diagnostics['adapter_positive_delta_rate']:.1%} "
+                f"long_state={policy_diagnostics['adapter_long_state_rate']:.1%} "
+                f"fire_pnl={policy_diagnostics['adapter_fire_net']:+.4f} "
+                f"nonfire_pnl={policy_diagnostics['adapter_nonfire_net']:+.4f}"
+            )
     print(
         f"  PnL attr: long={test_attr['long_gross']:+.4f}  "
         f"short={test_attr['short_gross']:+.4f}  "
