@@ -1,0 +1,211 @@
+UniDream Training | BTCUSDT 15m | 2018-01-01 → 2024-01-01
+Device: cuda | Seed: 11 | Resume: True
+Stages: test -> test
+Costs: profile=default | spread=3.00bps fee=3.00bps slip=1.00bps => one-way Δpos=1 cost=5.50bps
+
+[Data] Loading cached features...
+  Cached: (208305, 17) | obs_dim=17
+[Data] WFO splits...
+  14 folds
+  Running selected folds only: [4, 5, 6]
+
+============================================================
+Fold 4: train 2019-01-16 → 2021-01-16 | test 2021-04-16 → 2021-07-16
+============================================================
+
+[01:30:21] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69973 steps, mean value=39.6874
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=57% de_risk=28% recovery=2% overweight=13% active=42.9% mean_adv=0.001550 top_decile_adv=0.009145
+  Transition relabel: short=26% bench=52% ow=22% mean_adv=0.001652 recovery_rate=50.3%
+  Oracle aim dist: long=24% short=30% flat=46% mean=-0.029 switches=21458 avg_hold=3.3b turnover=2024.68
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[01:30:25] [Step 2] World Model - loading checkpoint: checkpoints/acplan13_wm_control_headonly_s011\fold_4\world_model.pt
+[WM] Checkpoint loaded: checkpoints/acplan13_wm_control_headonly_s011\fold_4\world_model.pt (step=2300)
+[01:30:35] [PredictiveState] enabled: dim=25 heads=return,vol,drawdown,overweight_advantage,recovery standardize=True scale=0.25
+
+[01:30:35] [Step 3] BC - loading checkpoint: checkpoints/acplan13_wm_control_headonly_s011\fold_4\bc_actor.pt
+[AC] Actor optimizer state skipped while loading checkpoints/acplan13_wm_control_headonly_s011\fold_4\ac.pt: loaded state dict contains a parameter group that doesn't match the size of optimizer's group
+
+[01:30:35] [Step 4] AC - loaded checkpoint for downstream test
+  [ValAdj] scale=0.500 adv=0.00 alpha=+7.40pt sharpeΔ=-0.001 maxddΔ=-0.12pt barwin=8.1% periodwin=66.7% score=-0.569 long=1% short=0% flat=99% turnover=1.94 M2=miss
+  [ValAdj] selected scale=0.500 adv=0.00 (default=scale=1.000 adv=0.00) alpha=+7.40pt sharpeΔ=-0.001 maxddΔ=-0.12pt barwin=8.1% periodwin=66.7% score=-0.569 long=1% short=0% flat=99% turnover=1.94 M2=miss
+
+[01:31:20] [Step 5] Test Backtest...
+  Route dist: neutral=100% de_risk=0% overweight=0% active=0.3% conf=0.583
+  Recovery gate: mean=0.222 active=0.0%
+  Sharpe:   -2.369
+  Sortino:  -3.105
+  MaxDD:    -0.536
+  Calmar:   -3.608
+  TotalRet: -0.4811
+  AlphaEx:  -0.14 pt/yr
+  SharpeΔ:  +0.014
+  MaxDDΔ:   +0.45 pt
+  WinRate:  10.8%
+  PeriodWin:33.3%
+  Capture:  up=1.007 down=1.007 under_streak=350
+  Score:    M2=MISS stretch=miss alpha=-0.14pt sharpeΔ=+0.014 maxddΔ=+0.45pt barwin=10.8% periodwin=33.3% guard=pass
+  Component attribution:
+    neither: alpha=+0.34pt sharpeD=+0.001 maxddD=-0.61pt turnover=0.88 long=0% short=0% flat=100%
+    adapter_only: alpha=+0.11pt sharpeD=+0.012 maxddD=+0.07pt turnover=4.00 long=2% short=0% flat=98%
+    floor_only: alpha=+0.00pt sharpeD=+0.000 maxddD=-0.00pt turnover=0.10 long=0% short=0% flat=100%
+    gate_off: alpha=-2.02pt sharpeD=-0.269 maxddD=+2.86pt turnover=116.68 long=3% short=0% flat=97%
+    current: alpha=-0.14pt sharpeD=+0.014 maxddD=+0.45pt turnover=2.94 long=2% short=0% flat=98%
+    effects: floor_effect=87.2%/+0.015/pnl=-0.0091 adapter_effect=16.6%/0.022/pnl=-0.0048 adv_gate_effect=34.3%/0.035/pnl=+0.0513
+    adapter_detail: fire=16.6% mean_delta=+0.0223 positive=98.2% long_state=22.9% fire_pnl=-0.2030 nonfire_pnl=-0.4529
+  PnL attr: long=-0.6538  short=+0.0000  cost=0.0022  net=-0.6560
+  Test dist: long=2% short=0% flat=98% mean=+0.004 switches=59 avg_hold=147.6b turnover=2.94
+
+============================================================
+Fold 5: train 2019-04-16 → 2021-04-16 | test 2021-07-16 → 2021-10-16
+============================================================
+
+[01:36:19] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69982 steps, mean value=45.3379
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=54% de_risk=29% recovery=2% overweight=15% active=46.1% mean_adv=0.001761 top_decile_adv=0.009860
+  Transition relabel: short=27% bench=49% ow=24% mean_adv=0.001870 recovery_rate=49.1%
+  Oracle aim dist: long=26% short=31% flat=42% mean=-0.029 switches=22236 avg_hold=3.1b turnover=2110.60
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[01:36:22] [Step 2] World Model - loading checkpoint: checkpoints/acplan13_wm_control_headonly_s011\fold_5\world_model.pt
+[WM] Checkpoint loaded: checkpoints/acplan13_wm_control_headonly_s011\fold_5\world_model.pt (step=2300)
+[01:36:31] [PredictiveState] enabled: dim=25 heads=return,vol,drawdown,overweight_advantage,recovery standardize=True scale=0.25
+
+[01:36:31] [Step 3] BC - loading checkpoint: checkpoints/acplan13_wm_control_headonly_s011\fold_5\bc_actor.pt
+[AC] Actor optimizer state skipped while loading checkpoints/acplan13_wm_control_headonly_s011\fold_5\ac.pt: loaded state dict contains a parameter group that doesn't match the size of optimizer's group
+
+[01:36:32] [Step 4] AC - loaded checkpoint for downstream test
+  [ValAdj] scale=0.500 adv=0.00 alpha=+0.06pt sharpeΔ=+0.035 maxddΔ=+0.05pt barwin=7.5% periodwin=66.7% score=-30.396 long=0% short=0% flat=100% turnover=2.44 M2=miss
+  [ValAdj] selected scale=0.500 adv=0.00 (default=scale=1.000 adv=0.00) alpha=+0.06pt sharpeΔ=+0.035 maxddΔ=+0.05pt barwin=7.5% periodwin=66.7% score=-30.396 long=0% short=0% flat=100% turnover=2.44 M2=miss
+
+[01:37:17] [Step 5] Test Backtest...
+  Route dist: neutral=99% de_risk=1% overweight=0% active=1.2% conf=0.532
+  Recovery gate: mean=0.219 active=0.1%
+  Sharpe:   3.778
+  Sortino:  5.206
+  MaxDD:    -0.239
+  Calmar:   15.245
+  TotalRet: 0.9150
+  AlphaEx:  -7.34 pt/yr
+  SharpeΔ:  -0.022
+  MaxDDΔ:   +0.29 pt
+  WinRate:  3.1%
+  PeriodWin:75.0%
+  Capture:  up=1.002 down=1.002 under_streak=2806
+  Score:    M2=MISS stretch=miss alpha=-7.34pt sharpeΔ=-0.022 maxddΔ=+0.29pt barwin=3.1% periodwin=75.0% guard=pass
+  Component attribution:
+    neither: alpha=-101.13pt sharpeD=-0.005 maxddD=-0.57pt turnover=0.73 long=0% short=0% flat=100%
+    adapter_only: alpha=-91.78pt sharpeD=-0.031 maxddD=+0.02pt turnover=2.03 long=0% short=0% flat=100%
+    floor_only: alpha=+0.00pt sharpeD=+0.000 maxddD=+0.00pt turnover=0.00 long=0% short=0% flat=100%
+    gate_off: alpha=+146.85pt sharpeD=-0.007 maxddD=+0.89pt turnover=1.55 long=0% short=0% flat=100%
+    current: alpha=-7.34pt sharpeD=-0.022 maxddD=+0.29pt turnover=0.97 long=0% short=0% flat=100%
+    effects: floor_effect=93.8%/+0.027/pnl=+0.0164 adapter_effect=6.2%/0.021/pnl=-0.0014 adv_gate_effect=100.0%/0.041/pnl=-0.0276
+    adapter_detail: fire=6.2% mean_delta=+0.0207 positive=99.8% long_state=6.2% fire_pnl=+0.0441 nonfire_pnl=+0.6056
+  PnL attr: long=+0.6508  short=+0.0000  cost=0.0011  net=+0.6497
+  Test dist: long=0% short=0% flat=100% mean=+0.001 switches=19 avg_hold=463.5b turnover=0.97
+
+============================================================
+Fold 6: train 2019-07-16 → 2021-07-16 | test 2021-10-16 → 2022-01-16
+============================================================
+
+[01:42:19] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 70001 steps, mean value=52.1132
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.376 switches=1071 avg_hold=65.4b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=53% de_risk=30% recovery=2% overweight=15% active=47.4% mean_adv=0.001874 top_decile_adv=0.010318
+  Transition relabel: short=28% bench=48% ow=23% mean_adv=0.001980 recovery_rate=48.4%
+  Oracle aim dist: long=26% short=33% flat=41% mean=-0.036 switches=22310 avg_hold=3.1b turnover=2121.75
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[01:42:22] [Step 2] World Model - loading checkpoint: checkpoints/acplan13_wm_control_headonly_s011\fold_6\world_model.pt
+[WM] Checkpoint loaded: checkpoints/acplan13_wm_control_headonly_s011\fold_6\world_model.pt (step=2300)
+[01:42:32] [PredictiveState] enabled: dim=25 heads=return,vol,drawdown,overweight_advantage,recovery standardize=True scale=0.25
+
+[01:42:32] [Step 3] BC - loading checkpoint: checkpoints/acplan13_wm_control_headonly_s011\fold_6\bc_actor.pt
+[AC] Actor optimizer state skipped while loading checkpoints/acplan13_wm_control_headonly_s011\fold_6\ac.pt: loaded state dict contains a parameter group that doesn't match the size of optimizer's group
+
+[01:42:32] [Step 4] AC - loaded checkpoint for downstream test
+  [ValAdj] scale=0.500 adv=0.00 alpha=-5.50pt sharpeΔ=-0.009 maxddΔ=-0.01pt barwin=9.7% periodwin=0.0% score=-536.560 long=0% short=0% flat=100% turnover=1.24 M2=miss reject=win<35%
+  [ValAdj] selected scale=0.500 adv=0.00 (default=scale=1.000 adv=0.00) alpha=-5.50pt sharpeΔ=-0.009 maxddΔ=-0.01pt barwin=9.7% periodwin=0.0% score=-536.560 long=0% short=0% flat=100% turnover=1.24 M2=miss reject=win<35%
+
+[01:43:18] [Step 5] Test Backtest...
+  Route dist: neutral=98% de_risk=2% overweight=0% active=1.8% conf=0.534
+  Recovery gate: mean=0.243 active=0.0%
+  Sharpe:   -2.100
+  Sortino:  -2.848
+  MaxDD:    -0.419
+  Calmar:   -2.786
+  TotalRet: -0.2942
+  AlphaEx:  +0.02 pt/yr
+  SharpeΔ:  +0.003
+  MaxDDΔ:   -0.05 pt
+  WinRate:  9.8%
+  PeriodWin:50.0%
+  Capture:  up=1.001 down=1.001 under_streak=104
+  Score:    M2=MISS stretch=miss alpha=+0.02pt sharpeΔ=+0.003 maxddΔ=-0.05pt barwin=9.8% periodwin=50.0% guard=pass
+  Component attribution:
+    neither: alpha=+1.09pt sharpeD=-0.004 maxddD=-1.05pt turnover=1.87 long=0% short=0% flat=100%
+    adapter_only: alpha=+0.58pt sharpeD=-0.019 maxddD=-0.98pt turnover=3.35 long=0% short=0% flat=100%
+    floor_only: alpha=-0.01pt sharpeD=-0.001 maxddD=+0.00pt turnover=0.28 long=0% short=0% flat=100%
+    gate_off: alpha=-1.41pt sharpeD=-0.011 maxddD=+1.21pt turnover=3.41 long=0% short=0% flat=100%
+    current: alpha=+0.02pt sharpeD=+0.003 maxddD=-0.05pt turnover=1.28 long=0% short=0% flat=100%
+    effects: floor_effect=100.0%/+0.026/pnl=-0.0056 adapter_effect=8.7%/0.012/pnl=+0.0003 adv_gate_effect=100.0%/0.035/pnl=+0.0148
+    adapter_detail: fire=8.7% mean_delta=+0.0121 positive=97.5% long_state=21.4% fire_pnl=+0.0131 nonfire_pnl=-0.3615
+  PnL attr: long=-0.3471  short=+0.0000  cost=0.0013  net=-0.3484
+  Test dist: long=0% short=0% flat=100% mean=+0.001 switches=26 avg_hold=339.7b turnover=1.28
+
+[Eval] Overfitting Diagnostics (simplified)...
+  PBO (simplified): 0.3333 (< 0.5 is better)
+  Sharpe t-stat (DSR, n_trials=1): 124.1190 (> 0 is better)
+
+[Eval] Regime Analysis...
+============================================================
+Regime-based Backtest Report
+============================================================
+
+Regime Statistics (returns):
+ regime      mean      std    sharpe
+      0 -0.000066 0.009904 -0.006696
+      1 -0.000038 0.002846 -0.013311
+      2  0.000029 0.003119  0.009405
+
+Backtest Metrics by Regime:
+
+  Regime 0 (12.0% of bars, 3163 bars):
+    Sharpe:    -1.783
+    Sortino:   -2.675
+    MaxDD:     -0.594
+    Calmar:    -5.015
+    TotalRet:  -0.2688
+
+  Regime 1 (44.0% of bars, 11602 bars):
+    Sharpe:    -3.015
+    Sortino:   -4.750
+    MaxDD:     -0.449
+    Calmar:    -2.662
+    TotalRet:  -0.3959
+
+  Regime 2 (44.0% of bars, 11584 bars):
+    Sharpe:    2.421
+    Sortino:   3.876
+    MaxDD:     -0.158
+    Calmar:    11.167
+    TotalRet:  0.5838
+
+============================================================
+Summary
+============================================================
+  Fold 4: Sharpe=-2.369, MaxDD=-0.536, Calmar=-3.608, TotalRet=-0.4811 | M2=MISS stretch=miss alpha=-0.14pt sharpeΔ=+0.014 maxddΔ=+0.45pt barwin=10.8% periodwin=33.3% guard=pass
+  Fold 5: Sharpe=3.778, MaxDD=-0.239, Calmar=15.245, TotalRet=0.9150 | M2=MISS stretch=miss alpha=-7.34pt sharpeΔ=-0.022 maxddΔ=+0.29pt barwin=3.1% periodwin=75.0% guard=pass
+  Fold 6: Sharpe=-2.100, MaxDD=-0.419, Calmar=-2.786, TotalRet=-0.2942 | M2=MISS stretch=miss alpha=+0.02pt sharpeΔ=+0.003 maxddΔ=-0.05pt barwin=9.8% periodwin=50.0% guard=pass
+  Mean Sharpe: -0.230
+  Aggregate M2: M2=MISS stretch=miss alpha=-2.49pt sharpeΔ=-0.001 maxddΔ=+0.23pt barwin=7.9% periodwin=52.8% guard=pass
+  PBO (simplified): 0.3333 | Sharpe t-stat: 124.1190

@@ -1,0 +1,174 @@
+UniDream Training | BTCUSDT 15m | 2018-01-01 Å® 2024-01-01
+Device: cuda | Seed: 11 | Resume: False
+Stages: wm -> wm
+Costs: profile=default | spread=3.00bps fee=3.00bps slip=1.00bps => one-way É¢pos=1 cost=5.50bps
+
+[Data] Loading cached features...
+  Cached: (208305, 17) | obs_dim=17
+[Data] WFO splits...
+  14 folds
+  Running selected folds only: [4, 5, 6]
+
+============================================================
+Fold 4: train 2019-01-16 Å® 2021-01-16 | test 2021-04-16 Å® 2021-07-16
+============================================================
+
+[22:14:50] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69973 steps, mean value=39.6874
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=57% de_risk=28% recovery=2% overweight=13% active=42.9% mean_adv=0.001550 top_decile_adv=0.009145
+  Transition relabel: short=26% bench=52% ow=22% mean_adv=0.001652 recovery_rate=50.3%
+  Oracle aim dist: long=24% short=30% flat=46% mean=-0.029 switches=21458 avg_hold=3.3b turnover=2024.68
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[22:14:57] [Step 2] World Model Training...
+[22:15:10] [WM] Step 100/1500 | Loss: 1.7369 | BaseLoss: 1.0058 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.2719 | Vol: 0.0269 | DD: 0.1603
+       Val Loss: 2.2515 Åö best
+[22:15:23] [WM] Step 200/1500 | Loss: 1.5048 | BaseLoss: 0.9577 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.2065 | Vol: 0.0211 | DD: 0.1131
+       Val Loss: 2.1190 Åö best
+[22:15:36] [WM] Step 300/1500 | Loss: 1.6612 | BaseLoss: 0.9658 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.2584 | Vol: 0.0283 | DD: 0.1503
+       Val Loss: 2.1189 Åö best
+[22:15:49] [WM] Step 400/1500 | Loss: 1.5062 | BaseLoss: 0.9468 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.2099 | Vol: 0.0245 | DD: 0.1151
+       Val Loss: 2.1410 (no improve 1/10)
+[22:16:02] [WM] Step 500/1500 | Loss: 1.5960 | BaseLoss: 1.0329 | Disagree: 0.0006 | IDM: 0.0000 | Ret: 0.2046 | Vol: 0.0252 | DD: 0.1286
+       Val Loss: 2.0289 Åö best
+[22:16:15] [WM] Step 600/1500 | Loss: 1.5020 | BaseLoss: 0.9454 | Disagree: 0.0016 | IDM: 0.0000 | Ret: 0.2037 | Vol: 0.0167 | DD: 0.1323
+       Val Loss: 2.1279 (no improve 1/10)
+[22:16:29] [WM] Step 700/1500 | Loss: 1.6461 | BaseLoss: 0.9470 | Disagree: 0.0027 | IDM: 0.0000 | Ret: 0.2659 | Vol: 0.0261 | DD: 0.1412
+       Val Loss: 2.0394 (no improve 2/10)
+[22:16:42] [WM] Step 800/1500 | Loss: 1.7193 | BaseLoss: 0.9450 | Disagree: 0.0042 | IDM: 0.0000 | Ret: 0.2740 | Vol: 0.0314 | DD: 0.1950
+       Val Loss: 2.0222 Åö best
+[22:16:57] [WM] Step 900/1500 | Loss: 1.4531 | BaseLoss: 0.9074 | Disagree: 0.0052 | IDM: 0.0000 | Ret: 0.2070 | Vol: 0.0183 | DD: 0.1134
+       Val Loss: 2.0980 (no improve 1/10)
+[22:17:11] [WM] Step 1000/1500 | Loss: 1.5686 | BaseLoss: 0.9316 | Disagree: 0.0059 | IDM: 0.0000 | Ret: 0.2426 | Vol: 0.0256 | DD: 0.1261
+       Val Loss: 1.9760 Åö best
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_4\world_model.pt
+[22:17:24] [WM] Step 1100/1500 | Loss: 1.3042 | BaseLoss: 0.8869 | Disagree: 0.0065 | IDM: 0.0000 | Ret: 0.1559 | Vol: 0.0136 | DD: 0.0919
+       Val Loss: 2.0345 (no improve 1/10)
+[22:17:37] [WM] Step 1200/1500 | Loss: 1.4596 | BaseLoss: 0.9303 | Disagree: 0.0077 | IDM: 0.0000 | Ret: 0.2065 | Vol: 0.0162 | DD: 0.1002
+       Val Loss: 2.0683 (no improve 2/10)
+[22:17:50] [WM] Step 1300/1500 | Loss: 1.8575 | BaseLoss: 0.9623 | Disagree: 0.0077 | IDM: 0.0000 | Ret: 0.3056 | Vol: 0.0464 | DD: 0.2376
+       Val Loss: 2.1258 (no improve 3/10)
+[22:18:03] [WM] Step 1400/1500 | Loss: 1.7178 | BaseLoss: 0.9708 | Disagree: 0.0089 | IDM: 0.0000 | Ret: 0.2728 | Vol: 0.0272 | DD: 0.1742
+       Val Loss: 2.0005 (no improve 4/10)
+[22:18:16] [WM] Step 1500/1500 | Loss: 1.5263 | BaseLoss: 0.9286 | Disagree: 0.0090 | IDM: 0.0000 | Ret: 0.2233 | Vol: 0.0260 | DD: 0.1251
+       Val Loss: 2.0384 (no improve 5/10)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_4\world_model.pt
+[WM] Restored best model (val loss: 1.9760)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_4\world_model.pt
+
+[22:18:17] [Stop] Requested stop after WM
+
+============================================================
+Fold 5: train 2019-04-16 Å® 2021-04-16 | test 2021-07-16 Å® 2021-10-16
+============================================================
+
+[22:18:17] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 69982 steps, mean value=45.3379
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.374 switches=1071 avg_hold=65.3b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=54% de_risk=29% recovery=2% overweight=15% active=46.1% mean_adv=0.001761 top_decile_adv=0.009860
+  Transition relabel: short=27% bench=49% ow=24% mean_adv=0.001870 recovery_rate=49.1%
+  Oracle aim dist: long=26% short=31% flat=42% mean=-0.029 switches=22236 avg_hold=3.1b turnover=2110.60
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[22:18:20] [Step 2] World Model Training...
+[22:18:33] [WM] Step 100/1500 | Loss: 1.7380 | BaseLoss: 0.9592 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.2758 | Vol: 0.0317 | DD: 0.1954
+       Val Loss: 2.4845 Åö best
+[22:18:45] [WM] Step 200/1500 | Loss: 2.0503 | BaseLoss: 1.0051 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3666 | Vol: 0.0769 | DD: 0.2351
+       Val Loss: 2.4088 Åö best
+[22:18:58] [WM] Step 300/1500 | Loss: 1.6811 | BaseLoss: 0.9949 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.2544 | Vol: 0.0339 | DD: 0.1434
+       Val Loss: 2.2994 Åö best
+[22:19:11] [WM] Step 400/1500 | Loss: 1.6953 | BaseLoss: 0.9973 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.2432 | Vol: 0.0259 | DD: 0.1855
+       Val Loss: 2.3003 (no improve 1/10)
+[22:19:24] [WM] Step 500/1500 | Loss: 2.2740 | BaseLoss: 1.1090 | Disagree: 0.0005 | IDM: 0.0000 | Ret: 0.3882 | Vol: 0.0793 | DD: 0.3093
+       Val Loss: 2.3774 (no improve 2/10)
+[22:19:36] [WM] Step 600/1500 | Loss: 1.9497 | BaseLoss: 0.9628 | Disagree: 0.0021 | IDM: 0.0000 | Ret: 0.3631 | Vol: 0.0482 | DD: 0.2124
+       Val Loss: 2.3548 (no improve 3/10)
+[22:19:49] [WM] Step 700/1500 | Loss: 1.7729 | BaseLoss: 0.9554 | Disagree: 0.0032 | IDM: 0.0000 | Ret: 0.2905 | Vol: 0.0374 | DD: 0.1991
+       Val Loss: 2.2856 Åö best
+[22:20:02] [WM] Step 800/1500 | Loss: 1.7027 | BaseLoss: 0.9366 | Disagree: 0.0047 | IDM: 0.0000 | Ret: 0.2862 | Vol: 0.0356 | DD: 0.1583
+       Val Loss: 2.2125 Åö best
+[22:20:14] [WM] Step 900/1500 | Loss: 1.8616 | BaseLoss: 0.9629 | Disagree: 0.0061 | IDM: 0.0000 | Ret: 0.3307 | Vol: 0.0476 | DD: 0.1898
+       Val Loss: 2.1743 Åö best
+[22:20:27] [WM] Step 1000/1500 | Loss: 1.6200 | BaseLoss: 0.9102 | Disagree: 0.0070 | IDM: 0.0000 | Ret: 0.2485 | Vol: 0.0290 | DD: 0.1838
+       Val Loss: 2.3952 (no improve 1/10)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_5\world_model.pt
+[22:20:39] [WM] Step 1100/1500 | Loss: 1.5380 | BaseLoss: 0.9241 | Disagree: 0.0079 | IDM: 0.0000 | Ret: 0.2298 | Vol: 0.0224 | DD: 0.1320
+       Val Loss: 2.3021 (no improve 2/10)
+[22:20:52] [WM] Step 1200/1500 | Loss: 1.5309 | BaseLoss: 0.9116 | Disagree: 0.0086 | IDM: 0.0000 | Ret: 0.2315 | Vol: 0.0206 | DD: 0.1356
+       Val Loss: 2.3596 (no improve 3/10)
+[22:21:04] [WM] Step 1300/1500 | Loss: 1.5057 | BaseLoss: 0.9425 | Disagree: 0.0092 | IDM: 0.0000 | Ret: 0.2158 | Vol: 0.0210 | DD: 0.1106
+       Val Loss: 2.3671 (no improve 4/10)
+[22:21:17] [WM] Step 1400/1500 | Loss: 1.7127 | BaseLoss: 0.9572 | Disagree: 0.0099 | IDM: 0.0000 | Ret: 0.2787 | Vol: 0.0265 | DD: 0.1715
+       Val Loss: 2.1724 Åö best
+[22:21:29] [WM] Step 1500/1500 | Loss: 1.6368 | BaseLoss: 0.9330 | Disagree: 0.0104 | IDM: 0.0000 | Ret: 0.2709 | Vol: 0.0226 | DD: 0.1394
+       Val Loss: 2.2418 (no improve 1/10)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_5\world_model.pt
+[WM] Restored best model (val loss: 2.1724)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_5\world_model.pt
+
+[22:21:30] [Stop] Requested stop after WM
+
+============================================================
+Fold 6: train 2019-07-16 Å® 2021-07-16 | test 2021-10-16 Å® 2022-01-16
+============================================================
+
+[22:21:30] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 70001 steps, mean value=52.1132
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.376 switches=1071 avg_hold=65.4b turnover=1338.75
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition route labels: neutral=53% de_risk=30% recovery=2% overweight=15% active=47.4% mean_adv=0.001874 top_decile_adv=0.010318
+  Transition relabel: short=28% bench=48% ow=23% mean_adv=0.001980 recovery_rate=48.4%
+  Oracle aim dist: long=26% short=33% flat=41% mean=-0.036 switches=22310 avg_hold=3.1b turnover=2121.75
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[22:21:33] [Step 2] World Model Training...
+[22:21:45] [WM] Step 100/1500 | Loss: 1.5833 | BaseLoss: 0.9221 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.2535 | Vol: 0.0260 | DD: 0.1283
+       Val Loss: 1.7376 Åö best
+[22:21:57] [WM] Step 200/1500 | Loss: 1.6555 | BaseLoss: 0.9198 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.2775 | Vol: 0.0298 | DD: 0.1509
+       Val Loss: 1.5963 Åö best
+[22:22:10] [WM] Step 300/1500 | Loss: 1.8253 | BaseLoss: 0.9991 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3026 | Vol: 0.0399 | DD: 0.1811
+       Val Loss: 1.6153 (no improve 1/10)
+[22:22:22] [WM] Step 400/1500 | Loss: 1.8270 | BaseLoss: 1.0108 | Disagree: 0.0001 | IDM: 0.0000 | Ret: 0.2998 | Vol: 0.0328 | DD: 0.1838
+       Val Loss: 1.6234 (no improve 2/10)
+[22:22:34] [WM] Step 500/1500 | Loss: 2.2666 | BaseLoss: 1.0539 | Disagree: 0.0004 | IDM: 0.0000 | Ret: 0.4126 | Vol: 0.0707 | DD: 0.3167
+       Val Loss: 1.5277 Åö best
+[22:22:46] [WM] Step 600/1500 | Loss: 1.7589 | BaseLoss: 0.9809 | Disagree: 0.0015 | IDM: 0.0000 | Ret: 0.2848 | Vol: 0.0276 | DD: 0.1808
+       Val Loss: 1.6165 (no improve 1/10)
+[22:23:00] [WM] Step 700/1500 | Loss: 2.0412 | BaseLoss: 0.9624 | Disagree: 0.0035 | IDM: 0.0000 | Ret: 0.4068 | Vol: 0.0418 | DD: 0.2234
+       Val Loss: 1.6412 (no improve 2/10)
+[22:23:13] [WM] Step 800/1500 | Loss: 1.7406 | BaseLoss: 0.9457 | Disagree: 0.0050 | IDM: 0.0000 | Ret: 0.2891 | Vol: 0.0375 | DD: 0.1793
+       Val Loss: 1.6440 (no improve 3/10)
+[22:23:25] [WM] Step 900/1500 | Loss: 1.6611 | BaseLoss: 0.9308 | Disagree: 0.0062 | IDM: 0.0000 | Ret: 0.2750 | Vol: 0.0308 | DD: 0.1494
+       Val Loss: 1.5465 (no improve 4/10)
+[22:23:37] [WM] Step 1000/1500 | Loss: 2.2026 | BaseLoss: 0.9926 | Disagree: 0.0076 | IDM: 0.0000 | Ret: 0.4431 | Vol: 0.0506 | DD: 0.2731
+       Val Loss: 1.5891 (no improve 5/10)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_6\world_model.pt
+[22:23:50] [WM] Step 1100/1500 | Loss: 1.6824 | BaseLoss: 0.9290 | Disagree: 0.0082 | IDM: 0.0000 | Ret: 0.2817 | Vol: 0.0268 | DD: 0.1633
+       Val Loss: 1.6110 (no improve 6/10)
+[22:24:02] [WM] Step 1200/1500 | Loss: 1.6207 | BaseLoss: 0.9363 | Disagree: 0.0087 | IDM: 0.0000 | Ret: 0.2580 | Vol: 0.0231 | DD: 0.1454
+       Val Loss: 1.6149 (no improve 7/10)
+[22:24:14] [WM] Step 1300/1500 | Loss: 1.4761 | BaseLoss: 0.8873 | Disagree: 0.0094 | IDM: 0.0000 | Ret: 0.2155 | Vol: 0.0207 | DD: 0.1370
+       Val Loss: 1.6190 (no improve 8/10)
+[22:24:27] [WM] Step 1400/1500 | Loss: 1.8075 | BaseLoss: 0.9482 | Disagree: 0.0103 | IDM: 0.0000 | Ret: 0.3048 | Vol: 0.0343 | DD: 0.2154
+       Val Loss: 1.6132 (no improve 9/10)
+[22:24:39] [WM] Step 1500/1500 | Loss: 1.6150 | BaseLoss: 0.9433 | Disagree: 0.0108 | IDM: 0.0000 | Ret: 0.2542 | Vol: 0.0260 | DD: 0.1373
+       Val Loss: 1.5896 (no improve 10/10)
+[WM] Early stopping at step 1500 (best val loss: 1.5277)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_6\world_model.pt
+[WM] Restored best model (val loss: 1.5277)
+[WM] Checkpoint saved: checkpoints/acplan13_base_wm_s011\fold_6\world_model.pt
+
+[22:24:40] [Stop] Requested stop after WM
+
+============================================================
+Stage Summary
+============================================================
+  Fold 4: completed_stage=wm
+  Fold 5: completed_stage=wm
+  Fold 6: completed_stage=wm
