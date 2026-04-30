@@ -38,6 +38,7 @@ class ProbeRun:
     label: str
     checkpoint_dir: str
     use_ac: bool
+    ac_filename: str = "ac.pt"
 
 
 def _parse_run(spec: str) -> ProbeRun:
@@ -52,7 +53,12 @@ def _parse_run(spec: str) -> ProbeRun:
     elif raw_path.endswith(":ac"):
         raw_path = raw_path[:-3]
         mode = "ac"
-    return ProbeRun(label=label, checkpoint_dir=raw_path, use_ac=(mode == "ac"))
+    ac_filename = "ac.pt"
+    if "@" in raw_path:
+        raw_path, ac_filename = raw_path.rsplit("@", 1)
+        if not raw_path or not ac_filename:
+            raise ValueError(f"Run spec has invalid checkpoint file override: {spec}")
+    return ProbeRun(label=label, checkpoint_dir=raw_path, use_ac=(mode == "ac"), ac_filename=ac_filename)
 
 
 def _load_actor_for_run(
@@ -83,7 +89,10 @@ def _load_actor_for_run(
     )
     if not runtime["has_wm_ckpt"] or not runtime["has_bc_ckpt"]:
         raise FileNotFoundError(f"{run.label}: missing WM/BC checkpoint: {runtime}")
-    ac_path = runtime["ac_path"]
+    ac_path = (
+        os.path.join(runtime["fold_ckpt_dir"], run.ac_filename)
+        if run.use_ac else runtime["ac_path"]
+    )
     has_ac = os.path.exists(ac_path)
     if run.use_ac and not has_ac:
         raise FileNotFoundError(f"{run.label}: requested AC actor but missing {ac_path}")
@@ -413,7 +422,12 @@ def main() -> None:
     parser.add_argument("--fold", type=int, default=5)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--run", action="append", required=True, help="label=checkpoint_dir[:ac|:bc]")
+    parser.add_argument(
+        "--run",
+        action="append",
+        required=True,
+        help="label=checkpoint_dir[@ac_file][:ac|:bc]",
+    )
     parser.add_argument("--horizons", default="4,8,16,32")
     parser.add_argument("--output-json", required=True)
     parser.add_argument("--output-md", required=True)
