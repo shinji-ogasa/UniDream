@@ -160,8 +160,31 @@ def _load_actor_for_run(
     if run.use_ac:
         ckpt = torch.load(ac_path, map_location=device, weights_only=False)
         incompatible = actor.load_state_dict(ckpt["actor"], strict=False)
-        if incompatible.unexpected_keys:
-            raise RuntimeError(f"{run.label}: unexpected AC keys: {incompatible.unexpected_keys}")
+        optional_missing = {
+            "residual_head_a.weight",
+            "residual_head_a.bias",
+            "residual_head_b.weight",
+            "residual_head_b.bias",
+            "route_head.weight",
+            "route_head.bias",
+            "route_delta_head.weight",
+            "route_delta_head.bias",
+            "route_active_head.weight",
+            "route_active_head.bias",
+            "route_active_class_head.weight",
+            "route_active_class_head.bias",
+            "route_advantage_gate.weight",
+            "benchmark_overweight_sizing_adapter.weight",
+            "benchmark_overweight_sizing_adapter.bias",
+            "inventory_recovery_head.weight",
+            "inventory_recovery_head.bias",
+        }
+        missing = [key for key in incompatible.missing_keys if key not in optional_missing]
+        if missing or incompatible.unexpected_keys:
+            raise RuntimeError(
+                f"{run.label}: AC actor checkpoint mismatch: "
+                f"missing={missing}, unexpected={list(incompatible.unexpected_keys)}"
+            )
     actor.infer_adjust_rate_scale = float((ac_cfg.get("val_adjust_rate_scale_grid") or [0.5])[0])
     actor.infer_advantage_level = float(ac_cfg.get("infer_advantage_level", 0.0))
     actor.eval()
@@ -226,7 +249,7 @@ def _run_lengths(mask: np.ndarray) -> list[int]:
     return lengths
 
 
-def _summarize_run(run: ProbeRun, payload: dict, horizons: list[int]) -> dict:
+def _summarize_run(run: ProbeRun, payload: dict, horizons: list[int], device: str) -> dict:
     actor = payload["actor"]
     enc = payload["enc_test"]
     returns = np.asarray(payload["test_returns"], dtype=np.float64)
@@ -241,7 +264,7 @@ def _summarize_run(run: ProbeRun, payload: dict, horizons: list[int]) -> dict:
         enc["h"],
         regime_np=regime,
         advantage_np=advantage,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device=device,
     )
     no_adapter = _predict_with_policy_flags(
         actor,
@@ -249,7 +272,7 @@ def _summarize_run(run: ProbeRun, payload: dict, horizons: list[int]) -> dict:
         enc["h"],
         regime_np=regime,
         advantage_np=advantage,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device=device,
         use_floor=bool(getattr(actor, "use_benchmark_exposure_floor", False)),
         use_adapter=False,
     )
@@ -437,7 +460,7 @@ def main() -> None:
             cfg=cfg,
             device=args.device,
         )
-        results[run.label] = _summarize_run(run, payload, horizons)
+        results[run.label] = _summarize_run(run, payload, horizons, args.device)
     overlaps = _overlaps(results)
     serializable = {
         "fold": args.fold,
