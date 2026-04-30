@@ -192,6 +192,8 @@ class ImagACTrainer:
         self.global_step = 0
         self.loss_history: list[dict] = []
         self.checkpoint_interval = ac_cfg.get("checkpoint_interval", 10_000)
+        self.save_step_checkpoints = bool(ac_cfg.get("save_step_checkpoints", False))
+        self.step_checkpoint_prefix = str(ac_cfg.get("step_checkpoint_prefix", "ac_step"))
         self.critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
 
         # Early stopping
@@ -920,6 +922,7 @@ class ImagACTrainer:
         batch_size: int = 32,
         checkpoint_path: Optional[str] = None,
         val_eval_fn=None,
+        checkpoint_eval_fn=None,
         val_baseline_sharpe: float = -float("inf"),
         online_wm_callback=None,
     ) -> list[dict]:
@@ -962,6 +965,14 @@ class ImagACTrainer:
             if checkpoint_path is not None and val_eval_fn is not None
             else None
         )
+        best_checkpoint_score = -float("inf")
+        best_checkpoint_path = (
+            checkpoint_path.replace(".pt", "_fire_best.pt")
+            if checkpoint_path is not None and checkpoint_eval_fn is not None
+            else None
+        )
+        if best_checkpoint_path is not None and os.path.exists(best_checkpoint_path):
+            os.remove(best_checkpoint_path)
         # AC が一度も BC を超えなかった場合の fallback として
         # 学習開始時点（BC 状態）を _best.pt に必ず保存する
         if best_ckpt_path is not None:
@@ -1042,6 +1053,14 @@ class ImagACTrainer:
             ):
                 self.save(checkpoint_path)
                 print(f"[AC] Checkpoint saved: {checkpoint_path} (step={self.global_step})")
+                if self.save_step_checkpoints:
+                    base_dir = os.path.dirname(checkpoint_path)
+                    step_path = os.path.join(
+                        base_dir,
+                        f"{self.step_checkpoint_prefix}{self.global_step}.pt",
+                    )
+                    self.save(step_path)
+                    print(f"[AC] Step checkpoint saved: {step_path}")
 
                 # --- Train 行動分布ログ（oracle z/h 上の greedy 予測）---
                 if self._oracle_z is not None:
@@ -1079,6 +1098,26 @@ class ImagACTrainer:
                               f"for {_bc_loss_exceed_count} consecutive checkpoints")
                         break
 
+                if checkpoint_eval_fn is not None:
+                    checkpoint_result = checkpoint_eval_fn()
+                    if isinstance(checkpoint_result, tuple):
+                        checkpoint_score, checkpoint_label = checkpoint_result
+                        checkpoint_accepted = True
+                    else:
+                        checkpoint_score = float(checkpoint_result["score"])
+                        checkpoint_label = str(checkpoint_result.get("label", checkpoint_score))
+                        checkpoint_accepted = bool(checkpoint_result.get("accepted", True))
+                    marker = ""
+                    if (
+                        checkpoint_accepted
+                        and best_checkpoint_path is not None
+                        and checkpoint_score > best_checkpoint_score
+                    ):
+                        best_checkpoint_score = checkpoint_score
+                        self.save(best_checkpoint_path)
+                        marker = " ★ fire_best"
+                    print(f"[AC] Fire Selector: {checkpoint_label}{marker}")
+
                 if val_eval_fn is not None:
                     val_result = val_eval_fn()
                     if isinstance(val_result, tuple):
@@ -1111,7 +1150,12 @@ class ImagACTrainer:
                     self._last_val_sharpe = val_sharpe
 
         # 最良 val checkpoint に復元
-        if best_ckpt_path is not None and os.path.exists(best_ckpt_path):
+        if best_checkpoint_path is not None and os.path.exists(best_checkpoint_path):
+            print(f"[AC] Restoring best fire checkpoint (score={best_checkpoint_score:.3f})")
+            saved_step = self.global_step
+            self.load(best_checkpoint_path)
+            self.global_step = saved_step  # resume のため step は保持
+        elif best_ckpt_path is not None and os.path.exists(best_ckpt_path):
             print(f"[AC] Restoring best val checkpoint (Sharpe={best_val_sharpe:.3f})")
             saved_step = self.global_step
             self.load(best_ckpt_path)

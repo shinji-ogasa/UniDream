@@ -4,55 +4,11 @@ import numpy as np
 import torch
 
 from unidream.eval.backtest import compute_pnl
+from unidream.experiments.policy_fire import predict_with_policy_flags as _predict_with_policy_flags
 
 
 ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
 EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
-
-
-def _predict_with_policy_flags(
-    actor,
-    z,
-    h,
-    *,
-    regime_np,
-    advantage_np,
-    device: str,
-    use_floor: bool,
-    use_adapter: bool,
-    route_advantage_gate_scale: float | None = None,
-    overweight_advantage_index: int | None = None,
-) -> np.ndarray:
-    sentinel = object()
-    saved = {
-        "use_benchmark_exposure_floor": getattr(actor, "use_benchmark_exposure_floor", sentinel),
-        "use_benchmark_overweight_adapter": getattr(actor, "use_benchmark_overweight_adapter", sentinel),
-        "route_advantage_gate_scale": getattr(actor, "route_advantage_gate_scale", sentinel),
-        "benchmark_overweight_advantage_index": getattr(actor, "benchmark_overweight_advantage_index", sentinel),
-    }
-    actor.use_benchmark_exposure_floor = use_floor
-    actor.use_benchmark_overweight_adapter = use_adapter
-    if route_advantage_gate_scale is not None:
-        actor.route_advantage_gate_scale = route_advantage_gate_scale
-    if overweight_advantage_index is not None:
-        actor.benchmark_overweight_advantage_index = overweight_advantage_index
-    try:
-        return actor.predict_positions(
-            z,
-            h,
-            regime_np=regime_np,
-            advantage_np=advantage_np,
-            device=device,
-        )
-    finally:
-        for key, value in saved.items():
-            if value is sentinel:
-                try:
-                    delattr(actor, key)
-                except AttributeError:
-                    pass
-            else:
-                setattr(actor, key, value)
 
 
 def _active_incremental_pnl(

@@ -4,6 +4,7 @@ import torch
 
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.imagination_ac import ImagACTrainer
+from unidream.experiments.policy_fire import evaluate_fire_metrics, format_fire_metrics
 
 
 def _optimizer_lr(optimizer, default: float) -> float:
@@ -210,6 +211,49 @@ def run_ac_stage(
         stats = action_stats_fn(pos[:t_min], benchmark_position=benchmark_position)
         return policy_score_fn(metrics, stats, benchmark_position=benchmark_position)
 
+    fire_selector_cfg = dict(ac_cfg.get("fire_checkpoint_selector") or {})
+    fire_selector_enabled = bool(fire_selector_cfg.get("enabled", False))
+    fire_selector_bc_baseline = {"alpha_excess_pt": None, "sharpe_delta": None}
+
+    def _fire_checkpoint_eval():
+        if z_val_fixed is None:
+            return {"score": -float("inf"), "label": "unavailable", "accepted": False}
+        selector_cfg = dict(fire_selector_cfg)
+        if bool(selector_cfg.get("use_bc_val_baseline", False)):
+            alpha_base = fire_selector_bc_baseline["alpha_excess_pt"]
+            sharpe_base = fire_selector_bc_baseline["sharpe_delta"]
+            if alpha_base is not None:
+                selector_cfg["alpha_floor_pt"] = max(
+                    float(selector_cfg.get("alpha_floor_pt", -float("inf"))),
+                    float(alpha_base) + float(selector_cfg.get("min_alpha_improvement_pt", 0.0)),
+                )
+            if sharpe_base is not None:
+                selector_cfg["sharpe_floor"] = max(
+                    float(selector_cfg.get("sharpe_floor", -float("inf"))),
+                    float(sharpe_base) + float(selector_cfg.get("min_sharpe_improvement", 0.0)),
+                )
+        fire_metrics = evaluate_fire_metrics(
+            actor=actor,
+            z=z_val_fixed,
+            h=h_val_fixed,
+            returns=val_returns_arr,
+            regime_np=val_regime_probs,
+            advantage_np=val_advantage_values,
+            device=device,
+            cfg=cfg,
+            costs_cfg=costs_cfg,
+            benchmark_positions_fn=benchmark_positions_fn,
+            benchmark_position=benchmark_position,
+            backtest_cls=backtest_cls,
+            action_stats_fn=action_stats_fn,
+            selector_cfg=selector_cfg,
+        )
+        return {
+            "score": fire_metrics.score,
+            "accepted": fire_metrics.accepted,
+            "label": format_fire_metrics(fire_metrics),
+        }
+
     ac_max_steps = ac_max_steps_cfg
     if ac_trainer.global_step >= ac_max_steps:
         print(f"\n[{log_ts()}] [Step 4] AC - already complete (step={ac_trainer.global_step})")
@@ -240,6 +284,8 @@ def run_ac_stage(
                 interval=cfg.get("data", {}).get("interval", "15m"),
                 benchmark_positions=benchmark_positions_fn(bc_t),
             ).run()
+            fire_selector_bc_baseline["alpha_excess_pt"] = 100.0 * float(bc_metrics.alpha_excess or 0.0)
+            fire_selector_bc_baseline["sharpe_delta"] = float(bc_metrics.sharpe_delta or 0.0)
             bc_attr = pnl_attribution_fn(
                 val_returns_arr[:bc_t],
                 bc_pos[:bc_t],
@@ -348,6 +394,7 @@ def run_ac_stage(
                 batch_size=batch_size,
                 checkpoint_path=ac_path,
                 val_eval_fn=_val_eval,
+                checkpoint_eval_fn=_fire_checkpoint_eval if fire_selector_enabled else None,
                 val_baseline_sharpe=bc_val_sharpe,
                 online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
             )
@@ -359,6 +406,7 @@ def run_ac_stage(
             batch_size=ac_cfg.get("batch_size", 32),
             checkpoint_path=ac_path,
             val_eval_fn=_val_eval,
+            checkpoint_eval_fn=_fire_checkpoint_eval if fire_selector_enabled else None,
             val_baseline_sharpe=bc_val_sharpe,
             online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
         )

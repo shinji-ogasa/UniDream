@@ -24,7 +24,7 @@ from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.fold_runtime import prepare_fold_runtime
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
-from unidream.experiments.test_stage import _predict_with_policy_flags
+from unidream.experiments.policy_fire import predict_with_policy_flags as _predict_with_policy_flags
 from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 from unidream.experiments.wm_stage import prepare_world_model_stage
 
