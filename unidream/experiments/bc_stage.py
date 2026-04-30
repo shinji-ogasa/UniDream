@@ -112,6 +112,7 @@ def build_bc_trainer(
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
         sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
         trainable_actor_prefixes=bc_cfg.get("trainable_actor_prefixes"),
+        num_workers=bc_cfg.get("num_workers", 2),
         device=device,
     )
 

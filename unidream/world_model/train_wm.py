@@ -140,6 +140,7 @@ class WorldModelTrainer:
         self.batch_size = wm_cfg.get("batch_size", 32)
         self.max_steps = wm_cfg.get("max_steps", 100_000)
         self.grad_clip = wm_cfg.get("grad_clip", 100.0)
+        self.num_workers = int(wm_cfg.get("num_workers", 4))
         self.log_interval = cfg.get("logging", {}).get("log_interval", 1000)
 
         # 損失ハイパーパラメータ
@@ -161,10 +162,16 @@ class WorldModelTrainer:
         self.return_target_scale = float(wm_cfg.get("return_target_scale", 1.0))
         self.vol_scale = float(wm_cfg.get("vol_scale", 0.0))
         self.drawdown_scale = float(wm_cfg.get("drawdown_scale", 0.0))
+        self.overweight_advantage_scale = float(wm_cfg.get("overweight_advantage_scale", 0.0))
+        self.recovery_scale = float(wm_cfg.get("recovery_scale", 0.0))
         self.risk_horizons = [
             int(h) for h in wm_cfg.get("risk_horizons", self.return_horizons)
         ]
         self.risk_target_scale = float(wm_cfg.get("risk_target_scale", 1.0))
+        self.control_target_scale = float(wm_cfg.get("control_target_scale", self.risk_target_scale))
+        self.overweight_delta = float(wm_cfg.get("overweight_delta", 0.25))
+        self.overweight_drawdown_penalty = float(wm_cfg.get("overweight_drawdown_penalty", 0.35))
+        self.recovery_drawdown_penalty = float(wm_cfg.get("recovery_drawdown_penalty", 0.50))
         self.regime_aux_scale = wm_cfg.get("regime_aux_scale", 0.0)
         self.regime_dim = int(wm_cfg.get("regime_dim", 0))
 
@@ -229,15 +236,46 @@ class WorldModelTrainer:
         else:
             self.drawdown_head = None
 
+        if self.overweight_advantage_scale > 0.0:
+            self.overweight_advantage_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.risk_horizons),
+            ).to(self.device)
+            aux_params.extend(self.overweight_advantage_head.parameters())
+        else:
+            self.overweight_advantage_head = None
+
+        if self.recovery_scale > 0.0:
+            self.recovery_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.risk_horizons),
+            ).to(self.device)
+            aux_params.extend(self.recovery_head.parameters())
+        else:
+            self.recovery_head = None
+
         if self.regime_aux_scale > 0.0 and self.regime_dim > 0:
             self.regime_head = RegimeHead(z_dim, d_model, hidden=256, regime_dim=self.regime_dim).to(self.device)
             aux_params.extend(self.regime_head.parameters())
         else:
             self.regime_head = None
 
+        if bool(wm_cfg.get("freeze_ensemble", False)):
+            for param in self.ensemble.parameters():
+                param.requires_grad_(False)
+        if bool(wm_cfg.get("freeze_standard_predictive_heads", False)):
+            for head in (self.return_head, self.vol_head, self.drawdown_head, self.regime_head):
+                if head is not None:
+                    for param in head.parameters():
+                        param.requires_grad_(False)
+
         self._all_params = list(self.ensemble.parameters()) + aux_params
         self.optimizer = torch.optim.Adam(
-            self._all_params,
+            [p for p in self._all_params if p.requires_grad],
             lr=self.lr,
         )
 
@@ -344,6 +382,55 @@ class WorldModelTrainer:
             torch.stack(masks, dim=-1),
         )
 
+    def _future_control_targets(
+        self,
+        raw_returns: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Build AC-control-oriented targets from forward return paths.
+
+        `overweight_advantage` approximates the incremental risk-adjusted value
+        of holding a small overweight versus benchmark exposure. `recovery`
+        is positive when forward return dominates downside over the horizon.
+        Both targets are non-leaky labels used only during WM training.
+        """
+        B, T = raw_returns.shape
+        ow_targets = []
+        recovery_targets = []
+        masks = []
+        for horizon in self.risk_horizons:
+            horizon = max(1, int(horizon))
+            cum = torch.zeros_like(raw_returns)
+            min_cum = torch.zeros_like(raw_returns)
+            sq_sum = torch.zeros_like(raw_returns)
+            for k in range(1, horizon + 1):
+                if k < T:
+                    shifted = torch.zeros_like(raw_returns)
+                    shifted[:, : T - k] = raw_returns[:, k:]
+                    cum = cum + shifted
+                    min_cum = torch.minimum(min_cum, cum)
+                    sq_sum = sq_sum + shifted.square()
+            downside = -min_cum
+            valid_len = T - horizon
+            mask = torch.zeros((B, T), dtype=torch.bool, device=raw_returns.device)
+            if valid_len > 0:
+                mask[:, :valid_len] = True
+
+            delta = float(self.overweight_delta)
+            one_way_cost = float(self.cost_rate) * abs(delta)
+            ow_value = delta * cum - delta * float(self.overweight_drawdown_penalty) * downside - one_way_cost
+            vol = torch.sqrt(sq_sum / float(horizon) + 1e-12)
+            recovery_value = (cum - float(self.recovery_drawdown_penalty) * downside) / (vol * horizon**0.5 + 1e-6)
+            recovery_value = recovery_value.clamp(-5.0, 5.0) / 5.0
+
+            ow_targets.append(ow_value * self.control_target_scale)
+            recovery_targets.append(recovery_value)
+            masks.append(mask)
+        return (
+            torch.stack(ow_targets, dim=-1),
+            torch.stack(recovery_targets, dim=-1),
+            torch.stack(masks, dim=-1),
+        )
+
     @staticmethod
     def _masked_smooth_l1(
         pred: torch.Tensor,
@@ -391,7 +478,7 @@ class WorldModelTrainer:
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=drop_last,
-            **self._loader_options(4),
+            **self._loader_options(self.num_workers),
         )
         self.ensemble.train()
         step = 0
@@ -458,12 +545,16 @@ class WorldModelTrainer:
                 return_loss_val = 0.0
                 vol_loss_val = 0.0
                 drawdown_loss_val = 0.0
+                overweight_advantage_loss_val = 0.0
+                recovery_loss_val = 0.0
                 regime_loss_val = 0.0
 
                 has_predictive_head = (
                     self.return_head is not None
                     or self.vol_head is not None
                     or self.drawdown_head is not None
+                    or self.overweight_advantage_head is not None
+                    or self.recovery_head is not None
                     or self.regime_head is not None
                 )
                 if self.idm_head is not None or has_predictive_head:
@@ -506,6 +597,23 @@ class WorldModelTrainer:
                             total_loss = total_loss + self.drawdown_scale * drawdown_loss
                             drawdown_loss_val = drawdown_loss.item()
 
+                    if (
+                        (self.overweight_advantage_head is not None or self.recovery_head is not None)
+                        and raw_returns is not None
+                        and h is not None
+                    ):
+                        ow_target, recovery_target, control_mask = self._future_control_targets(raw_returns)
+                        if self.overweight_advantage_head is not None:
+                            ow_pred = self.overweight_advantage_head(z, h)
+                            ow_loss = self._masked_smooth_l1(ow_pred, ow_target, control_mask)
+                            total_loss = total_loss + self.overweight_advantage_scale * ow_loss
+                            overweight_advantage_loss_val = ow_loss.item()
+                        if self.recovery_head is not None:
+                            recovery_pred = self.recovery_head(z, h)
+                            recovery_loss = self._masked_smooth_l1(recovery_pred, recovery_target, control_mask)
+                            total_loss = total_loss + self.recovery_scale * recovery_loss
+                            recovery_loss_val = recovery_loss.item()
+
                     regime_probs = batch.get("regime")
                     if self.regime_head is not None and regime_probs is not None and h is not None:
                         regime_probs = regime_probs.to(self.device)
@@ -532,6 +640,8 @@ class WorldModelTrainer:
                     "return_loss": return_loss_val,
                     "vol_loss": vol_loss_val,
                     "drawdown_loss": drawdown_loss_val,
+                    "overweight_advantage_loss": overweight_advantage_loss_val,
+                    "recovery_loss": recovery_loss_val,
                     "regime_loss": regime_loss_val,
                 }
                 logs.append(log)
@@ -548,6 +658,10 @@ class WorldModelTrainer:
                         aux_str += f" | Vol: {log['vol_loss']:.4f}"
                     if self.drawdown_head is not None:
                         aux_str += f" | DD: {log['drawdown_loss']:.4f}"
+                    if self.overweight_advantage_head is not None:
+                        aux_str += f" | OWA: {log['overweight_advantage_loss']:.4f}"
+                    if self.recovery_head is not None:
+                        aux_str += f" | Rec: {log['recovery_loss']:.4f}"
                     if self.regime_head is not None:
                         aux_str += f" | Reg: {log['regime_loss']:.4f}"
                     print(
@@ -606,7 +720,7 @@ class WorldModelTrainer:
             dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            **self._loader_options(2),
+            **self._loader_options(min(self.num_workers, 2)),
         )
         total = 0.0
         count = 0
@@ -651,6 +765,8 @@ class WorldModelTrainer:
                 self.return_head is not None
                 or self.vol_head is not None
                 or self.drawdown_head is not None
+                or self.overweight_advantage_head is not None
+                or self.recovery_head is not None
                 or self.regime_head is not None
             )
             if has_predictive_head:
@@ -675,6 +791,25 @@ class WorldModelTrainer:
                             dd_pred,
                             dd_target,
                             risk_mask,
+                        )
+                if (
+                    (self.overweight_advantage_head is not None or self.recovery_head is not None)
+                    and raw_returns is not None
+                ):
+                    ow_target, recovery_target, control_mask = self._future_control_targets(raw_returns)
+                    if self.overweight_advantage_head is not None:
+                        ow_pred = self.overweight_advantage_head(z, h)
+                        total_loss = total_loss + self.overweight_advantage_scale * self._masked_smooth_l1(
+                            ow_pred,
+                            ow_target,
+                            control_mask,
+                        )
+                    if self.recovery_head is not None:
+                        recovery_pred = self.recovery_head(z, h)
+                        total_loss = total_loss + self.recovery_scale * self._masked_smooth_l1(
+                            recovery_pred,
+                            recovery_target,
+                            control_mask,
                         )
             if self.regime_head is not None and "regime" in batch:
                 regime_probs = batch["regime"].to(self.device)
@@ -786,6 +921,10 @@ class WorldModelTrainer:
             ckpt["vol_head"] = self.vol_head.state_dict()
         if self.drawdown_head is not None:
             ckpt["drawdown_head"] = self.drawdown_head.state_dict()
+        if self.overweight_advantage_head is not None:
+            ckpt["overweight_advantage_head"] = self.overweight_advantage_head.state_dict()
+        if self.recovery_head is not None:
+            ckpt["recovery_head"] = self.recovery_head.state_dict()
         if self.regime_head is not None:
             ckpt["regime_head"] = self.regime_head.state_dict()
         torch.save(ckpt, path)
@@ -808,6 +947,10 @@ class WorldModelTrainer:
             self.vol_head.load_state_dict(ckpt["vol_head"])
         if self.drawdown_head is not None and "drawdown_head" in ckpt:
             self.drawdown_head.load_state_dict(ckpt["drawdown_head"])
+        if self.overweight_advantage_head is not None and "overweight_advantage_head" in ckpt:
+            self.overweight_advantage_head.load_state_dict(ckpt["overweight_advantage_head"])
+        if self.recovery_head is not None and "recovery_head" in ckpt:
+            self.recovery_head.load_state_dict(ckpt["recovery_head"])
         if self.regime_head is not None and "regime_head" in ckpt:
             self.regime_head.load_state_dict(ckpt["regime_head"])
         print(f"[WM] Checkpoint loaded: {path} (step={self.global_step})")
@@ -824,6 +967,8 @@ class WorldModelTrainer:
             "return": self.return_head,
             "vol": self.vol_head,
             "drawdown": self.drawdown_head,
+            "overweight_advantage": self.overweight_advantage_head,
+            "recovery": self.recovery_head,
         }
         active = {name: head for name, head in heads.items() if head is not None}
         if not active:
@@ -860,4 +1005,8 @@ class WorldModelTrainer:
             names.extend([f"wm_pred_vol_h{h}" for h in self.risk_horizons])
         if self.drawdown_head is not None:
             names.extend([f"wm_pred_drawdown_h{h}" for h in self.risk_horizons])
+        if self.overweight_advantage_head is not None:
+            names.extend([f"wm_pred_overweight_advantage_h{h}" for h in self.risk_horizons])
+        if self.recovery_head is not None:
+            names.extend([f"wm_pred_recovery_h{h}" for h in self.risk_horizons])
         return names

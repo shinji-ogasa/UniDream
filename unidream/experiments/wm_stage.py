@@ -33,6 +33,10 @@ def prepare_world_model_stage(
         return ensemble, wm_trainer
 
     print(f"\n[{log_ts()}] [Step 2] World Model Training...")
+    init_checkpoint = cfg.get("world_model", {}).get("init_checkpoint")
+    if init_checkpoint:
+        print(f"[{log_ts()}] [WM] Initializing from checkpoint: {init_checkpoint}")
+        wm_trainer.load(str(init_checkpoint))
     train_ds_with_actions = SequenceDataset(
         wfo_dataset.train_features,
         seq_len=cfg.get("data", {}).get("seq_len", 64),

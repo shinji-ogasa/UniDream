@@ -146,6 +146,67 @@ def _guard_by_cooldown(
     return out
 
 
+def _rolling_past_sum(values: np.ndarray, window: int) -> np.ndarray:
+    arr = np.asarray(values, dtype=np.float64)
+    out = np.zeros(len(arr), dtype=np.float64)
+    if len(arr) == 0:
+        return out
+    csum = np.concatenate([[0.0], np.cumsum(arr, dtype=np.float64)])
+    for i in range(len(arr)):
+        start = max(0, i - int(window))
+        out[i] = csum[i] - csum[start]
+    return out
+
+
+def _guard_by_wm_recovery_state(
+    positions: np.ndarray,
+    no_adapter: np.ndarray,
+    returns: np.ndarray,
+    fire: np.ndarray,
+    costs_cfg: dict,
+    *,
+    entry_dd: float,
+    return_score: np.ndarray,
+    return_threshold: float,
+    drawdown_score: np.ndarray,
+    drawdown_threshold: float,
+    past_return: np.ndarray | None = None,
+    require_past_recovery: bool = False,
+    delta_scale_on_probe: float = 1.0,
+) -> np.ndarray:
+    t = min(
+        len(positions),
+        len(no_adapter),
+        len(returns),
+        len(fire),
+        len(return_score),
+        len(drawdown_score),
+    )
+    out = np.asarray(positions[:t], dtype=np.float64).copy()
+    equity = 1.0
+    peak = 1.0
+    prev_pos = 0.0
+    for i in range(t):
+        dd = equity / max(peak, 1e-12) - 1.0
+        if bool(fire[i]) and dd <= -float(entry_dd):
+            recovery_signal = (
+                float(return_score[i]) >= float(return_threshold)
+                and float(drawdown_score[i]) <= float(drawdown_threshold)
+            )
+            if require_past_recovery:
+                recovery_signal = recovery_signal and past_return is not None and float(past_return[i]) > 0.0
+            if recovery_signal:
+                base = float(no_adapter[i])
+                out[i] = base + float(delta_scale_on_probe) * (float(out[i]) - base)
+            else:
+                out[i] = float(no_adapter[i])
+        pnl = _pnl_bar(float(returns[i]), float(out[i]), prev_pos, costs_cfg)
+        equity *= float(np.exp(pnl))
+        peak = max(peak, equity)
+        prev_pos = float(out[i])
+    return out
+
+
 def _predictive_names(cfg: dict) -> list[str]:
     wm_cfg = cfg.get("world_model", {})
     ac_cfg = cfg.get("ac", {})
@@ -451,6 +512,7 @@ def main() -> None:
     if advantage is not None and len(advantage) >= t and names:
         adv = np.asarray(advantage[:t], dtype=np.float64)
         dd_cols = [i for i, name in enumerate(names[: adv.shape[1]]) if "drawdown" in name]
+        ret_cols = [i for i, name in enumerate(names[: adv.shape[1]]) if "return" in name]
         if dd_cols:
             dd_risk = np.max(adv[:, dd_cols], axis=1)
             source = dd_risk[fire] if np.any(fire) else dd_risk
@@ -461,6 +523,55 @@ def main() -> None:
                     no_adapter,
                     fire & (dd_risk >= thr),
                 )))
+        if dd_cols and ret_cols:
+            ret_score = np.max(adv[:, ret_cols], axis=1)
+            dd_risk = np.max(adv[:, dd_cols], axis=1)
+            fire_ret = ret_score[fire] if np.any(fire) else ret_score
+            fire_dd = dd_risk[fire] if np.any(fire) else dd_risk
+            past_ret_16 = _rolling_past_sum(returns, 16)
+            for entry_dd in (0.22, 0.225, 0.23):
+                for ret_q, dd_q in ((0.50, 0.50), (0.60, 0.60), (0.75, 0.75)):
+                    ret_thr = float(np.quantile(fire_ret, ret_q))
+                    dd_thr = float(np.quantile(fire_dd, dd_q))
+                    variants.append((f"wm_recovery_dd{entry_dd:.2%}_r{int(ret_q*100)}_d{int(dd_q*100)}", _guard_by_wm_recovery_state(
+                        positions,
+                        no_adapter,
+                        returns,
+                        fire,
+                        costs_cfg,
+                        entry_dd=entry_dd,
+                        return_score=ret_score,
+                        return_threshold=ret_thr,
+                        drawdown_score=dd_risk,
+                        drawdown_threshold=dd_thr,
+                    )))
+                    variants.append((f"wm_recovery_slope_dd{entry_dd:.2%}_r{int(ret_q*100)}_d{int(dd_q*100)}", _guard_by_wm_recovery_state(
+                        positions,
+                        no_adapter,
+                        returns,
+                        fire,
+                        costs_cfg,
+                        entry_dd=entry_dd,
+                        return_score=ret_score,
+                        return_threshold=ret_thr,
+                        drawdown_score=dd_risk,
+                        drawdown_threshold=dd_thr,
+                        past_return=past_ret_16,
+                        require_past_recovery=True,
+                    )))
+                    variants.append((f"wm_recovery_half_dd{entry_dd:.2%}_r{int(ret_q*100)}_d{int(dd_q*100)}", _guard_by_wm_recovery_state(
+                        positions,
+                        no_adapter,
+                        returns,
+                        fire,
+                        costs_cfg,
+                        entry_dd=entry_dd,
+                        return_score=ret_score,
+                        return_threshold=ret_thr,
+                        drawdown_score=dd_risk,
+                        drawdown_threshold=dd_thr,
+                        delta_scale_on_probe=0.5,
+                    )))
 
     current_summary = _variant_summary(
         name="current",

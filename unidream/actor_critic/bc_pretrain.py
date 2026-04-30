@@ -226,6 +226,7 @@ class BCPretrainer:
         sample_quality_coef: float = 0.0,
         sample_quality_clip: float = 4.0,
         trainable_actor_prefixes: list[str] | tuple[str, ...] | None = None,
+        num_workers: int = 2,
         device: str = "cpu",
     ):
         self.actor = actor
@@ -233,6 +234,7 @@ class BCPretrainer:
         self.actor.to(self.device)
         self.n_epochs = n_epochs
         self.batch_size = batch_size
+        self.num_workers = max(0, int(num_workers))
         self.label_smoothing = label_smoothing
         self.entropy_coef = entropy_coef
         self.chunk_size = max(1, chunk_size)
@@ -1203,9 +1205,9 @@ class BCPretrainer:
             use_route_soft = route_soft_labels is not None
             use_route_adv = route_advantage is not None
             loader_options = {
-                "num_workers": 2,
+                "num_workers": self.num_workers,
                 "pin_memory": self.device.type == "cuda",
-                "persistent_workers": True,
+                "persistent_workers": self.num_workers > 0,
             }
             for epoch in range(self.n_epochs):
                 state_all = teacher_state_all
@@ -1358,9 +1360,9 @@ class BCPretrainer:
         logs = []
         rollout_positions = None
         loader_options = {
-            "num_workers": 2,
+            "num_workers": self.num_workers,
             "pin_memory": self.device.type == "cuda",
-            "persistent_workers": True,
+            "persistent_workers": self.num_workers > 0,
         }
         for epoch in range(self.n_epochs):
             state_all = teacher_state_all
