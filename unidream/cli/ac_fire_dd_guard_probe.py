@@ -405,7 +405,10 @@ def main() -> None:
     ]
     for scale in (0.75, 0.50, 0.25):
         variants.append((f"delta_scale_{scale:.2f}", _guard_by_delta_scale(positions, no_adapter, fire, scale)))
-    for threshold in (0.01, 0.02, 0.03, 0.05, 0.08, 0.10, 0.15, 0.20, 0.22, 0.23, 0.24):
+    for threshold in (
+        0.01, 0.02, 0.03, 0.05, 0.08, 0.10, 0.15, 0.20,
+        0.22, 0.2225, 0.225, 0.2275, 0.23, 0.24,
+    ):
         variants.append((f"pre_dd_{threshold:.0%}", _guard_by_pre_dd(
             positions, no_adapter, returns, fire, costs_cfg, threshold
         )))
