@@ -163,6 +163,9 @@ def run_ac_stage(
     if not (start_idx <= ac_stage_idx or has_ac):
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
         return ac_trainer
+    if start_idx > ac_stage_idx and has_ac:
+        print(f"\n[{log_ts()}] [Step 4] AC - loaded checkpoint for downstream test")
+        return ac_trainer
 
     t_enc = min(len(z_train), len(oracle_positions))
     ac_trainer.set_oracle_data(
