@@ -582,6 +582,7 @@ def main() -> None:
             log_ts=_ts,
         )
         ensemble, wm_trainer = prepare_world_model_stage(
+            fold_idx=split.fold_idx,
             obs_dim=wfo_dataset.obs_dim,
             cfg=cfg,
             device=args.device,

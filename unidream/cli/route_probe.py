@@ -435,6 +435,7 @@ def main() -> None:
         test_regime_probs = fold_inputs["test_regime_probs"]
 
         ensemble, wm_trainer = prepare_world_model_stage(
+            fold_idx=split.fold_idx,
             obs_dim=wfo_dataset.obs_dim,
             cfg=cfg,
             device=args.device,

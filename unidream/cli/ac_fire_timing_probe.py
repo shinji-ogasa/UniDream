@@ -111,6 +111,7 @@ def _load_actor_for_run(
         log_ts=_ts,
     )
     ensemble, wm_trainer = prepare_world_model_stage(
+        fold_idx=split.fold_idx,
         obs_dim=wfo_dataset.obs_dim,
         cfg=cfg_local,
         device=device,
