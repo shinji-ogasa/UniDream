@@ -8,6 +8,7 @@ from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 
 def prepare_world_model_stage(
     *,
+    fold_idx: int,
     obs_dim: int,
     cfg: dict,
     device: str,
@@ -35,8 +36,9 @@ def prepare_world_model_stage(
     print(f"\n[{log_ts()}] [Step 2] World Model Training...")
     init_checkpoint = cfg.get("world_model", {}).get("init_checkpoint")
     if init_checkpoint:
+        init_checkpoint = str(init_checkpoint).format(fold=fold_idx, fold_idx=fold_idx)
         print(f"[{log_ts()}] [WM] Initializing from checkpoint: {init_checkpoint}")
-        wm_trainer.load(str(init_checkpoint))
+        wm_trainer.load(init_checkpoint)
     train_ds_with_actions = SequenceDataset(
         wfo_dataset.train_features,
         seq_len=cfg.get("data", {}).get("seq_len", 64),

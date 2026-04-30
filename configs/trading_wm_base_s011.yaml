@@ -79,8 +79,6 @@ ac:
   - return
   - vol
   - drawdown
-  - overweight_advantage
-  - recovery
   wm_predictive_state_scale: 0.25
   wm_predictive_state_standardize: true
   curriculum:
@@ -108,15 +106,15 @@ ac:
   state_machine_underweight_min_duration: 8
   state_machine_derisk_logit_down: 10.0
   use_benchmark_overweight_adapter: true
-  benchmark_overweight_epsilon: 0.06
+  benchmark_overweight_epsilon: 0.2
   benchmark_overweight_min_position: 0.93
   benchmark_overweight_max_position: 1.22
   benchmark_overweight_underweight_duration_max: 1.0
   benchmark_overweight_min_hold_bars: 0
   benchmark_overweight_require_base_near_bench: false
   benchmark_overweight_long_rate_max: 0.03
-  benchmark_overweight_advantage_index: 18
-  benchmark_overweight_advantage_min: 0.55
+  benchmark_overweight_advantage_index: 0
+  benchmark_overweight_advantage_min: 1.0
   use_trainable_benchmark_overweight_sizing_adapter: true
   benchmark_overweight_trainable_delta_range: 0.03
   use_benchmark_exposure_floor: true
@@ -222,7 +220,7 @@ eval:
   - max_drawdown
   - calmar
 logging:
-  checkpoint_dir: checkpoints/acplan13_wm_control_headonly_s011
+  checkpoint_dir: checkpoints/acplan13_base_wm_s011
   eval_interval: 250
   log_interval: 100
 normalization:
@@ -264,7 +262,7 @@ reward:
   dsr_eta: 0.01
   mode: excess_bh
 world_model:
-  batch_size: 512
+  batch_size: 64
   bin_range:
   - -20.0
   - 20.0
@@ -282,7 +280,7 @@ world_model:
   idm_scale: 0.3
   lr: 0.0001
   max_seq_len: 128
-  max_steps: 800
+  max_steps: 1500
   n_bins: 255
   n_categoricals: 32
   n_classes: 32
@@ -311,13 +309,4 @@ world_model:
   risk_target_scale: 100.0
   unimix_ratio: 0.01
   vol_scale: 1.0
-  overweight_advantage_scale: 2.0
-  recovery_scale: 1.0
-  control_target_scale: 100.0
-  overweight_delta: 0.25
-  overweight_drawdown_penalty: 0.5
-  recovery_drawdown_penalty: 0.75
   num_workers: 0
-  init_checkpoint: checkpoints/acplan13_base_wm_s011/fold_{fold}/world_model.pt
-  freeze_ensemble: true
-  freeze_standard_predictive_heads: true

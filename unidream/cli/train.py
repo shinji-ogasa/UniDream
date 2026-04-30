@@ -437,6 +437,7 @@ def run_fold(
 
     # --------- Step 2: 世界モデル学習 ---------
     ensemble, wm_trainer = prepare_world_model_stage(
+        fold_idx=fold_idx,
         obs_dim=obs_dim,
         cfg=cfg,
         device=device,
