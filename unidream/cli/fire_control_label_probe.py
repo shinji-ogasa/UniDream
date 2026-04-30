@@ -77,12 +77,13 @@ def _online_state(
     returns: np.ndarray,
     positions: np.ndarray,
     costs_cfg: dict,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """State before each bar; labels may use future, features must not."""
     t = min(len(returns), len(positions))
     drawdown = np.zeros(t, dtype=np.float64)
     underwater = np.zeros(t, dtype=np.float64)
     equity_before = np.ones(t, dtype=np.float64)
+    peak_before = np.ones(t, dtype=np.float64)
     equity = 1.0
     peak = 1.0
     prev_pos = 0.0
@@ -92,12 +93,38 @@ def _online_state(
         drawdown[i] = dd
         underwater[i] = float(uw)
         equity_before[i] = equity
+        peak_before[i] = peak
         pnl = _pnl_bar(float(returns[i]), float(positions[i]), prev_pos, costs_cfg)
         equity *= float(math.exp(pnl))
         peak = max(peak, equity)
         uw = uw + 1 if equity < peak * (1.0 - 1e-10) else 0
         prev_pos = float(positions[i])
-    return drawdown, underwater, equity_before
+    return drawdown, underwater, equity_before, peak_before
+
+
+def _future_drawdown_worsening(
+    *,
+    returns: np.ndarray,
+    positions: np.ndarray,
+    start: int,
+    horizon: int,
+    costs_cfg: dict,
+    equity_before: float,
+    peak_before: float,
+    current_drawdown: float,
+) -> float:
+    equity = float(equity_before)
+    peak = float(peak_before)
+    min_drawdown = float(current_drawdown)
+    prev_pos = float(positions[start - 1]) if start > 0 else 0.0
+    end = min(len(returns), start + int(horizon))
+    for i in range(start, end):
+        pnl = _pnl_bar(float(returns[i]), float(positions[i]), prev_pos, costs_cfg)
+        equity *= float(math.exp(pnl))
+        peak = max(peak, equity)
+        min_drawdown = min(min_drawdown, equity / max(peak, 1e-12) - 1.0)
+        prev_pos = float(positions[i])
+    return float(max(0.0, float(current_drawdown) - min_drawdown))
 
 
 def _window_pnl(
@@ -133,6 +160,7 @@ def _build_labels(
     costs_cfg: dict,
 ) -> dict[int, dict[str, np.ndarray]]:
     t = min(len(returns), len(positions), len(no_adapter))
+    current_dd, _underwater, equity_before, peak_before = _online_state(returns[:t], positions[:t], costs_cfg)
     out: dict[int, dict[str, np.ndarray]] = {}
     for horizon in cfg.horizons:
         fire_advantage = np.full(t, np.nan, dtype=np.float64)
@@ -155,8 +183,18 @@ def _build_labels(
             harm_gap = dd_on - dd_off
             harm_margin[i] = harm_gap
             fire_harm[i] = 1.0 if harm_gap > cfg.harm_margin else 0.0
-            future_drawdown[i] = dd_on
-            drawdown_worsening[i] = 1.0 if dd_on > cfg.drawdown_worsen_margin else 0.0
+            worsening = _future_drawdown_worsening(
+                returns=returns,
+                positions=positions,
+                start=i,
+                horizon=horizon,
+                costs_cfg=costs_cfg,
+                equity_before=float(equity_before[i]),
+                peak_before=float(peak_before[i]),
+                current_drawdown=float(current_dd[i]),
+            )
+            future_drawdown[i] = worsening
+            drawdown_worsening[i] = 1.0 if worsening > cfg.drawdown_worsen_margin else 0.0
 
             cum = np.cumsum(pnl_on)
             trough_idx = int(np.argmin(cum)) if len(cum) else 0
@@ -189,8 +227,8 @@ def _build_feature_matrix(
 ) -> np.ndarray:
     t = min(len(returns), len(positions), len(no_adapter), len(fire))
     delta = np.asarray(positions[:t], dtype=np.float64) - np.asarray(no_adapter[:t], dtype=np.float64)
-    current_dd, underwater, equity_before = _online_state(returns[:t], positions[:t], costs_cfg)
-    base_dd, base_underwater, _ = _online_state(returns[:t], no_adapter[:t], costs_cfg)
+    current_dd, underwater, equity_before, peak_before = _online_state(returns[:t], positions[:t], costs_cfg)
+    base_dd, base_underwater, _base_equity, base_peak = _online_state(returns[:t], no_adapter[:t], costs_cfg)
     engineered = [
         np.asarray(positions[:t], dtype=np.float64).reshape(-1, 1),
         np.asarray(no_adapter[:t], dtype=np.float64).reshape(-1, 1),
@@ -201,6 +239,8 @@ def _build_feature_matrix(
         underwater.reshape(-1, 1),
         base_underwater.reshape(-1, 1),
         equity_before.reshape(-1, 1),
+        peak_before.reshape(-1, 1),
+        base_peak.reshape(-1, 1),
     ]
     for window in (4, 16, 32, 64):
         engineered.append(_rolling_past_sum(returns[:t], window).reshape(-1, 1))
