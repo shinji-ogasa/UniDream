@@ -99,6 +99,33 @@ def _guard_by_pre_dd(
     return out
 
 
+def _guard_by_pre_dd_worsening(
+    positions: np.ndarray,
+    no_adapter: np.ndarray,
+    returns: np.ndarray,
+    fire: np.ndarray,
+    costs_cfg: dict,
+    threshold: float,
+) -> np.ndarray:
+    t = min(len(positions), len(no_adapter), len(returns), len(fire))
+    out = np.asarray(positions[:t], dtype=np.float64).copy()
+    equity = 1.0
+    prev_equity = 1.0
+    peak = 1.0
+    prev_pos = 0.0
+    for i in range(t):
+        dd = equity / max(peak, 1e-12) - 1.0
+        worsening = equity <= prev_equity
+        if bool(fire[i]) and dd <= -float(threshold) and worsening:
+            out[i] = float(no_adapter[i])
+        prev_equity = equity
+        pnl = _pnl_bar(float(returns[i]), float(out[i]), prev_pos, costs_cfg)
+        equity *= float(np.exp(pnl))
+        peak = max(peak, equity)
+        prev_pos = float(out[i])
+    return out
+
+
 def _guard_by_cooldown(
     positions: np.ndarray,
     no_adapter: np.ndarray,
@@ -405,11 +432,16 @@ def main() -> None:
     ]
     for scale in (0.75, 0.50, 0.25):
         variants.append((f"delta_scale_{scale:.2f}", _guard_by_delta_scale(positions, no_adapter, fire, scale)))
-    for threshold in (
+    pre_dd_thresholds = (
         0.01, 0.02, 0.03, 0.05, 0.08, 0.10, 0.15, 0.20,
         0.22, 0.2225, 0.225, 0.2275, 0.23, 0.24,
-    ):
-        variants.append((f"pre_dd_{threshold:.0%}", _guard_by_pre_dd(
+    )
+    for threshold in pre_dd_thresholds:
+        variants.append((f"pre_dd_{threshold:.2%}", _guard_by_pre_dd(
+            positions, no_adapter, returns, fire, costs_cfg, threshold
+        )))
+    for threshold in (0.20, 0.22, 0.2225, 0.225, 0.2275, 0.23):
+        variants.append((f"pre_dd_worsening_{threshold:.2%}", _guard_by_pre_dd_worsening(
             positions, no_adapter, returns, fire, costs_cfg, threshold
         )))
     for cooldown in (8, 16, 32, 64):
