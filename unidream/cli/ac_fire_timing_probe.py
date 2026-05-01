@@ -210,6 +210,8 @@ def _load_actor_for_run(
         "cfg": cfg_local,
         "benchmark_position": benchmark_position,
         "split": split,
+        "wm_trainer": wm_trainer,
+        "predictive_bundle": predictive_bundle,
     }
 
 
