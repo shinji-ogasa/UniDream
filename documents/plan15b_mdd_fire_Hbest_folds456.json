@@ -1,0 +1,1372 @@
+{
+  "config": "configs/trading_wm_control_headonly.yaml",
+  "folds": "4,5,6",
+  "runs": [
+    {
+      "label": "Hbest",
+      "checkpoint_dir": "checkpoints/acplan13_wm_control_headonly_s011",
+      "use_ac": true,
+      "ac_filename": "ac_best.pt"
+    }
+  ],
+  "probe": {
+    "horizons": [
+      16,
+      32
+    ],
+    "primary_horizon": 32,
+    "fire_eps": 1e-06,
+    "train_frac": 0.6,
+    "ridge_l2": 0.01,
+    "max_z_dim": 128,
+    "rel_vol_window": 64,
+    "mdd_rel_threshold": 0.5,
+    "post_dd_quantile": 0.8
+  },
+  "records": [
+    {
+      "label": "Hbest",
+      "mode": "ac",
+      "checkpoint_dir": "checkpoints/acplan13_wm_control_headonly_s011",
+      "fold": 4,
+      "summary": {
+        "alpha_excess_pt": 0.04858446336998279,
+        "sharpe_delta": 0.016732863809564957,
+        "maxdd_delta_pt": 0.34788661185657377,
+        "turnover": 5.688830375671387,
+        "long": 0.026753932713285106,
+        "short": 0.0,
+        "flat": 0.9732460672867149,
+        "fire_rate": 0.11413480307727639,
+        "fire_count": 994,
+        "mean_delta": 0.02813405781924365,
+        "fire_pnl": -0.010968289658668997,
+        "nonfire_pnl": -0.6384941150939573
+      },
+      "global_mdd": {
+        "peak": 55,
+        "trough": 6404,
+        "maxdd": -0.5354790582241812,
+        "fire_in_global_mdd_rate": 0.07417613962567458
+      },
+      "horizons": {
+        "16": {
+          "samples": 994,
+          "train_samples": 596,
+          "eval_samples": 398,
+          "base_rates": {
+            "future_mdd_overlap": 0.6306532663316583,
+            "pre_dd_state": 0.022613065326633167,
+            "global_mdd_overlap": 0.12562814070351758,
+            "post_dd_q": 0.10552763819095477
+          },
+          "binary": {
+            "future_mdd_overlap": {
+              "positive_rate": 0.6306532663316583,
+              "auc": 0.5861723175325907,
+              "pr_auc": 0.6893486921656058,
+              "top10_positive_rate": 0.7
+            },
+            "pre_dd_state": {
+              "positive_rate": 0.022613065326633167,
+              "auc": 0.5961153956012568,
+              "pr_auc": 0.04073274987857141,
+              "top10_positive_rate": 0.05
+            },
+            "global_mdd_overlap": {
+              "positive_rate": 0.12562814070351758,
+              "auc": 0.4125287356321839,
+              "pr_auc": 0.10171942101191331,
+              "top10_positive_rate": 0.05
+            },
+            "post_dd_q": {
+              "threshold": 0.0009188548617486969,
+              "positive_rate": 0.10552763819095477,
+              "auc": 0.7150882825040128,
+              "pr_auc": 0.26356647872847294,
+              "top10_positive_rate": 0.275
+            }
+          },
+          "advantage": {
+            "corr": 0.3227398238863231,
+            "top10": {
+              "count": 40,
+              "fire_advantage": 0.0011836716866310334,
+              "post_fire_dd_contribution": 0.00041911270013300915,
+              "mdd_contribution": 0.0004168706869862648,
+              "local_mdd": 0.01917398276939314,
+              "mdd_rel": 0.6875719997312061,
+              "future_mdd_overlap_rate": 0.5,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.15,
+              "nonpositive_mdd_contribution_rate": 0.05
+            },
+            "top20": {
+              "count": 80,
+              "fire_advantage": 0.0007279275218846054,
+              "post_fire_dd_contribution": 0.00031352716608216427,
+              "mdd_contribution": 0.00031079424122392173,
+              "local_mdd": 0.01798926492568989,
+              "mdd_rel": 0.6801697114967619,
+              "future_mdd_overlap_rate": 0.5125,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.125,
+              "nonpositive_mdd_contribution_rate": 0.0375
+            }
+          },
+          "risk_rankings": {
+            "low_postdd_top10": {
+              "count": 40,
+              "fire_advantage": 0.0002286836757275889,
+              "post_fire_dd_contribution": 0.0001848847988992791,
+              "mdd_contribution": 0.00018277913283628878,
+              "local_mdd": 0.016478133037930418,
+              "mdd_rel": 0.6666413014154259,
+              "future_mdd_overlap_rate": 0.4,
+              "pre_dd_state_rate": 0.025,
+              "global_mdd_overlap_rate": 0.1,
+              "nonpositive_mdd_contribution_rate": 0.05
+            },
+            "high_postdd_top10": {
+              "count": 40,
+              "fire_advantage": 4.3329463223416884e-05,
+              "post_fire_dd_contribution": 0.0006608521144438855,
+              "mdd_contribution": 0.0006576097050559199,
+              "local_mdd": 0.017425105145250103,
+              "mdd_rel": 0.7874477093213764,
+              "future_mdd_overlap_rate": 0.625,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.075,
+              "nonpositive_mdd_contribution_rate": 0.025
+            },
+            "low_future_overlap_top10": {
+              "count": 40,
+              "fire_advantage": -3.969282704284502e-05,
+              "post_fire_dd_contribution": 0.0004043714557916189,
+              "mdd_contribution": 0.0004027552125638767,
+              "local_mdd": 0.01948522202606373,
+              "mdd_rel": 0.645895647326706,
+              "future_mdd_overlap_rate": 0.35,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.15,
+              "nonpositive_mdd_contribution_rate": 0.025
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0011836716866310334,
+                "post_fire_dd_contribution": 0.00041911270013300915,
+                "mdd_contribution": 0.0004168706869862648,
+                "local_mdd": 0.01917398276939314,
+                "mdd_rel": 0.6875719997312061,
+                "future_mdd_overlap_rate": 0.5,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.15,
+                "nonpositive_mdd_contribution_rate": 0.05
+              },
+              "top20": {
+                "count": 80,
+                "fire_advantage": 0.0007279275218846054,
+                "post_fire_dd_contribution": 0.00031352716608216427,
+                "mdd_contribution": 0.00031079424122392173,
+                "local_mdd": 0.01798926492568989,
+                "mdd_rel": 0.6801697114967619,
+                "future_mdd_overlap_rate": 0.5125,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.125,
+                "nonpositive_mdd_contribution_rate": 0.0375
+              }
+            },
+            "B_adv_minus_postdd": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0006005719524593782,
+                "post_fire_dd_contribution": 0.00024545800594427957,
+                "mdd_contribution": 0.0002435213407849024,
+                "local_mdd": 0.01639275926155858,
+                "mdd_rel": 0.604578790832068,
+                "future_mdd_overlap_rate": 0.375,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.1,
+                "nonpositive_mdd_contribution_rate": 0.025
+              },
+              "top20": {
+                "count": 80,
+                "fire_advantage": 0.0005271953356939705,
+                "post_fire_dd_contribution": 0.0002740964384009198,
+                "mdd_contribution": 0.00027193433210467854,
+                "local_mdd": 0.018588549191600197,
+                "mdd_rel": 0.7072178944876683,
+                "future_mdd_overlap_rate": 0.5125,
+                "pre_dd_state_rate": 0.0125,
+                "global_mdd_overlap_rate": 0.1,
+                "nonpositive_mdd_contribution_rate": 0.05
+              }
+            },
+            "C_adv_minus_overlap_predd": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0010394923971661254,
+                "post_fire_dd_contribution": 0.00037486711644829364,
+                "mdd_contribution": 0.0003732788394398251,
+                "local_mdd": 0.017713118079422475,
+                "mdd_rel": 0.6372944719929489,
+                "future_mdd_overlap_rate": 0.45,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.15,
+                "nonpositive_mdd_contribution_rate": 0.025
+              },
+              "top20": {
+                "count": 80,
+                "fire_advantage": 0.0005412842675777167,
+                "post_fire_dd_contribution": 0.000355582458861875,
+                "mdd_contribution": 0.0003512018590223195,
+                "local_mdd": 0.01743737550643572,
+                "mdd_rel": 0.6549816121824618,
+                "future_mdd_overlap_rate": 0.5125,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.0875,
+                "nonpositive_mdd_contribution_rate": 0.0125
+              }
+            },
+            "D_adv_minus_all_mdd": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0009587435309654773,
+                "post_fire_dd_contribution": 0.00036513179275056705,
+                "mdd_contribution": 0.00036412483841535284,
+                "local_mdd": 0.016199588466108333,
+                "mdd_rel": 0.588871138210431,
+                "future_mdd_overlap_rate": 0.425,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.125,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 80,
+                "fire_advantage": 0.0005110828425235793,
+                "post_fire_dd_contribution": 0.00031743834321930483,
+                "mdd_contribution": 0.0003153547236642906,
+                "local_mdd": 0.01769766455173022,
+                "mdd_rel": 0.6629961570836899,
+                "future_mdd_overlap_rate": 0.5125,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.125,
+                "nonpositive_mdd_contribution_rate": 0.0125
+              }
+            }
+          }
+        },
+        "32": {
+          "samples": 984,
+          "train_samples": 590,
+          "eval_samples": 394,
+          "base_rates": {
+            "future_mdd_overlap": 0.7030456852791879,
+            "pre_dd_state": 0.07868020304568528,
+            "global_mdd_overlap": 0.14213197969543148,
+            "post_dd_q": 0.08883248730964467
+          },
+          "binary": {
+            "future_mdd_overlap": {
+              "positive_rate": 0.7030456852791879,
+              "auc": 0.5715696257212503,
+              "pr_auc": 0.7514038196027603,
+              "top10_positive_rate": 0.8
+            },
+            "pre_dd_state": {
+              "positive_rate": 0.07868020304568528,
+              "auc": 0.5069759175331023,
+              "pr_auc": 0.09150965955866638,
+              "top10_positive_rate": 0.15
+            },
+            "global_mdd_overlap": {
+              "positive_rate": 0.14213197969543148,
+              "auc": 0.6949756973795436,
+              "pr_auc": 0.22808567061055,
+              "top10_positive_rate": 0.3
+            },
+            "post_dd_q": {
+              "threshold": 0.0014009382667900217,
+              "positive_rate": 0.08883248730964467,
+              "auc": 0.4033426183844011,
+              "pr_auc": 0.07094016760303216,
+              "top10_positive_rate": 0.0
+            }
+          },
+          "advantage": {
+            "corr": 0.30707721395981896,
+            "top10": {
+              "count": 40,
+              "fire_advantage": 0.001518419296236867,
+              "post_fire_dd_contribution": 0.0005624059120785923,
+              "mdd_contribution": 0.0004989744809852121,
+              "local_mdd": 0.024307633872330238,
+              "mdd_rel": 0.5346443078120106,
+              "future_mdd_overlap_rate": 0.55,
+              "pre_dd_state_rate": 0.05,
+              "global_mdd_overlap_rate": 0.15,
+              "nonpositive_mdd_contribution_rate": 0.1
+            },
+            "top20": {
+              "count": 79,
+              "fire_advantage": 0.0009045192432468936,
+              "post_fire_dd_contribution": 0.00046305323000675084,
+              "mdd_contribution": 0.00041984040421165264,
+              "local_mdd": 0.0256580283798362,
+              "mdd_rel": 0.6408383520204465,
+              "future_mdd_overlap_rate": 0.5443037974683544,
+              "pre_dd_state_rate": 0.08860759493670886,
+              "global_mdd_overlap_rate": 0.10126582278481013,
+              "nonpositive_mdd_contribution_rate": 0.1518987341772152
+            }
+          },
+          "risk_rankings": {
+            "low_postdd_top10": {
+              "count": 40,
+              "fire_advantage": 0.0003580883479286079,
+              "post_fire_dd_contribution": 0.00044991475908018607,
+              "mdd_contribution": 0.0004134844792286929,
+              "local_mdd": 0.026560476428107205,
+              "mdd_rel": 0.6799582763287753,
+              "future_mdd_overlap_rate": 0.5,
+              "pre_dd_state_rate": 0.025,
+              "global_mdd_overlap_rate": 0.1,
+              "nonpositive_mdd_contribution_rate": 0.125
+            },
+            "high_postdd_top10": {
+              "count": 40,
+              "fire_advantage": 0.00016877730018641536,
+              "post_fire_dd_contribution": 0.0004085318695448814,
+              "mdd_contribution": 0.0004020816425249291,
+              "local_mdd": 0.025920246115212396,
+              "mdd_rel": 0.9138375513330242,
+              "future_mdd_overlap_rate": 0.9,
+              "pre_dd_state_rate": 0.075,
+              "global_mdd_overlap_rate": 0.0,
+              "nonpositive_mdd_contribution_rate": 0.075
+            },
+            "low_future_overlap_top10": {
+              "count": 40,
+              "fire_advantage": 0.00032531829224060477,
+              "post_fire_dd_contribution": 0.0007663929722900642,
+              "mdd_contribution": 0.0007052165193001725,
+              "local_mdd": 0.033813308637094086,
+              "mdd_rel": 0.8592118228871947,
+              "future_mdd_overlap_rate": 0.5,
+              "pre_dd_state_rate": 0.025,
+              "global_mdd_overlap_rate": 0.2,
+              "nonpositive_mdd_contribution_rate": 0.15
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.001518419296236867,
+                "post_fire_dd_contribution": 0.0005624059120785923,
+                "mdd_contribution": 0.0004989744809852121,
+                "local_mdd": 0.024307633872330238,
+                "mdd_rel": 0.5346443078120106,
+                "future_mdd_overlap_rate": 0.55,
+                "pre_dd_state_rate": 0.05,
+                "global_mdd_overlap_rate": 0.15,
+                "nonpositive_mdd_contribution_rate": 0.1
+              },
+              "top20": {
+                "count": 79,
+                "fire_advantage": 0.0009045192432468936,
+                "post_fire_dd_contribution": 0.00046305323000675084,
+                "mdd_contribution": 0.00041984040421165264,
+                "local_mdd": 0.0256580283798362,
+                "mdd_rel": 0.6408383520204465,
+                "future_mdd_overlap_rate": 0.5443037974683544,
+                "pre_dd_state_rate": 0.08860759493670886,
+                "global_mdd_overlap_rate": 0.10126582278481013,
+                "nonpositive_mdd_contribution_rate": 0.1518987341772152
+              }
+            },
+            "B_adv_minus_postdd": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0013455189035975735,
+                "post_fire_dd_contribution": 0.0004980486968883286,
+                "mdd_contribution": 0.00042713539469675654,
+                "local_mdd": 0.02314443583176245,
+                "mdd_rel": 0.5411384815235754,
+                "future_mdd_overlap_rate": 0.55,
+                "pre_dd_state_rate": 0.05,
+                "global_mdd_overlap_rate": 0.125,
+                "nonpositive_mdd_contribution_rate": 0.1
+              },
+              "top20": {
+                "count": 79,
+                "fire_advantage": 0.0007230072962021451,
+                "post_fire_dd_contribution": 0.0005276592130500181,
+                "mdd_contribution": 0.0004749871330180718,
+                "local_mdd": 0.02670267493002098,
+                "mdd_rel": 0.6681207455113661,
+                "future_mdd_overlap_rate": 0.5822784810126582,
+                "pre_dd_state_rate": 0.0379746835443038,
+                "global_mdd_overlap_rate": 0.12658227848101267,
+                "nonpositive_mdd_contribution_rate": 0.10126582278481013
+              }
+            },
+            "C_adv_minus_overlap_predd": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0010845329159659507,
+                "post_fire_dd_contribution": 0.00043129408718021734,
+                "mdd_contribution": 0.00039726417635376767,
+                "local_mdd": 0.02473717402540767,
+                "mdd_rel": 0.6552198436748132,
+                "future_mdd_overlap_rate": 0.525,
+                "pre_dd_state_rate": 0.075,
+                "global_mdd_overlap_rate": 0.05,
+                "nonpositive_mdd_contribution_rate": 0.1
+              },
+              "top20": {
+                "count": 79,
+                "fire_advantage": 0.0008740001797125706,
+                "post_fire_dd_contribution": 0.0005318063288106085,
+                "mdd_contribution": 0.00047424202339556634,
+                "local_mdd": 0.02787324506148966,
+                "mdd_rel": 0.7281252380797292,
+                "future_mdd_overlap_rate": 0.5443037974683544,
+                "pre_dd_state_rate": 0.06329113924050633,
+                "global_mdd_overlap_rate": 0.11392405063291139,
+                "nonpositive_mdd_contribution_rate": 0.11392405063291139
+              }
+            },
+            "D_adv_minus_all_mdd": {
+              "top10": {
+                "count": 40,
+                "fire_advantage": 0.0009904162548740837,
+                "post_fire_dd_contribution": 0.0004092217444138568,
+                "mdd_contribution": 0.00036237564558407043,
+                "local_mdd": 0.023336280969012958,
+                "mdd_rel": 0.5684173030557297,
+                "future_mdd_overlap_rate": 0.475,
+                "pre_dd_state_rate": 0.05,
+                "global_mdd_overlap_rate": 0.05,
+                "nonpositive_mdd_contribution_rate": 0.125
+              },
+              "top20": {
+                "count": 79,
+                "fire_advantage": 0.0008810674651511001,
+                "post_fire_dd_contribution": 0.000517985461467982,
+                "mdd_contribution": 0.0004625722773934697,
+                "local_mdd": 0.027569169383285887,
+                "mdd_rel": 0.714482971186851,
+                "future_mdd_overlap_rate": 0.5569620253164557,
+                "pre_dd_state_rate": 0.05063291139240506,
+                "global_mdd_overlap_rate": 0.10126582278481013,
+                "nonpositive_mdd_contribution_rate": 0.13924050632911392
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "Hbest",
+      "mode": "ac",
+      "checkpoint_dir": "checkpoints/acplan13_wm_control_headonly_s011",
+      "fold": 5,
+      "summary": {
+        "alpha_excess_pt": -28.099567891241684,
+        "sharpe_delta": -0.06394679854657737,
+        "maxdd_delta_pt": 0.7549344375579331,
+        "turnover": 2.6187177896499634,
+        "long": 0.029862609288066312,
+        "short": 0.0,
+        "flat": 0.9701373907119337,
+        "fire_rate": 0.1209265357102305,
+        "fire_count": 1065,
+        "mean_delta": 0.030960387019484257,
+        "fire_pnl": -0.04073372740137485,
+        "nonfire_pnl": 0.6864766081199838
+      },
+      "global_mdd": {
+        "peak": 5027,
+        "trough": 6453,
+        "maxdd": -0.24347918512129288,
+        "fire_in_global_mdd_rate": 0.03951402293630067
+      },
+      "horizons": {
+        "16": {
+          "samples": 1050,
+          "train_samples": 630,
+          "eval_samples": 420,
+          "base_rates": {
+            "future_mdd_overlap": 0.5428571428571428,
+            "pre_dd_state": 0.01904761904761905,
+            "global_mdd_overlap": 0.10476190476190476,
+            "post_dd_q": 0.19285714285714287
+          },
+          "binary": {
+            "future_mdd_overlap": {
+              "positive_rate": 0.5428571428571428,
+              "auc": 0.3163377192982456,
+              "pr_auc": 0.4416533456538788,
+              "top10_positive_rate": 0.38095238095238093
+            },
+            "pre_dd_state": {
+              "positive_rate": 0.01904761904761905,
+              "auc": 0.7600121359223301,
+              "pr_auc": 0.15041575096553508,
+              "top10_positive_rate": 0.09523809523809523
+            },
+            "global_mdd_overlap": {
+              "positive_rate": 0.10476190476190476,
+              "auc": 0.597316247582205,
+              "pr_auc": 0.11716110350360784,
+              "top10_positive_rate": 0.0
+            },
+            "post_dd_q": {
+              "threshold": 0.0007055185569357248,
+              "positive_rate": 0.19285714285714287,
+              "auc": 0.30033868676936526,
+              "pr_auc": 0.13219746190729725,
+              "top10_positive_rate": 0.0
+            }
+          },
+          "advantage": {
+            "corr": 0.15073874913694452,
+            "top10": {
+              "count": 42,
+              "fire_advantage": 0.0005954384443246866,
+              "post_fire_dd_contribution": 0.0005228693842634675,
+              "mdd_contribution": 0.0005204494617450994,
+              "local_mdd": 0.014960526030960592,
+              "mdd_rel": 0.8376636397278671,
+              "future_mdd_overlap_rate": 0.7857142857142857,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.30952380952380953,
+              "nonpositive_mdd_contribution_rate": 0.0
+            },
+            "top20": {
+              "count": 84,
+              "fire_advantage": 0.0003833531054946468,
+              "post_fire_dd_contribution": 0.0005682945861155896,
+              "mdd_contribution": 0.0005666575725317821,
+              "local_mdd": 0.015741727731524224,
+              "mdd_rel": 0.8990640943600502,
+              "future_mdd_overlap_rate": 0.7857142857142857,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.27380952380952384,
+              "nonpositive_mdd_contribution_rate": 0.011904761904761904
+            }
+          },
+          "risk_rankings": {
+            "low_postdd_top10": {
+              "count": 42,
+              "fire_advantage": 0.0004836976847333815,
+              "post_fire_dd_contribution": 0.0004788030666649869,
+              "mdd_contribution": 0.00047807644900357165,
+              "local_mdd": 0.014532507527745,
+              "mdd_rel": 0.9337634504514079,
+              "future_mdd_overlap_rate": 0.8333333333333334,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.19047619047619047,
+              "nonpositive_mdd_contribution_rate": 0.0
+            },
+            "high_postdd_top10": {
+              "count": 42,
+              "fire_advantage": 0.0002304801708456122,
+              "post_fire_dd_contribution": 0.0002984120308889996,
+              "mdd_contribution": 0.0002946087041621893,
+              "local_mdd": 0.011584658291713033,
+              "mdd_rel": 0.5072891771460506,
+              "future_mdd_overlap_rate": 0.2619047619047619,
+              "pre_dd_state_rate": 0.023809523809523808,
+              "global_mdd_overlap_rate": 0.0,
+              "nonpositive_mdd_contribution_rate": 0.023809523809523808
+            },
+            "low_future_overlap_top10": {
+              "count": 42,
+              "fire_advantage": 0.00022909934671286775,
+              "post_fire_dd_contribution": 0.0003330075982752061,
+              "mdd_contribution": 0.0003318499787199442,
+              "local_mdd": 0.012410509393951103,
+              "mdd_rel": 0.7537798180686823,
+              "future_mdd_overlap_rate": 0.7619047619047619,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.19047619047619047,
+              "nonpositive_mdd_contribution_rate": 0.0
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0005954384443246866,
+                "post_fire_dd_contribution": 0.0005228693842634675,
+                "mdd_contribution": 0.0005204494617450994,
+                "local_mdd": 0.014960526030960592,
+                "mdd_rel": 0.8376636397278671,
+                "future_mdd_overlap_rate": 0.7857142857142857,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.30952380952380953,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.0003833531054946468,
+                "post_fire_dd_contribution": 0.0005682945861155896,
+                "mdd_contribution": 0.0005666575725317821,
+                "local_mdd": 0.015741727731524224,
+                "mdd_rel": 0.8990640943600502,
+                "future_mdd_overlap_rate": 0.7857142857142857,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.27380952380952384,
+                "nonpositive_mdd_contribution_rate": 0.011904761904761904
+              }
+            },
+            "B_adv_minus_postdd": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0005469219673705525,
+                "post_fire_dd_contribution": 0.0005048645682035335,
+                "mdd_contribution": 0.0005044055159412091,
+                "local_mdd": 0.015106512450152862,
+                "mdd_rel": 0.9077817116334262,
+                "future_mdd_overlap_rate": 0.8095238095238095,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.23809523809523808,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.000347879624066106,
+                "post_fire_dd_contribution": 0.00047161245287653873,
+                "mdd_contribution": 0.0004701171886796857,
+                "local_mdd": 0.01508543094632671,
+                "mdd_rel": 0.9086797834291102,
+                "future_mdd_overlap_rate": 0.8095238095238095,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.23809523809523808,
+                "nonpositive_mdd_contribution_rate": 0.011904761904761904
+              }
+            },
+            "C_adv_minus_overlap_predd": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0004095994346557878,
+                "post_fire_dd_contribution": 0.0005658112811883273,
+                "mdd_contribution": 0.0005595793397090366,
+                "local_mdd": 0.014506966679502908,
+                "mdd_rel": 0.8067958821373905,
+                "future_mdd_overlap_rate": 0.7619047619047619,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.35714285714285715,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.00030022729043667143,
+                "post_fire_dd_contribution": 0.000633683598745006,
+                "mdd_contribution": 0.0006281754298129545,
+                "local_mdd": 0.01628347942140314,
+                "mdd_rel": 0.9765723859979263,
+                "future_mdd_overlap_rate": 0.8214285714285714,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.30952380952380953,
+                "nonpositive_mdd_contribution_rate": 0.011904761904761904
+              }
+            },
+            "D_adv_minus_all_mdd": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.00046438935548235997,
+                "post_fire_dd_contribution": 0.0004940515113460085,
+                "mdd_contribution": 0.0004919485409108756,
+                "local_mdd": 0.013808254360142644,
+                "mdd_rel": 0.9312846791788739,
+                "future_mdd_overlap_rate": 0.8809523809523809,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.21428571428571427,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.00031699959657300106,
+                "post_fire_dd_contribution": 0.0005513027836462519,
+                "mdd_contribution": 0.0005456881751703775,
+                "local_mdd": 0.015250062082515926,
+                "mdd_rel": 0.9649543239256149,
+                "future_mdd_overlap_rate": 0.8333333333333334,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.23809523809523808,
+                "nonpositive_mdd_contribution_rate": 0.0
+              }
+            }
+          }
+        },
+        "32": {
+          "samples": 1047,
+          "train_samples": 628,
+          "eval_samples": 419,
+          "base_rates": {
+            "future_mdd_overlap": 0.46539379474940334,
+            "pre_dd_state": 0.05489260143198091,
+            "global_mdd_overlap": 0.10978520286396182,
+            "post_dd_q": 0.12410501193317422
+          },
+          "binary": {
+            "future_mdd_overlap": {
+              "positive_rate": 0.46539379474940334,
+              "auc": 0.5384844322344322,
+              "pr_auc": 0.4918566515913072,
+              "top10_positive_rate": 0.47619047619047616
+            },
+            "pre_dd_state": {
+              "positive_rate": 0.05489260143198091,
+              "auc": 0.2844751866490997,
+              "pr_auc": 0.037014699206771494,
+              "top10_positive_rate": 0.0
+            },
+            "global_mdd_overlap": {
+              "positive_rate": 0.10978520286396182,
+              "auc": 0.5910362513113416,
+              "pr_auc": 0.1208931391640714,
+              "top10_positive_rate": 0.0
+            },
+            "post_dd_q": {
+              "threshold": 0.0009640849784492422,
+              "positive_rate": 0.12410501193317422,
+              "auc": 0.42580171871725003,
+              "pr_auc": 0.10062404673864186,
+              "top10_positive_rate": 0.0
+            }
+          },
+          "advantage": {
+            "corr": 0.23047769929339407,
+            "top10": {
+              "count": 42,
+              "fire_advantage": 0.0008766330749236356,
+              "post_fire_dd_contribution": 0.0005234623917622453,
+              "mdd_contribution": 0.000518669090023389,
+              "local_mdd": 0.01562150540142849,
+              "mdd_rel": 0.5513798397545091,
+              "future_mdd_overlap_rate": 0.23809523809523808,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.35714285714285715,
+              "nonpositive_mdd_contribution_rate": 0.0
+            },
+            "top20": {
+              "count": 84,
+              "fire_advantage": 0.0007214239845525851,
+              "post_fire_dd_contribution": 0.0005471980600770955,
+              "mdd_contribution": 0.0005159506443853498,
+              "local_mdd": 0.015199192479757524,
+              "mdd_rel": 0.6044535629991087,
+              "future_mdd_overlap_rate": 0.32142857142857145,
+              "pre_dd_state_rate": 0.047619047619047616,
+              "global_mdd_overlap_rate": 0.2857142857142857,
+              "nonpositive_mdd_contribution_rate": 0.047619047619047616
+            }
+          },
+          "risk_rankings": {
+            "low_postdd_top10": {
+              "count": 42,
+              "fire_advantage": 0.000607497122829801,
+              "post_fire_dd_contribution": 0.00031676020974541474,
+              "mdd_contribution": 0.0003102392333177704,
+              "local_mdd": 0.013839211507478001,
+              "mdd_rel": 0.6700868335784216,
+              "future_mdd_overlap_rate": 0.5952380952380952,
+              "pre_dd_state_rate": 0.047619047619047616,
+              "global_mdd_overlap_rate": 0.11904761904761904,
+              "nonpositive_mdd_contribution_rate": 0.047619047619047616
+            },
+            "high_postdd_top10": {
+              "count": 42,
+              "fire_advantage": 0.0006776618576352885,
+              "post_fire_dd_contribution": 0.00042267801929470777,
+              "mdd_contribution": 0.00040112672396889576,
+              "local_mdd": 0.01645235690390904,
+              "mdd_rel": 0.47719313172002503,
+              "future_mdd_overlap_rate": 0.35714285714285715,
+              "pre_dd_state_rate": 0.023809523809523808,
+              "global_mdd_overlap_rate": 0.0,
+              "nonpositive_mdd_contribution_rate": 0.0
+            },
+            "low_future_overlap_top10": {
+              "count": 42,
+              "fire_advantage": 0.0005284811531797607,
+              "post_fire_dd_contribution": 0.0004497735711113644,
+              "mdd_contribution": 0.0004300381863740065,
+              "local_mdd": 0.015308008696064822,
+              "mdd_rel": 0.5463354830816309,
+              "future_mdd_overlap_rate": 0.23809523809523808,
+              "pre_dd_state_rate": 0.07142857142857142,
+              "global_mdd_overlap_rate": 0.19047619047619047,
+              "nonpositive_mdd_contribution_rate": 0.09523809523809523
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0008766330749236356,
+                "post_fire_dd_contribution": 0.0005234623917622453,
+                "mdd_contribution": 0.000518669090023389,
+                "local_mdd": 0.01562150540142849,
+                "mdd_rel": 0.5513798397545091,
+                "future_mdd_overlap_rate": 0.23809523809523808,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.35714285714285715,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.0007214239845525851,
+                "post_fire_dd_contribution": 0.0005471980600770955,
+                "mdd_contribution": 0.0005159506443853498,
+                "local_mdd": 0.015199192479757524,
+                "mdd_rel": 0.6044535629991087,
+                "future_mdd_overlap_rate": 0.32142857142857145,
+                "pre_dd_state_rate": 0.047619047619047616,
+                "global_mdd_overlap_rate": 0.2857142857142857,
+                "nonpositive_mdd_contribution_rate": 0.047619047619047616
+              }
+            },
+            "B_adv_minus_postdd": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0009424314181721549,
+                "post_fire_dd_contribution": 0.0004985872528971689,
+                "mdd_contribution": 0.0004935613510454436,
+                "local_mdd": 0.014556440252522496,
+                "mdd_rel": 0.568367163616472,
+                "future_mdd_overlap_rate": 0.2857142857142857,
+                "pre_dd_state_rate": 0.0,
+                "global_mdd_overlap_rate": 0.30952380952380953,
+                "nonpositive_mdd_contribution_rate": 0.0
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.0007744702919308377,
+                "post_fire_dd_contribution": 0.0004948638034811997,
+                "mdd_contribution": 0.0004892417216098922,
+                "local_mdd": 0.015090172541352309,
+                "mdd_rel": 0.6226146658310294,
+                "future_mdd_overlap_rate": 0.40476190476190477,
+                "pre_dd_state_rate": 0.011904761904761904,
+                "global_mdd_overlap_rate": 0.25,
+                "nonpositive_mdd_contribution_rate": 0.011904761904761904
+              }
+            },
+            "C_adv_minus_overlap_predd": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0006155017365809661,
+                "post_fire_dd_contribution": 0.0004025097667603199,
+                "mdd_contribution": 0.00037211777304824433,
+                "local_mdd": 0.013769885360190835,
+                "mdd_rel": 0.3930722096518342,
+                "future_mdd_overlap_rate": 0.023809523809523808,
+                "pre_dd_state_rate": 0.07142857142857142,
+                "global_mdd_overlap_rate": 0.40476190476190477,
+                "nonpositive_mdd_contribution_rate": 0.09523809523809523
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.0004612321417624043,
+                "post_fire_dd_contribution": 0.0004613225137176208,
+                "mdd_contribution": 0.00041626813538015426,
+                "local_mdd": 0.015760757083199888,
+                "mdd_rel": 0.4726281274576152,
+                "future_mdd_overlap_rate": 0.14285714285714285,
+                "pre_dd_state_rate": 0.10714285714285714,
+                "global_mdd_overlap_rate": 0.38095238095238093,
+                "nonpositive_mdd_contribution_rate": 0.08333333333333333
+              }
+            },
+            "D_adv_minus_all_mdd": {
+              "top10": {
+                "count": 42,
+                "fire_advantage": 0.0006050442932515864,
+                "post_fire_dd_contribution": 0.00033681626980427585,
+                "mdd_contribution": 0.0003239776194838945,
+                "local_mdd": 0.013692249626239642,
+                "mdd_rel": 0.38829912554888873,
+                "future_mdd_overlap_rate": 0.07142857142857142,
+                "pre_dd_state_rate": 0.023809523809523808,
+                "global_mdd_overlap_rate": 0.47619047619047616,
+                "nonpositive_mdd_contribution_rate": 0.07142857142857142
+              },
+              "top20": {
+                "count": 84,
+                "fire_advantage": 0.0005467768174153507,
+                "post_fire_dd_contribution": 0.00037835415586824563,
+                "mdd_contribution": 0.00035302000007318636,
+                "local_mdd": 0.013482780124485168,
+                "mdd_rel": 0.4493883721190538,
+                "future_mdd_overlap_rate": 0.20238095238095238,
+                "pre_dd_state_rate": 0.05952380952380952,
+                "global_mdd_overlap_rate": 0.32142857142857145,
+                "nonpositive_mdd_contribution_rate": 0.09523809523809523
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "Hbest",
+      "mode": "ac",
+      "checkpoint_dir": "checkpoints/acplan13_wm_control_headonly_s011",
+      "fold": 6,
+      "summary": {
+        "alpha_excess_pt": -0.6032924191883615,
+        "sharpe_delta": -0.021428840130996996,
+        "maxdd_delta_pt": 0.613142880266837,
+        "turnover": 4.717713475227356,
+        "long": 0.008604098267859165,
+        "short": 0.0,
+        "flat": 0.9913959017321409,
+        "fire_rate": 0.28370881920072455,
+        "fire_count": 2506,
+        "mean_delta": 0.020508926103139816,
+        "fire_pnl": -0.1801981222245982,
+        "nonfire_pnl": -0.1744798697199837
+      },
+      "global_mdd": {
+        "peak": 2401,
+        "trough": 8258,
+        "maxdd": -0.42546104559115316,
+        "fire_in_global_mdd_rate": 0.1985735310766444
+      },
+      "horizons": {
+        "16": {
+          "samples": 2506,
+          "train_samples": 1503,
+          "eval_samples": 1003,
+          "base_rates": {
+            "future_mdd_overlap": 0.7008973080757727,
+            "pre_dd_state": 0.02193419740777667,
+            "global_mdd_overlap": 0.8295114656031904,
+            "post_dd_q": 0.2572283150548355
+          },
+          "binary": {
+            "future_mdd_overlap": {
+              "positive_rate": 0.7008973080757727,
+              "auc": 0.5628876244665718,
+              "pr_auc": 0.7447353045046815,
+              "top10_positive_rate": 0.7623762376237624
+            },
+            "pre_dd_state": {
+              "positive_rate": 0.02193419740777667,
+              "auc": 0.5721434528773979,
+              "pr_auc": 0.057892260214984496,
+              "top10_positive_rate": 0.04950495049504951
+            },
+            "global_mdd_overlap": {
+              "positive_rate": 0.8295114656031904,
+              "auc": 0.3782051282051282,
+              "pr_auc": 0.7739332064723597,
+              "top10_positive_rate": 0.7029702970297029
+            },
+            "post_dd_q": {
+              "threshold": 0.0003125093638148391,
+              "positive_rate": 0.2572283150548355,
+              "auc": 0.7734092919202955,
+              "pr_auc": 0.5430374908768455,
+              "top10_positive_rate": 0.6534653465346535
+            }
+          },
+          "advantage": {
+            "corr": 0.24108575241882868,
+            "top10": {
+              "count": 101,
+              "fire_advantage": 4.354037563555819e-05,
+              "post_fire_dd_contribution": 0.00014423464345601834,
+              "mdd_contribution": 0.00014182758871764866,
+              "local_mdd": 0.009524473732120254,
+              "mdd_rel": 0.7423878844952679,
+              "future_mdd_overlap_rate": 0.6138613861386139,
+              "pre_dd_state_rate": 0.019801980198019802,
+              "global_mdd_overlap_rate": 0.693069306930693,
+              "nonpositive_mdd_contribution_rate": 0.0594059405940594
+            },
+            "top20": {
+              "count": 201,
+              "fire_advantage": 3.268221077536278e-05,
+              "post_fire_dd_contribution": 0.0001585646129397394,
+              "mdd_contribution": 0.0001560841736301503,
+              "local_mdd": 0.009485571354171041,
+              "mdd_rel": 0.7476578637744411,
+              "future_mdd_overlap_rate": 0.6169154228855721,
+              "pre_dd_state_rate": 0.04477611940298507,
+              "global_mdd_overlap_rate": 0.7164179104477612,
+              "nonpositive_mdd_contribution_rate": 0.07960199004975124
+            }
+          },
+          "risk_rankings": {
+            "low_postdd_top10": {
+              "count": 101,
+              "fire_advantage": -3.2383513245085334e-06,
+              "post_fire_dd_contribution": 7.163869806030741e-05,
+              "mdd_contribution": 6.963417340392921e-05,
+              "local_mdd": 0.009996745575019738,
+              "mdd_rel": 0.8096336215554883,
+              "future_mdd_overlap_rate": 0.5643564356435643,
+              "pre_dd_state_rate": 0.0891089108910891,
+              "global_mdd_overlap_rate": 0.801980198019802,
+              "nonpositive_mdd_contribution_rate": 0.15841584158415842
+            },
+            "high_postdd_top10": {
+              "count": 101,
+              "fire_advantage": -0.00022388433022001175,
+              "post_fire_dd_contribution": 0.00048220621530628864,
+              "mdd_contribution": 0.00047973253618558223,
+              "local_mdd": 0.01574418319802789,
+              "mdd_rel": 1.35477721814551,
+              "future_mdd_overlap_rate": 0.8514851485148515,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.8811881188118812,
+              "nonpositive_mdd_contribution_rate": 0.0
+            },
+            "low_future_overlap_top10": {
+              "count": 101,
+              "fire_advantage": -5.522354344296682e-06,
+              "post_fire_dd_contribution": 0.00019874680131694013,
+              "mdd_contribution": 0.00019697560524635106,
+              "local_mdd": 0.010683349830057925,
+              "mdd_rel": 0.8261475413587864,
+              "future_mdd_overlap_rate": 0.6138613861386139,
+              "pre_dd_state_rate": 0.019801980198019802,
+              "global_mdd_overlap_rate": 0.693069306930693,
+              "nonpositive_mdd_contribution_rate": 0.04950495049504951
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 4.354037563555819e-05,
+                "post_fire_dd_contribution": 0.00014423464345601834,
+                "mdd_contribution": 0.00014182758871764866,
+                "local_mdd": 0.009524473732120254,
+                "mdd_rel": 0.7423878844952679,
+                "future_mdd_overlap_rate": 0.6138613861386139,
+                "pre_dd_state_rate": 0.019801980198019802,
+                "global_mdd_overlap_rate": 0.693069306930693,
+                "nonpositive_mdd_contribution_rate": 0.0594059405940594
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 3.268221077536278e-05,
+                "post_fire_dd_contribution": 0.0001585646129397394,
+                "mdd_contribution": 0.0001560841736301503,
+                "local_mdd": 0.009485571354171041,
+                "mdd_rel": 0.7476578637744411,
+                "future_mdd_overlap_rate": 0.6169154228855721,
+                "pre_dd_state_rate": 0.04477611940298507,
+                "global_mdd_overlap_rate": 0.7164179104477612,
+                "nonpositive_mdd_contribution_rate": 0.07960199004975124
+              }
+            },
+            "B_adv_minus_postdd": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 2.8455965384107867e-05,
+                "post_fire_dd_contribution": 9.797579596874183e-05,
+                "mdd_contribution": 9.600784814759532e-05,
+                "local_mdd": 0.009533273708245596,
+                "mdd_rel": 0.7490627553350864,
+                "future_mdd_overlap_rate": 0.5544554455445545,
+                "pre_dd_state_rate": 0.0594059405940594,
+                "global_mdd_overlap_rate": 0.7425742574257426,
+                "nonpositive_mdd_contribution_rate": 0.10891089108910891
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 1.9171194779980163e-05,
+                "post_fire_dd_contribution": 9.216706045213897e-05,
+                "mdd_contribution": 8.981149266181726e-05,
+                "local_mdd": 0.008845426815973985,
+                "mdd_rel": 0.7118062240288439,
+                "future_mdd_overlap_rate": 0.5870646766169154,
+                "pre_dd_state_rate": 0.06467661691542288,
+                "global_mdd_overlap_rate": 0.7164179104477612,
+                "nonpositive_mdd_contribution_rate": 0.1044776119402985
+              }
+            },
+            "C_adv_minus_overlap_predd": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 1.0608432982610753e-05,
+                "post_fire_dd_contribution": 0.0002032508192354619,
+                "mdd_contribution": 0.00020108993351064641,
+                "local_mdd": 0.010520602835834569,
+                "mdd_rel": 0.7771024226345185,
+                "future_mdd_overlap_rate": 0.6039603960396039,
+                "pre_dd_state_rate": 0.039603960396039604,
+                "global_mdd_overlap_rate": 0.7128712871287128,
+                "nonpositive_mdd_contribution_rate": 0.04950495049504951
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 6.625101840347819e-06,
+                "post_fire_dd_contribution": 0.00020721136051759847,
+                "mdd_contribution": 0.00020448420001368617,
+                "local_mdd": 0.010318379393472741,
+                "mdd_rel": 0.7971794562651157,
+                "future_mdd_overlap_rate": 0.6268656716417911,
+                "pre_dd_state_rate": 0.03482587064676617,
+                "global_mdd_overlap_rate": 0.7114427860696517,
+                "nonpositive_mdd_contribution_rate": 0.05472636815920398
+              }
+            },
+            "D_adv_minus_all_mdd": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 4.397663475219323e-05,
+                "post_fire_dd_contribution": 0.000132113911685166,
+                "mdd_contribution": 0.00012964816812462788,
+                "local_mdd": 0.009782370588396457,
+                "mdd_rel": 0.7486750749667909,
+                "future_mdd_overlap_rate": 0.5841584158415841,
+                "pre_dd_state_rate": 0.0594059405940594,
+                "global_mdd_overlap_rate": 0.7128712871287128,
+                "nonpositive_mdd_contribution_rate": 0.09900990099009901
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 1.1855459238020624e-05,
+                "post_fire_dd_contribution": 0.00014805090446690206,
+                "mdd_contribution": 0.00014602541127878703,
+                "local_mdd": 0.009605066730693728,
+                "mdd_rel": 0.7527499143255615,
+                "future_mdd_overlap_rate": 0.5920398009950248,
+                "pre_dd_state_rate": 0.04477611940298507,
+                "global_mdd_overlap_rate": 0.7263681592039801,
+                "nonpositive_mdd_contribution_rate": 0.07462686567164178
+              }
+            }
+          }
+        },
+        "32": {
+          "samples": 2506,
+          "train_samples": 1503,
+          "eval_samples": 1003,
+          "base_rates": {
+            "future_mdd_overlap": 0.6689930209371885,
+            "pre_dd_state": 0.05284147557328016,
+            "global_mdd_overlap": 0.8295114656031904,
+            "post_dd_q": 0.24825523429710866
+          },
+          "binary": {
+            "future_mdd_overlap": {
+              "positive_rate": 0.6689930209371885,
+              "auc": 0.6615912233135224,
+              "pr_auc": 0.8068448484647079,
+              "top10_positive_rate": 0.9405940594059405
+            },
+            "pre_dd_state": {
+              "positive_rate": 0.05284147557328016,
+              "auc": 0.5536047666335651,
+              "pr_auc": 0.07758348038610333,
+              "top10_positive_rate": 0.06930693069306931
+            },
+            "global_mdd_overlap": {
+              "positive_rate": 0.8295114656031904,
+              "auc": 0.3782051282051282,
+              "pr_auc": 0.7739332064723597,
+              "top10_positive_rate": 0.7029702970297029
+            },
+            "post_dd_q": {
+              "threshold": 0.000425758163890122,
+              "positive_rate": 0.24825523429710866,
+              "auc": 0.7676009076092167,
+              "pr_auc": 0.526950613904264,
+              "top10_positive_rate": 0.6633663366336634
+            }
+          },
+          "advantage": {
+            "corr": 0.3117998851436431,
+            "top10": {
+              "count": 101,
+              "fire_advantage": 5.705576735584114e-05,
+              "post_fire_dd_contribution": 0.00012705113315980454,
+              "mdd_contribution": 0.00011160364798647553,
+              "local_mdd": 0.01301564049977264,
+              "mdd_rel": 0.7385455676199414,
+              "future_mdd_overlap_rate": 0.5841584158415841,
+              "pre_dd_state_rate": 0.04950495049504951,
+              "global_mdd_overlap_rate": 0.6732673267326733,
+              "nonpositive_mdd_contribution_rate": 0.13861386138613863
+            },
+            "top20": {
+              "count": 201,
+              "fire_advantage": 5.9665397894594265e-05,
+              "post_fire_dd_contribution": 0.00013202931277094684,
+              "mdd_contribution": 0.00011887895092984342,
+              "local_mdd": 0.01335472571174332,
+              "mdd_rel": 0.7745311980877663,
+              "future_mdd_overlap_rate": 0.5771144278606966,
+              "pre_dd_state_rate": 0.06467661691542288,
+              "global_mdd_overlap_rate": 0.6616915422885572,
+              "nonpositive_mdd_contribution_rate": 0.12437810945273632
+            }
+          },
+          "risk_rankings": {
+            "low_postdd_top10": {
+              "count": 101,
+              "fire_advantage": 6.426810692186e-06,
+              "post_fire_dd_contribution": 7.736567269042732e-05,
+              "mdd_contribution": 6.844299725411066e-05,
+              "local_mdd": 0.012971464050658457,
+              "mdd_rel": 0.7481070406403744,
+              "future_mdd_overlap_rate": 0.48514851485148514,
+              "pre_dd_state_rate": 0.1485148514851485,
+              "global_mdd_overlap_rate": 0.7722772277227723,
+              "nonpositive_mdd_contribution_rate": 0.25742574257425743
+            },
+            "high_postdd_top10": {
+              "count": 101,
+              "fire_advantage": -0.00032807091459100885,
+              "post_fire_dd_contribution": 0.0006337756581447282,
+              "mdd_contribution": 0.0006229233341588674,
+              "local_mdd": 0.023647075043502483,
+              "mdd_rel": 1.4033015261502135,
+              "future_mdd_overlap_rate": 0.8613861386138614,
+              "pre_dd_state_rate": 0.0,
+              "global_mdd_overlap_rate": 0.8514851485148515,
+              "nonpositive_mdd_contribution_rate": 0.0
+            },
+            "low_future_overlap_top10": {
+              "count": 101,
+              "fire_advantage": 1.087702971039955e-06,
+              "post_fire_dd_contribution": 0.00014874112781497378,
+              "mdd_contribution": 0.00013267900769428878,
+              "local_mdd": 0.01224921445265299,
+              "mdd_rel": 0.6635050541081604,
+              "future_mdd_overlap_rate": 0.44554455445544555,
+              "pre_dd_state_rate": 0.0594059405940594,
+              "global_mdd_overlap_rate": 0.5544554455445545,
+              "nonpositive_mdd_contribution_rate": 0.15841584158415842
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 5.705576735584114e-05,
+                "post_fire_dd_contribution": 0.00012705113315980454,
+                "mdd_contribution": 0.00011160364798647553,
+                "local_mdd": 0.01301564049977264,
+                "mdd_rel": 0.7385455676199414,
+                "future_mdd_overlap_rate": 0.5841584158415841,
+                "pre_dd_state_rate": 0.04950495049504951,
+                "global_mdd_overlap_rate": 0.6732673267326733,
+                "nonpositive_mdd_contribution_rate": 0.13861386138613863
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 5.9665397894594265e-05,
+                "post_fire_dd_contribution": 0.00013202931277094684,
+                "mdd_contribution": 0.00011887895092984342,
+                "local_mdd": 0.01335472571174332,
+                "mdd_rel": 0.7745311980877663,
+                "future_mdd_overlap_rate": 0.5771144278606966,
+                "pre_dd_state_rate": 0.06467661691542288,
+                "global_mdd_overlap_rate": 0.6616915422885572,
+                "nonpositive_mdd_contribution_rate": 0.12437810945273632
+              }
+            },
+            "B_adv_minus_postdd": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 1.546242567500951e-05,
+                "post_fire_dd_contribution": 8.693498083975926e-05,
+                "mdd_contribution": 7.333253630812518e-05,
+                "local_mdd": 0.012742138757953679,
+                "mdd_rel": 0.7367191385679825,
+                "future_mdd_overlap_rate": 0.5544554455445545,
+                "pre_dd_state_rate": 0.07920792079207921,
+                "global_mdd_overlap_rate": 0.7128712871287128,
+                "nonpositive_mdd_contribution_rate": 0.18811881188118812
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 2.039339160346735e-05,
+                "post_fire_dd_contribution": 9.5394002384807e-05,
+                "mdd_contribution": 8.362106373714878e-05,
+                "local_mdd": 0.012848519490429876,
+                "mdd_rel": 0.7382882330698092,
+                "future_mdd_overlap_rate": 0.5522388059701493,
+                "pre_dd_state_rate": 0.0945273631840796,
+                "global_mdd_overlap_rate": 0.736318407960199,
+                "nonpositive_mdd_contribution_rate": 0.15422885572139303
+              }
+            },
+            "C_adv_minus_overlap_predd": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 4.8759964417385956e-05,
+                "post_fire_dd_contribution": 0.00017829240397857076,
+                "mdd_contribution": 0.00016434495277643145,
+                "local_mdd": 0.01251179310175449,
+                "mdd_rel": 0.6567416479819889,
+                "future_mdd_overlap_rate": 0.5544554455445545,
+                "pre_dd_state_rate": 0.0297029702970297,
+                "global_mdd_overlap_rate": 0.6336633663366337,
+                "nonpositive_mdd_contribution_rate": 0.09900990099009901
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 4.038250253129335e-05,
+                "post_fire_dd_contribution": 0.00017710476441222043,
+                "mdd_contribution": 0.00016399942441477978,
+                "local_mdd": 0.01291512317758144,
+                "mdd_rel": 0.7059795562463493,
+                "future_mdd_overlap_rate": 0.5621890547263682,
+                "pre_dd_state_rate": 0.04975124378109453,
+                "global_mdd_overlap_rate": 0.6467661691542289,
+                "nonpositive_mdd_contribution_rate": 0.08955223880597014
+              }
+            },
+            "D_adv_minus_all_mdd": {
+              "top10": {
+                "count": 101,
+                "fire_advantage": 3.936089339721966e-05,
+                "post_fire_dd_contribution": 8.892691316379777e-05,
+                "mdd_contribution": 7.626497796852985e-05,
+                "local_mdd": 0.012044883179264514,
+                "mdd_rel": 0.6512736322728157,
+                "future_mdd_overlap_rate": 0.5148514851485149,
+                "pre_dd_state_rate": 0.06930693069306931,
+                "global_mdd_overlap_rate": 0.6534653465346535,
+                "nonpositive_mdd_contribution_rate": 0.16831683168316833
+              },
+              "top20": {
+                "count": 201,
+                "fire_advantage": 2.6870113477846516e-05,
+                "post_fire_dd_contribution": 0.0001251031427031708,
+                "mdd_contribution": 0.00011219393726759611,
+                "local_mdd": 0.012654350104691474,
+                "mdd_rel": 0.7002460099099348,
+                "future_mdd_overlap_rate": 0.5572139303482587,
+                "pre_dd_state_rate": 0.06467661691542288,
+                "global_mdd_overlap_rate": 0.6567164179104478,
+                "nonpositive_mdd_contribution_rate": 0.12437810945273632
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "readiness": {
+    "adv_top10_positive_all": true,
+    "low_postdd_keeps_positive_adv_all": true,
+    "combined_D_improves_mdd_risk_all": false,
+    "future_mdd_overlap_auc_ge_0_55_all": false
+  }
+}
