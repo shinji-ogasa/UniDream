@@ -124,8 +124,10 @@ class ObsEncoder(nn.Module):
         dist = OneHotDist(logits=logits, unimix_ratio=self.unimix_ratio)
         # Training keeps Dreamer-style stochastic latents. Evaluation/inference
         # must be deterministic; otherwise the same checkpoint can produce
-        # different WFO metrics across repeated probes.
-        z_onehot = dist.sample() if self.training else dist.mode()
+        # different WFO metrics across repeated probes. Use the probability
+        # vector instead of a hard argmax so downstream policies keep latent
+        # uncertainty information without RNG.
+        z_onehot = dist.sample() if self.training else dist.probs
 
         # flatten
         z = z_onehot.reshape(logits_flat.shape)  # (..., n_cats * n_classes)
