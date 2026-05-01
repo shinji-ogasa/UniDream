@@ -1,0 +1,251 @@
+﻿# Plan17 Reproducibility Priority Report
+
+Date: 2026-05-01
+Scope: `documents/acplan_17.md` is treated as reference only. Current priority is multi-fold reproducibility, not best single-fold or mean Alpha.
+
+## Decision
+
+Current decision:
+
+```text
+Do not adopt Plan17 fire selector v2.
+Do not adopt strong route rebalance.
+Do not adopt mild route rebalance.
+Keep deterministic WM eval/inference latent fix.
+Hold AC tuning until route separability is fixed across folds.
+``` 
+
+Reason:
+
+```text
+The high mean Alpha was fold5-dependent.
+The old probes were partly invalid because WM eval encoding sampled stochastically.
+After deterministic probability-latent evaluation, existing Plan7/8/17 checkpoints are not robust.
+Route rebalance can restore activity, but it creates fold-dependent false-active overfire.
+Fold5 then becomes a direct loss source.
+```
+
+## Code Changes Kept
+
+### 1. Deterministic WM eval latent
+
+File:
+
+```text
+unidream/world_model/encoder.py
+```
+
+Behavior:
+
+```text
+train mode: categorical sample, unchanged
+eval/inference mode: deterministic categorical probability vector
+```
+
+Why:
+
+```text
+The same checkpoint loaded twice produced different positions and different Alpha because encode_sequence() used sample() in eval.
+Hard argmax was deterministic but killed policy activity.
+Probability latent is deterministic and preserves uncertainty.
+```
+
+### 2. Fire danger diagnostics
+
+Files:
+
+```text
+unidream/experiments/fire_diagnostics.py
+unidream/experiments/policy_fire.py
+unidream/cli/ac_fire_timing_probe.py
+```
+
+Added diagnostics:
+
+```text
+danger_fire_rate
+pre_dd_danger_rate
+future_mdd_overlap_rate
+global_mdd_overlap_rate
+safe_fire_rate
+safe_fire_pnl
+fire_advantage_mean
+post_fire_dd_contribution_mean
+```
+
+These diagnostics are useful as filters, but the current candidate policies do not pass reproducibility.
+
+## Finding 1: Mean Alpha Was Misleading
+
+Before the deterministic WM fix, Plan17 looked good by aggregate mean Alpha because fold5 dominated.
+
+Robust selection now must prioritize:
+
+```text
+median Alpha
+worst fold Alpha
+fold win rate
+MaxDD pass rate
+turnover pass rate
+short/long safety pass rate
+```
+
+A mean-only checkpoint selector is rejected.
+
+## Finding 2: Stochastic WM Eval Invalidated Earlier Probes
+
+Before fix:
+
+```text
+same checkpoint loaded twice in one process -> different positions and different Alpha
+```
+
+After deterministic probability latent:
+
+```text
+same checkpoint loaded twice -> identical output
+```
+
+Self-check result:
+
+```text
+fold5 det_retrain repeated twice:
+AlphaEx +3.45 / +3.45
+SharpeD -0.045 / -0.045
+MaxDDD +0.24 / +0.24
+fire 4.2% / 4.2%
+```
+
+Interpretation:
+
+```text
+The measurement path is now reproducible.
+The policy quality is still not acceptable.
+```
+
+## Deterministic Probability-Latent 3Fold Result
+
+Source:
+
+```text
+documents/20260501_plan17_probability_latent_report.md
+```
+
+| label | mean Alpha | median Alpha | worst Alpha | win folds | mean SharpeD | worst SharpeD | mean MaxDDD | worst MaxDDD | pass folds |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| det_retrain | +1.27 | +0.36 | +0.00 | 2/3 | +0.005 | -0.045 | -0.11 | +0.24 | 2/3 |
+| plan7_old | -6.37 | -0.00 | -19.54 | 1/3 | +0.004 | -0.070 | -0.15 | +0.22 | 1/3 |
+
+Read:
+
+```text
+det_retrain is better than old Plan7 under deterministic probability latent.
+However, it still fails fold5 MaxDD and has weak median Alpha.
+This is not adoption-grade multi-fold reproducibility.
+```
+
+## Finding 3: Route Head Is The Bottleneck
+
+Initial deterministic retrain route probe:
+
+```text
+active recall was essentially 0 across train/val/test.
+Policy collapsed to neutral/benchmark floor.
+```
+
+Strong route rebalance:
+
+```text
+active recall recovered.
+false active became too high, especially fold5.
+AC was not run because the route gate failed safety before AC.
+```
+
+Mild route rebalance route probe:
+
+| fold | test active recall | test false active | test macro-F1 |
+|---:|---:|---:|---:|
+| 0 | 0.358 | 0.164 | 0.409 |
+| 4 | 0.119 | 0.072 | 0.313 |
+| 5 | 0.711 | 0.623 | 0.342 |
+
+Interpretation:
+
+```text
+The same BC route loss under-activates fold4 and over-activates fold5.
+That is not an AC-control problem yet.
+It is a route/feature/teacher separability problem.
+```
+
+## Mild Rebalance BC-Only Test
+
+| fold | AlphaEx | SharpeD | MaxDDD | turnover | route active | judgment |
+|---:|---:|---:|---:|---:|---:|---|
+| 0 | -0.01 | -0.000 | +0.00 | 0.01 | 9.8% | no alpha |
+| 4 | +0.36 | +0.064 | -0.56 | 0.98 | 7.4% | safe but small |
+| 5 | -17.75 | -0.063 | +0.20 | 1.82 | 42.0% | fail |
+
+Aggregate:
+
+```text
+AlphaEx -5.80pt
+SharpeD +0.000
+MaxDDDelta -0.12pt
+```
+
+Judgment:
+
+```text
+Reject. Fold5 false-active overfire becomes a direct loss source.
+```
+
+## Current Conclusion
+
+The current issue is not primarily AC tuning.
+
+```text
+AC and checkpoint selectors can only choose among policies generated by BC.
+Under deterministic WM latent, BC route output is either:
+  1. neutral collapse, or
+  2. fold-dependent false-active overfire.
+```
+
+Therefore, more AC restriction loosening is not the productive next step.
+
+## Next Work
+
+Reproducibility-first next step:
+
+```text
+1. Build route separability diagnostics using raw features vs WM probability latent.
+2. Measure active/no-active AUC per fold before de_risk/overweight split.
+3. Measure de_risk vs overweight separability only after active/no-active is learnable.
+4. Redesign route teacher into fewer and cleaner labels if fold separability is unstable.
+5. Rerun BC only after route labels are separable.
+6. Return to restricted AC only after BC route recall and false-active are stable across folds.
+```
+
+## Adoption State
+
+Adopt:
+
+```text
+deterministic probability latent for eval/inference
+fire danger diagnostics
+route_probe as a mandatory gate before AC
+```
+
+Reject:
+
+```text
+Plan17 fire selector v2 as adoption candidate
+strong route rebalance
+mild route rebalance
+mean-Alpha-only checkpoint selection
+```
+
+Hold:
+
+```text
+AC tuning until route separability is fixed across folds
+```
