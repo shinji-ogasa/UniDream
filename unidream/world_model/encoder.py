@@ -122,7 +122,10 @@ class ObsEncoder(nn.Module):
         logits = logits_flat.reshape(shape)
 
         dist = OneHotDist(logits=logits, unimix_ratio=self.unimix_ratio)
-        z_onehot = dist.sample()  # (..., n_cats, n_classes) straight-through
+        # Training keeps Dreamer-style stochastic latents. Evaluation/inference
+        # must be deterministic; otherwise the same checkpoint can produce
+        # different WFO metrics across repeated probes.
+        z_onehot = dist.sample() if self.training else dist.mode()
 
         # flatten
         z = z_onehot.reshape(logits_flat.shape)  # (..., n_cats * n_classes)
