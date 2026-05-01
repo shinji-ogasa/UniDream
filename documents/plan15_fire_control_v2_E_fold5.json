@@ -1,0 +1,560 @@
+{
+  "config": "configs/trading.yaml",
+  "folds": "5",
+  "runs": [
+    {
+      "label": "E",
+      "checkpoint_dir": "checkpoints/acplan10_fire_selector_s011_on_wmbc_s011",
+      "use_ac": true,
+      "ac_filename": "ac.pt"
+    }
+  ],
+  "probe": {
+    "horizons": [
+      16,
+      32
+    ],
+    "primary_horizon": 32,
+    "fire_eps": 1e-06,
+    "train_frac": 0.6,
+    "ridge_l2": 0.01,
+    "max_z_dim": 128,
+    "rel_vol_window": 64,
+    "dd_rel_ks": [
+      0.5,
+      1.0,
+      1.5
+    ],
+    "dd_quantiles": [
+      0.7,
+      0.8,
+      0.9
+    ]
+  },
+  "records": [
+    {
+      "label": "E",
+      "mode": "ac",
+      "checkpoint_dir": "checkpoints/acplan10_fire_selector_s011_on_wmbc_s011",
+      "fold": 5,
+      "summary": {
+        "alpha_excess_pt": 62.08737049312081,
+        "sharpe_delta": 0.0498731237017922,
+        "maxdd_delta_pt": 0.03846139531819004,
+        "turnover": 1.1756618022918701,
+        "long": 0.018621551038946294,
+        "short": 0.0,
+        "flat": 0.9813784489610538,
+        "fire_rate": 0.032701260361076415,
+        "fire_count": 288,
+        "mean_delta": 0.07634841899077098,
+        "fire_pnl": 0.10592040076921569,
+        "nonfire_pnl": 0.5566119769556845
+      },
+      "horizons": {
+        "16": {
+          "samples": 288,
+          "train_samples": 172,
+          "eval_samples": 116,
+          "advantage": {
+            "corr": -0.07766444016752884,
+            "eval_mean": 0.0006974493430594032,
+            "top10": {
+              "count": 12,
+              "fire_advantage": 0.00043489574517484243,
+              "harm_margin": 0.0001715523401415516,
+              "dd_deepen": 0.002875306201884892,
+              "dd_rel": 0.1804975926580971,
+              "recovery_slope": 0.019106510103917434,
+              "relative_recovery_slope": 0.0007656450414110631,
+              "post_trough_momentum": 0.011163875533147545,
+              "underwater_recovery": 0.0074996449630594,
+              "harm_nonpositive_rate": 0.16666666666666666,
+              "mdd_rate": 0.0
+            },
+            "top20": {
+              "count": 24,
+              "fire_advantage": 0.0003206603056121764,
+              "harm_margin": 0.00016001645156530985,
+              "dd_deepen": 0.003650212606282783,
+              "dd_rel": 0.21984206770577272,
+              "recovery_slope": 0.018505798029444714,
+              "relative_recovery_slope": 0.0006551998224847791,
+              "post_trough_momentum": 0.00929576513130245,
+              "underwater_recovery": 0.005548686472401365,
+              "harm_nonpositive_rate": 0.08333333333333333,
+              "mdd_rate": 0.0
+            },
+            "bottom10": {
+              "count": 12,
+              "fire_advantage": 0.0003693438893381763,
+              "harm_margin": 0.0013282859345395855,
+              "dd_deepen": 0.006599955363379577,
+              "dd_rel": 0.391059914124073,
+              "recovery_slope": 0.010715328547185638,
+              "relative_recovery_slope": 0.0015864449686736537,
+              "post_trough_momentum": 0.0045877095491155895,
+              "underwater_recovery": 0.002040614189161516,
+              "harm_nonpositive_rate": 0.0,
+              "mdd_rate": 0.0
+            },
+            "top10_bottom10_spread": 6.555185583666614e-05
+          },
+          "recovery": {
+            "recovery_slope": {
+              "positive_rate": 0.6982758620689655,
+              "auc": 0.43738977072310403,
+              "pr_auc": 0.6915844956053165
+            },
+            "relative_recovery_slope": {
+              "positive_rate": 0.646551724137931,
+              "auc": 0.5570731707317074,
+              "pr_auc": 0.6972262434250044
+            },
+            "post_trough_momentum": {
+              "positive_rate": 0.9568965517241379,
+              "auc": 0.5171171171171172,
+              "pr_auc": 0.9697053575488267
+            },
+            "underwater_recovery": {
+              "positive_rate": 0.75,
+              "auc": 0.46650812524772095,
+              "pr_auc": 0.7801239258812503
+            }
+          },
+          "drawdown_relative": {
+            "k_0.5": {
+              "positive_rate": 0.16379310344827586,
+              "auc": 0.4405860010851872,
+              "pr_auc": 0.1481481561586849
+            },
+            "k_1": {
+              "positive_rate": 0.017241379310344827,
+              "auc": 0.4473684210526316,
+              "pr_auc": 0.023735955056179776
+            },
+            "k_1.5": {
+              "positive_rate": 0.0,
+              "auc": NaN,
+              "pr_auc": NaN
+            },
+            "q_70": {
+              "threshold": 0.5168848920796042,
+              "positive_rate": 0.14655172413793102,
+              "auc": 0.44503862150920975,
+              "pr_auc": 0.1365360901061062
+            },
+            "q_80": {
+              "threshold": 0.6475442920793134,
+              "positive_rate": 0.06896551724137931,
+              "auc": 0.38773148148148145,
+              "pr_auc": 0.05904031049661161
+            },
+            "q_90": {
+              "threshold": 0.8396975930562196,
+              "positive_rate": 0.017241379310344827,
+              "auc": 0.4473684210526316,
+              "pr_auc": 0.023735955056179776
+            }
+          },
+          "harm_ranking": {
+            "low_harm_top10": {
+              "count": 12,
+              "fire_advantage": 5.154421649334697e-05,
+              "harm_margin": 9.571552765622706e-05,
+              "dd_deepen": 0.002718201901543843,
+              "dd_rel": 0.17368590603703857,
+              "recovery_slope": 0.01282006495288822,
+              "relative_recovery_slope": 1.2528441934249935e-05,
+              "post_trough_momentum": 0.00842157950672741,
+              "underwater_recovery": 0.006342208448367877,
+              "harm_nonpositive_rate": 0.3333333333333333,
+              "mdd_rate": 0.0
+            },
+            "high_harm_top10": {
+              "count": 12,
+              "fire_advantage": 0.0019286816470321666,
+              "harm_margin": 0.001255870498295432,
+              "dd_deepen": 0.0024343392460480506,
+              "dd_rel": 0.14345051434384773,
+              "recovery_slope": 0.04819032494479394,
+              "relative_recovery_slope": 0.005219241379805721,
+              "post_trough_momentum": 0.012943393624175044,
+              "underwater_recovery": 0.0131554222552559,
+              "harm_nonpositive_rate": 0.0,
+              "mdd_rate": 0.0
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 0.00043489574517484243,
+                "harm_margin": 0.0001715523401415516,
+                "dd_deepen": 0.002875306201884892,
+                "dd_rel": 0.1804975926580971,
+                "recovery_slope": 0.019106510103917434,
+                "relative_recovery_slope": 0.0007656450414110631,
+                "post_trough_momentum": 0.011163875533147545,
+                "underwater_recovery": 0.0074996449630594,
+                "harm_nonpositive_rate": 0.16666666666666666,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.0003206603056121764,
+                "harm_margin": 0.00016001645156530985,
+                "dd_deepen": 0.003650212606282783,
+                "dd_rel": 0.21984206770577272,
+                "recovery_slope": 0.018505798029444714,
+                "relative_recovery_slope": 0.0006551998224847791,
+                "post_trough_momentum": 0.00929576513130245,
+                "underwater_recovery": 0.005548686472401365,
+                "harm_nonpositive_rate": 0.08333333333333333,
+                "mdd_rate": 0.0
+              }
+            },
+            "B_adv_minus_harm": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": -5.978815019013799e-06,
+                "harm_margin": 6.331851532447059e-05,
+                "dd_deepen": 0.0041034707487419735,
+                "dd_rel": 0.25774898718126743,
+                "recovery_slope": 0.012748527024758727,
+                "relative_recovery_slope": -4.4495043713528e-05,
+                "post_trough_momentum": 0.007980905009438407,
+                "underwater_recovery": 0.003063189683713441,
+                "harm_nonpositive_rate": 0.25,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 7.117895176892318e-05,
+                "harm_margin": 0.00010023582054018105,
+                "dd_deepen": 0.003993038082463286,
+                "dd_rel": 0.24750475521750512,
+                "recovery_slope": 0.011104359396340737,
+                "relative_recovery_slope": 0.00024316414345304573,
+                "post_trough_momentum": 0.00812682132049012,
+                "underwater_recovery": 0.003553000817619223,
+                "harm_nonpositive_rate": 0.20833333333333334,
+                "mdd_rate": 0.0
+              }
+            },
+            "C_adv_minus_dd_plus_recovery": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 0.000713215313167575,
+                "harm_margin": 0.00018302913138460567,
+                "dd_deepen": 0.004481466068564921,
+                "dd_rel": 0.2673418981400581,
+                "recovery_slope": 0.014241242414525285,
+                "relative_recovery_slope": 0.0014735545137974527,
+                "post_trough_momentum": 0.010160197309181454,
+                "underwater_recovery": 0.00522130300872838,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.00043191300792105885,
+                "harm_margin": 0.00036504079311663445,
+                "dd_deepen": 0.004574439918746759,
+                "dd_rel": 0.2589409261531308,
+                "recovery_slope": 0.008137457604082049,
+                "relative_recovery_slope": 0.0008912537255720658,
+                "post_trough_momentum": 0.008064071390041816,
+                "underwater_recovery": 0.004045529090009672,
+                "harm_nonpositive_rate": 0.041666666666666664,
+                "mdd_rate": 0.0
+              }
+            },
+            "D_all": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 0.0003681017881453602,
+                "harm_margin": 0.0001786990526782087,
+                "dd_deepen": 0.004558100626347798,
+                "dd_rel": 0.2724971117559353,
+                "recovery_slope": 0.009706210842867097,
+                "relative_recovery_slope": 0.0007238716056982095,
+                "post_trough_momentum": 0.00787637413748724,
+                "underwater_recovery": 0.003257483043886178,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.0002359114661040601,
+                "harm_margin": 0.0001610509730501272,
+                "dd_deepen": 0.004308903565776091,
+                "dd_rel": 0.24834918611606063,
+                "recovery_slope": 0.01020138446618085,
+                "relative_recovery_slope": 0.00046281784145656303,
+                "post_trough_momentum": 0.007276760391339984,
+                "underwater_recovery": 0.0030316733280888,
+                "harm_nonpositive_rate": 0.125,
+                "mdd_rate": 0.0
+              }
+            }
+          }
+        },
+        "32": {
+          "samples": 288,
+          "train_samples": 172,
+          "eval_samples": 116,
+          "advantage": {
+            "corr": 0.4155777989145129,
+            "eval_mean": 0.0010321405012627398,
+            "top10": {
+              "count": 12,
+              "fire_advantage": 0.003229819072061693,
+              "harm_margin": 0.0011658510041256832,
+              "dd_deepen": 0.003991777366202385,
+              "dd_rel": 0.12188503290922455,
+              "recovery_slope": 0.027897819674223345,
+              "relative_recovery_slope": 0.003345959562406117,
+              "post_trough_momentum": 0.02085320532646624,
+              "underwater_recovery": 0.021431499622083756,
+              "harm_nonpositive_rate": 0.0,
+              "mdd_rate": 0.0
+            },
+            "top20": {
+              "count": 24,
+              "fire_advantage": 0.00269733898231899,
+              "harm_margin": 0.0010519382802683186,
+              "dd_deepen": 0.00396264647651103,
+              "dd_rel": 0.13289876597973305,
+              "recovery_slope": 0.028122299952598333,
+              "relative_recovery_slope": 0.002863549399763556,
+              "post_trough_momentum": 0.020571422841640496,
+              "underwater_recovery": 0.02029921362662036,
+              "harm_nonpositive_rate": 0.0,
+              "mdd_rate": 0.0
+            },
+            "bottom10": {
+              "count": 12,
+              "fire_advantage": 0.0003004977917866608,
+              "harm_margin": 0.0011766367294954482,
+              "dd_deepen": 0.0076669779335132955,
+              "dd_rel": 0.3274781658031178,
+              "recovery_slope": 0.005523738215357953,
+              "relative_recovery_slope": 0.0002069912173170179,
+              "post_trough_momentum": 0.006621909674982535,
+              "underwater_recovery": 0.0027598670247647727,
+              "harm_nonpositive_rate": 0.08333333333333333,
+              "mdd_rate": 0.0
+            },
+            "top10_bottom10_spread": 0.0029293212802750323
+          },
+          "recovery": {
+            "recovery_slope": {
+              "positive_rate": 0.7586206896551724,
+              "auc": 0.3234577922077922,
+              "pr_auc": 0.6902187725146967
+            },
+            "relative_recovery_slope": {
+              "positive_rate": 0.6982758620689655,
+              "auc": 0.39717813051146383,
+              "pr_auc": 0.6425033909797034
+            },
+            "post_trough_momentum": {
+              "positive_rate": 0.9827586206896551,
+              "auc": 0.21052631578947367,
+              "pr_auc": 0.9693798295501006
+            },
+            "underwater_recovery": {
+              "positive_rate": 0.7844827586206896,
+              "auc": 0.5498901098901099,
+              "pr_auc": 0.8330539754031245
+            }
+          },
+          "drawdown_relative": {
+            "k_0.5": {
+              "positive_rate": 0.09482758620689655,
+              "auc": 0.48744588744588746,
+              "pr_auc": 0.10208697374463828
+            },
+            "k_1": {
+              "positive_rate": 0.0,
+              "auc": NaN,
+              "pr_auc": NaN
+            },
+            "k_1.5": {
+              "positive_rate": 0.0,
+              "auc": NaN,
+              "pr_auc": NaN
+            },
+            "q_70": {
+              "threshold": 0.5059455383905227,
+              "positive_rate": 0.06896551724137931,
+              "auc": 0.5011574074074074,
+              "pr_auc": 0.07695103455219099
+            },
+            "q_80": {
+              "threshold": 0.5865259913162433,
+              "positive_rate": 0.034482758620689655,
+              "auc": 0.5714285714285714,
+              "pr_auc": 0.05138888888888888
+            },
+            "q_90": {
+              "threshold": 0.6972967371973015,
+              "positive_rate": 0.017241379310344827,
+              "auc": 0.4342105263157895,
+              "pr_auc": 0.024305555555555552
+            }
+          },
+          "harm_ranking": {
+            "low_harm_top10": {
+              "count": 12,
+              "fire_advantage": -1.6468310008670917e-05,
+              "harm_margin": 0.00012078064048104467,
+              "dd_deepen": 0.007692959681547752,
+              "dd_rel": 0.327449589845702,
+              "recovery_slope": 0.005394413547032532,
+              "relative_recovery_slope": -6.173402882222175e-05,
+              "post_trough_momentum": 0.01208919349948799,
+              "underwater_recovery": 0.005439797716603856,
+              "harm_nonpositive_rate": 0.16666666666666666,
+              "mdd_rate": 0.0
+            },
+            "high_harm_top10": {
+              "count": 12,
+              "fire_advantage": 0.0025916082883160533,
+              "harm_margin": 0.0017271793988044729,
+              "dd_deepen": 0.0020839222885063735,
+              "dd_rel": 0.08545187527858485,
+              "recovery_slope": 0.01909241982427483,
+              "relative_recovery_slope": 0.0020356253244102843,
+              "post_trough_momentum": 0.014561651136290488,
+              "underwater_recovery": 0.018252751717301324,
+              "harm_nonpositive_rate": 0.0,
+              "mdd_rate": 0.0
+            }
+          },
+          "combined_scores": {
+            "A_adv_only": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 0.003229819072061693,
+                "harm_margin": 0.0011658510041256832,
+                "dd_deepen": 0.003991777366202385,
+                "dd_rel": 0.12188503290922455,
+                "recovery_slope": 0.027897819674223345,
+                "relative_recovery_slope": 0.003345959562406117,
+                "post_trough_momentum": 0.02085320532646624,
+                "underwater_recovery": 0.021431499622083756,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.00269733898231899,
+                "harm_margin": 0.0010519382802683186,
+                "dd_deepen": 0.00396264647651103,
+                "dd_rel": 0.13289876597973305,
+                "recovery_slope": 0.028122299952598333,
+                "relative_recovery_slope": 0.002863549399763556,
+                "post_trough_momentum": 0.020571422841640496,
+                "underwater_recovery": 0.02029921362662036,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              }
+            },
+            "B_adv_minus_harm": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 4.7657335311502524e-05,
+                "harm_margin": 0.00018255638121221973,
+                "dd_deepen": 0.00737565406039641,
+                "dd_rel": 0.30678350840533347,
+                "recovery_slope": 0.002807852252326684,
+                "relative_recovery_slope": 6.387337083065422e-06,
+                "post_trough_momentum": 0.009674272489089865,
+                "underwater_recovery": 0.003519200126737685,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.0006170685921639123,
+                "harm_margin": 0.00035829220435622966,
+                "dd_deepen": 0.0070100091627785565,
+                "dd_rel": 0.2870215538029174,
+                "recovery_slope": 0.008686123415422714,
+                "relative_recovery_slope": 0.000608395346009821,
+                "post_trough_momentum": 0.011788163876189459,
+                "underwater_recovery": 0.007256473971059663,
+                "harm_nonpositive_rate": 0.08333333333333333,
+                "mdd_rate": 0.0
+              }
+            },
+            "C_adv_minus_dd_plus_recovery": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 0.0029454875749628175,
+                "harm_margin": 0.0008692258724284475,
+                "dd_deepen": 0.0048583595044807415,
+                "dd_rel": 0.14934954179571527,
+                "recovery_slope": 0.028968586663977062,
+                "relative_recovery_slope": 0.003148835775966635,
+                "post_trough_momentum": 0.01981133459915446,
+                "underwater_recovery": 0.021188530210131184,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.0024465688090731384,
+                "harm_margin": 0.000951760057294504,
+                "dd_deepen": 0.005414434989062439,
+                "dd_rel": 0.19360711057828958,
+                "recovery_slope": 0.02294426421859082,
+                "relative_recovery_slope": 0.002629525935859266,
+                "post_trough_momentum": 0.01841730093666538,
+                "underwater_recovery": 0.017077264614261057,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              }
+            },
+            "D_all": {
+              "top10": {
+                "count": 12,
+                "fire_advantage": 0.0014868654729008875,
+                "harm_margin": 0.000584646649529464,
+                "dd_deepen": 0.0051852799950354205,
+                "dd_rel": 0.20562489241065743,
+                "recovery_slope": 0.014072536730591112,
+                "relative_recovery_slope": 0.0014610910010103024,
+                "post_trough_momentum": 0.014530749688051634,
+                "underwater_recovery": 0.013079075507328472,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              },
+              "top20": {
+                "count": 24,
+                "fire_advantage": 0.0016519247532850638,
+                "harm_margin": 0.0006949966543896485,
+                "dd_deepen": 0.005555398315328197,
+                "dd_rel": 0.20418558604841394,
+                "recovery_slope": 0.016643852771061805,
+                "relative_recovery_slope": 0.0018412613699080559,
+                "post_trough_momentum": 0.015389686802527655,
+                "underwater_recovery": 0.012971342528513808,
+                "harm_nonpositive_rate": 0.0,
+                "mdd_rate": 0.0
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "readiness": {
+    "primary_adv_top10_all_positive": true,
+    "primary_adv_top20_all_positive": true,
+    "primary_adv_spread_all_positive": true,
+    "combined_D_top10_positive_and_nonharm_all": false
+  }
+}
