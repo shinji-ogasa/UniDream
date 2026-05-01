@@ -27,6 +27,11 @@ from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.fold_runtime import prepare_fold_runtime
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
+from unidream.experiments.transition_advantage import (
+    compute_route_targets,
+    compute_transition_advantage,
+    config_from_dict as transition_advantage_config_from_dict,
+)
 from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.cli.route_probe import _benchmark_position_value, _test_route_targets
@@ -279,6 +284,37 @@ def _label_distribution(labels: np.ndarray) -> dict:
     }
 
 
+def _benchmark_route_labels(
+    *,
+    returns: np.ndarray,
+    benchmark_position: float,
+    cfg: dict,
+    costs_cfg: dict,
+    bc_cfg: dict,
+    default_actions: np.ndarray,
+) -> np.ndarray:
+    current = np.full(len(returns), float(benchmark_position), dtype=np.float32)
+    ta_cfg = transition_advantage_config_from_dict(
+        bc_cfg,
+        costs_cfg=costs_cfg,
+        benchmark_position=benchmark_position,
+        default_actions=default_actions,
+    )
+    bundle = compute_transition_advantage(returns, current, ta_cfg)
+    route_margin = bc_cfg.get(
+        "transition_route_margins",
+        bc_cfg.get("transition_route_margin", bc_cfg.get("transition_advantage_margin", ta_cfg.margin)),
+    )
+    route_bundle = compute_route_targets(
+        bundle,
+        tau=float(bc_cfg.get("route_adv_tau", 0.001)),
+        label_smoothing=float(bc_cfg.get("route_label_smoothing", 0.05)),
+        margin=route_margin,
+        route_penalties=bc_cfg.get("transition_route_penalties"),
+    )
+    return np.asarray(route_bundle["route_labels"], dtype=np.int64)
+
+
 def _build_feature_sets(
     *,
     raw: np.ndarray,
@@ -453,6 +489,7 @@ def _write_md(path: str, payload: dict) -> None:
         f"Config: `{payload['config']}`",
         f"Checkpoint dir: `{payload['checkpoint_dir']}`",
         f"Folds: `{', '.join(map(str, payload['folds']))}`",
+        f"Label mode: `{payload.get('label_mode', 'teacher')}`",
         "",
         "## Aggregate Active/No-Active Separability",
         "",
@@ -551,6 +588,12 @@ def main() -> None:
         "--feature-sets",
         default="",
         help="Optional comma-separated subset of feature sets to evaluate.",
+    )
+    parser.add_argument(
+        "--label-mode",
+        choices=("teacher", "benchmark"),
+        default="teacher",
+        help="teacher uses teacher-forced inventory route labels; benchmark removes inventory shortcut.",
     )
     parser.add_argument("--output-json", default="documents/route_separability_probe.json")
     parser.add_argument("--output-md", default="documents/route_separability_probe.md")
@@ -682,28 +725,61 @@ def main() -> None:
             oracle_action_values=oracle_bundle["oracle_action_values"],
         )
 
-        train_labels = np.asarray(fold_inputs["train_route_labels"], dtype=np.int64)
-        val_labels = np.asarray(fold_inputs["val_route_labels"], dtype=np.int64)
-        test_labels = np.asarray(test_route_labels, dtype=np.int64)
+        train_positions_for_features = oracle_positions
+        val_positions_for_features = val_oracle_positions
+        test_positions_for_features = test_positions
+        if args.label_mode == "benchmark":
+            bench = _benchmark_position_value(cfg)
+            train_positions_for_features = np.full(len(wfo_dataset.train_returns), bench, dtype=np.float32)
+            val_positions_for_features = np.full(len(wfo_dataset.val_returns), bench, dtype=np.float32)
+            test_positions_for_features = np.full(len(wfo_dataset.test_returns), bench, dtype=np.float32)
+            train_labels = _benchmark_route_labels(
+                returns=wfo_dataset.train_returns,
+                benchmark_position=bench,
+                cfg=cfg,
+                costs_cfg=costs_cfg,
+                bc_cfg=cfg.get("bc", {}),
+                default_actions=oracle_bundle["oracle_action_values"],
+            )
+            val_labels = _benchmark_route_labels(
+                returns=wfo_dataset.val_returns,
+                benchmark_position=bench,
+                cfg=cfg,
+                costs_cfg=costs_cfg,
+                bc_cfg=cfg.get("bc", {}),
+                default_actions=oracle_bundle["oracle_action_values"],
+            )
+            test_labels = _benchmark_route_labels(
+                returns=wfo_dataset.test_returns,
+                benchmark_position=bench,
+                cfg=cfg,
+                costs_cfg=costs_cfg,
+                bc_cfg=cfg.get("bc", {}),
+                default_actions=oracle_bundle["oracle_action_values"],
+            )
+        else:
+            train_labels = np.asarray(fold_inputs["train_route_labels"], dtype=np.int64)
+            val_labels = np.asarray(fold_inputs["val_route_labels"], dtype=np.int64)
+            test_labels = np.asarray(test_route_labels, dtype=np.int64)
 
         train_sets = _build_feature_sets(
             raw=wfo_dataset.train_features,
             enc=enc_train,
-            positions=oracle_positions,
+            positions=train_positions_for_features,
             regime=train_regime_probs,
             advantage=train_advantage_values,
         )
         val_sets = _build_feature_sets(
             raw=wfo_dataset.val_features,
             enc=enc_val,
-            positions=val_oracle_positions,
+            positions=val_positions_for_features,
             regime=val_regime_probs,
             advantage=val_advantage_values,
         )
         test_sets = _build_feature_sets(
             raw=wfo_dataset.test_features,
             enc=enc_test,
-            positions=test_positions,
+            positions=test_positions_for_features,
             regime=test_regime_probs,
             advantage=test_advantage_values,
         )
@@ -735,6 +811,7 @@ def main() -> None:
         "false_active_cap": float(args.false_active_cap),
         "pred_rate_cap": float(args.pred_rate_cap),
         "max_train_samples": int(args.max_train_samples),
+        "label_mode": args.label_mode,
         "results": all_results,
         "aggregate": _aggregate(all_results),
     }

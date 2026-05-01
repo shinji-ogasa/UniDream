@@ -202,3 +202,40 @@ BC test worst AlphaEx >= 0.0
 BC test worst MaxDDDelta <= +0.25pt
 turnover <= 3.5
 ```
+
+## Benchmark-State Label Probe
+
+I also tested `--label-mode benchmark`, which removes the teacher-inventory shortcut by computing route labels from a constant benchmark position.
+
+Result:
+
+| feature set | mean test AUC | worst test AUC | mean recall | worst false-active |
+|---|---:|---:|---:|---:|
+| raw | 0.527 | 0.502 | 0.202 | 0.412 |
+| wm | 0.525 | 0.512 | 0.161 | 0.255 |
+| context | 0.516 | 0.488 | 0.118 | 0.191 |
+| wm_context | 0.525 | 0.514 | 0.158 | 0.250 |
+
+Read:
+
+```text
+Removing the inventory shortcut does not reveal a learnable market-state active label.
+The simple benchmark-state forward route label is close to random across folds.
+```
+
+Updated conclusion:
+
+```text
+The current teacher-forced route label is learnable mostly because it leaks inventory state.
+The simple benchmark-state replacement is not learnable from current raw/WM features.
+Therefore, route teacher redesign must build a cleaner market-state label, not just replace current_positions with benchmark_position.
+```
+
+Next label candidates to test:
+
+```text
+future drawdown-window entry label
+risk-off event label with minimum post-event avoided drawdown
+trend continuation overweight label with volatility and drawdown filters
+separate de-risk event labels from overweight event labels before combining into route
+```
