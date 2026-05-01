@@ -216,3 +216,177 @@ MaxDD寄与が下がる
 ```
 
 現時点では本流変更なし。
+
+---
+
+# Plan15-D: danger fire score / guard upper-bound
+
+Plan15-Cで `pre_dd_danger_fire` が明確に悪いことは分かった。
+次に、非リーク特徴だけで危険fireをscore化し、inference-only guardとして使えるかを検証した。
+
+追加:
+
+```text
+unidream/cli/fire_danger_score_probe.py
+```
+
+出力:
+
+```text
+documents/20260501_plan15d_danger_score_Hbest_folds456.md
+documents/plan15d_danger_score_Hbest_folds456.json
+```
+
+実行:
+
+```powershell
+uv run python -u -m unidream.cli.fire_danger_score_probe `
+  --config configs/trading_wm_control_headonly.yaml `
+  --start 2018-01-01 `
+  --end 2024-01-01 `
+  --folds 4,5,6 `
+  --seed 11 `
+  --device cuda `
+  --run Hbest=checkpoints/acplan13_wm_control_headonly_s011@ac_best.pt:ac `
+  --output-json documents/plan15d_danger_score_Hbest_folds456.json `
+  --output-md documents/20260501_plan15d_danger_score_Hbest_folds456.md
+```
+
+## Danger score predictability
+
+非リーク特徴からのridge score。
+
+| fold | target | AUC | top10 positive |
+|---:|---|---:|---:|
+| 4 | pre_dd_type | 0.763 | 1.000 |
+| 4 | future_mdd | 0.804 | 0.975 |
+| 4 | global_mdd | 0.775 | 0.450 |
+| 5 | pre_dd_type | 0.695 | 0.452 |
+| 5 | future_mdd | 0.703 | 0.833 |
+| 5 | global_mdd | 0.861 | 0.429 |
+| 6 | pre_dd_type | 0.681 | 0.703 |
+| 6 | future_mdd | 0.774 | 1.000 |
+| 6 | global_mdd | 0.651 | 1.000 |
+
+読み:
+
+```text
+future_mdd / pre_dd_type はある程度読める。
+ただし fold5 の pre_dd top10 precision が弱い。
+global_mdd はfoldごとに性質が違う。
+```
+
+## Guard simulation
+
+Base Hbest mean:
+
+```text
+AlphaEx:  -9.55 pt/yr
+SharpeD:  -0.023
+MaxDDD:   +0.57 pt
+turnover:  4.34
+```
+
+scoreで危険fireを抑制したbest:
+
+| variant | AlphaEx mean | SharpeD mean | MaxDDD mean | turnover mean |
+|---|---:|---:|---:|---:|
+| danger_strict_top30_scale0 | +0.33 | +0.010 | +0.33 | 5.55 |
+| predd_only_top30_scale0 | -4.38 | +0.009 | +0.33 | 5.97 |
+| predd_only_top20_scale0 | -3.62 | +0.005 | +0.37 | 5.74 |
+
+バー単位抑制はAlpha/Sharpeを少し戻すが、turnoverが悪化して条件外。
+
+run単位 hysteresis も追加したが、turnoverはやや下がる代わりにAlphaが戻らなかった。
+
+例:
+
+| variant | AlphaEx mean | SharpeD mean | MaxDDD mean | turnover mean |
+|---|---:|---:|---:|---:|
+| future_mdd_only_runmean_top20_scale0 | -8.36 | -0.017 | +0.53 | 4.02 |
+| future_mdd_only_runmean_top30_scale0 | -8.35 | -0.017 | +0.52 | 3.90 |
+
+つまり、
+
+```text
+bar-level:  alphaは戻るがturnoverが壊れる
+run-level:  turnoverは改善するがalphaが戻らない
+```
+
+## Oracle type upper bound
+
+次に、未来情報ありの `fire_type` を直接使う上限を見た。
+これで通らないなら、score改善だけでは救えない。
+
+| oracle variant | AlphaEx mean | SharpeD mean | MaxDDD mean | turnover mean |
+|---|---:|---:|---:|---:|
+| oracle_not_lowrisk_scale0 | -6.66 | -0.014 | +0.30 | 3.81 |
+| oracle_predd_mdd_scale0 | -4.03 | -0.017 | +0.34 | 3.61 |
+| oracle_predd_noise_scale0 | -8.95 | -0.018 | +0.36 | 4.52 |
+| oracle_predd_scale0 | -6.22 | -0.021 | +0.40 | 4.25 |
+
+重要:
+
+```text
+future-leakyなoracle typeで消しても、
+MaxDDD <= 0 に届かない。
+AlphaExもPlan7に届かない。
+```
+
+したがって、Hbestをpost-hoc inference guardで救う方向は見切り。
+
+## 最終判断
+
+Plan15-Dの結論:
+
+```text
+danger fire は読める。
+しかし、Hbest policyはpost-hoc guardでは救えない。
+```
+
+理由:
+
+```text
+1. 危険fireを消すとturnover/alphaのどちらかが壊れる
+2. run-levelにしてもalphaが戻らない
+3. oracle type上限でもMaxDD条件を満たせない
+4. Hbestはfireが多すぎ、fire集合そのものが悪い
+```
+
+ここから先にやるべきことは、Plan16 guardの閾値最適化ではない。
+
+次の最適方向:
+
+```text
+train-time / checkpoint-selection 側へ戻す
+```
+
+具体的には:
+
+```text
+1. AC checkpoint selectorに danger_fire_rate / pre_dd_danger_rate / fire_pnl を入れる
+2. actorのfire生成自体を少なくする
+3. benchmark floor + Plan7系をベースに、危険fire率が低いcheckpointだけ採用する
+4. Hbest系のpost-hoc救済は中止
+```
+
+実装優先度:
+
+```text
+Next-A:
+  fire-aware checkpoint selector v2
+  score = alpha + sharpe - maxdd - turnover
+          - danger_fire_penalty
+          + safe_fire_pnl_bonus
+
+Next-B:
+  AC再学習時に checkpointごとに fire_type診断をvalで走らせる
+  pre_dd_danger_rate が高いcheckpointは保存しない
+
+Next-C:
+  Plan7 safe baselineから、sizing_adapter_only ACを短く再学習
+  danger_fire selectorでcheckpoint採択
+```
+
+ここでいったんHbest guard系は打ち切る。
+これ以上の閾値探索はループになる。
