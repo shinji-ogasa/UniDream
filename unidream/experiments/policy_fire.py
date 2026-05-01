@@ -5,6 +5,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from unidream.eval.backtest import compute_pnl
+from unidream.experiments.fire_diagnostics import (
+    empty_fire_danger_diagnostics,
+    evaluate_fire_danger_diagnostics,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +27,15 @@ class FireMetrics:
     nonfire_pnl: float
     fwd_ret_16: float
     fwd_incr_pnl_16: float
+    danger_enabled: bool
+    safe_fire_pnl: float
+    danger_fire_rate: float
+    pre_dd_danger_rate: float
+    future_mdd_overlap_rate: float
+    global_mdd_overlap_rate: float
+    safe_fire_rate: float
+    fire_advantage_mean: float
+    post_fire_dd_contribution_mean: float
     accepted: bool
     reject_reason: str | None
     score: float
@@ -104,6 +117,12 @@ def forward_incremental_mean(
     return float(np.mean(vals)) if vals else 0.0
 
 
+def _selector_value(selector_cfg: dict, danger_cfg: dict, key: str, default):
+    if key in selector_cfg:
+        return selector_cfg[key]
+    return danger_cfg.get(key, default)
+
+
 def evaluate_fire_metrics(
     *,
     actor,
@@ -175,6 +194,31 @@ def evaluate_fire_metrics(
         mask=fire,
         horizon=horizon,
     )
+    danger_cfg = dict(selector_cfg.get("danger") or {})
+    danger_enabled = bool(
+        danger_cfg.get("enabled", selector_cfg.get("danger_enabled", False))
+    )
+    if danger_enabled:
+        danger_metrics = evaluate_fire_danger_diagnostics(
+            returns=returns_arr,
+            positions=positions_arr,
+            no_adapter=no_adapter_arr,
+            fire=fire,
+            costs_cfg=costs_cfg,
+            horizon=int(_selector_value(selector_cfg, danger_cfg, "horizon", 32)),
+            rel_vol_window=int(_selector_value(selector_cfg, danger_cfg, "rel_vol_window", 64)),
+            mdd_rel_threshold=float(
+                _selector_value(selector_cfg, danger_cfg, "mdd_rel_threshold", 0.5)
+            ),
+            post_dd_quantile=float(
+                _selector_value(selector_cfg, danger_cfg, "post_dd_quantile", 0.8)
+            ),
+            include_post_dd_in_danger=bool(
+                _selector_value(selector_cfg, danger_cfg, "include_post_dd_in_danger", True)
+            ),
+        )
+    else:
+        danger_metrics = empty_fire_danger_diagnostics(horizon=32)
 
     reject_reason = None
     if maxdd_delta_pt > float(selector_cfg.get("maxdd_delta_max_pt", 0.0)):
@@ -195,6 +239,31 @@ def evaluate_fire_metrics(
         reject_reason = f"turnover>{float(selector_cfg.get('turnover_max', 3.5)):.2f}"
     elif float(stats["short"]) > float(selector_cfg.get("short_max", 0.0)):
         reject_reason = f"short>{float(selector_cfg.get('short_max', 0.0)):.1%}"
+    elif danger_metrics.danger_fire_rate > float(
+        _selector_value(selector_cfg, danger_cfg, "danger_fire_rate_max", float("inf"))
+    ):
+        reject_reason = (
+            "danger_fire>"
+            f"{float(_selector_value(selector_cfg, danger_cfg, 'danger_fire_rate_max', float('inf'))):.1%}"
+        )
+    elif danger_metrics.pre_dd_danger_rate > float(
+        _selector_value(selector_cfg, danger_cfg, "pre_dd_danger_rate_max", float("inf"))
+    ):
+        reject_reason = (
+            "pre_dd>"
+            f"{float(_selector_value(selector_cfg, danger_cfg, 'pre_dd_danger_rate_max', float('inf'))):.1%}"
+        )
+    elif danger_metrics.future_mdd_overlap_rate > float(
+        _selector_value(selector_cfg, danger_cfg, "future_mdd_overlap_rate_max", float("inf"))
+    ):
+        reject_reason = (
+            "future_mdd>"
+            f"{float(_selector_value(selector_cfg, danger_cfg, 'future_mdd_overlap_rate_max', float('inf'))):.1%}"
+        )
+    elif danger_metrics.safe_fire_pnl < float(
+        _selector_value(selector_cfg, danger_cfg, "safe_fire_pnl_floor", -float("inf"))
+    ):
+        reject_reason = "safe_fire_pnl<floor"
 
     score = (
         alpha_excess_pt
@@ -206,6 +275,24 @@ def evaluate_fire_metrics(
         + 1000.0 * fwd_ret
         - 1.0 * float(stats["turnover"])
     )
+    score += float(
+        _selector_value(selector_cfg, danger_cfg, "safe_fire_pnl_bonus_coef", 0.0)
+    ) * danger_metrics.safe_fire_pnl
+    score += float(
+        _selector_value(selector_cfg, danger_cfg, "fire_advantage_bonus_coef", 0.0)
+    ) * danger_metrics.fire_advantage_mean
+    score -= float(
+        _selector_value(selector_cfg, danger_cfg, "danger_fire_rate_penalty_coef", 0.0)
+    ) * danger_metrics.danger_fire_rate
+    score -= float(
+        _selector_value(selector_cfg, danger_cfg, "pre_dd_danger_rate_penalty_coef", 0.0)
+    ) * danger_metrics.pre_dd_danger_rate
+    score -= float(
+        _selector_value(selector_cfg, danger_cfg, "future_mdd_overlap_rate_penalty_coef", 0.0)
+    ) * danger_metrics.future_mdd_overlap_rate
+    score -= float(
+        _selector_value(selector_cfg, danger_cfg, "post_fire_dd_penalty_coef", 0.0)
+    ) * danger_metrics.post_fire_dd_contribution_mean
     if reject_reason is not None:
         score -= 1000.0
 
@@ -224,6 +311,15 @@ def evaluate_fire_metrics(
         nonfire_pnl=nonfire_pnl,
         fwd_ret_16=fwd_ret,
         fwd_incr_pnl_16=fwd_incr,
+        danger_enabled=danger_enabled,
+        safe_fire_pnl=danger_metrics.safe_fire_pnl,
+        danger_fire_rate=danger_metrics.danger_fire_rate,
+        pre_dd_danger_rate=danger_metrics.pre_dd_danger_rate,
+        future_mdd_overlap_rate=danger_metrics.future_mdd_overlap_rate,
+        global_mdd_overlap_rate=danger_metrics.global_mdd_overlap_rate,
+        safe_fire_rate=danger_metrics.safe_fire_rate,
+        fire_advantage_mean=danger_metrics.fire_advantage_mean,
+        post_fire_dd_contribution_mean=danger_metrics.post_fire_dd_contribution_mean,
         accepted=reject_reason is None,
         reject_reason=reject_reason,
         score=float(score),
@@ -240,6 +336,17 @@ def format_fire_metrics(metrics: FireMetrics) -> str:
         f"fwd16={metrics.fwd_ret_16:+.5f} incr16={metrics.fwd_incr_pnl_16:+.5f} "
         f"score={metrics.score:+.3f}"
     )
+    if metrics.danger_enabled:
+        label += (
+            f" danger={metrics.danger_fire_rate:.1%} "
+            f"preDD={metrics.pre_dd_danger_rate:.1%} "
+            f"futureMDD={metrics.future_mdd_overlap_rate:.1%} "
+            f"globalMDD={metrics.global_mdd_overlap_rate:.1%} "
+            f"safe={metrics.safe_fire_rate:.1%} "
+            f"safe_pnl={metrics.safe_fire_pnl:+.4f} "
+            f"adv={metrics.fire_advantage_mean:+.5f} "
+            f"postDD={metrics.post_fire_dd_contribution_mean:+.5f}"
+        )
     if metrics.reject_reason is not None:
         label += f" reject={metrics.reject_reason}"
     return label

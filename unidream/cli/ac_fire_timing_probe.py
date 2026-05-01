@@ -22,6 +22,7 @@ from unidream.experiments.bc_setup import prepare_bc_setup
 from unidream.experiments.bc_stage import build_bc_trainer
 from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.fold_runtime import prepare_fold_runtime
+from unidream.experiments.fire_diagnostics import evaluate_fire_danger_diagnostics
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
 from unidream.experiments.policy_fire import predict_with_policy_flags as _predict_with_policy_flags
@@ -349,6 +350,30 @@ def _summarize_run(run: ProbeRun, payload: dict, horizons: list[int], device: st
     summary.update(_forward_sums(returns, fire, horizons))
     summary.update(_forward_incremental_pnl(returns=returns, delta=delta, mask=fire, horizons=horizons))
     summary.update(adv_summary)
+    danger = evaluate_fire_danger_diagnostics(
+        returns=returns,
+        positions=positions,
+        no_adapter=no_adapter,
+        fire=fire,
+        costs_cfg=costs_cfg,
+        horizon=32,
+        rel_vol_window=64,
+        mdd_rel_threshold=0.5,
+        post_dd_quantile=0.8,
+        include_post_dd_in_danger=True,
+    )
+    summary.update(
+        {
+            "danger_fire_rate": danger.danger_fire_rate,
+            "pre_dd_danger_rate": danger.pre_dd_danger_rate,
+            "future_mdd_overlap_rate": danger.future_mdd_overlap_rate,
+            "global_mdd_overlap_rate": danger.global_mdd_overlap_rate,
+            "safe_fire_rate": danger.safe_fire_rate,
+            "safe_fire_pnl": danger.safe_fire_pnl,
+            "fire_advantage_mean": danger.fire_advantage_mean,
+            "post_fire_dd_contribution_mean": danger.post_fire_dd_contribution_mean,
+        }
+    )
     return {
         "summary": summary,
         "fire_mask": fire,
@@ -387,17 +412,19 @@ def _write_markdown(path: str, *, results: dict[str, dict], overlaps: dict[str, 
         "",
         "## Performance / Fire Summary",
         "",
-        "| label | mode | AlphaEx | SharpeD | MaxDDD | turnover | long | short | fire | mean_delta | fire_pnl | nonfire_pnl | fwd16 | incr16 | pred_adv |",
-        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| label | mode | AlphaEx | SharpeD | MaxDDD | turnover | long | short | fire | danger | preDD | futureMDD | safe | fire_pnl | safe_pnl | fwd16 | incr16 |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for label, rec in results.items():
         s = rec["summary"]
         lines.append(
             f"| {label} | {s['mode']} | {s['alpha_excess_pt']:+.2f} | {s['sharpe_delta']:+.3f} "
             f"| {s['maxdd_delta_pt']:+.2f} | {s['turnover']:.2f} | {s['long']:.1%} | {s['short']:.1%} "
-            f"| {s['fire_rate']:.1%} | {s['mean_delta']:+.4f} | {s['fire_pnl']:+.4f} "
-            f"| {s['nonfire_pnl']:+.4f} | {s.get('fwd_ret_16', 0.0):+.5f} "
-            f"| {s.get('fwd_incr_pnl_16', 0.0):+.5f} | {s.get('pred_adv_mean', 0.0):+.4f} |"
+            f"| {s['fire_rate']:.1%} | {s['danger_fire_rate']:.1%} | "
+            f"{s['pre_dd_danger_rate']:.1%} | {s['future_mdd_overlap_rate']:.1%} | "
+            f"{s['safe_fire_rate']:.1%} | {s['fire_pnl']:+.4f} | "
+            f"{s['safe_fire_pnl']:+.4f} | {s.get('fwd_ret_16', 0.0):+.5f} "
+            f"| {s.get('fwd_incr_pnl_16', 0.0):+.5f} |"
         )
     lines += [
         "",
