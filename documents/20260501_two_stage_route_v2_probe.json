@@ -1,0 +1,836 @@
+{
+  "0": {
+    "train": {
+      "split": "train",
+      "n": 69705,
+      "ce": 1.0150690078735352,
+      "accuracy": 0.5544939387418406,
+      "macro_f1": 0.22033480745404377,
+      "active_recall": 0.09084851177254553,
+      "false_active_rate": 0.04686968133853526,
+      "neutral_precision": 0.5595677304310398,
+      "active_score_auc": 0.5884615555200314,
+      "active_score_ap": 0.5312988496807957,
+      "ece": 0.03415718660721625,
+      "top_decile_pred_active_advantage": 0.006358672180295474,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.5595677304310398,
+          "recall": 0.9531303186614647,
+          "f1": 0.7051519231328032,
+          "support": 38191,
+          "pred_count": 65052
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.4835589941972921,
+          "recall": 0.10771734967445423,
+          "f1": 0.17618730668337185,
+          "support": 20888,
+          "pred_count": 4653
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1489,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 9137,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9332472562943834,
+          "mean_label_advantage": 0.0017212522643042815
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.06675274370561653,
+          "mean_label_advantage": 0.0038469712867670197
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.0002004091291489993,
+          "sum_pnl": 13.037014669400703
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.00015465927504417634,
+          "sum_pnl": -0.7196296067805525
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    },
+    "val": {
+      "split": "val",
+      "n": 8701,
+      "ce": 1.059280514717102,
+      "accuracy": 0.523962762900816,
+      "macro_f1": 0.21917657345368546,
+      "active_recall": 0.10154946364719905,
+      "false_active_rate": 0.06480248557478917,
+      "neutral_precision": 0.5278717274207692,
+      "active_score_auc": 0.5472544090332212,
+      "active_score_ap": 0.525366716317075,
+      "ece": 0.009235465948560574,
+      "top_decile_pred_active_advantage": 0.010257733822881063,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.5278717274207692,
+          "recall": 0.9351975144252108,
+          "f1": 0.6748338537913363,
+          "support": 4506,
+          "pred_count": 7983
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.4805013927576602,
+          "recall": 0.12777777777777777,
+          "f1": 0.20187244002340549,
+          "support": 2700,
+          "pred_count": 718
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 197,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1298,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9174807493391565,
+          "mean_label_advantage": 0.002011912681765171
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.08251925066084358,
+          "mean_label_advantage": 0.005373631883461241
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.00025073165898675364,
+          "sum_pnl": 2.0015908336912545
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.0004092854681185889,
+          "sum_pnl": -0.2938669661091468
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    },
+    "test": {
+      "split": "test",
+      "n": 8713,
+      "ce": 0.9650498628616333,
+      "accuracy": 0.6098932629404339,
+      "macro_f1": 0.2066122161648346,
+      "active_recall": 0.027082119976703553,
+      "false_active_rate": 0.010039780261413146,
+      "neutral_precision": 0.6100151745068285,
+      "active_score_auc": 0.6281253299438231,
+      "active_score_ap": 0.5025472855925133,
+      "ece": 0.07763611993983403,
+      "top_decile_pred_active_advantage": 0.0034938319430996975,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.6100151745068285,
+          "recall": 0.9899602197385868,
+          "f1": 0.7548750541672685,
+          "support": 5279,
+          "pred_count": 8567
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.6027397260273972,
+          "recall": 0.03804582792909641,
+          "f1": 0.07157381049206994,
+          "support": 2313,
+          "pred_count": 146
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 166,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 955,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9832434293584299,
+          "mean_label_advantage": 0.0011416766104602354
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.016756570641570066,
+          "mean_label_advantage": 0.0038399875187155575
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 7.568854911431809e-05,
+          "sum_pnl": 0.648423800262363
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.0010887997122207519,
+          "sum_pnl": -0.15896475798422977
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    }
+  },
+  "4": {
+    "train": {
+      "split": "train",
+      "n": 69973,
+      "ce": 0.9827714562416077,
+      "accuracy": 0.572349334743401,
+      "macro_f1": 0.18863282291442185,
+      "active_recall": 0.009821874479773597,
+      "false_active_rate": 0.004106364865541589,
+      "neutral_precision": 0.5721725120119688,
+      "active_score_auc": 0.5765127703392231,
+      "active_score_ap": 0.4892696169208821,
+      "ece": 0.022274495580910422,
+      "top_decile_pred_active_advantage": 0.015989589122751648,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.5721725120119688,
+          "recall": 0.9958936351344584,
+          "f1": 0.7267843438219493,
+          "support": 39938,
+          "pred_count": 69514
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.599128540305011,
+          "recall": 0.014202344677994113,
+          "f1": 0.027746947835738073,
+          "support": 19363,
+          "pred_count": 459
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1284,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 9388,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.993440326983265,
+          "mean_label_advantage": 0.0015147385067308884
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.006559673016735027,
+          "mean_label_advantage": 0.006964460426491578
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.00019450222196683656,
+          "sum_pnl": 13.520627457802677
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.00100094040943345,
+          "sum_pnl": -0.4594316479299535
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    },
+    "val": {
+      "split": "val",
+      "n": 8625,
+      "ce": 1.178349256515503,
+      "accuracy": 0.43744927536231887,
+      "macro_f1": 0.15433915398249728,
+      "active_recall": 0.004943357363542739,
+      "false_active_rate": 0.0023872679045092837,
+      "neutral_precision": 0.4377327746741155,
+      "active_score_auc": 0.553130055427012,
+      "active_score_ap": 0.5989673274433565,
+      "ece": 0.12611329393801482,
+      "top_decile_pred_active_advantage": 0.003487194742774591,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.4377327746741155,
+          "recall": 0.9976127320954907,
+          "f1": 0.608477592622553,
+          "support": 3770,
+          "pred_count": 8592
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.36363636363636365,
+          "recall": 0.0044943820224719105,
+          "f1": 0.008879023307436182,
+          "support": 2670,
+          "pred_count": 33
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 220,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1965,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9961739130434782,
+          "mean_label_advantage": 0.00248069929608354
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.0038260869565217392,
+          "mean_label_advantage": 0.00285389008014604
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.0003101939812497868,
+          "sum_pnl": 2.665186686898168
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": 0.0003732449043440142,
+          "sum_pnl": 0.012317081843352468
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    },
+    "test": {
+      "split": "test",
+      "n": 8709,
+      "ce": 1.1741904020309448,
+      "accuracy": 0.4192214950051671,
+      "macro_f1": 0.1559336077935594,
+      "active_recall": 0.012966601178781925,
+      "false_active_rate": 0.007460624481901078,
+      "neutral_precision": 0.4168987929433612,
+      "active_score_auc": 0.5676475282440253,
+      "active_score_ap": 0.6267746170413362,
+      "ece": 0.13231875529203282,
+      "top_decile_pred_active_advantage": 0.009654323849827052,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.4168987929433612,
+          "recall": 0.9925393755180989,
+          "f1": 0.5871679607682877,
+          "support": 3619,
+          "pred_count": 8616
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.6344086021505376,
+          "recall": 0.018825781748564134,
+          "f1": 0.0365664704059498,
+          "support": 3134,
+          "pred_count": 93
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 283,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1673,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9893213916637961,
+          "mean_label_advantage": 0.0029921770014757717
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.010678608336203927,
+          "mean_label_advantage": 0.006546735700960922
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 6.944701367974625e-05,
+          "sum_pnl": 0.5983554698646937
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.0026854454091256646,
+          "sum_pnl": -0.24974642304868683
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    }
+  },
+  "5": {
+    "train": {
+      "split": "train",
+      "n": 69982,
+      "ce": 1.0254437923431396,
+      "accuracy": 0.5400817353033637,
+      "macro_f1": 0.1938677700125497,
+      "active_recall": 0.03571760478299929,
+      "false_active_rate": 0.019601602079520438,
+      "neutral_precision": 0.5428403583492436,
+      "active_score_auc": 0.578719077485331,
+      "active_score_ap": 0.522881813709191,
+      "ece": 0.02614078300989818,
+      "top_decile_pred_active_advantage": 0.00889120887287917,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.5428403583492436,
+          "recall": 0.9803983979204796,
+          "f1": 0.6987739977880917,
+          "support": 37701,
+          "pred_count": 68090
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.4406417112299465,
+          "recall": 0.04089127090466974,
+          "f1": 0.07483765496571454,
+          "support": 20151,
+          "pred_count": 1870
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1396,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.45454545454545453,
+          "recall": 0.000931619154089808,
+          "f1": 0.001859427296392711,
+          "support": 10734,
+          "pred_count": 22
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9729644765796919,
+          "mean_label_advantage": 0.0016782833230631837
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.02672115686890915,
+          "mean_label_advantage": 0.004701837812136998
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.00031436655139893113,
+          "mean_label_advantage": 0.00850100996798243
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.00021849012013974717,
+          "sum_pnl": 14.876992280315385
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -4.845213868568957e-06,
+          "sum_pnl": -0.00906054993422395
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": -0.0029115148672629156,
+          "sum_pnl": -0.06405332707978414
+        }
+      ]
+    },
+    "val": {
+      "split": "val",
+      "n": 8708,
+      "ce": 1.1755304336547852,
+      "accuracy": 0.41858061552595316,
+      "macro_f1": 0.1610375036937372,
+      "active_recall": 0.027499508937340406,
+      "false_active_rate": 0.019353055017970695,
+      "neutral_precision": 0.41739232760649564,
+      "active_score_auc": 0.5397632320411041,
+      "active_score_ap": 0.6067994370371865,
+      "ece": 0.1346052364370502,
+      "top_decile_pred_active_advantage": 0.004457734641619027,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.41739232760649564,
+          "recall": 0.9806469449820293,
+          "f1": 0.585555096987206,
+          "support": 3617,
+          "pred_count": 8498
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.4666666666666667,
+          "recall": 0.03125996810207336,
+          "f1": 0.058594917787742895,
+          "support": 3135,
+          "pred_count": 210
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 283,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1673,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9758842443729904,
+          "mean_label_advantage": 0.0029581618005220913
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.024115755627009645,
+          "mean_label_advantage": 0.005975175359829639
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.00028104212026945424,
+          "sum_pnl": 2.388295938049822
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.0017134707759170178,
+          "sum_pnl": -0.35982886294257377
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    },
+    "test": {
+      "split": "test",
+      "n": 8807,
+      "ce": 1.0861577987670898,
+      "accuracy": 0.50562052912456,
+      "macro_f1": 0.17556741311139615,
+      "active_recall": 0.01332720588235294,
+      "false_active_rate": 0.010101010101010102,
+      "neutral_precision": 0.5066636029411765,
+      "active_score_auc": 0.5216651296461345,
+      "active_score_ap": 0.506455670390257,
+      "ece": 0.04263554853709184,
+      "top_decile_pred_active_advantage": 0.0023067984571257098,
+      "routes": [
+        {
+          "route": "neutral",
+          "precision": 0.5066636029411765,
+          "recall": 0.98989898989899,
+          "f1": 0.6702636978493807,
+          "support": 4455,
+          "pred_count": 8704
+        },
+        {
+          "route": "de_risk",
+          "precision": 0.4174757281553398,
+          "recall": 0.016640866873065017,
+          "f1": 0.032005954596203944,
+          "support": 2584,
+          "pred_count": 103
+        },
+        {
+          "route": "recovery",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 173,
+          "pred_count": 0
+        },
+        {
+          "route": "overweight",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1595,
+          "pred_count": 0
+        }
+      ],
+      "pred_route_advantage": [
+        {
+          "route": "neutral",
+          "pred_rate": 0.9883047575791983,
+          "mean_label_advantage": 0.0017578907215218297
+        },
+        {
+          "route": "de_risk",
+          "pred_rate": 0.011695242420801635,
+          "mean_label_advantage": 0.0026192909250153428
+        },
+        {
+          "route": "recovery",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        },
+        {
+          "route": "overweight",
+          "pred_rate": 0.0,
+          "mean_label_advantage": 0.0
+        }
+      ],
+      "pred_route_pnl": [
+        {
+          "route": "neutral",
+          "mean_pnl": 0.00012063270748215778,
+          "sum_pnl": 1.0499870859247014
+        },
+        {
+          "route": "de_risk",
+          "mean_pnl": -0.00026768494210149623,
+          "sum_pnl": -0.02757154903645411
+        },
+        {
+          "route": "recovery",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        },
+        {
+          "route": "overweight",
+          "mean_pnl": 0.0,
+          "sum_pnl": 0.0
+        }
+      ]
+    }
+  }
+}

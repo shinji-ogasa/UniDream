@@ -109,6 +109,50 @@ def _ece(conf: np.ndarray, correct: np.ndarray, bins: int = 10) -> float:
     return out
 
 
+def _average_tie_ranks(values: np.ndarray) -> np.ndarray:
+    order = np.argsort(values, kind="mergesort")
+    ranks = np.empty(len(values), dtype=np.float64)
+    sorted_values = values[order]
+    start = 0
+    while start < len(values):
+        end = start + 1
+        while end < len(values) and sorted_values[end] == sorted_values[start]:
+            end += 1
+        avg_rank = 0.5 * (start + 1 + end)
+        ranks[order[start:end]] = avg_rank
+        start = end
+    return ranks
+
+
+def _roc_auc_binary(labels: np.ndarray, scores: np.ndarray) -> float | None:
+    y = np.asarray(labels, dtype=bool)
+    s = np.asarray(scores, dtype=np.float64)
+    mask = np.isfinite(s)
+    y = y[mask]
+    s = s[mask]
+    pos = int(y.sum())
+    neg = int(len(y) - pos)
+    if pos == 0 or neg == 0:
+        return None
+    ranks = _average_tie_ranks(s)
+    return float((np.sum(ranks[y]) - pos * (pos + 1) / 2.0) / (pos * neg))
+
+
+def _average_precision_binary(labels: np.ndarray, scores: np.ndarray) -> float | None:
+    y = np.asarray(labels, dtype=bool)
+    s = np.asarray(scores, dtype=np.float64)
+    mask = np.isfinite(s)
+    y = y[mask]
+    s = s[mask]
+    pos = int(y.sum())
+    if pos == 0:
+        return None
+    order = np.argsort(-s, kind="mergesort")
+    y_sorted = y[order]
+    precision = np.cumsum(y_sorted) / (np.arange(len(y_sorted)) + 1.0)
+    return float(np.sum(precision[y_sorted]) / pos)
+
+
 def _predict_route_probs(
     actor,
     *,
@@ -179,6 +223,8 @@ def _evaluate_split(
     false_active_rate = float(((neutral_true) & (active_pred)).sum() / max(neutral_true.sum(), 1))
     neutral_precision = float(((labels == 0) & (pred == 0)).sum() / max((pred == 0).sum(), 1))
     active_prob = 1.0 - probs[:, 0]
+    active_score_auc = _roc_auc_binary(active_true, active_prob)
+    active_score_ap = _average_precision_binary(active_true, active_prob)
     top_active_adv = None
     if active_pred.any():
         pred_active_scores = active_prob[active_pred]
@@ -224,6 +270,8 @@ def _evaluate_split(
         "active_recall": active_recall,
         "false_active_rate": false_active_rate,
         "neutral_precision": neutral_precision,
+        "active_score_auc": _safe_float(active_score_auc),
+        "active_score_ap": _safe_float(active_score_ap),
         "ece": _ece(conf, correct),
         "top_decile_pred_active_advantage": _safe_float(top_active_adv),
         "routes": route_rows,
@@ -317,8 +365,8 @@ def _write_md(path: str, *, config: str, fold_results: dict) -> None:
     ]
     for fold, split_rows in fold_results.items():
         lines.extend(["", f"## Fold {fold}", ""])
-        lines.append("| split | CE | Acc | Macro-F1 | Active Recall | De-risk Recall | Recovery Recall | Overweight Recall | False Active | Neutral Precision | ECE | Top Active Adv |")
-        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+        lines.append("| split | CE | Acc | Macro-F1 | Active Recall | Active AUC | Active AP | De-risk Recall | Recovery Recall | Overweight Recall | False Active | Neutral Precision | ECE | Top Active Adv |")
+        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
         for split_name, row in split_rows.items():
             by_route = {r["route"]: r for r in row["routes"]}
             def recall(name: str) -> str:
@@ -333,6 +381,8 @@ def _write_md(path: str, *, config: str, fold_results: dict) -> None:
                         f"{row['accuracy']:.3f}",
                         f"{row['macro_f1']:.3f}",
                         f"{row['active_recall']:.3f}",
+                        "NA" if row.get("active_score_auc") is None else f"{row['active_score_auc']:.3f}",
+                        "NA" if row.get("active_score_ap") is None else f"{row['active_score_ap']:.3f}",
                         recall("de_risk"),
                         recall("recovery"),
                         recall("overweight"),
