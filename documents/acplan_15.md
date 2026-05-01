@@ -393,3 +393,27 @@ Plan20:
 
 一言で言うと、次は **「火をつけたら儲かるか」から、「儲かって、かつ火事にならないか」へラベルを作り直す段階**。
 ここが通れば、次にようやくWM head v2とAC再開に進める。
+
+次にやるべきこと
+
+次は Plan15-B が筋。
+
+今の harm_margin や dd_rel ではなく、もっと直接的に：
+
+maxdd_window_fire_label
+future MDD interval overlap
+post-fire drawdown contribution
+pre-DD state
+
+を作るべき。
+
+特に狙うべきはこれ。
+
+「fireしたら儲かるか」
+  → fire_advantage_h32 で読めそう
+
+「そのfireが最大DD区間に入るか」
+  → まだ読めてない
+
+「そのfireがDDを悪化させるか」
+  → maxDD-window / post-fire DD contribution label が必要
