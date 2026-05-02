@@ -30,7 +30,6 @@ from unidream.cli.exploration_board_probe import (
     _candidate_utilities,
     _pullback_no_fire_mask,
     _shift_for_execution,
-    _threshold_grid,
     _unit_cost,
 )
 from unidream.data.dataset import WFODataset
@@ -78,9 +77,9 @@ def compute_wm_utility(
     using WM predictive head outputs (return / drawdown / vol at horizon=32)."""
     aux = wm_trainer.predict_auxiliary_from_encoded(z, h)
     n = len(z)
-    ret_h32 = _h32(aux.get("return"), n)
-    dd_h32  = np.maximum(_h32(aux.get("drawdown"), n), 0.0)
-    vol_h32 = np.maximum(_h32(aux.get("vol"), n), 0.0)
+    ret_h32 = _h32(aux.get("return"), n) / 100.0
+    dd_h32  = np.maximum(_h32(aux.get("drawdown"), n) / 100.0, 0.0)
+    vol_h32 = np.maximum(_h32(aux.get("vol"), n) / 100.0, 0.0)
 
     k = len(candidates)
     vals = np.full((n, k), np.nan, dtype=np.float64)
@@ -100,6 +99,22 @@ def compute_wm_utility(
 
 # ── validation selection ──────────────────────────────────────────────
 
+def _threshold_grid_orig(improve: np.ndarray, active_cap: float = 0.25) -> list[float]:
+    """Threshold grid including all actual improve values as candidates."""
+    vals = np.asarray(improve, dtype=np.float64)
+    vals = vals[np.isfinite(vals) & (vals > 0)]
+    if len(vals) == 0:
+        return [float("inf")]
+    qs = [0.50, 0.60, 0.70, 0.80, 0.85, 0.90, 0.925, 0.95, 0.975, 0.99, 0.995, 0.9975, 0.999]
+    raw = list(vals)
+    raw.extend([float(np.quantile(vals, q)) for q in qs])
+    raw.extend([0.0])
+    cap_q = max(0.0, min(0.995, 1.0 - float(active_cap)))
+    if len(vals):
+        raw.append(float(np.quantile(vals, cap_q)))
+    return sorted(set([float("inf") if not math.isfinite(t) else t for t in raw]))
+
+
 def select_best_config(
     wm_util: np.ndarray,
     actual_util: np.ndarray,
@@ -117,7 +132,7 @@ def select_best_config(
     best_idx = np.argmax(wm_util, axis=1)
     improve = wm_util[np.arange(len(wm_util)), best_idx] - wm_util[:, bench_idx]
 
-    thresholds = _threshold_grid(improve[valid], active_cap=active_cap)
+    thresholds = _threshold_grid_orig(improve[valid], active_cap)
     thresholds = sorted({
         max(t, min_threshold) for t in thresholds if math.isfinite(t)
     } | {float("inf")})
@@ -161,10 +176,10 @@ def build_danger_guard(
     dd = aux.get("drawdown")
     if dd is None:
         return np.ones(len(z), dtype=bool)
-    dd_h32 = _h32(dd, len(z))
+    dd_h32 = _h32(dd, len(z)) / 100.0
     dd_h32 = np.maximum(np.asarray(dd_h32, dtype=np.float64), 0.0)
     finite = dd_h32[np.isfinite(dd_h32)]
-    threshold = float(np.quantile(finite, quantile)) if len(finite) else 0.0
+    threshold = float(np.median(finite) * 0.5) if len(finite) else 0.0
     return dd_h32 >= threshold
 
 
