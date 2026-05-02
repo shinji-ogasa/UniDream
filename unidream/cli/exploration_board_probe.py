@@ -37,6 +37,13 @@ class SelectorSpec:
     turnover_cap: float
     min_threshold: float
     mode: str
+    cooldown_bars: int = 0
+    hold_bars: int = 1
+    guard_horizon: int = 32
+    guard_vol_window: int = 64
+    guard_barrier_k: float = 1.25
+    cooldown_grid: tuple[int, ...] = ()
+    min_val_maxdd_improvement_pt: float = 0.0
 
 
 SELECTOR_SPECS = (
@@ -117,6 +124,153 @@ SELECTOR_SPECS = (
         turnover_cap=3.50,
         min_threshold=0.005,
         mode="tb_guard",
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_cd32",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.0,
+        mode="tb_guard",
+        cooldown_bars=32,
+        hold_bars=1,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_cd32_floor001",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard",
+        cooldown_bars=32,
+        hold_bars=1,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_cd32_floor0025",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.0025,
+        mode="tb_guard",
+        cooldown_bars=32,
+        hold_bars=1,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_cd96",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.0,
+        mode="tb_guard",
+        cooldown_bars=96,
+        hold_bars=1,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_h64",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.0,
+        mode="tb_guard",
+        guard_horizon=64,
+        guard_vol_window=128,
+        guard_barrier_k=1.50,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.0,
+        mode="tb_guard",
+        cooldown_grid=(0, 32),
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd_floor001",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard",
+        cooldown_grid=(0, 32),
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd_floor001_valdd",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard",
+        cooldown_grid=(0, 32),
+        min_val_maxdd_improvement_pt=0.001,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd_floor001_pullback",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard_pullback",
+        cooldown_grid=(0, 32),
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd_floor001_pullback_evalonly",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard_pullback_evalonly",
+        cooldown_grid=(0, 32),
     ),
     SelectorSpec(
         name="F_listwise",
@@ -377,6 +531,30 @@ def _shift_for_execution(selected: np.ndarray, benchmark_position: float) -> np.
     return out
 
 
+def _apply_event_throttle(
+    selected: np.ndarray,
+    *,
+    benchmark_position: float,
+    cooldown_bars: int,
+    hold_bars: int,
+) -> np.ndarray:
+    sel = np.asarray(selected, dtype=np.float64)
+    if int(cooldown_bars) <= 0 and int(hold_bars) <= 1:
+        return sel.copy()
+    out = np.full(len(sel), float(benchmark_position), dtype=np.float64)
+    i = 0
+    cooldown = max(int(cooldown_bars), 0)
+    hold = max(int(hold_bars), 1)
+    while i < len(sel):
+        if abs(float(sel[i]) - float(benchmark_position)) <= 1e-12:
+            i += 1
+            continue
+        end = min(len(sel), i + hold)
+        out[i:end] = float(sel[i])
+        i = end + cooldown
+    return out
+
+
 def _backtest_positions(
     returns: np.ndarray,
     positions: np.ndarray,
@@ -428,13 +606,18 @@ def _metric_score(metrics: dict, spec: SelectorSpec) -> float:
     maxdd = float(metrics.get("maxdd_delta_pt", 0.0))
     turnover = float(metrics.get("turnover", 999.0))
     active = 1.0 - float(metrics.get("flat_rate", 0.0))
+    if turnover <= 1e-12 and active <= 1e-12:
+        return 0.0
     if maxdd > float(spec.maxdd_cap_pt) or turnover > float(spec.turnover_cap) or active > float(spec.active_cap):
+        return -1_000_000.0 + alpha + 2.0 * sharpe - max(turnover, 0.0)
+    min_dd_improve = float(spec.min_val_maxdd_improvement_pt)
+    if min_dd_improve > 0.0 and maxdd > -min_dd_improve:
         return -1_000_000.0 + alpha + 2.0 * sharpe - max(turnover, 0.0)
     penalty = 0.0
     penalty += 5.0 * max(maxdd - float(spec.maxdd_cap_pt), 0.0)
     penalty += 2.0 * max(turnover - float(spec.turnover_cap), 0.0)
     penalty += 10.0 * max(active - float(spec.active_cap), 0.0)
-    return alpha + 2.0 * sharpe - penalty
+    return alpha + 2.0 * sharpe - 0.05 * turnover - 0.25 * active - penalty
 
 
 def _threshold_grid(improve: np.ndarray, *, active_cap: float) -> list[float]:
@@ -466,6 +649,22 @@ def _regime_masks(train_returns: np.ndarray, eval_returns: np.ndarray) -> dict[s
     }
 
 
+def _pullback_no_fire_mask(returns: np.ndarray) -> np.ndarray:
+    ret = np.asarray(returns, dtype=np.float64)
+    past_ret32 = _rolling_past_sum(ret, 32)
+    past_ret64 = _rolling_past_sum(ret, 64)
+    past_vol64 = _rolling_past_vol(ret, 64)
+    current_dd, _uw = _online_drawdown(ret)
+    vol_ref = np.nanmedian(past_vol64[np.isfinite(past_vol64)]) if np.any(np.isfinite(past_vol64)) else 0.0
+    return (
+        (past_ret32 < -0.005)
+        & (past_ret64 > 0.005)
+        & (current_dd < -0.015)
+        & (current_dd > -0.120)
+        & (past_vol64 >= 0.75 * max(float(vol_ref), 1e-8))
+    )
+
+
 def _selected_utility_stats(
     selected: np.ndarray,
     actual_values: np.ndarray,
@@ -487,6 +686,36 @@ def _selected_utility_stats(
         "selected_utility_mean": float(np.nanmean(selected_util[valid])),
         "selected_utility_positive_rate": float(np.nanmean(selected_util[valid] > 0.0)),
         "oracle_best_improve_top10": _top_fraction_mean(best_improve, best_improve, 0.10),
+    }
+
+
+def _selected_event_context_stats(
+    selected: np.ndarray,
+    returns: np.ndarray,
+    *,
+    benchmark_position: float,
+) -> dict:
+    sel = np.asarray(selected, dtype=np.float64)
+    idx = np.flatnonzero(np.abs(sel - float(benchmark_position)) > 1e-12)
+    if len(idx) == 0:
+        return {
+            "event_count": 0,
+            "event_past_ret32": float("nan"),
+            "event_past_ret64": float("nan"),
+            "event_past_vol64": float("nan"),
+            "event_current_dd": float("nan"),
+        }
+    ret = np.asarray(returns, dtype=np.float64)
+    past_ret32 = _rolling_past_sum(ret, 32)
+    past_ret64 = _rolling_past_sum(ret, 64)
+    past_vol64 = _rolling_past_vol(ret, 64)
+    current_dd, _uw = _online_drawdown(ret)
+    return {
+        "event_count": int(len(idx)),
+        "event_past_ret32": float(np.mean(past_ret32[idx])),
+        "event_past_ret64": float(np.mean(past_ret64[idx])),
+        "event_past_vol64": float(np.mean(past_vol64[idx])),
+        "event_current_dd": float(np.mean(current_dd[idx])),
     }
 
 
@@ -534,6 +763,7 @@ def _evaluate_selector(
         vol_penalty=spec.vol_penalty,
     )
 
+    uses_tb_guard = spec.mode in {"tb_guard", "tb_guard_pullback", "tb_guard_pullback_evalonly"}
     if spec.mode == "uncertainty":
         models = _fit_bootstrap_models(x_train[train_valid], y_train[train_valid], l2=l2, seed=seed, n_models=5)
         if not models:
@@ -552,10 +782,25 @@ def _evaluate_selector(
     danger_val = None
     danger_test = None
     danger_caps: list[float | None] = [None]
-    if spec.mode == "tb_guard":
-        train_tb = _triple_barrier_labels(train_returns, horizon=32, vol_window=64, barrier_k=1.25)
-        val_tb = _triple_barrier_labels(val_returns, horizon=32, vol_window=64, barrier_k=1.25)
-        test_tb = _triple_barrier_labels(test_returns, horizon=32, vol_window=64, barrier_k=1.25)
+    if uses_tb_guard:
+        train_tb = _triple_barrier_labels(
+            train_returns,
+            horizon=spec.guard_horizon,
+            vol_window=spec.guard_vol_window,
+            barrier_k=spec.guard_barrier_k,
+        )
+        val_tb = _triple_barrier_labels(
+            val_returns,
+            horizon=spec.guard_horizon,
+            vol_window=spec.guard_vol_window,
+            barrier_k=spec.guard_barrier_k,
+        )
+        test_tb = _triple_barrier_labels(
+            test_returns,
+            horizon=spec.guard_horizon,
+            vol_window=spec.guard_vol_window,
+            barrier_k=spec.guard_barrier_k,
+        )
         tb_train_valid = np.asarray(train_tb["valid"], dtype=bool)
         tb_model = _fit_binary_model(
             x_train[tb_train_valid],
@@ -592,8 +837,19 @@ def _evaluate_selector(
     regime_names = ["all"]
     if spec.mode == "regime":
         regime_names = [k for k in val_regimes.keys() if k != "all"] + ["all"]
+    val_pullback_block = (
+        _pullback_no_fire_mask(val_returns)
+        if spec.mode == "tb_guard_pullback"
+        else np.zeros(len(val_returns), dtype=bool)
+    )
+    test_pullback_block = (
+        _pullback_no_fire_mask(test_returns)
+        if spec.mode in {"tb_guard_pullback", "tb_guard_pullback_evalonly"}
+        else np.zeros(len(test_returns), dtype=bool)
+    )
 
     best: dict[str, Any] | None = None
+    cooldown_choices = tuple(spec.cooldown_grid) if spec.cooldown_grid else (int(spec.cooldown_bars),)
     for regime_name in regime_names:
         val_active_mask = val_regimes.get(regime_name, np.ones(len(val_returns), dtype=bool))
         test_active_mask = test_regimes.get(regime_name, np.ones(len(test_returns), dtype=bool))
@@ -609,40 +865,48 @@ def _evaluate_selector(
                 danger_mask = np.ones(len(val_returns), dtype=bool)
                 if danger_val is not None and danger_cap is not None:
                     danger_mask = np.isfinite(danger_val) & (danger_val <= float(danger_cap))
-                for threshold in thresholds:
-                    selected_val, diag = _positions_from_prediction(
-                        pred_val,
-                        candidates=spec.candidates,
-                        threshold=threshold,
-                        benchmark_position=benchmark_position,
-                        active_mask=val_active_mask & val_valid & danger_mask,
-                        uncertainty=unc_val,
-                        uncertainty_cap=unc_cap,
-                    )
-                    val_positions = _shift_for_execution(selected_val, benchmark_position)
-                    val_metrics, _val_pnl = _backtest_positions(
-                        val_returns,
-                        val_positions,
-                        cfg=cfg,
-                        costs_cfg=costs_cfg,
-                        benchmark_position=benchmark_position,
-                    )
-                    score = _metric_score(val_metrics, spec)
-                    candidate = {
-                        "threshold": float(threshold) if math.isfinite(float(threshold)) else "inf",
-                        "regime": regime_name,
-                        "uncertainty_quantile": q,
-                        "uncertainty_cap": unc_cap,
-                        "danger_cap": (
-                            float(danger_cap)
-                            if danger_cap is not None and math.isfinite(float(danger_cap))
-                            else ("inf" if danger_cap is not None else None)
-                        ),
-                        "val_score": float(score),
-                        "val": {**val_metrics, **diag},
-                    }
-                    if best is None or score > float(best["val_score"]):
-                        best = candidate
+                for cooldown_choice in cooldown_choices:
+                    for threshold in thresholds:
+                        selected_val, diag = _positions_from_prediction(
+                            pred_val,
+                            candidates=spec.candidates,
+                            threshold=threshold,
+                            benchmark_position=benchmark_position,
+                            active_mask=val_active_mask & val_valid & danger_mask & (~val_pullback_block),
+                            uncertainty=unc_val,
+                            uncertainty_cap=unc_cap,
+                        )
+                        selected_val = _apply_event_throttle(
+                            selected_val,
+                            benchmark_position=benchmark_position,
+                            cooldown_bars=int(cooldown_choice),
+                            hold_bars=spec.hold_bars,
+                        )
+                        val_positions = _shift_for_execution(selected_val, benchmark_position)
+                        val_metrics, _val_pnl = _backtest_positions(
+                            val_returns,
+                            val_positions,
+                            cfg=cfg,
+                            costs_cfg=costs_cfg,
+                            benchmark_position=benchmark_position,
+                        )
+                        score = _metric_score(val_metrics, spec)
+                        candidate = {
+                            "threshold": float(threshold) if math.isfinite(float(threshold)) else "inf",
+                            "regime": regime_name,
+                            "uncertainty_quantile": q,
+                            "uncertainty_cap": unc_cap,
+                            "cooldown_bars": int(cooldown_choice),
+                            "danger_cap": (
+                                float(danger_cap)
+                                if danger_cap is not None and math.isfinite(float(danger_cap))
+                                else ("inf" if danger_cap is not None else None)
+                            ),
+                            "val_score": float(score),
+                            "val": {**val_metrics, **diag},
+                        }
+                        if best is None or score > float(best["val_score"]):
+                            best = candidate
 
     if best is None:
         return {"status": "no_selection"}
@@ -665,9 +929,15 @@ def _evaluate_selector(
         candidates=spec.candidates,
         threshold=threshold,
         benchmark_position=benchmark_position,
-        active_mask=test_active_mask & test_valid & danger_test_mask,
+        active_mask=test_active_mask & test_valid & danger_test_mask & (~test_pullback_block),
         uncertainty=unc_test,
         uncertainty_cap=unc_cap,
+    )
+    selected_test = _apply_event_throttle(
+        selected_test,
+        benchmark_position=benchmark_position,
+        cooldown_bars=int(best.get("cooldown_bars", spec.cooldown_bars)),
+        hold_bars=spec.hold_bars,
     )
     test_positions = _shift_for_execution(selected_test, benchmark_position)
     test_metrics, test_pnl = _backtest_positions(
@@ -683,6 +953,11 @@ def _evaluate_selector(
         candidates=spec.candidates,
         benchmark_position=benchmark_position,
     )
+    context_stats = _selected_event_context_stats(
+        selected_test,
+        test_returns,
+        benchmark_position=benchmark_position,
+    )
     ranking = _ranking_stats(pred_test, y_test, test_valid, bench_idx)
     return {
         "status": "ok",
@@ -693,7 +968,7 @@ def _evaluate_selector(
         "dd_penalty": float(spec.dd_penalty),
         "vol_penalty": float(spec.vol_penalty),
         "selection": best,
-        "test": {**test_metrics, **diag_test, **util_stats, **ranking},
+        "test": {**test_metrics, **diag_test, **util_stats, **context_stats, **ranking},
         "test_pnl": test_pnl,
     }
 
@@ -961,6 +1236,52 @@ def _aggregate_selectors(results: dict[str, dict], groups: dict[str, list[int]])
                 ),
                 "pbo": compute_pbo(pnls) if len(pnls) >= 2 else float("nan"),
             }
+        if out[group_name]:
+            valid_variants = list(out[group_name].keys())
+            for selected_fold in fold_ids:
+                rank_rows = []
+                for variant in valid_variants:
+                    train_folds = [f for f in fold_ids if f != selected_fold]
+                    train_rows = [
+                        results.get(str(f), {}).get("selectors", {}).get(variant, {}).get("test", {})
+                        for f in train_folds
+                    ]
+                    train_score = _mean(
+                        [
+                            float(r.get("alpha_excess_pt", 0.0))
+                            - 5.0 * max(float(r.get("maxdd_delta_pt", 0.0)), 0.0)
+                            - 0.1 * max(float(r.get("turnover", 0.0)) - 3.5, 0.0)
+                            for r in train_rows
+                            if r
+                        ]
+                    )
+                    rank_rows.append((train_score, variant))
+                if not rank_rows:
+                    continue
+                _score, selected_variant = max(rank_rows, key=lambda x: x[0])
+                oos = results.get(str(selected_fold), {}).get("selectors", {}).get(selected_variant, {}).get("test")
+                if oos is not None:
+                    out[group_name].setdefault("_nested_leave_one_fold", {"selected": []})["selected"].append(
+                        {
+                            "oos_fold": int(selected_fold),
+                            "variant": selected_variant,
+                            "alpha_excess_pt": float(oos.get("alpha_excess_pt", 0.0)),
+                            "maxdd_delta_pt": float(oos.get("maxdd_delta_pt", 0.0)),
+                            "turnover": float(oos.get("turnover", 0.0)),
+                        }
+                    )
+            nested = out[group_name].get("_nested_leave_one_fold")
+            if nested:
+                selected_rows = nested["selected"]
+                nested.update(
+                    {
+                        "folds": int(len(selected_rows)),
+                        "alpha_mean": _mean([r["alpha_excess_pt"] for r in selected_rows]),
+                        "alpha_worst": _min([r["alpha_excess_pt"] for r in selected_rows]),
+                        "maxdd_worst": _max([r["maxdd_delta_pt"] for r in selected_rows]),
+                        "turnover_max": _max([r["turnover"] for r in selected_rows]),
+                    }
+                )
     return out
 
 
@@ -1027,6 +1348,8 @@ def _write_md(path: str, payload: dict) -> None:
             ]
         )
         for variant, row in rows.items():
+            if variant.startswith("_"):
+                continue
             lines.append(
                 "| "
                 + " | ".join(
@@ -1047,6 +1370,28 @@ def _write_md(path: str, payload: dict) -> None:
                 + " |"
             )
         lines.append("")
+        nested = rows.get("_nested_leave_one_fold")
+        if nested:
+            lines.extend(
+                [
+                    "Nested leave-one-fold selector:",
+                    "",
+                    "| folds | alpha mean | alpha worst | maxdd worst | turnover max |",
+                    "|---:|---:|---:|---:|---:|",
+                    "| "
+                    + " | ".join(
+                        [
+                            str(nested["folds"]),
+                            _fmt(nested["alpha_mean"]),
+                            _fmt(nested["alpha_worst"]),
+                            _fmt(nested["maxdd_worst"]),
+                            _fmt(nested["turnover_max"]),
+                        ]
+                    )
+                    + " |",
+                    "",
+                ]
+            )
     lines.extend(["## Triple Barrier Aggregate", ""])
     for group, rows in payload["barrier_aggregate"].items():
         lines.extend(
@@ -1087,7 +1432,8 @@ def _write_md(path: str, payload: dict) -> None:
             sel = row["selection"]
             choice = (
                 f"thr={sel['threshold']} regime={sel['regime']} "
-                f"uq={sel['uncertainty_quantile']} danger={sel.get('danger_cap')}"
+                f"uq={sel['uncertainty_quantile']} cd={sel.get('cooldown_bars')} "
+                f"danger={sel.get('danger_cap')}"
             )
             lines.append(
                 "| "
@@ -1118,6 +1464,7 @@ def main() -> None:
     parser.add_argument("--folds", default="0,4,5,6")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--ridge-l2", type=float, default=1.0)
+    parser.add_argument("--selector-names", default="")
     parser.add_argument("--output-json", default="documents/plan2_exploration_board.json")
     parser.add_argument("--output-md", default="documents/plan2_exploration_board.md")
     args = parser.parse_args()
@@ -1148,6 +1495,10 @@ def main() -> None:
     costs_cfg = cfg.get("costs", {})
     benchmark_position = float(cfg.get("reward", {}).get("benchmark_position", 1.0))
     results: dict[str, dict] = {}
+    selector_filter = {x.strip() for x in str(args.selector_names or "").split(",") if x.strip()}
+    selector_specs = [s for s in SELECTOR_SPECS if not selector_filter or s.name in selector_filter]
+    if not selector_specs:
+        raise ValueError(f"No selector matched --selector-names={args.selector_names!r}")
     for split in splits:
         print(f"[ExplorationBoard] fold={split.fold_idx} start")
         dataset = WFODataset(features_df, raw_returns, split, seq_len=cfg.get("data", {}).get("seq_len", 64))
@@ -1166,7 +1517,7 @@ def main() -> None:
                 seed=args.seed + int(split.fold_idx),
             ),
         }
-        for spec in SELECTOR_SPECS:
+        for spec in selector_specs:
             print(f"[ExplorationBoard] fold={split.fold_idx} selector={spec.name}")
             fold_rows["selectors"][spec.name] = _evaluate_selector(
                 spec=spec,
@@ -1196,7 +1547,7 @@ def main() -> None:
         "start": args.start,
         "end": args.end,
         "folds": fold_ids,
-        "selector_specs": [_json_sanitize(s.__dict__) for s in SELECTOR_SPECS],
+        "selector_specs": [_json_sanitize(s.__dict__) for s in selector_specs],
         "results": _json_sanitize(results),
         "selector_aggregate": _json_sanitize(_aggregate_selectors(results, groups)),
         "barrier_aggregate": _json_sanitize(_aggregate_barriers(results, groups)),
