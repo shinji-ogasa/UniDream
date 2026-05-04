@@ -5,4 +5,4 @@ __pycache__/
 checkpoints/
 local_dl_data/
 .env
-/docs/
+/docs_local/
