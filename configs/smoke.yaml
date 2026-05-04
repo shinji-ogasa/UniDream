@@ -1,0 +1,103 @@
+# Smoke test — minimal config that exercises the full pipeline code path.
+data:
+  interval: 15m
+  symbol: BTCUSDT
+  seq_len: 32
+  train_years: 1
+  val_months: 3
+  test_months: 3
+
+world_model:
+  d_model: 32
+  d_ff: 64
+  n_heads: 2
+  n_layers: 1
+  n_ensemble: 1
+  n_categoricals: 4
+  n_classes: 4
+  n_bins: 255
+  max_steps: 2
+  max_seq_len: 32
+  batch_size: 16
+  lr: 0.0001
+  dropout: 0.0
+  disagree_scale: 0.0
+  dyn_scale: 0.5
+  rep_scale: 0.1
+  recon_scale: 1.0
+  reward_scale: 1.0
+  done_scale: 0.0
+  idm_scale: 0.0
+  return_scale: 0.0
+  vol_scale: 0.0
+  drawdown_scale: 0.0
+  risk_target_scale: 100.0
+  return_target_scale: 100.0
+  unimix_ratio: 0.01
+  free_bits: 1.0
+  grad_clip: 100.0
+  encoder_hidden: 64
+  encoder_layers: 1
+  return_horizon: 1
+  return_include_current: false
+
+ac:
+  max_steps: 2
+  horizon: 3
+  batch_size: 16
+  actor_hidden: 64
+  critic_hidden: 64
+  ac_layers: 1
+  actor_lr: 0.0001
+  critic_lr: 0.001
+  alpha_init: 1.0
+  alpha_final: 0.0
+  alpha_decay_steps: 2
+  gamma: 0.99
+  lam: 0.95
+  ema_decay: 0.98
+  grad_clip: 100.0
+  td3bc_alpha: 2.5
+  entropy_scale: 0.0
+  positive_advantages: false
+  checkpoint_interval: 10
+  abs_min_position: 0.0
+  abs_max_position: 1.25
+  controller_state_dim: 4
+  residual_controller: false
+  use_route_controller: false
+  use_inventory_recovery_controller: false
+  use_wm_predictive_state: false
+  advantage_conditioned: false
+  advantage_input_mode: none
+
+bc:
+  n_epochs: 1
+  batch_size: 16
+  lr: 0.001
+
+oracle:
+  action_values: [0.0, 0.5, 1.0, 1.25]
+  min_hold: 0
+  discount: 1.0
+
+reward:
+  mode: excess_bh
+  benchmark_position: 1.0
+
+costs:
+  spread_bps: 3.0
+  fee_rate: 0.0003
+  slippage_bps: 1.0
+
+normalization:
+  zscore_window_days: 60
+
+actions:
+  dim: 4
+
+eval:
+  hmm_n_states: 3
+
+logging:
+  checkpoint_dir: checkpoints/_smoke
