@@ -4,7 +4,9 @@
 
 Plan004 residual BC/AC は no-leak 条件で本流候補に昇格。主指標では全14foldで `AlphaEx > +1` かつ `MaxDDDelta <= +1` を達成した。
 
-HF Spaces 推論repoには Plan004 専用bundleを移行済み。UniDream本体APIには接続せず、`unidream-space/bundles/current` の成果物だけで推論する。
+Plan004 は本流 `uv run python -m unidream.cli.train --device cuda` に統合済み。各foldで WM/BC/AC checkpoint を作った後、train/valのみで Plan004 residual BC/AC をfreshにfit/extractし、test評価へ渡す。
+
+HF Spaces 推論repoには Plan004 完全bundleを移行済み。UniDream本体APIには接続せず、`unidream-space/bundles/current` の成果物だけで推論する。
 
 ## 採用ロジック
 
@@ -27,13 +29,43 @@ HF Spaces 推論repoには Plan004 専用bundleを移行済み。UniDream本体A
 | teacher selection | `val_only` |
 | selection stress | `primary` |
 
+## 本流統合
+
+標準config:
+
+- `configs/trading.yaml`
+- checkpoint dir: `checkpoints/main_plan004_residual_bc_ac_s007`
+- Plan004 stage: `plan004_residual_bc_ac.enabled=true`
+
+fold13 scratch実行:
+
+```powershell
+uv run python -u -m unidream.cli.train --config configs/trading.yaml --start 2018-01-01 --end 2024-01-01 --folds 13 --seed 7 --device cuda
+```
+
+生成物:
+
+- `checkpoints/main_plan004_residual_bc_ac_s007/fold_13/world_model.pt`
+- `checkpoints/main_plan004_residual_bc_ac_s007/fold_13/bc_actor.pt`
+- `checkpoints/main_plan004_residual_bc_ac_s007/fold_13/ac.pt`
+- `checkpoints/main_plan004_residual_bc_ac_s007/fold_13/plan004_policy.npz`
+- `checkpoints/main_plan004_residual_bc_ac_s007/fold_13/plan004_summary.json`
+
+fold13 本流評価:
+
+| stress | AlphaEx | SharpeDelta | MaxDDDelta | turnover |
+|---|---:|---:|---:|---:|
+| cost_x1 | +1.492 | -0.074 | -1.832 | 2.45 |
+| cost_x2 | +1.093 | -0.092 | -1.718 | 2.45 |
+| cost_x3 | +0.699 | -0.109 | -1.605 | 2.45 |
+
 ## 全14fold 結果
 
 出力:
 
-- `codex_outputs/20260506_plan004_final_primary_no_leak_allfold.json`
-- `codex_outputs/20260506_plan004_final_primary_no_leak_allfold.md`
-- `codex_outputs/20260506_plan004_final_primary_no_leak_allfold.log`
+- `codex_outputs/20260506_211338_plan004_current_no_leak_allfold.json`
+- `codex_outputs/20260506_211338_plan004_current_no_leak_allfold.md`
+- `codex_outputs/20260506_211338_plan004_current_no_leak_allfold.log`
 
 | stress | AlphaEx>0 | AlphaEx>+1/DD<=+1 | eps pass | Alpha mean | Alpha median | Alpha worst | MaxDD worst | turnover max |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -77,12 +109,19 @@ bundle:
 - `manifest.json`
 - `model_config.yaml`
 - `policy_model.npz`
+- `plan004_summary.json`
+- `actor_full.pt`
+- `checkpoints/world_model.pt`
+- `checkpoints/bc_actor.pt`
+- `checkpoints/ac.pt`
 - `sample_input.npz`
 - `sample_output.json`
 
 Space runtime:
 
-- `bundle_type=plan004_residual_bc_ac` の場合、PyTorch actorではなくPlan004 residual policyをロードする。
+- `bundle_type=plan004_residual_bc_ac` の場合、推論はPlan004 residual policyをロードする。
+- `policy_model.npz` には fold13 selected の `D_risk_sensitive_tbguard_auto_cd_floor001_pullback_evalonly + bc_resid_riskoff_h32` を再現するbase selector係数、danger gate係数、residual係数、threshold/hold/cooldownを保存した。
+- neural checkpointは推論bundle内に同梱し、監査・将来の比較・デバッグに使える。
 - `POST /predict` は `features + returns` または `candles` を受け取れる。
 - `GET /predict/latest` はWebから最新OHLCV/funding/OI/markを取得し、Space内で特徴量とreturnsを作る。
 
@@ -99,7 +138,7 @@ uv run python -m backend.verify_bundle --bundle-dir C:\Users\Sophie\Documents\Un
 
 ```text
 n=8833 max_abs_diff=0.0000000000 mean_abs_diff=0.0000000000
-expected_last=0.80000001 actual_last=0.80000001
+expected_last=0.85000002 actual_last=0.85000002
 ```
 
 FastAPI sample:
@@ -107,16 +146,17 @@ FastAPI sample:
 ```text
 GET /health        200
 GET /sample/verify 200 strict_ok=True max_abs_diff=0.0
-POST /predict      200 position=0.80000001 signal=underweight
+POST /predict      200 position=0.85000002 signal=underweight
 ```
 
 ## 実装整理
 
-- `unidream/research/plan004_residual_bc_ac.py`: Plan004本体。
-- `unidream/research/plan004_space_export.py`: Space bundle export本体。
+- `unidream/research/plan004_residual_bc_ac.py`: Plan004検証本体。
+- `unidream/experiments/plan004_stage.py`: 本流trainからPlan004をfreshにfit/extractし、`plan004_policy.npz` を保存。
+- `unidream/deploy/plan004_space_bundle.py`: 本流checkpointからSpace bundleを作成。
 - `unidream/cli/plan004_noncompressive_bc_ac_probe.py`: thin CLI wrapper。
 - `unidream/cli/export_plan004_space_bundle.py`: thin CLI wrapper。
-- `unidream-space/backend/runtime.py`: Plan004 residual bundle loaderを追加。
+- `unidream-space/backend/runtime.py`: D-risk base + residual Plan004 bundle loaderを追加。
 - `unidream-space/backend/feature_pipeline.py`: candlesからreturnsも返せるように変更。
 - `unidream-space/backend/schemas.py`: `returns` 入力を追加。
 

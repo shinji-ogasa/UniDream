@@ -10,7 +10,7 @@ BTCUSDT 15分足を対象に、Transformer World Model、Behavior Cloning、Imag
 
 UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior Cloning で模倣し、その方策を World Model 上の imagination rollouts で Actor-Critic fine-tune する研究コード。Buy & Hold をベンチマークとして、OOS の超過成績、Sharpe 改善、最大ドローダウン改善、collapse 回避を同時に評価する。
 
-現在の採用候補は Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。主指標では no-leak 条件で全14fold `AlphaEx > +1` かつ `MaxDDDelta <= +1` を通過している。`configs/trading.yaml` は neural WM/BC/AC 本流の標準configとして残し、Plan004は `unidream/research` 配下で検証・exportする。
+現在の採用版は no-leak Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。`configs/trading.yaml` では本流 `train` の中で WM → BC → AC → Plan004 extraction → Test を実行し、fold配下に `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` を保存する。
 
 ## パイプライン
 
@@ -23,8 +23,8 @@ OHLCV / features
   -> Behavior Cloning (route head + inventory recovery + state machine)
   -> Imagination Actor-Critic
   -> Validation selector
+  -> Plan004 residual BC/AC extraction (fixed hierarchy + residual extraction)
   -> Test backtest / M2 scorecard / PBO / regime report
-  -> Plan004 residual BC/AC audit (fixed hierarchy + residual extraction)
   -> Space bundle export
 ```
 
@@ -36,7 +36,8 @@ OHLCV / features
 - `bc`: Actor を oracle position に模倣、route head・inventory recovery controller・state machine gate を学習
 - `ac`: World Model 上で imagination actor-critic fine-tune (本流は critic-only / 制限付き actor 解凍)
 - `selector`: validation split で adjust-rate scale を選択、collapse guard / M2 scorecard を反映
-- `research`: Plan004 residual BC/AC など、採用候補の検証本体とexport処理
+- `research`: Plan004 residual BC/AC など、採用候補の検証本体
+- `deploy`: 本流checkpointからHF Spaces向けbundleを作るexport処理
 - `test`: test split で backtest、PBO、Deflated Sharpe、HMM regime、M2 scorecard を出力
 
 ## ディレクトリツリー
@@ -60,6 +61,8 @@ UniDream/
     │   ├── wm_probe.py
     │   ├── transition_advantage_probe.py
     │   └── ac_candidate_q_probe.py
+    ├── deploy/
+    │   └── plan004_space_bundle.py
     ├── data/
     │   ├── dataset.py
     │   ├── download.py
@@ -77,8 +80,7 @@ UniDream/
     │   ├── bc_pretrain.py
     │   └── imagination_ac.py
     ├── research/
-    │   ├── plan004_residual_bc_ac.py
-    │   └── plan004_space_export.py
+    │   └── plan004_residual_bc_ac.py
     ├── experiments/
     │   ├── runtime.py
     │   ├── train_app.py
@@ -113,7 +115,7 @@ UniDream/
 
 - Python 3.12 以上
 - `uv`
-- デバイスは `--device auto` (default) で自動選択 (Apple Silicon → `mps` / NVIDIA → `cuda` / それ以外 → `cpu`)。明示する場合は `--device {auto,cpu,cuda,mps}`
+- NVIDIA環境では学習・検証コマンドは明示的に `--device cuda` を付ける。CPU実験は標準運用では使わない。
 
 依存関係の同期:
 
@@ -131,16 +133,16 @@ uv run python -m unidream.cli.train --help
 
 ### 本流の実行
 
-`--config` のデフォルトが `configs/trading.yaml` なので、引数なしで本流が走る。
+`--config` のデフォルトは `configs/trading.yaml`。標準運用ではCUDAを明示して走らせる。
 
 ```bash
-uv run python -m unidream.cli.train
+uv run python -m unidream.cli.train --device cuda
 ```
 
 fold を絞る場合:
 
 ```bash
-uv run python -m unidream.cli.train --folds 4
+uv run python -m unidream.cli.train --folds 13 --seed 7 --device cuda
 ```
 
 ### ステージ単位の実行
@@ -149,16 +151,16 @@ uv run python -m unidream.cli.train --folds 4
 
 ```bash
 # WM だけ学習
-uv run python -m unidream.cli.train --stop-after wm
+uv run python -m unidream.cli.train --stop-after wm --device cuda
 
 # BC だけ学習 (WM は既存 checkpoint を再利用)
-uv run python -m unidream.cli.train --start-from bc --stop-after bc --resume
+uv run python -m unidream.cli.train --start-from bc --stop-after bc --resume --device cuda
 
 # AC だけ学習 (WM/BC は既存 checkpoint を再利用)
-uv run python -m unidream.cli.train --start-from ac --stop-after ac --resume
+uv run python -m unidream.cli.train --start-from ac --stop-after ac --resume --device cuda
 
 # Test backtest だけ再実行
-uv run python -m unidream.cli.train --start-from test --resume
+uv run python -m unidream.cli.train --start-from test --resume --device cuda
 ```
 
 ### 開発時の実行
@@ -166,33 +168,28 @@ uv run python -m unidream.cli.train --start-from test --resume
 中断したジョブを再開する:
 
 ```bash
-uv run python -m unidream.cli.train --resume
-```
-
-cost profile を切り替える (config の `cost_profiles` ブロックから選択):
-
-```bash
-uv run python -m unidream.cli.train --cost-profile stress
+uv run python -m unidream.cli.train --resume --device cuda
 ```
 
 ### Plan004 residual BC/AC
 
-no-leak residual BC/AC の全14fold検証:
+no-leak residual BC/AC の全14fold検証。これは本流Plan004ステージと同じfold-localロジックを高速に監査するための診断CLI。
 
 ```bash
 uv run python -m unidream.cli.plan004_noncompressive_bc_ac_probe \
   --selection-stress-mode primary \
-  --output-json codex_outputs/20260506_plan004_final_primary_no_leak_allfold.json \
-  --output-md codex_outputs/20260506_plan004_final_primary_no_leak_allfold.md
+  --output-json codex_outputs/plan004_current_no_leak_allfold.json \
+  --output-md codex_outputs/plan004_current_no_leak_allfold.md
 ```
 
-HF Spaces 推論bundleのexport:
+HF Spaces 推論bundleのexport。`train` が生成した同一fold配下の `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` をbundle化する。
 
 ```bash
 uv run python -m unidream.cli.export_plan004_space_bundle \
+  --checkpoint-dir checkpoints/main_plan004_residual_bc_ac_s007 \
   --fold 13 \
-  --spec bc_resid_wide_riskoff_h16 \
-  --selection-stress-mode primary \
+  --seed 7 \
+  --device cuda \
   --output-dir C:/Users/Sophie/Documents/UniDream/unidream-space/bundles/current
 ```
 
@@ -218,7 +215,7 @@ uv run python -m unidream.cli.ac_candidate_q_probe
 
 実行時に以下が生成される。
 
-- `checkpoints/<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt}`: 各ステージの checkpoint
+- `checkpoints/<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt, plan004_policy.npz, plan004_summary.json}`: 各ステージの checkpoint と採用Plan004 policy
 - `checkpoints/data_cache/`: feature / returns の parquet キャッシュ
 - `documents/logs/`, `documents/route_probe/`, `documents/wm_probe/`, `documents/ac_candidate_q/`: ログ・診断出力
 - `codex_outputs/`: Plan003/Plan004 などの実験JSON/Markdown/log
