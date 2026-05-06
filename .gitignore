@@ -6,3 +6,4 @@ checkpoints/
 local_dl_data/
 .env
 /docs_local/
+/codex_outputs/
