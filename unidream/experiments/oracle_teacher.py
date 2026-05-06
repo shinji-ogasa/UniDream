@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from unidream.data.oracle import hindsight_signal_teacher
@@ -8,6 +10,7 @@ from unidream.data.oracle import hindsight_signal_teacher
 def compute_teacher_oracle(
     *,
     teacher_mode: str,
+    fold_idx: int | None = None,
     base_oracle_positions: np.ndarray,
     base_val_oracle_positions: np.ndarray,
     base_oracle_values: np.ndarray,
@@ -30,6 +33,21 @@ def compute_teacher_oracle(
     abs_max = ac_cfg.get("abs_max_position", float(np.max(oracle_action_values)))
     if teacher_mode in ("dp", "base", "hindsight"):
         teacher_message = "  Oracle teacher: base DP"
+    elif teacher_mode in ("hierarchy_bundle", "external_hierarchy_bundle"):
+        bundle_dir = str(oracle_cfg.get("external_teacher_bundle_dir", "")).strip()
+        if not bundle_dir:
+            raise ValueError("oracle.external_teacher_bundle_dir is required for hierarchy_bundle teacher mode")
+        if fold_idx is None:
+            raise ValueError("fold_idx is required for hierarchy_bundle teacher mode")
+        bundle_path = os.path.join(bundle_dir, f"fold{int(fold_idx):02d}_teacher.npz")
+        if not os.path.exists(bundle_path):
+            raise FileNotFoundError(f"Hierarchy teacher bundle not found: {bundle_path}")
+        with np.load(bundle_path) as bundle:
+            oracle_positions = np.asarray(bundle["train_positions"], dtype=np.float32)
+            val_oracle_positions = np.asarray(bundle["val_positions"], dtype=np.float32)
+            source_id = int(np.asarray(bundle.get("source_id", [-1]), dtype=np.int64).reshape(-1)[0])
+        oracle_values = (oracle_positions - float(oracle_benchmark_position)).astype(np.float32)
+        teacher_message = f"  Oracle teacher: hierarchy bundle fold={int(fold_idx)} source_id={source_id} path={bundle_path}"
     elif teacher_mode == "signal_aim":
         teacher_horizons = tuple(oracle_cfg.get("signal_horizons", [4, 16, 64]))
         teacher_weights = tuple(oracle_cfg.get("signal_horizon_weights", [0.2, 0.3, 0.5]))

@@ -22,6 +22,10 @@ def run_val_selector_stage(
     benchmark_positions_fn,
     benchmark_position: float,
 ):
+    source = str(ac_cfg.get("test_policy_source", ac_cfg.get("policy_source", "actor"))).lower()
+    if source in {"hierarchy_bundle", "external_hierarchy_bundle"}:
+        print("  [ValAdj] skipped: external hierarchy policy source")
+        return
     adjust_scale_grid = ac_cfg.get("val_adjust_rate_scale_grid", [])
     adv_level_grid = ac_cfg.get("val_advantage_level_grid", [actor.infer_advantage_level])
     if len(adjust_scale_grid) == 0:

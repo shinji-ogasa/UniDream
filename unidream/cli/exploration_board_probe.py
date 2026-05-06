@@ -44,6 +44,8 @@ class SelectorSpec:
     guard_barrier_k: float = 1.25
     cooldown_grid: tuple[int, ...] = ()
     min_val_maxdd_improvement_pt: float = 0.0
+    turnover_score_coef: float = 0.05
+    active_score_coef: float = 0.25
 
 
 SELECTOR_SPECS = (
@@ -271,6 +273,36 @@ SELECTOR_SPECS = (
         min_threshold=0.001,
         mode="tb_guard_pullback_evalonly",
         cooldown_grid=(0, 32),
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd_floor001_pullback_evalonly_tpen025",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard_pullback_evalonly",
+        cooldown_grid=(0, 32),
+        turnover_score_coef=0.25,
+    ),
+    SelectorSpec(
+        name="D_risk_sensitive_tbguard_auto_cd_floor001_pullback_evalonly_tpen050",
+        lane="D_risk_sensitive_plus_A_guard",
+        candidates=(0.75, 1.0, 1.05, 1.10),
+        horizon=32,
+        dd_penalty=1.50,
+        vol_penalty=0.15,
+        active_cap=0.25,
+        maxdd_cap_pt=0.00,
+        turnover_cap=3.50,
+        min_threshold=0.001,
+        mode="tb_guard_pullback_evalonly",
+        cooldown_grid=(0, 32),
+        turnover_score_coef=0.50,
     ),
     SelectorSpec(
         name="F_listwise",
@@ -617,7 +649,13 @@ def _metric_score(metrics: dict, spec: SelectorSpec) -> float:
     penalty += 5.0 * max(maxdd - float(spec.maxdd_cap_pt), 0.0)
     penalty += 2.0 * max(turnover - float(spec.turnover_cap), 0.0)
     penalty += 10.0 * max(active - float(spec.active_cap), 0.0)
-    return alpha + 2.0 * sharpe - 0.05 * turnover - 0.25 * active - penalty
+    return (
+        alpha
+        + 2.0 * sharpe
+        - float(spec.turnover_score_coef) * turnover
+        - float(spec.active_score_coef) * active
+        - penalty
+    )
 
 
 def _threshold_grid(improve: np.ndarray, *, active_cap: float) -> list[float]:
@@ -768,17 +806,21 @@ def _evaluate_selector(
         models = _fit_bootstrap_models(x_train[train_valid], y_train[train_valid], l2=l2, seed=seed, n_models=5)
         if not models:
             return {"status": "no_model"}
+        pred_train, unc_train_all = _predict_ensemble(models, x_train)
         pred_val, unc_val_all = _predict_ensemble(models, x_val)
         pred_test, unc_test_all = _predict_ensemble(models, x_test)
     else:
         model = _fit_ridge_multi(x_train[train_valid], y_train[train_valid], l2=l2)
         if model is None:
             return {"status": "no_model"}
+        pred_train = model.predict(x_train)
         pred_val = model.predict(x_val)
         pred_test = model.predict(x_test)
+        unc_train_all = np.zeros_like(pred_train)
         unc_val_all = np.zeros_like(pred_val)
         unc_test_all = np.zeros_like(pred_test)
 
+    danger_train = None
     danger_val = None
     danger_test = None
     danger_caps: list[float | None] = [None]
@@ -805,9 +847,10 @@ def _evaluate_selector(
         tb_model = _fit_binary_model(
             x_train[tb_train_valid],
             np.asarray(train_tb["tb_down"][tb_train_valid], dtype=np.int64),
-            max_train_samples=50000,
+            max_train_samples=max(len(x_train), 50000),
             seed=seed + 917,
         )
+        danger_train = _score_binary(tb_model, x_train)
         danger_val = _score_binary(tb_model, x_val)
         danger_test = _score_binary(tb_model, x_test)
         finite_danger = danger_val[np.asarray(val_tb["valid"], dtype=bool) & np.isfinite(danger_val)]
@@ -815,6 +858,7 @@ def _evaluate_selector(
             danger_caps = [float(np.quantile(finite_danger, q)) for q in (0.25, 0.40, 0.55, 0.70, 0.85)]
             danger_caps.append(float("inf"))
 
+    best_idx_train = np.argmax(pred_train, axis=1)
     bench_idx = int(np.argmin(np.abs(np.asarray(spec.candidates) - benchmark_position)))
     best_idx_val = np.argmax(pred_val, axis=1)
     improve_val = pred_val[np.arange(len(pred_val)), best_idx_val] - pred_val[:, bench_idx]
@@ -842,6 +886,11 @@ def _evaluate_selector(
         if spec.mode == "tb_guard_pullback"
         else np.zeros(len(val_returns), dtype=bool)
     )
+    train_pullback_block = (
+        _pullback_no_fire_mask(train_returns)
+        if spec.mode in {"tb_guard_pullback", "tb_guard_pullback_evalonly"}
+        else np.zeros(len(train_returns), dtype=bool)
+    )
     test_pullback_block = (
         _pullback_no_fire_mask(test_returns)
         if spec.mode in {"tb_guard_pullback", "tb_guard_pullback_evalonly"}
@@ -849,6 +898,7 @@ def _evaluate_selector(
     )
 
     best: dict[str, Any] | None = None
+    best_val_positions: np.ndarray | None = None
     cooldown_choices = tuple(spec.cooldown_grid) if spec.cooldown_grid else (int(spec.cooldown_bars),)
     for regime_name in regime_names:
         val_active_mask = val_regimes.get(regime_name, np.ones(len(val_returns), dtype=bool))
@@ -907,23 +957,48 @@ def _evaluate_selector(
                         }
                         if best is None or score > float(best["val_score"]):
                             best = candidate
+                            best_val_positions = val_positions.copy()
 
     if best is None:
         return {"status": "no_selection"}
     regime_name = str(best["regime"])
+    train_active_mask = train_regimes.get(regime_name, np.ones(len(train_returns), dtype=bool))
     test_active_mask = test_regimes.get(regime_name, np.ones(len(test_returns), dtype=bool))
     if best["uncertainty_quantile"] is None:
+        unc_train = None
         unc_test = None
         unc_cap = None
     else:
+        unc_train = unc_train_all[np.arange(len(unc_train_all)), best_idx_train]
         unc_test = unc_test_all[np.arange(len(unc_test_all)), best_idx_test]
         unc_cap = float(best["uncertainty_cap"])
     threshold = float("inf") if best["threshold"] == "inf" else float(best["threshold"])
+    danger_train_mask = np.ones(len(train_returns), dtype=bool)
+    if danger_train is not None and best.get("danger_cap") is not None:
+        danger_cap_raw = best.get("danger_cap")
+        danger_cap = float("inf") if danger_cap_raw == "inf" else float(danger_cap_raw)
+        danger_train_mask = np.isfinite(danger_train) & (danger_train <= danger_cap)
     danger_test_mask = np.ones(len(test_returns), dtype=bool)
     if danger_test is not None and best.get("danger_cap") is not None:
         danger_cap_raw = best.get("danger_cap")
         danger_cap = float("inf") if danger_cap_raw == "inf" else float(danger_cap_raw)
         danger_test_mask = np.isfinite(danger_test) & (danger_test <= danger_cap)
+    selected_train, _diag_train = _positions_from_prediction(
+        pred_train,
+        candidates=spec.candidates,
+        threshold=threshold,
+        benchmark_position=benchmark_position,
+        active_mask=train_active_mask & train_valid & danger_train_mask & (~train_pullback_block),
+        uncertainty=unc_train,
+        uncertainty_cap=unc_cap,
+    )
+    selected_train = _apply_event_throttle(
+        selected_train,
+        benchmark_position=benchmark_position,
+        cooldown_bars=int(best.get("cooldown_bars", spec.cooldown_bars)),
+        hold_bars=spec.hold_bars,
+    )
+    train_positions = _shift_for_execution(selected_train, benchmark_position)
     selected_test, diag_test = _positions_from_prediction(
         pred_test,
         candidates=spec.candidates,
@@ -969,6 +1044,9 @@ def _evaluate_selector(
         "vol_penalty": float(spec.vol_penalty),
         "selection": best,
         "test": {**test_metrics, **diag_test, **util_stats, **context_stats, **ranking},
+        "_train_positions": train_positions,
+        "_val_positions": best_val_positions if best_val_positions is not None else np.full(len(val_returns), benchmark_position),
+        "_test_positions": test_positions,
         "test_pnl": test_pnl,
     }
 

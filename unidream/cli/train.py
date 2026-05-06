@@ -397,6 +397,7 @@ def run_fold(
 
     reward_cfg = cfg.get("reward", {})
     fold_inputs = prepare_fold_inputs(
+        fold_idx=fold_idx,
         wfo_dataset=wfo_dataset,
         cfg=cfg,
         costs_cfg=costs_cfg,
@@ -624,6 +625,7 @@ def run_fold(
         m2_scorecard_fn=_m2_scorecard,
         format_m2_scorecard_fn=_format_m2_scorecard,
         log_ts=_ts,
+        fold_idx=fold_idx,
     )
     test_result["fold"] = fold_idx
     return test_result

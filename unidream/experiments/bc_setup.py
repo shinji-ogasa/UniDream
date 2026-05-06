@@ -187,6 +187,7 @@ def prepare_bc_setup(
     actor.hold_state_scale = ac_cfg.get("hold_state_scale", 64.0)
     actor.trade_state_eps = ac_cfg.get("trade_state_eps", 1e-6)
     actor.infer_quantize_step = ac_cfg.get("infer_quantize_step", 0.0)
+    actor.benchmark_neutral_snap_eps = ac_cfg.get("benchmark_neutral_snap_eps", 0.0)
     actor.use_residual_controller = bool(ac_cfg.get("residual_controller", False))
     actor.use_dual_residual_controller = bool(ac_cfg.get("use_dual_residual_controller", False))
     actor.use_route_controller = bool(ac_cfg.get("use_route_controller", False))

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import torch
 
@@ -9,6 +11,33 @@ from unidream.experiments.policy_fire import predict_with_policy_flags as _predi
 
 ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
 EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
+
+
+def _load_external_policy_positions(cfg: dict, fold_idx: int | None, split: str) -> np.ndarray | None:
+    ac_cfg = cfg.get("ac", {})
+    source = str(ac_cfg.get("test_policy_source", ac_cfg.get("policy_source", "actor"))).lower()
+    if source not in {"hierarchy_bundle", "external_hierarchy_bundle"}:
+        return None
+    if fold_idx is None:
+        raise ValueError("External hierarchy policy requires fold_idx")
+    oracle_cfg = cfg.get("oracle", {})
+    bundle_dir = ac_cfg.get("external_policy_bundle_dir") or oracle_cfg.get("external_teacher_bundle_dir")
+    if not bundle_dir:
+        raise ValueError("External hierarchy policy requires external_policy_bundle_dir or oracle.external_teacher_bundle_dir")
+    bundle_path = Path(bundle_dir) / f"fold{int(fold_idx):02d}_teacher.npz"
+    if not bundle_path.exists():
+        raise FileNotFoundError(f"External hierarchy policy bundle not found: {bundle_path}")
+    key = f"{split}_positions"
+    with np.load(bundle_path) as data:
+        if key not in data:
+            raise KeyError(f"{bundle_path} does not contain {key}")
+        positions = np.asarray(data[key], dtype=np.float32)
+        source_id = int(np.asarray(data["source_id"]).reshape(-1)[0]) if "source_id" in data else -1
+    print(
+        f"  External policy: hierarchy_bundle fold={fold_idx} source_id={source_id} "
+        f"split={split} path={bundle_path}"
+    )
+    return positions
 
 
 def _active_incremental_pnl(
@@ -251,20 +280,26 @@ def run_test_stage(
     m2_scorecard_fn,
     format_m2_scorecard_fn,
     log_ts,
+    fold_idx: int | None = None,
 ) -> dict:
     print(f"\n[{log_ts()}] [Step 5] Test Backtest...")
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
 
     enc_test = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
-    positions = actor.predict_positions(
-        enc_test["z"],
-        enc_test["h"],
-        regime_np=test_regime_probs,
-        advantage_np=test_advantage_values,
-        device=device,
-    )
-    if getattr(actor, "route_head", None) is not None:
+    external_positions = _load_external_policy_positions(cfg, fold_idx, "test")
+    use_external_policy = external_positions is not None
+    if use_external_policy:
+        positions = external_positions
+    else:
+        positions = actor.predict_positions(
+            enc_test["z"],
+            enc_test["h"],
+            regime_np=test_regime_probs,
+            advantage_np=test_advantage_values,
+            device=device,
+        )
+    if not use_external_policy and getattr(actor, "route_head", None) is not None:
         with torch.no_grad():
             dev = torch.device(device)
             z_t = torch.tensor(enc_test["z"], dtype=torch.float32, device=dev)
@@ -350,22 +385,24 @@ def run_test_stage(
     )
     test_stats = action_stats_fn(positions[:t_min], benchmark_position=benchmark_position)
     test_scorecard = m2_scorecard_fn(metrics, test_stats, cfg)
-    policy_diagnostics = _component_diagnostics(
-        actor=actor,
-        positions=positions[:t_min],
-        z=enc_test["z"],
-        h=enc_test["h"],
-        test_returns=test_returns,
-        test_regime_probs=test_regime_probs,
-        test_advantage_values=test_advantage_values,
-        device=device,
-        costs_cfg=costs_cfg,
-        cfg=cfg,
-        benchmark_positions_fn=benchmark_positions_fn,
-        benchmark_position=benchmark_position,
-        backtest_cls=backtest_cls,
-        action_stats_fn=action_stats_fn,
-    )
+    policy_diagnostics = {}
+    if not use_external_policy:
+        policy_diagnostics = _component_diagnostics(
+            actor=actor,
+            positions=positions[:t_min],
+            z=enc_test["z"],
+            h=enc_test["h"],
+            test_returns=test_returns,
+            test_regime_probs=test_regime_probs,
+            test_advantage_values=test_advantage_values,
+            device=device,
+            costs_cfg=costs_cfg,
+            cfg=cfg,
+            benchmark_positions_fn=benchmark_positions_fn,
+            benchmark_position=benchmark_position,
+            backtest_cls=backtest_cls,
+            action_stats_fn=action_stats_fn,
+        )
 
     print(f"  Sharpe:   {metrics.sharpe:.3f}")
     print(f"  Sortino:  {metrics.sortino:.3f}")

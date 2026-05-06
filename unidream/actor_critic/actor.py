@@ -1498,6 +1498,11 @@ class Actor(nn.Module):
             next_position = self._quantize_inference(next_position)
             pos_value = float(next_position.item())
             overlay_value = pos_value - bench
+            snap_eps = float(getattr(self, "benchmark_neutral_snap_eps", 0.0))
+            if snap_eps > 0.0 and abs(overlay_value) <= snap_eps:
+                pos_value = float(bench)
+                next_position = torch.full_like(next_position, pos_value)
+                overlay_value = 0.0
             is_active = abs(overlay_value) > eps
             is_underweight = overlay_value < -eps
             is_long = overlay_value > eps

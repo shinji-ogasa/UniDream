@@ -191,6 +191,7 @@ def _append_exogenous_stress_signal(
 
 def prepare_fold_inputs(
     *,
+    fold_idx: int | None = None,
     wfo_dataset,
     cfg: dict,
     costs_cfg: dict,
@@ -229,6 +230,7 @@ def prepare_fold_inputs(
     val_oracle_positions = oracle_bundle["val_oracle_positions"]
     teacher_bundle = compute_teacher_oracle(
         teacher_mode=oracle_teacher_mode,
+        fold_idx=fold_idx,
         base_oracle_positions=oracle_positions,
         base_val_oracle_positions=val_oracle_positions,
         base_oracle_values=oracle_values,

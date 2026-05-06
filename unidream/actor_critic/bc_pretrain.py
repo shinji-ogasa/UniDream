@@ -175,6 +175,10 @@ class BCPretrainer:
         relabel_underweight_step_scale: float = 1.0,
         residual_target_coef: float = 1.0,
         residual_aux_ce_coef: float = 0.0,
+        active_target_weight: float = 1.0,
+        active_target_margin: float = 0.02,
+        neutral_exact_coef: float = 0.0,
+        neutral_exact_margin: float = 0.02,
         target_dist_match_coef: float = 0.0,
         position_mean_match_coef: float = 0.0,
         target_regime_dist_match_coef: float = 0.0,
@@ -280,6 +284,10 @@ class BCPretrainer:
         self.relabel_underweight_step_scale = float(np.clip(relabel_underweight_step_scale, 0.0, 1.0))
         self.residual_target_coef = float(max(residual_target_coef, 0.0))
         self.residual_aux_ce_coef = float(max(residual_aux_ce_coef, 0.0))
+        self.active_target_weight = float(max(active_target_weight, 1.0))
+        self.active_target_margin = float(max(active_target_margin, 0.0))
+        self.neutral_exact_coef = float(max(neutral_exact_coef, 0.0))
+        self.neutral_exact_margin = float(max(neutral_exact_margin, 0.0))
         self.target_dist_match_coef = float(max(target_dist_match_coef, 0.0))
         self.position_mean_match_coef = float(max(position_mean_match_coef, 0.0))
         self.target_regime_dist_match_coef = float(max(target_regime_dist_match_coef, 0.0))
@@ -536,6 +544,7 @@ class BCPretrainer:
         target_regime_penalty = None
         short_mass_penalty = None
         support_prior_penalty = None
+        neutral_exact_loss = None
         if self.actor._use_residual_controller():
             target_loss = self.residual_target_coef * target_reg_loss
             target_soft_labels = self.actor.target_soft_labels(oracle_positions).to(target_logits.dtype)
@@ -625,6 +634,24 @@ class BCPretrainer:
                 support_prior_penalty = support_prior_penalty * self._normalized_mask(
                     support_mask.to(target_logits.dtype)
                 )
+        if self.active_target_weight > 1.0:
+            active_target_mask = torch.abs(oracle_target) > self.active_target_margin
+            active_target_w = torch.where(
+                active_target_mask,
+                torch.full_like(target_loss, self.active_target_weight),
+                torch.ones_like(target_loss),
+            )
+            target_loss = target_loss * active_target_w
+        if self.neutral_exact_coef > 0.0:
+            neutral_mask = torch.abs(oracle_target) <= self.neutral_exact_margin
+            neutral_exact_loss = F.smooth_l1_loss(
+                target_mean,
+                torch.zeros_like(target_mean),
+                reduction="none",
+            )
+            neutral_exact_loss = neutral_exact_loss * self._normalized_mask(
+                neutral_mask.to(target_mean.dtype)
+            )
         recovery_mask_f = None
         if (
             self.recovery_trade_coef > 0.0
@@ -959,6 +986,8 @@ class BCPretrainer:
             loss_terms = loss_terms + self.short_mass_match_coef * short_mass_penalty
         if support_prior_penalty is not None:
             loss_terms = loss_terms + self.support_prior_coef * support_prior_penalty
+        if neutral_exact_loss is not None:
+            loss_terms = loss_terms + self.neutral_exact_coef * neutral_exact_loss
         if recovery_band_loss is not None:
             loss_terms = loss_terms + self.recovery_band_coef * recovery_band_loss
         if entropy_bonus is not None:
