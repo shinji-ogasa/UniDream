@@ -63,6 +63,7 @@ def _stress_grid() -> dict[str, dict[str, float]]:
         "cost_x1": {"cost_mult": 1.0, "slippage_mult": 1.0},
         "cost_x1_5": {"cost_mult": 1.5, "slippage_mult": 1.0},
         "cost_x2": {"cost_mult": 2.0, "slippage_mult": 1.0},
+        "cost_x3": {"cost_mult": 3.0, "slippage_mult": 1.0},
         "slippage_x2": {"cost_mult": 1.0, "slippage_mult": 2.0},
     }
 

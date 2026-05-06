@@ -80,6 +80,7 @@ def _compute_teacher(
     micro_triple_val_auc_min: float,
     micro_triple_val_turnover_max: float,
     micro_triple_test_turnover_max: float,
+    selection_mode: str = "legacy_test_guarded",
 ) -> dict[str, Any]:
     d_spec = next((s for s in SELECTOR_SPECS if s.name == d_selector), None)
     if d_spec is None:
@@ -192,8 +193,22 @@ def _compute_teacher(
         benchmark_position=benchmark_position,
     )["cost_x1"]
 
-    d_active = _is_active(d_test_pos, benchmark_position)
-    d_safety_fail = float(d_cost.get("turnover", 0.0)) > float(d_test_turnover_max)
+    if selection_mode not in {"legacy_test_guarded", "val_only"}:
+        raise ValueError(f"unknown teacher selection_mode: {selection_mode}")
+    if selection_mode == "val_only":
+        d_active = _is_active(d_val_pos, benchmark_position)
+        d_safety_fail = float(d_val.get("turnover", 0.0)) > float(d_test_turnover_max)
+        rec_active = _is_active(rec_val_pos, benchmark_position)
+        rec_turnover_ok = True
+        mic_active = _is_active(mic_val_pos, benchmark_position)
+        mic_turnover_ok = True
+    else:
+        d_active = _is_active(d_test_pos, benchmark_position)
+        d_safety_fail = float(d_cost.get("turnover", 0.0)) > float(d_test_turnover_max)
+        rec_active = _is_active(rec_test_pos, benchmark_position)
+        rec_turnover_ok = float(rec_cost.get("turnover", 999.0)) <= float(recovery_rescue_test_turnover_max)
+        mic_active = _is_active(mic_test_pos, benchmark_position)
+        mic_turnover_ok = float(mic_cost.get("turnover", 999.0)) <= float(micro_triple_test_turnover_max)
     use_gr = (
         (not d_active)
         and (not d_safety_fail)
@@ -206,23 +221,23 @@ def _compute_teacher(
         and (not use_gr)
         and (not d_safety_fail)
         and recovery_row.get("status") == "ok"
-        and _is_active(rec_test_pos, benchmark_position)
+        and rec_active
         and float(rec_val.get("alpha_excess_pt", 0.0)) >= float(recovery_rescue_val_alpha_min)
         and float(rec_val.get("maxdd_delta_pt", 999.0)) <= EPS_DD_PT
         and float(rec_val.get("turnover", 999.0)) <= float(recovery_rescue_val_turnover_max)
-        and float(rec_cost.get("turnover", 999.0)) <= float(recovery_rescue_test_turnover_max)
+        and rec_turnover_ok
     )
     use_micro = (
         ((not d_active) or d_safety_fail)
         and (not use_gr)
         and (not use_recovery)
         and micro_row.get("status") == "ok"
-        and _is_active(mic_test_pos, benchmark_position)
+        and mic_active
         and float(mic_val.get("alpha_excess_pt", 0.0)) >= float(micro_triple_val_alpha_min)
         and float(micro_row.get("val_auc") or 0.0) >= float(micro_triple_val_auc_min)
         and float(mic_val.get("maxdd_delta_pt", 999.0)) <= EPS_DD_PT
         and float(mic_val.get("turnover", 999.0)) <= float(micro_triple_val_turnover_max)
-        and float(mic_cost.get("turnover", 999.0)) <= float(micro_triple_test_turnover_max)
+        and mic_turnover_ok
     )
 
     if use_gr:
@@ -264,6 +279,7 @@ def _compute_teacher(
         "meta": {
             "d_active": bool(d_active),
             "d_safety_fail": bool(d_safety_fail),
+            "selection_mode": selection_mode,
             "use_gr": bool(use_gr),
             "use_recovery": bool(use_recovery),
             "use_micro": bool(use_micro),

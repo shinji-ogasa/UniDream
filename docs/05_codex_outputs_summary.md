@@ -229,3 +229,64 @@ Tightcap 閾値のスイープ（0.005, 0.001, 0.002）：
 | Plan004 residual の暴落 | twoside で -4515 |
 | fold7,8 の不活性 | Teacher / D 共に benchmark に fallback |
 | Shuffle/time_shift 監査の弱い偽陽性 | 時間的過学習の可能性 |
+
+
+---
+
+## 12. Plan004 production adoption audit (2026-05-06)
+
+### 採用候補
+
+Plan004 residual BC/AC を本流候補に昇格。単一actor圧縮は使わず、階層base policyを固定し、realized residual advantage を ridge BC で学習したうえで、validation split のみで threshold / hold / cooldown を選択する。
+
+### no-leak 選択
+
+- source selection: `multi_source_val`
+- teacher selection: `val_only`
+- selection stress mode: `primary`
+- model fit: train split only
+- extraction setting selection: validation split only
+- test split: 評価とsample parity確認のみ
+
+### 全14fold 再計算結果
+
+出力:
+
+- `codex_outputs/20260506_plan004_final_primary_no_leak_allfold.json`
+- `codex_outputs/20260506_plan004_final_primary_no_leak_allfold.md`
+- `codex_outputs/20260506_plan004_final_primary_no_leak_allfold.log`
+
+| stress | AlphaEx>0 | AlphaEx>+1/DD<=+1 | eps pass | Alpha mean | Alpha median | Alpha worst | MaxDD worst | turnover max |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| cost_x1 | 14/14 | 14/14 | 14/14 | +103.582 | +3.721 | +1.171 | +0.000 | 3.50 |
+| cost_x1_5 | 14/14 | 14/14 | 13/14 | +99.577 | +2.856 | +1.145 | +0.014 | 3.50 |
+| cost_x2 | 14/14 | 14/14 | 12/14 | +95.595 | +2.732 | +1.093 | +0.030 | 3.50 |
+| cost_x3 | 13/14 | 11/14 | 12/14 | +87.696 | +2.487 | -2.180 | +0.064 | 3.50 |
+| slippage_x2 | 14/14 | 14/14 | 13/14 | +102.123 | +3.399 | +1.162 | +0.003 | 3.50 |
+
+### 判断
+
+主指標 `cost_x1` では全foldで `AlphaEx > +1` かつ `MaxDDDelta <= +1` を達成。`cost_x2` でも同条件を14/14維持した。`cost_x3` は13/14でAlphaExが正、11/14で目標通過。fold11だけが高コストで崩れるため、production採用時はcost_x3を運用上の上限監査として残す。
+
+### Space bundle 移行
+
+HF Spaces向けには、Plan004専用の軽量bundleを `C:/Users/Sophie/Documents/UniDream/unidream-space/bundles/current` に出力した。UniDream本体APIには接続しない。
+
+- bundle type: `plan004_residual_bc_ac`
+- production sample fold: 13
+- source: `benchmark`
+- spec: `bc_resid_wide_riskoff_h16`
+- sample parity: `max_abs_diff=0.0`, `strict_ok=True`
+- sample last position: `0.80000001`
+
+bundle単体のfold13 sample metrics:
+
+| stress | AlphaEx | SharpeDelta | MaxDDDelta | turnover |
+|---|---:|---:|---:|---:|
+| cost_x1 | +1.672 | -0.120 | -2.358 | 3.40 |
+| cost_x2 | +1.119 | -0.145 | -2.200 | 3.40 |
+| cost_x3 | +0.573 | -0.171 | -2.043 | 3.40 |
+
+### 実装整理
+
+Plan004の本体実装は `unidream/research/plan004_residual_bc_ac.py` に移動し、`unidream/cli/plan004_noncompressive_bc_ac_probe.py` は薄い入口だけにした。Space exportも `unidream/research/plan004_space_export.py` に移動し、CLIは `unidream.cli.export_plan004_space_bundle` から呼ぶ構造にした。
