@@ -7,10 +7,43 @@ from typing import Any
 import numpy as np
 
 from unidream.cli.plan003_bc_student_probe import _json_sanitize
-from unidream.research.plan004_residual_bc_ac import run_plan004_fold_policy
+from unidream.cli.exploration_board_probe import _rolling_past_vol
+from unidream.research.plan004_residual_bc_ac import SPECS, run_plan004_fold_policy
 
 
-def _save_plan004_policy_npz(path: str, result: dict[str, Any]) -> None:
+def _finite_or_marker(value: Any) -> float:
+    if value is None:
+        return float("nan")
+    if value == "inf":
+        return float("inf")
+    return float(value)
+
+
+def _binary_pipeline_arrays(model: Any) -> dict[str, np.ndarray]:
+    if model is None or not hasattr(model, "named_steps"):
+        return {}
+    scaler = model.named_steps.get("standardscaler")
+    classifier = model.named_steps.get("logisticregression")
+    if scaler is None or classifier is None:
+        return {}
+    return {
+        "base_danger_scaler_mean": np.asarray(scaler.mean_, dtype=np.float64),
+        "base_danger_scaler_scale": np.asarray(scaler.scale_, dtype=np.float64),
+        "base_danger_coef": np.asarray(classifier.coef_, dtype=np.float64),
+        "base_danger_intercept": np.asarray(classifier.intercept_, dtype=np.float64),
+    }
+
+
+def _train_vol_quantiles(train_returns: np.ndarray) -> tuple[float, float]:
+    vol = _rolling_past_vol(np.asarray(train_returns, dtype=np.float64), 64)
+    finite = vol[np.isfinite(vol)]
+    if len(finite) < 20:
+        return float("nan"), float("nan")
+    q1, q2 = np.quantile(finite, [1.0 / 3.0, 2.0 / 3.0])
+    return float(q1), float(q2)
+
+
+def _save_plan004_policy_npz(path: str, result: dict[str, Any], *, train_returns: np.ndarray, cfg: dict[str, Any]) -> None:
     """Persist the fold-local Plan004 policy result.
 
     The complete replay/evaluation positions are saved here. The neural WM/BC/AC
@@ -21,6 +54,17 @@ def _save_plan004_policy_npz(path: str, result: dict[str, Any]) -> None:
     best = result.get("best_candidate") or {}
     rec = best.get("record") or {}
     model = rec.get("model")
+    spec = next((s for s in SPECS if s.name == str(selected.get("spec", ""))), None)
+    selection = selected.get("selection") or {}
+    threshold = _finite_or_marker(selection.get("threshold", float("inf")))
+    base_source = str(selected.get("source", ""))
+    source_candidate = best.get("source_candidate") or {}
+    base_model = source_candidate.get("_selector_model")
+    base_spec = source_candidate.get("_selector_spec")
+    base_selection = (source_candidate.get("meta") or {}).get("selection") or {}
+    base_kind = "d_risk_selector" if base_source.startswith("D_risk_sensitive") and base_model is not None else "benchmark"
+    q1, q2 = _train_vol_quantiles(train_returns)
+    ac_cfg = cfg.get("ac", {})
     arrays: dict[str, Any] = {
         "positions": np.asarray(result["positions"], dtype=np.float32),
         "benchmark_position": np.asarray([float(result.get("benchmark_position", 1.0))], dtype=np.float64),
@@ -28,15 +72,42 @@ def _save_plan004_policy_npz(path: str, result: dict[str, Any]) -> None:
         "source": np.asarray([str(selected.get("source", ""))], dtype=object),
         "spec": np.asarray([str(selected.get("spec", ""))], dtype=object),
         "status": np.asarray([str(result.get("status", ""))], dtype=object),
+        "base_kind": np.asarray([base_kind], dtype=object),
+        "threshold": np.asarray([threshold], dtype=np.float64),
+        "hold_bars": np.asarray([int(selection.get("hold_bars", 1))], dtype=np.int64),
+        "cooldown_bars": np.asarray([int(selection.get("cooldown_bars", 0))], dtype=np.int64),
+        "max_total_turnover": np.asarray([float(spec.max_turnover) if spec is not None else float("inf")], dtype=np.float64),
+        "min_position": np.asarray([float(ac_cfg.get("abs_min_position", 0.0))], dtype=np.float64),
+        "max_position": np.asarray([float(ac_cfg.get("abs_max_position", 1.25))], dtype=np.float64),
+        "deltas": np.asarray(spec.deltas if spec is not None else (0.0,), dtype=np.float64),
+        "base_regime_q1": np.asarray([q1], dtype=np.float64),
+        "base_regime_q2": np.asarray([q2], dtype=np.float64),
     }
     if model is not None:
         arrays.update(
             {
-                "residual_model_mean": np.asarray(model.mean, dtype=np.float64),
-                "residual_model_std": np.asarray(model.std, dtype=np.float64),
-                "residual_model_coef": np.asarray(model.coef, dtype=np.float64),
+                "model_mean": np.asarray(model.mean, dtype=np.float64),
+                "model_std": np.asarray(model.std, dtype=np.float64),
+                "model_coef": np.asarray(model.coef, dtype=np.float64),
             }
         )
+    if base_kind == "d_risk_selector" and base_spec is not None:
+        arrays.update(
+            {
+                "base_model_mean": np.asarray(base_model.mean, dtype=np.float64),
+                "base_model_std": np.asarray(base_model.std, dtype=np.float64),
+                "base_model_coef": np.asarray(base_model.coef, dtype=np.float64),
+                "base_candidates": np.asarray(base_spec.candidates, dtype=np.float64),
+                "base_threshold": np.asarray([_finite_or_marker(base_selection.get("threshold", float("inf")))], dtype=np.float64),
+                "base_cooldown_bars": np.asarray([int(base_selection.get("cooldown_bars", getattr(base_spec, "cooldown_bars", 0)))], dtype=np.int64),
+                "base_hold_bars": np.asarray([int(getattr(base_spec, "hold_bars", 1))], dtype=np.int64),
+                "base_horizon": np.asarray([int(getattr(base_spec, "horizon", 1))], dtype=np.int64),
+                "base_mode": np.asarray([str(getattr(base_spec, "mode", ""))], dtype=object),
+                "base_regime": np.asarray([str(base_selection.get("regime", "all"))], dtype=object),
+                "base_danger_cap": np.asarray([_finite_or_marker(base_selection.get("danger_cap"))], dtype=np.float64),
+            }
+        )
+        arrays.update(_binary_pipeline_arrays(source_candidate.get("_danger_model")))
     np.savez_compressed(path, **arrays)
 
 
@@ -69,7 +140,7 @@ def run_plan004_stage(
     os.makedirs(fold_ckpt_dir, exist_ok=True)
     policy_path = os.path.join(fold_ckpt_dir, "plan004_policy.npz")
     summary_path = os.path.join(fold_ckpt_dir, "plan004_summary.json")
-    _save_plan004_policy_npz(policy_path, result)
+    _save_plan004_policy_npz(policy_path, result, train_returns=wfo_dataset.train_returns, cfg=cfg)
 
     selected = result.get("selected_row", {})
     summary = {

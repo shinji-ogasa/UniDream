@@ -802,6 +802,8 @@ def _evaluate_selector(
     )
 
     uses_tb_guard = spec.mode in {"tb_guard", "tb_guard_pullback", "tb_guard_pullback_evalonly"}
+    model = None
+    tb_model = None
     if spec.mode == "uncertainty":
         models = _fit_bootstrap_models(x_train[train_valid], y_train[train_valid], l2=l2, seed=seed, n_models=5)
         if not models:
@@ -1047,6 +1049,9 @@ def _evaluate_selector(
         "_train_positions": train_positions,
         "_val_positions": best_val_positions if best_val_positions is not None else np.full(len(val_returns), benchmark_position),
         "_test_positions": test_positions,
+        "_model": model,
+        "_danger_model": tb_model,
+        "_selector_spec": spec,
         "test_pnl": test_pnl,
     }
 

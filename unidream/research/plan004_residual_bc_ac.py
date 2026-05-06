@@ -649,6 +649,9 @@ def _compute_source_candidates(
                 "val_positions": np.asarray(d_row.get("_val_positions", _benchmark_positions(len(ds.val_returns), benchmark_position)), dtype=np.float64),
                 "test_positions": np.asarray(d_row.get("_test_positions", _benchmark_positions(len(ds.test_returns), benchmark_position)), dtype=np.float64),
                 "meta": {"status": "ok", "selection": d_row.get("selection", {})},
+                "_selector_model": d_row.get("_model"),
+                "_danger_model": d_row.get("_danger_model"),
+                "_selector_spec": d_row.get("_selector_spec"),
             }
         )
 
