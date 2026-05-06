@@ -515,6 +515,7 @@ def _fit_and_extract(
     return {
         "status": "ok",
         "spec": spec.name,
+        "model": model,
         "selection": best,
         "test_positions": test_positions,
         "test_diag": test_diag,
@@ -755,6 +756,235 @@ def _compute_source_candidates(
                 }
             )
     return out
+
+
+def run_plan004_fold_policy(
+    *,
+    ds: WFODataset,
+    cfg: dict[str, Any],
+    costs_cfg: dict[str, Any],
+    fold_idx: int,
+    seed: int = 7,
+    ridge_l2: float = 1.0,
+    max_train_samples: int = 50000,
+    source_selection_mode: str = "multi_source_val",
+    teacher_selection_mode: str = "val_only",
+    selection_stress_mode: str = "primary",
+) -> dict[str, Any]:
+    """Fit and extract the leak-free Plan004 policy for one WFO fold.
+
+    This is intentionally fold-local: models are fit on train only, extraction
+    thresholds/hold/cooldown are selected on validation only, and test is used
+    only for reporting/evaluation.
+    """
+    fid = int(fold_idx)
+    x_train_state = _state_features(ds.train_features, ds.train_returns)
+    x_val_state = _state_features(ds.val_features, ds.val_returns)
+    x_test_state = _state_features(ds.test_features, ds.test_returns)
+
+    benchmark_position = float(cfg.get("reward", {}).get("benchmark_position", 1.0))
+    unit_cost = _unit_cost(costs_cfg)
+    min_position = float(cfg.get("ac", {}).get("abs_min_position", 0.0))
+    max_position = float(cfg.get("ac", {}).get("abs_max_position", 1.25))
+
+    if source_selection_mode == "multi_source_val":
+        source_candidates = _compute_source_candidates(
+            ds=ds,
+            x_train=x_train_state,
+            x_val=x_val_state,
+            x_test=x_test_state,
+            cfg=cfg,
+            costs_cfg=costs_cfg,
+            benchmark_position=benchmark_position,
+            unit_cost=unit_cost,
+            ridge_l2=ridge_l2,
+            seed=seed + fid * 100,
+            max_train_samples=max_train_samples,
+        )
+    elif source_selection_mode == "single_teacher":
+        source_candidates = [
+            _compute_teacher(
+                ds=ds,
+                x_train=x_train_state,
+                x_val=x_val_state,
+                x_test=x_test_state,
+                cfg=cfg,
+                costs_cfg=costs_cfg,
+                benchmark_position=benchmark_position,
+                unit_cost=unit_cost,
+                ridge_l2=ridge_l2,
+                seed=seed + fid * 100,
+                max_train_samples=max_train_samples,
+                d_selector="D_risk_sensitive_tbguard_auto_cd_floor001_pullback_evalonly",
+                gr_spec_name="GR_baseline",
+                d_test_turnover_max=2.5,
+                gr_val_alpha_min=0.30,
+                gr_val_turnover_max=3.0,
+                recovery_rescue_val_alpha_min=0.10,
+                recovery_rescue_val_turnover_max=4.5,
+                recovery_rescue_test_turnover_max=3.5,
+                micro_triple_val_alpha_min=0.02,
+                micro_triple_val_auc_min=0.50,
+                micro_triple_val_turnover_max=0.5,
+                micro_triple_test_turnover_max=0.7,
+                selection_mode=teacher_selection_mode,
+            )
+        ]
+    else:
+        raise ValueError(f"unknown source_selection_mode: {source_selection_mode}")
+
+    residual_rows: list[dict[str, Any]] = []
+    residual_candidates: list[dict[str, Any]] = []
+    for source_candidate in source_candidates:
+        source = str(source_candidate["source"])
+        base_train = np.asarray(source_candidate["train_positions"], dtype=np.float64)
+        base_val = np.asarray(source_candidate["val_positions"], dtype=np.float64)
+        base_test = np.asarray(source_candidate["test_positions"], dtype=np.float64)
+        base_stress = _stress_metrics(
+            returns=ds.test_returns,
+            positions=base_test,
+            cfg=cfg,
+            costs_cfg=costs_cfg,
+            benchmark_position=benchmark_position,
+        )
+        x_train = _append_base_features(x_train_state, base_train, benchmark_position)
+        x_val = _append_base_features(x_val_state, base_val, benchmark_position)
+        x_test = _append_base_features(x_test_state, base_test, benchmark_position)
+
+        for spec in SPECS:
+            if not _spec_allowed_for_source(spec, source):
+                continue
+            rec = _fit_and_extract(
+                x_train=x_train,
+                x_val=x_val,
+                x_test=x_test,
+                train_returns=ds.train_returns,
+                val_returns=ds.val_returns,
+                test_returns=ds.test_returns,
+                base_train=base_train,
+                base_val=base_val,
+                base_test=base_test,
+                cfg=cfg,
+                costs_cfg=costs_cfg,
+                spec=spec,
+                benchmark_position=benchmark_position,
+                unit_cost=unit_cost,
+                min_position=min_position,
+                max_position=max_position,
+                source=source,
+                selection_stress_mode=selection_stress_mode,
+            )
+            if rec.get("status") != "ok":
+                continue
+            test_pos = np.asarray(rec["test_positions"], dtype=np.float64)
+            stress = _stress_metrics(
+                returns=ds.test_returns,
+                positions=test_pos,
+                cfg=cfg,
+                costs_cfg=costs_cfg,
+                benchmark_position=benchmark_position,
+            )
+            row = {
+                "fold": fid,
+                "group": "residual_bc_ac",
+                "source": source,
+                "spec": spec.name,
+                "stress": stress,
+                "selection": rec["selection"],
+            }
+            residual_rows.append(row)
+            residual_candidates.append(
+                {
+                    "score": float(rec["selection"]["score"]),
+                    "source": source,
+                    "spec": spec.name,
+                    "record": rec,
+                    "stress": stress,
+                    "base_stress": base_stress,
+                    "source_candidate": source_candidate,
+                    "base_train": base_train,
+                    "base_val": base_val,
+                    "base_test": base_test,
+                }
+            )
+
+    if not residual_candidates:
+        positions = _benchmark_positions(len(ds.test_returns), benchmark_position)
+        stress = _stress_metrics(
+            returns=ds.test_returns,
+            positions=positions,
+            cfg=cfg,
+            costs_cfg=costs_cfg,
+            benchmark_position=benchmark_position,
+        )
+        selected = {
+            "fold": fid,
+            "group": "selected_residual_bc_ac",
+            "source": "benchmark",
+            "spec": "fallback_benchmark",
+            "stress": stress,
+            "selection": {"fallback": "benchmark_no_residual_candidate"},
+        }
+        return {
+            "fold": fid,
+            "status": "fallback_benchmark",
+            "positions": positions,
+            "selected_row": selected,
+            "candidate_rows": residual_rows,
+            "benchmark_position": benchmark_position,
+            "config": {
+                "seed": seed,
+                "ridge_l2": ridge_l2,
+                "max_train_samples": max_train_samples,
+                "source_selection_mode": source_selection_mode,
+                "teacher_selection_mode": teacher_selection_mode,
+                "selection_stress_mode": selection_stress_mode,
+            },
+        }
+
+    residual_candidates.sort(key=lambda item: float(item["score"]), reverse=True)
+    best = residual_candidates[0]
+    rec = best["record"]
+    if float(best["score"]) >= 0.0:
+        positions = np.asarray(rec["test_positions"], dtype=np.float64)
+        selected = {
+            "fold": fid,
+            "group": "selected_residual_bc_ac",
+            "source": best["source"],
+            "spec": rec["spec"],
+            "stress": best["stress"],
+            "selection": rec["selection"],
+        }
+        status = "ok"
+    else:
+        positions = np.asarray(best["base_test"], dtype=np.float64)
+        selected = {
+            "fold": fid,
+            "group": "selected_residual_bc_ac",
+            "source": best["source"],
+            "spec": "fallback_base_negative_val_score",
+            "stress": best["base_stress"],
+            "selection": {"fallback": "base", "best_residual_score": float(best["score"])},
+        }
+        status = "fallback_base"
+
+    return {
+        "fold": fid,
+        "status": status,
+        "positions": positions,
+        "selected_row": selected,
+        "candidate_rows": residual_rows,
+        "best_candidate": best,
+        "benchmark_position": benchmark_position,
+        "config": {
+            "seed": seed,
+            "ridge_l2": ridge_l2,
+            "max_train_samples": max_train_samples,
+            "source_selection_mode": source_selection_mode,
+            "teacher_selection_mode": teacher_selection_mode,
+            "selection_stress_mode": selection_stress_mode,
+        },
+    }
 
 
 def _write_md(path: str, payload: dict[str, Any]) -> None:

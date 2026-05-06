@@ -219,9 +219,17 @@ eval:
   - max_drawdown
   - calmar
 logging:
-  checkpoint_dir: checkpoints/acplan7_sizing_adapter_s007
+  checkpoint_dir: checkpoints/main_plan004_residual_bc_ac_s007
   eval_interval: 250
   log_interval: 100
+plan004_residual_bc_ac:
+  enabled: true
+  seed: 7
+  ridge_l2: 1.0
+  max_train_samples: 50000
+  source_selection_mode: multi_source_val
+  teacher_selection_mode: val_only
+  selection_stress_mode: primary
 normalization:
   zscore_window_days: 60
 oracle:

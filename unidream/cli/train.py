@@ -51,6 +51,7 @@ from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
+from unidream.experiments.plan004_stage import run_plan004_stage
 
 
 def _ts() -> str:
@@ -604,6 +605,15 @@ def run_fold(
         benchmark_position=_benchmark_position_value(cfg),
     )
 
+    plan004_result = run_plan004_stage(
+        fold_idx=fold_idx,
+        wfo_dataset=wfo_dataset,
+        cfg=cfg,
+        costs_cfg=costs_cfg,
+        fold_ckpt_dir=fold_ckpt_dir,
+        log_ts=_ts,
+    )
+
     # --------- Step 5: Test バックテスト ---------
     test_result = run_test_stage(
         actor=actor,
@@ -626,8 +636,16 @@ def run_fold(
         format_m2_scorecard_fn=_format_m2_scorecard,
         log_ts=_ts,
         fold_idx=fold_idx,
+        override_positions=None if plan004_result is None else plan004_result["positions"],
+        override_policy_name=None if plan004_result is None else "plan004_residual_bc_ac",
     )
     test_result["fold"] = fold_idx
+    if plan004_result is not None:
+        test_result["plan004"] = {
+            "status": plan004_result.get("status"),
+            "selected": plan004_result.get("selected_row"),
+            "config": plan004_result.get("config"),
+        }
     return test_result
 
 

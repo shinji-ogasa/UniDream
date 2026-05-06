@@ -281,16 +281,24 @@ def run_test_stage(
     format_m2_scorecard_fn,
     log_ts,
     fold_idx: int | None = None,
+    override_positions: np.ndarray | None = None,
+    override_policy_name: str | None = None,
 ) -> dict:
     print(f"\n[{log_ts()}] [Step 5] Test Backtest...")
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
 
     enc_test = wm_trainer.encode_sequence(test_features, seq_len=seq_len)
-    external_positions = _load_external_policy_positions(cfg, fold_idx, "test")
+    external_positions = (
+        np.asarray(override_positions, dtype=np.float64)
+        if override_positions is not None
+        else _load_external_policy_positions(cfg, fold_idx, "test")
+    )
     use_external_policy = external_positions is not None
     if use_external_policy:
         positions = external_positions
+        if override_policy_name:
+            print(f"  External policy override: {override_policy_name}")
     else:
         positions = actor.predict_positions(
             enc_test["z"],
