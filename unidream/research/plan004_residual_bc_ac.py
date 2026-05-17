@@ -54,6 +54,7 @@ class ResidualSpec:
     cooldown_grid: tuple[int, ...]
     score_turnover_coef: float = 0.04
     score_active_coef: float = 1.0
+    score_maxdd_coef: float = 0.25
 
 
 SPECS: tuple[ResidualSpec, ...] = (
@@ -366,7 +367,12 @@ def _metric_score(metrics: dict[str, Any], spec: ResidualSpec) -> float:
         or active > float(spec.active_cap) + tol
     ):
         return -1_000_000.0 + alpha - 10.0 * max(maxdd - spec.maxdd_cap_pt, 0.0) - turnover - active
-    return alpha + 0.25 * max(-maxdd, 0.0) - spec.score_turnover_coef * turnover - spec.score_active_coef * active
+    return (
+        alpha
+        + float(spec.score_maxdd_coef) * max(-maxdd, 0.0)
+        - spec.score_turnover_coef * turnover
+        - spec.score_active_coef * active
+    )
 
 
 def _stress_selection_score(
@@ -585,9 +591,18 @@ def _spec_allowed_for_source(spec: ResidualSpec, source: str) -> bool:
             "bc_resid_overweight_h32",
         }
     if source_s == "GR_baseline":
-        return spec.name in {"bc_resid_micro_h16", "bc_resid_micro_h32", "bc_resid_twoside_h16", "bc_resid_overweight_h32"}
+        return spec.name in {
+            "bc_resid_micro_h16",
+            "bc_resid_micro_h32",
+            "bc_resid_twoside_h16",
+            "bc_resid_overweight_h32",
+        }
     if source_s == "recovery_rescue_fixed_state":
-        return spec.name in {"bc_resid_twoside_h32", "bc_resid_micro_h16", "bc_resid_micro_h32"}
+        return spec.name in {
+            "bc_resid_twoside_h32",
+            "bc_resid_micro_h16",
+            "bc_resid_micro_h32",
+        }
     return True
 
 

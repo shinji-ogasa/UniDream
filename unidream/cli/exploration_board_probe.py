@@ -382,6 +382,13 @@ def _online_drawdown(returns: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return dd, underwater
 
 
+def _sanitize_feature_matrix(x: np.ndarray, *, clip: float = 50.0) -> np.ndarray:
+    arr = np.nan_to_num(np.asarray(x, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+    if clip > 0:
+        arr = np.clip(arr, -float(clip), float(clip))
+    return arr
+
+
 def _state_features(raw: np.ndarray, returns: np.ndarray) -> np.ndarray:
     raw_arr = np.asarray(raw, dtype=np.float64)
     ret = np.asarray(returns, dtype=np.float64)
@@ -392,7 +399,7 @@ def _state_features(raw: np.ndarray, returns: np.ndarray) -> np.ndarray:
         parts.append(_rolling_past_vol(ret, window).reshape(-1, 1))
     parts.extend([dd.reshape(-1, 1), underwater.reshape(-1, 1)])
     x = np.concatenate([p[: len(ret)] for p in parts], axis=1)
-    return np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+    return _sanitize_feature_matrix(x)
 
 
 def _future_windows(returns: np.ndarray, horizon: int) -> tuple[np.ndarray, np.ndarray]:
@@ -468,16 +475,18 @@ class RidgeModel:
     coef: np.ndarray
 
     def predict(self, x: np.ndarray) -> np.ndarray:
-        xx = (np.asarray(x, dtype=np.float64) - self.mean) / self.std
+        xx = (_sanitize_feature_matrix(x) - self.mean) / self.std
+        xx = np.clip(np.nan_to_num(xx, nan=0.0, posinf=0.0, neginf=0.0), -50.0, 50.0)
         xx = np.concatenate([xx, np.ones((len(xx), 1), dtype=np.float64)], axis=1)
         return xx @ self.coef
 
 
 def _fit_ridge_multi(x: np.ndarray, y: np.ndarray, *, l2: float) -> RidgeModel | None:
-    mask = _finite_rows(x, y)
+    x_clean = _sanitize_feature_matrix(x)
+    mask = _finite_rows(x_clean, y)
     if int(mask.sum()) < 100:
         return None
-    x_train = np.asarray(x[mask], dtype=np.float64)
+    x_train = np.asarray(x_clean[mask], dtype=np.float64)
     y_train = np.asarray(y[mask], dtype=np.float64)
     if y_train.ndim == 1:
         y_train = y_train.reshape(-1, 1)
@@ -485,6 +494,7 @@ def _fit_ridge_multi(x: np.ndarray, y: np.ndarray, *, l2: float) -> RidgeModel |
     std = np.std(x_train, axis=0, keepdims=True)
     std[std < 1e-8] = 1.0
     xx = (x_train - mean) / std
+    xx = np.clip(np.nan_to_num(xx, nan=0.0, posinf=0.0, neginf=0.0), -50.0, 50.0)
     xx = np.concatenate([xx, np.ones((len(xx), 1), dtype=np.float64)], axis=1)
     gram = xx.T @ xx
     reg = float(l2) * np.eye(gram.shape[0], dtype=np.float64)
