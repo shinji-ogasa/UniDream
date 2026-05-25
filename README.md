@@ -10,7 +10,9 @@ BTCUSDT 15分足を対象に、Transformer World Model、Behavior Cloning、Imag
 
 UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior Cloning で模倣し、その方策を World Model 上の imagination rollouts で Actor-Critic fine-tune する研究コード。Buy & Hold をベンチマークとして、OOS の超過成績、Sharpe 改善、最大ドローダウン改善、collapse 回避を同時に評価する。
 
-現在の採用版は no-leak Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。`configs/trading.yaml` では本流 `train` の中で WM → BC → AC → Plan004 extraction → Test を実行し、fold配下に `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` を保存する。
+本流の学習パイプラインは no-leak Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。`configs/trading.yaml` では `train` の中で WM → BC → AC → Plan004 extraction → Test を実行し、fold配下に `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` を保存する。
+
+リアルタイムデモの現行採用版は Plan008 recent overlay v2。これは本流checkpointではなく、benchmark position `1.0` に対して `1.06 / 1.00 / 0.94` の小さな deterministic overlay を重ねるデモ用モデル。shifted trailing return だけを使い、30〜60日スパンのライブ挙動に合わせて調整している。Space / Supabase demo では 60日分の評価 window と 1488本の feature warmup を合わせた `7248` 本の 15分足 candle を使う。
 
 ## パイプライン
 
@@ -25,7 +27,7 @@ OHLCV / features
   -> Validation selector
   -> Plan004 residual BC/AC extraction (fixed hierarchy + residual extraction)
   -> Test backtest / M2 scorecard / PBO / regime report
-  -> Space bundle export
+  -> Space bundle export / Plan008 recent overlay demo validation
 ```
 
 ## ステージごとの責務
@@ -80,7 +82,8 @@ UniDream/
     │   ├── bc_pretrain.py
     │   └── imagination_ac.py
     ├── research/
-    │   └── plan004_residual_bc_ac.py
+    │   ├── plan004_residual_bc_ac.py
+    │   └── plan008_recent_overlay.py
     ├── experiments/
     │   ├── runtime.py
     │   ├── train_app.py
@@ -133,16 +136,23 @@ uv run python -m unidream.cli.train --help
 
 ### 本流の実行
 
-`--config` のデフォルトは `configs/trading.yaml`。標準運用ではCUDAを明示して走らせる。
+`--config` のデフォルトは `configs/trading.yaml`。本トレーニングはこのコマンドで WM → BC → AC → Plan004 extraction → Test まで通す。標準運用ではCUDAを明示する。
 
 ```bash
-uv run python -m unidream.cli.train --device cuda
+uv run python -m unidream.cli.train \
+  --config configs/trading.yaml \
+  --seed 7 \
+  --device cuda
 ```
 
 fold を絞る場合:
 
 ```bash
-uv run python -m unidream.cli.train --folds 13 --seed 7 --device cuda
+uv run python -m unidream.cli.train \
+  --config configs/trading.yaml \
+  --folds 13 \
+  --seed 7 \
+  --device cuda
 ```
 
 ### ステージ単位の実行
@@ -171,6 +181,19 @@ uv run python -m unidream.cli.train --start-from test --resume --device cuda
 uv run python -m unidream.cli.train --resume --device cuda
 ```
 
+リアルタイムデモ採用中の Plan008 v2 を再現する:
+
+```bash
+PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan008_recent_overlay_probe \
+  --config configs/trading.yaml \
+  --seed 7 \
+  --returns checkpoints/data_cache/BTCUSDT_15m_2024-01-01_2026-05-21_z60_v2_plan008_latest_returns.parquet \
+  --windows 30,45,60,90,180,365 \
+  --output-json docs_local/20260521_plan008_recent_overlay_latest.json
+```
+
+この probe は各 window を standalone 入力として評価する。直近デモ用に調整したモデルなので、pristine holdout の主張ではなく、リアルタイムデモ挙動の再現確認として扱う。
+
 ### Plan004 residual BC/AC
 
 no-leak residual BC/AC の全14fold検証。これは本流Plan004ステージと同じfold-localロジックを高速に監査するための診断CLI。
@@ -192,6 +215,8 @@ uv run python -m unidream.cli.export_plan004_space_bundle \
   --device cuda \
   --output-dir C:/Users/Sophie/Documents/UniDream/unidream-space/bundles/current
 ```
+
+現在のリアルタイムデモは Plan008 v2 bundle を `unidream-space/bundles/current` に配置している。Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。Supabase demo 側は Edge Function が `7248` 本の candle を `/predict` に送り、Plan008 の `1.06 / 1.00 / 0.94` exposure をそのまま紙取引へ反映する。
 
 ### 診断 CLI
 
