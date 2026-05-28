@@ -47,6 +47,71 @@ def _mode_depths_from_eval(eval_payload: dict[str, Any], fallback: dict[str, flo
     return out
 
 
+def _merge_short_benchmark_gaps(
+    positions: np.ndarray,
+    *,
+    gap_bars: int,
+    active_eps: float,
+    fill: str,
+    benchmark_position: float,
+) -> np.ndarray:
+    if int(gap_bars) <= 0:
+        return np.asarray(positions, dtype=np.float64).copy()
+    out = np.asarray(positions, dtype=np.float64).copy()
+    active = out < float(benchmark_position) - float(active_eps)
+    n = len(out)
+    i = 0
+    while i < n:
+        if bool(active[i]):
+            i += 1
+            continue
+        start = i
+        while i < n and not bool(active[i]):
+            i += 1
+        end = i
+        if start > 0 and end < n and end - start <= int(gap_bars):
+            if fill == "prev":
+                value = out[start - 1]
+            elif fill == "min":
+                value = min(float(out[start - 1]), float(out[end]))
+            else:
+                value = out[end]
+            out[start:end] = value
+    return out
+
+
+def _min_delta_filter(positions: np.ndarray, *, min_delta: float) -> np.ndarray:
+    if float(min_delta) <= 0.0 or len(positions) == 0:
+        return np.asarray(positions, dtype=np.float64).copy()
+    x = np.asarray(positions, dtype=np.float64)
+    out = np.empty_like(x)
+    prev = float(x[0])
+    out[0] = prev
+    for i in range(1, len(x)):
+        if abs(float(x[i]) - prev) >= float(min_delta):
+            prev = float(x[i])
+        out[i] = prev
+    return out
+
+
+def _apply_execution_compression(
+    positions: np.ndarray,
+    *,
+    compression: dict[str, Any],
+    benchmark_position: float,
+) -> np.ndarray:
+    out = np.asarray(positions, dtype=np.float64).copy()
+    out = _merge_short_benchmark_gaps(
+        out,
+        gap_bars=int(compression.get("gap_bars", 0)),
+        active_eps=float(compression.get("active_eps", 0.05)),
+        fill=str(compression.get("fill", "next")),
+        benchmark_position=float(benchmark_position),
+    )
+    out = _min_delta_filter(out, min_delta=float(compression.get("min_delta", 0.0)))
+    return out
+
+
 def _apply_plan009_positions(
     current_returns: np.ndarray,
     *,
@@ -56,6 +121,7 @@ def _apply_plan009_positions(
     default_depth: float,
     min_position: float,
     max_position: float,
+    compression: dict[str, Any],
 ) -> tuple[np.ndarray, dict[str, Any]]:
     current = np.asarray(current_returns, dtype=np.float64)
     history = np.asarray(history_returns, dtype=np.float64)
@@ -68,6 +134,12 @@ def _apply_plan009_positions(
     bench = float(benchmark_position)
     positions = bench - depth * (bench - guard)
     positions = np.clip(positions, float(min_position), float(max_position))
+    if bool(compression.get("enabled", False)):
+        positions = _apply_execution_compression(
+            positions,
+            compression=compression,
+            benchmark_position=bench,
+        )
     overlay = positions - bench
     diag = {
         "plan009_depth_calibrator_version": "dev_f0_12_m48_x2_cap094",
@@ -79,6 +151,7 @@ def _apply_plan009_positions(
         "plan009_underweight_rate": float(np.mean(guard < bench - 1e-12)) if len(guard) else 0.0,
         "plan009_turnover": float(np.abs(np.diff(overlay)).sum()) if len(overlay) > 1 else 0.0,
         "plan009_active_rate": float(np.mean(np.abs(overlay) > 0.05)) if len(overlay) else 0.0,
+        "plan009_execution_compression": dict(compression),
         **mode_diag,
     }
     return positions.astype(np.float32), diag
@@ -95,6 +168,8 @@ def export_plan009_depth_calibrator_bundle(
     seed: int,
     current_window_days: int,
     min_live_lookback_days: int,
+    compressed_eval_json: str,
+    compression: dict[str, Any],
 ) -> dict[str, Any]:
     set_seed(seed)
     cfg = load_config(config_path)
@@ -147,6 +222,7 @@ def export_plan009_depth_calibrator_bundle(
         default_depth=default_depth,
         min_position=min_position,
         max_position=max_position,
+        compression=compression,
     )
 
     output = Path(output_dir)
@@ -175,14 +251,22 @@ def export_plan009_depth_calibrator_bundle(
         json.dump(_json_sanitize(sample_output), f, ensure_ascii=False, indent=2)
     shutil.copy2(eval_json, output / "plan009_eval_folds0_12.json")
     shutil.copy2(eval_md, output / "plan009_eval_folds0_12.md")
+    compressed_payload: dict[str, Any] | None = None
+    if compressed_eval_json and Path(compressed_eval_json).exists():
+        compressed_payload = json.loads(Path(compressed_eval_json).read_text(encoding="utf-8"))
+        shutil.copy2(compressed_eval_json, output / "plan009_eval_compressed_folds0_12.json")
 
     summary = {
         "experiment": "plan009_depth_calibrator_bundle",
         "source_eval": eval_json,
+        "source_compressed_eval": compressed_eval_json if compressed_payload is not None else None,
         "depth_by_mode": depth_by_mode,
         "default_depth": default_depth,
+        "execution_compression": compression,
         "dev_aggregate": eval_payload.get("aggregate", {}),
         "dev_stress_aggregate": eval_payload.get("stress_aggregate", {}),
+        "compressed_aggregate": compressed_payload.get("aggregate", {}) if compressed_payload else {},
+        "compressed_stress_aggregate": compressed_payload.get("stress_aggregate", {}) if compressed_payload else {},
         "sample": sample_output,
     }
     with open(output / "plan009_summary.json", "w", encoding="utf-8", newline="\n") as f:
@@ -236,6 +320,9 @@ def export_plan009_depth_calibrator_bundle(
             "plan009_summary": "plan009_summary.json",
             "plan009_eval_json": "plan009_eval_folds0_12.json",
             "plan009_eval_md": "plan009_eval_folds0_12.md",
+            "plan009_compressed_eval_json": "plan009_eval_compressed_folds0_12.json"
+            if compressed_payload is not None
+            else None,
             "config": "model_config.yaml",
         },
         "plan009_depth_calibrator": {
@@ -247,6 +334,7 @@ def export_plan009_depth_calibrator_bundle(
             "depth_by_mode": depth_by_mode,
             "min_position": min_position,
             "max_position": max_position,
+            "execution_compression": compression,
         },
     }
     with open(output / "manifest.json", "w", encoding="utf-8", newline="\n") as f:
@@ -265,7 +353,20 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--current-window-days", type=int, default=60)
     parser.add_argument("--min-live-lookback-days", type=int, default=365)
+    parser.add_argument("--compressed-eval-json", default="docs_local/20260528_plan009_gap16_next_mindelta010_full.json")
+    parser.add_argument("--compression-gap-bars", type=int, default=16)
+    parser.add_argument("--compression-fill", choices=("prev", "next", "min"), default="next")
+    parser.add_argument("--compression-active-eps", type=float, default=0.05)
+    parser.add_argument("--compression-min-delta", type=float, default=0.10)
+    parser.add_argument("--disable-compression", action="store_true")
     args = parser.parse_args()
+    compression = {
+        "enabled": not bool(args.disable_compression),
+        "gap_bars": int(args.compression_gap_bars),
+        "fill": str(args.compression_fill),
+        "active_eps": float(args.compression_active_eps),
+        "min_delta": float(args.compression_min_delta),
+    }
     manifest = export_plan009_depth_calibrator_bundle(
         config_path=args.config,
         eval_json=args.eval_json,
@@ -276,6 +377,8 @@ def main() -> None:
         seed=int(args.seed),
         current_window_days=int(args.current_window_days),
         min_live_lookback_days=int(args.min_live_lookback_days),
+        compressed_eval_json=args.compressed_eval_json,
+        compression=compression,
     )
     print(f"[export] wrote Plan009 bundle: {args.output_dir}")
     print(json.dumps(_json_sanitize(manifest["run"]), ensure_ascii=False, indent=2))

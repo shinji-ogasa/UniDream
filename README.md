@@ -12,7 +12,7 @@ UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior
 
 本流の学習パイプラインは no-leak Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。`configs/trading.yaml` では `train` の中で WM → BC → AC → Plan004 extraction → Test を実行し、fold配下に `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` を保存する。
 
-リアルタイムデモの現行採用版は Plan009 depth calibrator。Plan004 base と Plan005 past-only guard の開発結果をもとに、validation-calibrated depth をかける dev candidate bundle として運用する。fold0-12 の開発評価では `AlphaEx >= +3pt && MaxDDDelta <= -3pt` を `13/13` pass、`Alpha median +14.116pt`、`Alpha worst +4.397pt`、`MaxDD worst -3.026pt`。一方で turnover / cost stress は未解決で、`cost_x2` は `8/13`、`cost_x3` は `4/13` pass に落ちる。
+リアルタイムデモの現行採用版は Plan009 depth calibrator。Plan004 base と Plan005 past-only guard の開発結果をもとに、validation-calibrated depth と軽い execution compression をかける dev candidate bundle として運用する。fold0-12 の開発評価では `AlphaEx >= +3pt && MaxDDDelta <= -3pt` を `13/13` pass、`Alpha median +16.025pt`、`Alpha worst +4.690pt`、`MaxDD worst -3.026pt`、`TO mean 24.956`。一方で cost stress は未解決で、`cost_x2` は `9/13`、`cost_x3` は `6/13` pass に落ちる。
 
 ## パイプライン
 
