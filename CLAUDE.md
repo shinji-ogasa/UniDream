@@ -2,25 +2,19 @@
 
 開発時の方針・規約をまとめたファイル。詳細仕様は SPEC.md を参照。
 
----
-
 ## プロジェクトの目的
 
-Transformer 世界モデル + Imagination Actor-Critic による暗号資産トレーディング方策の学習。
-DreamerV3 ベースで RSSM を Transformer に置換し、Hindsight Oracle で初期化した上で AC fine-tune する。
+Plan009 depth calibrator による BTCUSDT 15分足のリスクオフ制御を検証し、HF Space のリアルタイムデモへ反映する。
 
 ## 開発方針
 
-- **バックテスト基盤を最初に固める**: WFO・コスト・PBO が正しく動かないと学習結果が意味をなさない
-- **model-free PPO をベースラインとして先に回す**: 世界モデルの寄与を差分で確認
-- **変数を最小化して検証する**: LoRe（LLM/Risk Gate）は Phase 1 で alpha 確認後に導入
-- **未来情報リークを防ぐ**: shift(1) を必ず適用、oracle は train 期間のみで計算
-
-## DL Framework
-
-PyTorch (>= 2.0)。世界モデル・Actor・Critic すべて統一。
+- 現行仕様は Plan009 depth-calibrated past-only guard + execution compression。
+- Runtime signal は shifted trailing-return features のみを使う。
+- fold0-12 は開発セットとして扱い、pristine holdout の主張をしない。
+- 変更後は `unidream-space` の sample parity を必ず確認する。
+- README / SPEC / bundle manifest は current bundle と同じ仕様に揃える。
 
 ## 参照ドキュメント
 
-- `SPEC.md` — アーキテクチャ・パイプライン・評価の詳細仕様
-- `README.md` — プロジェクト概要
+- `SPEC.md` — 現行仕様・entrypoint・評価条件
+- `README.md` — プロジェクト概要と使い方

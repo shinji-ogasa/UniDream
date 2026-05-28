@@ -1,46 +1,38 @@
 # UniDream
 
 ![Python](https://img.shields.io/badge/Python-3.12+-blue?logo=python)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red?logo=pytorch)
 ![License](https://img.shields.io/badge/License-Non--Commercial-orange)
 
-BTCUSDT 15分足を対象に、Transformer World Model、Behavior Cloning、Imagination Actor-Critic を組み合わせて検証する暗号資産トレード研究プロジェクト。
+BTCUSDT 15分足を対象に、Buy & Hold に対する超過 Alpha と最大ドローダウン改善を検証するトレード研究プロジェクト。
 
 ## 概要
 
-UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior Cloning で模倣し、その方策を World Model 上の imagination rollouts で Actor-Critic fine-tune する研究コード。Buy & Hold をベンチマークとして、OOS の超過成績、Sharpe 改善、最大ドローダウン改善、collapse 回避を同時に評価する。
+現行仕様は Plan009 depth calibrator。raw returns から shifted trailing-return feature だけで past-only guard を作り、validation-gated depth と軽い execution compression をかけて position を出す。リアルタイムデモもこの仕様を `unidream-space/bundles/current` で動かす。
 
-本流の学習パイプラインは no-leak Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。`configs/trading.yaml` では `train` の中で WM → BC → AC → Plan004 extraction → Test を実行し、fold配下に `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` を保存する。
+fold0-12 の開発評価では `AlphaEx >= +3pt && MaxDDDelta <= -3pt` を `13/13` pass。現行 compression 版の集計は `Alpha median +16.025pt`、`Alpha worst +4.690pt`、`MaxDD worst -3.026pt`、`TO mean 24.956`。ただし cost stress はまだ課題で、`cost_x2` は `9/13`、`cost_x3` は `6/13` pass。
 
-リアルタイムデモの現行採用版は Plan009 depth calibrator。Plan004 base と Plan005 past-only guard の開発結果をもとに、validation-calibrated depth と軽い execution compression をかける dev candidate bundle として運用する。fold0-12 の開発評価では `AlphaEx >= +3pt && MaxDDDelta <= -3pt` を `13/13` pass、`Alpha median +16.025pt`、`Alpha worst +4.690pt`、`MaxDD worst -3.026pt`、`TO mean 24.956`。一方で cost stress は未解決で、`cost_x2` は `9/13`、`cost_x3` は `6/13` pass に落ちる。
+fold0-12 は開発セットであり、pristine holdout の主張ではない。
 
 ## パイプライン
 
 ```text
-OHLCV / features
-  -> Walk-Forward split
-  -> Hindsight Oracle / signal_aim teacher
-  -> Transformer World Model
-  -> WM predictive state bundle (return / vol / drawdown)
-  -> Behavior Cloning (route head + inventory recovery + state machine)
-  -> Imagination Actor-Critic
-  -> Validation selector
-  -> Plan004 residual BC/AC extraction (fixed hierarchy + residual extraction)
-  -> Test backtest / M2 scorecard / PBO / regime report
-  -> Plan009 depth calibrator dev validation / Space bundle export
+OHLCV
+  -> feature / raw returns cache
+  -> WFO fold0-12 development split
+  -> shifted trailing-return past-only guard
+  -> validation-gated depth calibration
+  -> execution compression
+  -> cost stress / drawdown / alpha report
+  -> Space bundle export
 ```
 
 ## ステージごとの責務
 
-- `data`: Binance OHLCV / funding / OI / mark price 取得、特徴量計算、returns 整形
-- `oracle`: signal_aim teacher で aim positions を生成、smooth aim、soft labels
-- `world_model`: Transformer ベースの latent dynamics、predictive head (return / vol / drawdown / regime)
-- `bc`: Actor を oracle position に模倣、route head・inventory recovery controller・state machine gate を学習
-- `ac`: World Model 上で imagination actor-critic fine-tune (本流は critic-only / 制限付き actor 解凍)
-- `selector`: validation split で adjust-rate scale を選択、collapse guard / M2 scorecard を反映
-- `research`: Plan004 residual BC/AC、Plan005 meta guard、Plan009 depth calibrator など、採用候補の検証本体
-- `deploy`: 本流checkpointまたはPlan009 dev candidateからHF Spaces向けbundleを作るexport処理
-- `test`: test split で backtest、PBO、Deflated Sharpe、HMM regime、M2 scorecard を出力
+- `data`: Binance OHLCV / funding / mark price 取得、特徴量計算、returns 整形
+- `plan009_depth_calibrator_probe`: fold0-12 で depth calibration と stress 集計を再現
+- `export_plan009_depth_calibrator_bundle`: Space 用 current bundle を生成
+- `unidream-space`: FastAPI 推論 runtime。現行 bundle のみで推論し、UniDream 本体APIには接続しない
+- `docs_local`: ローカル実験結果の JSON / Markdown 出力先
 
 ## ディレクトリツリー
 
@@ -48,71 +40,30 @@ OHLCV / features
 UniDream/
 ├── README.md
 ├── SPEC.md
-├── CLAUDE.md
 ├── pyproject.toml
 ├── uv.lock
 ├── configs/
 │   └── trading.yaml
-├── documents/
-├── docs/
+├── docs_local/
 └── unidream/
-    ├── device.py
     ├── cli/
-    │   ├── train.py
     │   ├── plan009_depth_calibrator_probe.py
-    │   ├── export_plan009_depth_calibrator_bundle.py
-    │   ├── route_probe.py
-    │   ├── wm_probe.py
-    │   ├── transition_advantage_probe.py
-    │   └── ac_candidate_q_probe.py
-    ├── deploy/
-    │   └── plan004_space_bundle.py
+    │   ├── plan009_component_probe.py
+    │   ├── plan009_depth_learner_probe.py
+    │   ├── plan009_guard_student_probe.py
+    │   ├── plan009_guard_sweep_probe.py
+    │   └── export_plan009_depth_calibrator_bundle.py
     ├── data/
     │   ├── dataset.py
     │   ├── download.py
     │   ├── features.py
     │   └── oracle.py
-    ├── world_model/
-    │   ├── encoder.py
-    │   ├── ensemble.py
-    │   ├── train_wm.py
-    │   └── transformer.py
-    ├── actor_critic/
-    │   ├── actor.py
-    │   ├── critic.py
-    │   ├── state_action_critic.py
-    │   ├── bc_pretrain.py
-    │   └── imagination_ac.py
-    ├── research/
-    │   ├── plan004_residual_bc_ac.py
-    │   ├── plan005_meta_guard_bc_ac.py
-    │   └── plan008_recent_overlay.py
-    ├── experiments/
-    │   ├── runtime.py
-    │   ├── train_app.py
-    │   ├── train_pipeline.py
-    │   ├── train_reporting.py
-    │   ├── wfo_runtime.py
-    │   ├── fold_runtime.py
-    │   ├── fold_inputs.py
-    │   ├── oracle_stage.py
-    │   ├── oracle_teacher.py
-    │   ├── oracle_post.py
-    │   ├── transition_advantage.py
-    │   ├── regime_runtime.py
-    │   ├── predictive_state.py
-    │   ├── wm_stage.py
-    │   ├── bc_setup.py
-    │   ├── bc_stage.py
-    │   ├── ac_stage.py
-    │   ├── val_selector_stage.py
-    │   ├── test_stage.py
-    │   └── m2.py
-    └── eval/
-        ├── backtest.py
-        ├── pbo.py
-        ├── regime.py
-        └── wfo.py
+    ├── eval/
+    │   ├── backtest.py
+    │   ├── pbo.py
+    │   └── regime.py
+    └── research/
+        └── past-only guard research helpers
 ```
 
 ## セットアップ
@@ -121,7 +72,6 @@ UniDream/
 
 - Python 3.12 以上
 - `uv`
-- NVIDIA環境では学習・検証コマンドは明示的に `--device cuda` を付ける。CPU実験は標準運用では使わない。
 
 依存関係の同期:
 
@@ -132,59 +82,14 @@ uv sync
 動作確認:
 
 ```bash
-uv run python -m unidream.cli.train --help
+uv run python -m unidream.cli.plan009_depth_calibrator_probe --help
 ```
 
 ## 使い方
 
-### 本流の実行
+### 現行モデルの再現
 
-`--config` のデフォルトは `configs/trading.yaml`。本トレーニングはこのコマンドで WM → BC → AC → Plan004 extraction → Test まで通す。標準運用ではCUDAを明示する。
-
-```bash
-uv run python -m unidream.cli.train \
-  --config configs/trading.yaml \
-  --seed 7 \
-  --device cuda
-```
-
-fold を絞る場合:
-
-```bash
-uv run python -m unidream.cli.train \
-  --config configs/trading.yaml \
-  --folds 13 \
-  --seed 7 \
-  --device cuda
-```
-
-### ステージ単位の実行
-
-`--start-from` と `--stop-after` で `wm` / `bc` / `ac` / `test` を切り出せる。既存 checkpoint がある場合は `--resume` で自動ロード。
-
-```bash
-# WM だけ学習
-uv run python -m unidream.cli.train --stop-after wm --device cuda
-
-# BC だけ学習 (WM は既存 checkpoint を再利用)
-uv run python -m unidream.cli.train --start-from bc --stop-after bc --resume --device cuda
-
-# AC だけ学習 (WM/BC は既存 checkpoint を再利用)
-uv run python -m unidream.cli.train --start-from ac --stop-after ac --resume --device cuda
-
-# Test backtest だけ再実行
-uv run python -m unidream.cli.train --start-from test --resume --device cuda
-```
-
-### 開発時の実行
-
-中断したジョブを再開する:
-
-```bash
-uv run python -m unidream.cli.train --resume --device cuda
-```
-
-リアルタイムデモ採用中の Plan009 depth calibrator を再現する:
+fold0-12 の Plan009 depth calibrator を再現する:
 
 ```bash
 PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan009_depth_calibrator_probe \
@@ -198,31 +103,15 @@ PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan009_depth_calibrator_
   --output-md docs_local/20260528_plan009_depth_calibrator_f0_12_m48_x2_cap094.md
 ```
 
-この probe は fold0-12 の開発検証用。depth は validation split だけで選び、test 指標は report-only として扱う。fold0-12 は開発セットであり、pristine holdout の主張ではない。
+現行 compression 版の確認結果:
 
-### Plan004 residual BC/AC
-
-no-leak residual BC/AC の全14fold検証。これは本流Plan004ステージと同じfold-localロジックを高速に監査するための診断CLI。
-
-```bash
-uv run python -m unidream.cli.plan004_noncompressive_bc_ac_probe \
-  --selection-stress-mode primary \
-  --output-json codex_outputs/plan004_current_no_leak_allfold.json \
-  --output-md codex_outputs/plan004_current_no_leak_allfold.md
+```text
+docs_local/20260528_plan009_gap16_next_mindelta010_full.json
 ```
 
-HF Spaces 推論bundleのexport。`train` が生成した同一fold配下の `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` をbundle化する。
+### Space bundle export
 
-```bash
-uv run python -m unidream.cli.export_plan004_space_bundle \
-  --checkpoint-dir checkpoints/main_plan004_residual_bc_ac_s007 \
-  --fold 13 \
-  --seed 7 \
-  --device cuda \
-  --output-dir C:/Users/Sophie/Documents/UniDream/unidream-space/bundles/current
-```
-
-現在のリアルタイムデモは Plan009 depth calibrator bundle を `unidream-space/bundles/current` に配置している。Plan009 bundle を再生成する場合は次を実行する。
+現行 bundle を `unidream-space` に再生成する:
 
 ```bash
 uv run python -m unidream.cli.export_plan009_depth_calibrator_bundle \
@@ -230,96 +119,49 @@ uv run python -m unidream.cli.export_plan009_depth_calibrator_bundle \
   --output-dir /Users/sophie/Documents/UniDream/unidream-space/bundles/current
 ```
 
-Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。Supabase demo 側は raw 15分足 candle を `/predict` に送り、Space runtime が直近60日を取引対象、その前の履歴を past-only guard history として使う。
-
-### 診断 CLI
-
-BC checkpoint を AC に渡す前のチェックや、世界モデルの予測力評価に使う。
+生成後、`unidream-space` 側で sample parity を確認する:
 
 ```bash
-# Route 分類性能 (CE / Macro-F1 / per-route recall)
-uv run python -m unidream.cli.route_probe
+cd /Users/sophie/Documents/UniDream/unidream-space
+PYTHONPATH=/Users/sophie/Documents/UniDream/unidream-space \
+  uv run --with-requirements requirements.txt python -m backend.verify_bundle \
+  --bundle-dir bundles/current \
+  --device cpu \
+  --tolerance 0.000001
+```
 
-# 行動候補別の realized advantage
-uv run python -m unidream.cli.transition_advantage_probe
+### 実験コマンド
 
-# WM linear probe (return / vol / drawdown / regime の予測力)
-uv run python -m unidream.cli.wm_probe
+Plan009 の部品検証:
 
-# State-action critic Q(s,a) の rank IC / top-decile advantage
-uv run python -m unidream.cli.ac_candidate_q_probe
+```bash
+uv run python -m unidream.cli.plan009_component_probe --help
+uv run python -m unidream.cli.plan009_guard_sweep_probe --help
+uv run python -m unidream.cli.plan009_guard_student_probe --help
+uv run python -m unidream.cli.plan009_depth_learner_probe --help
 ```
 
 ## 生成物
 
-実行時に以下が生成される。
-
-- `checkpoints/<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt, plan004_policy.npz, plan004_summary.json}`: 各ステージの checkpoint と採用Plan004 policy
+- `docs_local/*.json`: 実験結果、fold 別 stress、集計
+- `docs_local/*.md`: 実験サマリ
 - `checkpoints/data_cache/`: feature / returns の parquet キャッシュ
-- `documents/logs/`, `documents/route_probe/`, `documents/wm_probe/`, `documents/ac_candidate_q/`: ログ・診断出力
-- `codex_outputs/`: Plan003/Plan004 などの実験JSON/Markdown/log
-- `docs_local/`: Plan009 などのローカル実験JSON/Markdown/log
-- `docs/`: 採用判断・実験サマリ・production移行レポート
-- `__pycache__/`: Python 実行キャッシュ
-- `.venv/`: `uv sync` が作る仮想環境
+- `/Users/sophie/Documents/UniDream/unidream-space/bundles/current`: Space current bundle
 
-`checkpoints/` と `.venv/` は Git 管理対象外。checkpoint は再実行で作り直す前提。
+`checkpoints/`、`docs_local/`、`.venv/` はローカル生成物。
 
 ## 依存
 
 主要依存:
 
-- `torch`: World Model / Actor-Critic / BC
 - `numpy`: 数値計算
 - `pandas`: 時系列データ処理
 - `pandas-ta`: テクニカル特徴量
-- `scikit-learn`: 評価・補助モデル・linear probe
-- `hmmlearn`: regime detection
+- `scikit-learn`: 補助モデル・検証
 - `requests`: Binance API 取得
-- `scipy`: 統計評価
 - `pyyaml`: config 読み込み
 
 依存は [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) で固定する。
-
-## 参考文献
-
-World Model / Imagination AC:
-
-- Hafner et al., "Mastering Diverse Domains through World Models" (DreamerV3, 2023) — symlog / twohot critic / λ-return / EMA target / Imagination AC のベース
-- Hafner et al., "Mastering Atari with Discrete World Models" (DreamerV2, 2021) — discrete latent / KL balancing
-- Vaswani et al., "Attention Is All You Need" (2017) — Transformer dynamics
-- Pathak et al., "Curiosity-driven Exploration by Self-supervised Prediction" (ICM, 2017) — Inverse Dynamics Model (IDM auxiliary loss)
-
-Imitation Learning / Behavior Cloning:
-
-- Pomerleau, "ALVINN: An Autonomous Land Vehicle in a Neural Network" (1989) — Behavior Cloning の起源
-- Ross, Gordon, Bagnell, "A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning" (DAgger, 2011) — BC の covariate shift / inventory state 分布ズレに対応
-- Zhao et al., "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware" (ACT, 2023) — `chunk_size=4` の action chunking
-
-Offline RL / Advantage-weighted Policy Extraction:
-
-- Peng et al., "Advantage-Weighted Regression: Simple and Scalable Off-Policy Reinforcement Learning" (AWR, 2019) — advantage 重み付き BC
-- Nair et al., "AWAC: Accelerating Online Reinforcement Learning with Offline Datasets" (AWAC, 2020) — `transition_advantage_relabel` / `route_advantage_weight_coef` の根拠
-- Kostrikov et al., "Offline Reinforcement Learning with Implicit Q-Learning" (IQL, 2022) — advantage-weighted BC で policy 抽出、UniDream BC 段階の中心的な参考設計
-- Fujimoto et al., "Off-Policy Deep Reinforcement Learning without Exploration" (BCQ, 2019) — 分布外 action 制約
-- Kumar et al., "Stabilizing Off-Policy Q-Learning via Bootstrapping Error Reduction" (BEAR, 2019)
-- Kumar et al., "Conservative Q-Learning for Offline Reinforcement Learning" (CQL, 2020) — `state_action_critic` の CQL-lite penalty
-- Fujimoto and Gu, "A Minimalist Approach to Offline Reinforcement Learning" (TD3+BC, 2021) — `td3bc_alpha` / `prior_kl_coef` の根拠
-- Springenberg et al., "Offline Actor-Critic Reinforcement Learning Scales to Large Models" (ICML 2024) — restricted actor unlock の根拠
-- Chen et al., "Decision Transformer: Reinforcement Learning via Sequence Modeling" (2021)
-
-Reinforcement Learning 一般:
-
-- Sutton and Barto, "Reinforcement Learning: An Introduction" (2nd ed., 2018)
-- Schulman et al., "High-Dimensional Continuous Control Using Generalized Advantage Estimation" (GAE, 2016)
-
-Backtest / 評価:
-
-- Bailey, Borwein, Lopez de Prado, Zhu, "The Probability of Backtest Overfitting" (2014) — PBO
-- Bailey and Lopez de Prado, "The Deflated Sharpe Ratio" (2014) — DSR
-- Lopez de Prado, "Advances in Financial Machine Learning" (2018) — WFO / combinatorial CV / overfitting
-- Pardo, "The Evaluation and Optimization of Trading Strategies" (2008) — Walk-Forward Optimization
-- Hamilton, "A New Approach to the Economic Analysis of Nonstationary Time Series and the Business Cycle" (1989) — HMM regime detection
 
 ## 注意
 

@@ -178,7 +178,7 @@ def export_plan009_depth_calibrator_bundle(
     symbol = str(data_cfg.get("symbol", "BTCUSDT"))
     interval = str(data_cfg.get("interval", "15m"))
     zscore_window = int(cfg.get("normalization", {}).get("zscore_window_days", 60))
-    cache_tag = f"{symbol}_{interval}_{start}_{end}_z{zscore_window}_v2_plan008_latest"
+    cache_tag = f"{symbol}_{interval}_{start}_{end}_z{zscore_window}_v2_plan009_current"
     features_df, raw_returns = load_training_features(
         symbol=symbol,
         interval=interval,
@@ -256,6 +256,9 @@ def export_plan009_depth_calibrator_bundle(
         compressed_payload = json.loads(Path(compressed_eval_json).read_text(encoding="utf-8"))
         shutil.copy2(compressed_eval_json, output / "plan009_eval_compressed_folds0_12.json")
 
+    compressed_aggregate = compressed_payload.get("aggregate", {}) if compressed_payload else {}
+    compressed_stress = compressed_payload.get("stress_aggregate", {}) if compressed_payload else {}
+    current_group = "gap16_next_mindelta010"
     summary = {
         "experiment": "plan009_depth_calibrator_bundle",
         "source_eval": eval_json,
@@ -263,10 +266,10 @@ def export_plan009_depth_calibrator_bundle(
         "depth_by_mode": depth_by_mode,
         "default_depth": default_depth,
         "execution_compression": compression,
-        "dev_aggregate": eval_payload.get("aggregate", {}),
-        "dev_stress_aggregate": eval_payload.get("stress_aggregate", {}),
-        "compressed_aggregate": compressed_payload.get("aggregate", {}) if compressed_payload else {},
-        "compressed_stress_aggregate": compressed_payload.get("stress_aggregate", {}) if compressed_payload else {},
+        "current_aggregate": compressed_aggregate.get(current_group, {}),
+        "current_stress_aggregate": {
+            stress: groups.get(current_group, {}) for stress, groups in compressed_stress.items()
+        },
         "sample": sample_output,
     }
     with open(output / "plan009_summary.json", "w", encoding="utf-8", newline="\n") as f:
@@ -280,11 +283,11 @@ def export_plan009_depth_calibrator_bundle(
         "run": {
             "seed": int(seed),
             "status": "dev_candidate",
-            "source": "plan004_base_plus_plan005_past_guard",
+            "source": "plan009_depth_calibrated_past_only_guard",
             "spec": "plan009_depth_calibrator_dev_f0_12_m48_x2_cap094",
             "no_leak_scope": (
-                "Dev fold0-12 depth selection used validation split only; runtime signals use shifted trailing-return "
-                "features only. Fold0-12 remains a development set, not a pristine holdout claim."
+                "Runtime uses shifted trailing-return features only. Depth settings come from fold0-12 validation-gated "
+                "development probes; fold0-12 remains a development set, not a pristine holdout claim."
             ),
         },
         "data": {
