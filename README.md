@@ -12,7 +12,7 @@ UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior
 
 本流の学習パイプラインは no-leak Plan004 residual BC/AC。単一actor圧縮ではなく、階層base policyを固定し、realized residual advantage をBCで学習したうえで、validation-only の threshold / hold / cooldown extraction を行う。`configs/trading.yaml` では `train` の中で WM → BC → AC → Plan004 extraction → Test を実行し、fold配下に `world_model.pt` / `bc_actor.pt` / `ac.pt` / `plan004_policy.npz` を保存する。
 
-リアルタイムデモの現行採用版は Plan008 recent overlay v2。これは本流checkpointではなく、benchmark position `1.0` に対して `1.06 / 1.00 / 0.94` の小さな deterministic overlay を重ねるデモ用モデル。shifted trailing return だけを使い、30〜60日スパンのライブ挙動に合わせて調整している。Space / Supabase demo では 60日分の評価 window と 1488本の feature warmup を合わせた `7248` 本の 15分足 candle を使う。
+リアルタイムデモの現行採用版は Plan009 depth calibrator。Plan004 base と Plan005 past-only guard の開発結果をもとに、validation-calibrated depth をかける dev candidate bundle として運用する。fold0-12 の開発評価では `AlphaEx >= +3pt && MaxDDDelta <= -3pt` を `13/13` pass、`Alpha median +14.116pt`、`Alpha worst +4.397pt`、`MaxDD worst -3.026pt`。一方で turnover / cost stress は未解決で、`cost_x2` は `8/13`、`cost_x3` は `4/13` pass に落ちる。
 
 ## パイプライン
 
@@ -27,7 +27,7 @@ OHLCV / features
   -> Validation selector
   -> Plan004 residual BC/AC extraction (fixed hierarchy + residual extraction)
   -> Test backtest / M2 scorecard / PBO / regime report
-  -> Space bundle export / Plan008 recent overlay demo validation
+  -> Plan009 depth calibrator dev validation / Space bundle export
 ```
 
 ## ステージごとの責務
@@ -38,8 +38,8 @@ OHLCV / features
 - `bc`: Actor を oracle position に模倣、route head・inventory recovery controller・state machine gate を学習
 - `ac`: World Model 上で imagination actor-critic fine-tune (本流は critic-only / 制限付き actor 解凍)
 - `selector`: validation split で adjust-rate scale を選択、collapse guard / M2 scorecard を反映
-- `research`: Plan004 residual BC/AC など、採用候補の検証本体
-- `deploy`: 本流checkpointからHF Spaces向けbundleを作るexport処理
+- `research`: Plan004 residual BC/AC、Plan005 meta guard、Plan009 depth calibrator など、採用候補の検証本体
+- `deploy`: 本流checkpointまたはPlan009 dev candidateからHF Spaces向けbundleを作るexport処理
 - `test`: test split で backtest、PBO、Deflated Sharpe、HMM regime、M2 scorecard を出力
 
 ## ディレクトリツリー
@@ -59,6 +59,8 @@ UniDream/
     ├── device.py
     ├── cli/
     │   ├── train.py
+    │   ├── plan009_depth_calibrator_probe.py
+    │   ├── export_plan009_depth_calibrator_bundle.py
     │   ├── route_probe.py
     │   ├── wm_probe.py
     │   ├── transition_advantage_probe.py
@@ -83,6 +85,7 @@ UniDream/
     │   └── imagination_ac.py
     ├── research/
     │   ├── plan004_residual_bc_ac.py
+    │   ├── plan005_meta_guard_bc_ac.py
     │   └── plan008_recent_overlay.py
     ├── experiments/
     │   ├── runtime.py
@@ -181,18 +184,21 @@ uv run python -m unidream.cli.train --start-from test --resume --device cuda
 uv run python -m unidream.cli.train --resume --device cuda
 ```
 
-リアルタイムデモ採用中の Plan008 v2 を再現する:
+リアルタイムデモ採用中の Plan009 depth calibrator を再現する:
 
 ```bash
-PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan008_recent_overlay_probe \
+PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan009_depth_calibrator_probe \
   --config configs/trading.yaml \
+  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
   --seed 7 \
-  --returns checkpoints/data_cache/BTCUSDT_15m_2024-01-01_2026-05-21_z60_v2_plan008_latest_returns.parquet \
-  --windows 30,45,60,90,180,365 \
-  --output-json docs_local/20260521_plan008_recent_overlay_latest.json
+  --val-dd-target -4.8 \
+  --safety-multiplier 2.0 \
+  --max-depth-cap 0.94 \
+  --output-json docs_local/20260528_plan009_depth_calibrator_f0_12_m48_x2_cap094.json \
+  --output-md docs_local/20260528_plan009_depth_calibrator_f0_12_m48_x2_cap094.md
 ```
 
-この probe は各 window を standalone 入力として評価する。直近デモ用に調整したモデルなので、pristine holdout の主張ではなく、リアルタイムデモ挙動の再現確認として扱う。
+この probe は fold0-12 の開発検証用。depth は validation split だけで選び、test 指標は report-only として扱う。fold0-12 は開発セットであり、pristine holdout の主張ではない。
 
 ### Plan004 residual BC/AC
 
@@ -216,7 +222,15 @@ uv run python -m unidream.cli.export_plan004_space_bundle \
   --output-dir C:/Users/Sophie/Documents/UniDream/unidream-space/bundles/current
 ```
 
-現在のリアルタイムデモは Plan008 v2 bundle を `unidream-space/bundles/current` に配置している。Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。Supabase demo 側は Edge Function が `7248` 本の candle を `/predict` に送り、Plan008 の `1.06 / 1.00 / 0.94` exposure をそのまま紙取引へ反映する。
+現在のリアルタイムデモは Plan009 depth calibrator bundle を `unidream-space/bundles/current` に配置している。Plan009 bundle を再生成する場合は次を実行する。
+
+```bash
+uv run python -m unidream.cli.export_plan009_depth_calibrator_bundle \
+  --config configs/trading.yaml \
+  --output-dir /Users/sophie/Documents/UniDream/unidream-space/bundles/current
+```
+
+Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。Supabase demo 側は raw 15分足 candle を `/predict` に送り、Space runtime が直近60日を取引対象、その前の履歴を past-only guard history として使う。
 
 ### 診断 CLI
 
@@ -244,6 +258,7 @@ uv run python -m unidream.cli.ac_candidate_q_probe
 - `checkpoints/data_cache/`: feature / returns の parquet キャッシュ
 - `documents/logs/`, `documents/route_probe/`, `documents/wm_probe/`, `documents/ac_candidate_q/`: ログ・診断出力
 - `codex_outputs/`: Plan003/Plan004 などの実験JSON/Markdown/log
+- `docs_local/`: Plan009 などのローカル実験JSON/Markdown/log
 - `docs/`: 採用判断・実験サマリ・production移行レポート
 - `__pycache__/`: Python 実行キャッシュ
 - `.venv/`: `uv sync` が作る仮想環境
