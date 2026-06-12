@@ -566,6 +566,41 @@ fold3途中結果:
 
 fold4は途中で停止。step300 valはAlphaEx +4.44まで残ったが、全体傾向としてv30 ACもfold3でde-risk collapseし、採用不可。
 
+### v31 B&H-relative constrained AC reward
+
+`configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml` を追加。v30のrisk-state直接ペナルティを切り、AC報酬を以下へ寄せた。
+
+- 主目的: WM `excess_bh` reward の相対log wealth
+- 制約: rollout内のB&H相対DD、終端alpha shortfall、tail loss
+- 補助: turnover / flow / 小さいoverlay L2 / 軽いupside-miss
+
+実行:
+
+```bash
+.venv/bin/python -u -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --start 2018-01-01 --end 2024-01-01 \
+  --folds 3 --seed 7 --device cpu \
+  --start-from bc --stop-after test
+```
+
+fold3一次結果:
+
+| stage | AlphaEx | MaxDDDelta | 判断 |
+|---|---:|---:|---|
+| BC-only val | +385.94 | -0.10 | low-turnover overlayとして非常に強い |
+| AC step150 val | +149.54 | - | v30のようなde-risk崩壊は止まったがalpha低下 |
+| AC step300 val | +187.59 | - | alphaは正だがBCを超えない |
+| restore-best/test | +18.86 | +0.22 | val最良はBC。testはDD未改善 |
+
+ログ上のAC rollout exposureは `exp=0.996-1.003` で、route-class時代のunderweight collapseとは違う。つまり報酬関数の方向は以前より健全だが、現実のtest position surfaceではBCを上回る改善として出ていない。
+
+小規模probeからの判断:
+
+- `risk_state penalty` を切ったB&H相対constraint rewardは、少なくともfold3でalpha崩壊を大きく緩和した。
+- ただしAC更新はBC teacherの強いalphaを削り、val selectionではBC初期状態に負ける。
+- 次の検証は、報酬式そのものをさらに強くするより、BC近傍制約を保ったまま「DDイベント時だけoverlayを動かす」actor更新に寄せるべき。具体的には `alpha_final` を高める、AC stepを短くする、またはDDイベント重み付きのconservative policy updateを入れる。
+
 ## 更新判断
 
 - `+3/-3` の材料はfold4局所には何度も出ている。
@@ -573,3 +608,4 @@ fold4は途中で停止。step300 valはAlphaEx +4.44まで残ったが、全体
 - v29のDD-improve utility targetは、val上のDD候補を作るがtestへ移らない。
 - fixed lowfreq selector / GBDT gate / utility allocator / vol-target / risk-budget AC は同じ壁に当たっている。
 - 次にやるなら、単一foldのval選択ではなく、過去複数foldでDDイベントを集約するmeta-validation selector、またはWM targetを「future DDそのもの」ではなく「B&H比のDD改善がalpha lossを上回る局面」のevent labelへ作り直す必要がある。
+- AC側は、v31でde-risk collapse自体は抑えられた。次はBC近傍のconservative updateとDDイベント重み付けを組み合わせ、BCのalphaを削らずにDD局面だけ動かせるかを見る。

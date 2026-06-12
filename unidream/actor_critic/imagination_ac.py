@@ -232,6 +232,12 @@ class ImagACTrainer:
 
         self.reward_objective = str(ac_cfg.get("reward_objective", "legacy")).lower()
         self.logwealth_coef = float(ac_cfg.get("logwealth_coef", 1.0))
+        self.relative_dd_coef = float(ac_cfg.get("relative_dd_coef", 0.0))
+        self.relative_dd_budget = float(ac_cfg.get("relative_dd_budget", 0.0))
+        self.relative_terminal_dd_coef = float(ac_cfg.get("relative_terminal_dd_coef", 0.0))
+        self.alpha_floor_coef = float(ac_cfg.get("alpha_floor_coef", 0.0))
+        self.alpha_floor = float(ac_cfg.get("alpha_floor", 0.0))
+        self.relative_cvar_coef = float(ac_cfg.get("relative_cvar_coef", 0.0))
         self.dd_level_coef = float(ac_cfg.get("dd_level_coef", 0.0))
         self.dd_budget_coef = float(ac_cfg.get("dd_budget_coef", 0.0))
         self.dd_budget = float(ac_cfg.get("dd_budget", 0.0))
@@ -646,6 +652,90 @@ class ImagACTrainer:
         }
         return rewards, diagnostics
 
+    def _relative_constraint_rewards(
+        self,
+        *,
+        net_returns: torch.Tensor,
+        next_inventory: torch.Tensor,
+        rewards_norm: torch.Tensor,
+        advantage0: Optional[torch.Tensor],
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        """B&H relative overlay 用の制約付き報酬を作る。
+
+        reward_mode=excess_bh の WM reward を前提に、rollout 内の相対
+        log wealth を主目的、相対DD/終端alpha shortfallを制約として扱う。
+        """
+        reward_scale = max(float(self.reward_ema.scale), 1e-8)
+        horizon = max(1, int(net_returns.shape[1]))
+        excess_logwealth = torch.log1p(net_returns.clamp(min=-0.95))
+        rewards = self.logwealth_coef * (excess_logwealth / reward_scale)
+        if self.logwealth_coef == 0.0:
+            rewards = rewards_norm
+
+        cum_excess = excess_logwealth.cumsum(dim=1)
+        zero = torch.zeros_like(cum_excess[:, :1])
+        path = torch.cat([zero, cum_excess], dim=1)
+        running_peak = path.cummax(dim=1).values[:, 1:]
+        relative_dd = (running_peak - cum_excess).clamp(min=0.0)
+
+        if self.relative_dd_coef > 0.0:
+            dd_excess = F.relu(relative_dd - self.relative_dd_budget)
+            rewards = rewards - self.relative_dd_coef * (dd_excess / reward_scale)
+        if self.relative_terminal_dd_coef > 0.0 and relative_dd.shape[1] > 0:
+            terminal_dd = relative_dd[:, -1:].expand_as(relative_dd)
+            rewards = rewards - self.relative_terminal_dd_coef * (terminal_dd / reward_scale)
+        if self.alpha_floor_coef > 0.0 and cum_excess.shape[1] > 0:
+            terminal_excess = cum_excess[:, -1:]
+            alpha_shortfall = F.relu(self.alpha_floor - terminal_excess).expand_as(cum_excess)
+            rewards = rewards - self.alpha_floor_coef * (alpha_shortfall / reward_scale) / float(horizon)
+        if self.relative_cvar_coef > 0.0:
+            tail = F.relu((-net_returns) - self.tail_margin)
+            rewards = rewards - self.relative_cvar_coef * (tail / reward_scale)
+
+        if self.overlay_l2_coef > 0.0:
+            rewards = rewards - self.overlay_l2_coef * next_inventory.pow(2)
+        if self.short_l1_coef > 0.0:
+            rewards = rewards - self.short_l1_coef * F.relu(-next_inventory)
+        if self.overweight_l1_coef > 0.0:
+            rewards = rewards - self.overweight_l1_coef * F.relu(next_inventory)
+
+        abs_position = next_inventory + self.benchmark_position
+        if self.abs_exposure_l2_coef > 0.0:
+            rewards = rewards - self.abs_exposure_l2_coef * abs_position.pow(2)
+        risk_state = self._risk_state_from_advantage(advantage0, next_inventory)
+        if self.risk_state_exposure_coef > 0.0:
+            rewards = rewards - self.risk_state_exposure_coef * risk_state * abs_position.pow(2)
+        if self.risk_tilt_coef > 0.0:
+            rewards = rewards - self.risk_tilt_coef * risk_state * next_inventory
+        edge_state = self._signed_state_from_advantage(
+            advantage0,
+            next_inventory,
+            self.edge_state_indices,
+            center=self.edge_state_center,
+            scale=self.edge_state_scale,
+        )
+        if self.edge_overlay_coef > 0.0:
+            rewards = rewards + self.edge_overlay_coef * edge_state * next_inventory
+
+        terminal_excess_mean = cum_excess[:, -1].detach().mean().item() if cum_excess.shape[1] > 0 else 0.0
+        alpha_shortfall_mean = (
+            F.relu(self.alpha_floor - cum_excess[:, -1]).detach().mean().item()
+            if cum_excess.shape[1] > 0
+            else 0.0
+        )
+        diagnostics = {
+            "rc_excess": float(excess_logwealth.detach().mean().item()),
+            "rc_rel_dd": float(relative_dd.detach().mean().item()),
+            "rc_terminal_excess": float(terminal_excess_mean),
+            "rc_alpha_shortfall": float(alpha_shortfall_mean),
+            "rb_logwealth": float(excess_logwealth.detach().mean().item()),
+            "rb_dd": float(relative_dd.detach().mean().item()),
+            "rb_risk_state": float(risk_state.detach().mean().item()),
+            "rb_edge_state": float(edge_state.detach().mean().item()),
+            "rb_abs_exposure": float(abs_position.detach().abs().mean().item()),
+        }
+        return rewards, diagnostics
+
     def _bc_loss_batch(self, batch_size: int = 128) -> torch.Tensor:
         """Oracle データからランダムサンプルして BC 損失を計算する."""
         if self._oracle_z is None:
@@ -885,6 +975,13 @@ class ImagACTrainer:
         rewards_norm = net_returns / self.reward_ema.scale
         if self.reward_objective in {"risk_budget", "risk_budget_overlay"}:
             rewards_for_ac, reward_diag = self._risk_budget_rewards(
+                net_returns=net_returns,
+                next_inventory=next_inventory,
+                rewards_norm=rewards_norm,
+                advantage0=advantage0,
+            )
+        elif self.reward_objective in {"relative_constraint", "bh_relative_constraint", "constrained_relative"}:
+            rewards_for_ac, reward_diag = self._relative_constraint_rewards(
                 net_returns=net_returns,
                 next_inventory=next_inventory,
                 rewards_norm=rewards_norm,
