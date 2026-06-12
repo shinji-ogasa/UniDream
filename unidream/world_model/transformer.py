@@ -223,6 +223,7 @@ class TransformerWorldModel(nn.Module):
         encoder_layers: int = 2,
     ):
         super().__init__()
+        self.obs_dim = int(obs_dim)
         self.n_categoricals = n_categoricals
         self.n_classes = n_classes
         self.z_dim = n_categoricals * n_classes

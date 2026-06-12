@@ -173,6 +173,7 @@ class Actor(nn.Module):
                 dtype=ref.dtype,
                 device=ref.device,
             )
+        advantage = torch.nan_to_num(advantage, nan=0.0, posinf=0.0, neginf=0.0)
         if advantage.ndim == ref.ndim - 1:
             advantage = advantage.unsqueeze(-1)
         if advantage.shape[-1] == self.advantage_dim:
@@ -191,6 +192,7 @@ class Actor(nn.Module):
     ) -> torch.Tensor:
         if inventory is None:
             return torch.zeros(*ref.shape[:-1], self.inventory_dim, dtype=ref.dtype, device=ref.device)
+        inventory = torch.nan_to_num(inventory, nan=0.0, posinf=0.0, neginf=0.0)
         if inventory.ndim == ref.ndim - 1:
             inventory = inventory.unsqueeze(-1)
         if inventory.shape[-1] == self.inventory_dim:
@@ -359,6 +361,8 @@ class Actor(nn.Module):
         regime: torch.Tensor | None = None,
         advantage: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        z = torch.nan_to_num(z, nan=0.0, posinf=0.0, neginf=0.0)
+        h = torch.nan_to_num(h, nan=0.0, posinf=0.0, neginf=0.0)
         inventory = self._ensure_controller_state(inventory, z)
         advantage = self._ensure_advantage(advantage, z)
 
@@ -366,6 +370,7 @@ class Actor(nn.Module):
         if self.regime_dim > 0:
             if regime is None:
                 regime = torch.zeros(*z.shape[:-1], self.regime_dim, dtype=z.dtype, device=z.device)
+            regime = torch.nan_to_num(regime, nan=0.0, posinf=0.0, neginf=0.0)
             parts.append(regime)
         if advantage is not None and self.advantage_adapter is None:
             if self.advantage_input_mode != "route_gate":
@@ -374,6 +379,7 @@ class Actor(nn.Module):
         hidden = self.trunk(x)
         if advantage is not None and self.advantage_adapter is not None:
             hidden = hidden + self.advantage_adapter(advantage)
+        hidden = torch.nan_to_num(hidden, nan=0.0, posinf=0.0, neginf=0.0)
         return hidden, inventory
 
     def _target_overlay_values_tensor(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
@@ -819,6 +825,11 @@ class Actor(nn.Module):
                 temperature=temperature,
             )
         )
+        trade_logits = torch.nan_to_num(trade_logits, nan=0.0, posinf=20.0, neginf=-20.0)
+        target_mean = torch.nan_to_num(target_mean, nan=0.0, posinf=0.0, neginf=0.0)
+        target_std = torch.nan_to_num(target_std, nan=0.05, posinf=0.25, neginf=0.05)
+        band_width = torch.nan_to_num(band_width, nan=0.05, posinf=0.2, neginf=0.02)
+        current_inventory = torch.nan_to_num(current_inventory, nan=0.0, posinf=0.0, neginf=0.0)
         return trade_logits, target_mean, target_std, band_width, current_inventory
 
     def target_mode_logits(
@@ -956,6 +967,8 @@ class Actor(nn.Module):
         target_mean: torch.Tensor,
         target_std: torch.Tensor,
     ) -> Normal:
+        target_mean = torch.nan_to_num(target_mean, nan=0.0, posinf=0.0, neginf=0.0)
+        target_std = torch.nan_to_num(target_std, nan=0.05, posinf=0.25, neginf=0.05)
         return Normal(loc=target_mean, scale=target_std.clamp_min(1e-4))
 
     def _bounded_step(self, gap: torch.Tensor) -> torch.Tensor:
@@ -1210,6 +1223,11 @@ class Actor(nn.Module):
         trade_logits, target_mean, target_std, band_width, current_inventory = self.controller_outputs(
             z, h, inventory=inventory, regime=regime, advantage=advantage
         )
+        trade_logits = torch.nan_to_num(trade_logits, nan=0.0, posinf=20.0, neginf=-20.0)
+        target_mean = torch.nan_to_num(target_mean, nan=0.0, posinf=0.0, neginf=0.0)
+        target_std = torch.nan_to_num(target_std, nan=0.05, posinf=0.25, neginf=0.05)
+        band_width = torch.nan_to_num(band_width, nan=0.05, posinf=0.2, neginf=0.02)
+        current_inventory = torch.nan_to_num(current_inventory, nan=0.0, posinf=0.0, neginf=0.0)
         trade_base = Bernoulli(logits=trade_logits)
         relax_temp = torch.as_tensor(
             float(getattr(self, "adjustment_temperature", 0.25)),

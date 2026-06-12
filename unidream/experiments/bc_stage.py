@@ -6,6 +6,11 @@ import numpy as np
 import torch
 
 from unidream.actor_critic.bc_pretrain import BCPretrainer
+from unidream.experiments.overlay_teacher import (
+    apply_benchmark_overlay_teacher,
+    benchmark_overlay_teacher_enabled,
+    describe_benchmark_overlay_teacher,
+)
 
 
 def build_bc_trainer(
@@ -97,6 +102,7 @@ def build_bc_trainer(
         recovery_execution_coef=bc_cfg.get("recovery_execution_coef", 0.0),
         recovery_underweight_margin=bc_cfg.get("recovery_underweight_margin", 0.05),
         recovery_target_margin=bc_cfg.get("recovery_target_margin", 0.05),
+        residual_target_loss_scale=bc_cfg.get("residual_target_loss_scale", 1.0),
         route_target_coef=bc_cfg.get("route_target_coef", 0.0),
         route_advantage_weight_coef=bc_cfg.get("route_advantage_weight_coef", 0.0),
         route_advantage_clip=bc_cfg.get("route_advantage_clip", 2.0),
@@ -170,6 +176,7 @@ def run_bc_stage(
     oracle_soft_labels,
     bc_sample_quality,
     bc_advantage_values,
+    train_returns=None,
     train_route_labels=None,
     train_route_soft_labels=None,
     train_route_advantage=None,
@@ -199,10 +206,21 @@ def run_bc_stage(
             _reinitialize_actor_prefixes(actor, reinit_prefixes)
         print(f"\n[{log_ts()}] [Step 3] BC Pre-training...")
         t_enc = min(len(z_train), len(oracle_positions))
+        train_positions = np.asarray(oracle_positions[:t_enc], dtype=np.float32)
+        if benchmark_overlay_teacher_enabled(bc_cfg, ac_cfg):
+            train_positions = apply_benchmark_overlay_teacher(
+                train_positions,
+                bc_cfg=bc_cfg,
+                ac_cfg=ac_cfg,
+                reward_cfg=reward_cfg,
+                advantage_values=bc_advantage_values[:t_enc] if bc_advantage_values is not None else None,
+                returns=train_returns[:t_enc] if train_returns is not None else None,
+            )
+            print(f"[BC] {describe_benchmark_overlay_teacher(oracle_positions[:t_enc], train_positions, reward_cfg=reward_cfg)}")
         bc_trainer.train(
             z=z_train[:t_enc],
             h=h_train[:t_enc],
-            oracle_positions=oracle_positions[:t_enc],
+            oracle_positions=train_positions,
             regime_probs=train_regime_probs[:t_enc] if train_regime_probs is not None else None,
             soft_labels=oracle_soft_labels[:t_enc] if oracle_soft_labels is not None else None,
             sample_quality=bc_sample_quality[:t_enc] if bc_sample_quality is not None else None,

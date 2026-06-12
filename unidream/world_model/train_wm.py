@@ -56,15 +56,16 @@ class ReturnHead(nn.Module):
     WM の潜在表現に将来リターンの情報を埋め込む。
     """
 
-    def __init__(self, z_dim: int, d_model: int, hidden: int, out_dim: int = 1):
+    def __init__(self, z_dim: int, d_model: int, hidden: int, out_dim: int = 1, obs_dim: int = 0):
         super().__init__()
+        self.obs_dim = int(obs_dim)
         self.net = nn.Sequential(
-            nn.Linear(z_dim + d_model, hidden),
+            nn.Linear(z_dim + d_model + self.obs_dim, hidden),
             nn.ELU(),
             nn.Linear(hidden, out_dim),
         )
 
-    def forward(self, z: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+    def forward(self, z: torch.Tensor, h: torch.Tensor, obs: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
             z: (B, T, z_dim)
@@ -72,7 +73,14 @@ class ReturnHead(nn.Module):
         Returns:
             pred: (B, T, out_dim)
         """
-        return self.net(torch.cat([z, h], dim=-1))
+        parts = [z, h]
+        if self.obs_dim > 0:
+            if obs is None:
+                obs_part = torch.zeros(*z.shape[:-1], self.obs_dim, dtype=z.dtype, device=z.device)
+            else:
+                obs_part = torch.nan_to_num(obs[..., : self.obs_dim].to(dtype=z.dtype), nan=0.0, posinf=0.0, neginf=0.0)
+            parts.append(obs_part)
+        return self.net(torch.cat(parts, dim=-1))
 
 
 class RegimeHead(nn.Module):
@@ -150,6 +158,9 @@ class WorldModelTrainer:
         self.recon_scale = wm_cfg.get("recon_scale", 1.0)
         self.reward_scale = wm_cfg.get("reward_scale", 1.0)
         self.done_scale = wm_cfg.get("done_scale", 1.0)
+        self.aux_use_raw_features = bool(wm_cfg.get("aux_use_raw_features", False))
+        model0 = self.ensemble.models[0] if getattr(self.ensemble, "models", None) else None
+        self.aux_raw_obs_dim = int(getattr(model0, "obs_dim", 0)) if self.aux_use_raw_features else 0
 
         # Auxiliary loss スケール
         self.idm_scale = wm_cfg.get("idm_scale", 0.0)
@@ -162,6 +173,28 @@ class WorldModelTrainer:
         self.return_target_scale = float(wm_cfg.get("return_target_scale", 1.0))
         self.vol_scale = float(wm_cfg.get("vol_scale", 0.0))
         self.drawdown_scale = float(wm_cfg.get("drawdown_scale", 0.0))
+        self.crash_scale = float(wm_cfg.get("crash_scale", 0.0))
+        self.crash_threshold = float(wm_cfg.get("crash_threshold", 0.012))
+        self.crash_pos_weight = float(wm_cfg.get("crash_pos_weight", 1.0))
+        self.drawdown_excess_scale = float(wm_cfg.get("drawdown_excess_scale", 0.0))
+        self.drawdown_excess_threshold = float(
+            wm_cfg.get("drawdown_excess_threshold", self.crash_threshold)
+        )
+        self.position_utility_scale = float(wm_cfg.get("position_utility_scale", 0.0))
+        self.position_utility_positions = [
+            float(x) for x in wm_cfg.get("position_utility_positions", [0.0, 0.5, 0.85, 1.0, 1.06])
+        ]
+        self.position_utility_horizon = int(wm_cfg.get("position_utility_horizon", 32))
+        self.position_utility_dd_penalty = float(wm_cfg.get("position_utility_dd_penalty", 1.0))
+        self.position_utility_dd_improve_reward = float(wm_cfg.get("position_utility_dd_improve_reward", 0.0))
+        self.position_utility_vol_penalty = float(wm_cfg.get("position_utility_vol_penalty", 0.25))
+        self.position_utility_target_scale = float(
+            wm_cfg.get("position_utility_target_scale", self.return_target_scale)
+        )
+        self.position_utility_positive_weight = float(wm_cfg.get("position_utility_positive_weight", 0.0))
+        self.position_utility_nonbench_weight = float(wm_cfg.get("position_utility_nonbench_weight", 0.0))
+        self.position_utility_rank_scale = float(wm_cfg.get("position_utility_rank_scale", 0.0))
+        self.position_utility_rank_margin = float(wm_cfg.get("position_utility_rank_margin", 0.0))
         self.overweight_advantage_scale = float(wm_cfg.get("overweight_advantage_scale", 0.0))
         self.recovery_scale = float(wm_cfg.get("recovery_scale", 0.0))
         self.risk_horizons = [
@@ -209,6 +242,7 @@ class WorldModelTrainer:
                 d_model,
                 hidden=256,
                 out_dim=len(self.return_horizons),
+                obs_dim=self.aux_raw_obs_dim,
             ).to(self.device)
             aux_params.extend(self.return_head.parameters())
         else:
@@ -220,6 +254,7 @@ class WorldModelTrainer:
                 d_model,
                 hidden=256,
                 out_dim=len(self.risk_horizons),
+                obs_dim=self.aux_raw_obs_dim,
             ).to(self.device)
             aux_params.extend(self.vol_head.parameters())
         else:
@@ -231,10 +266,47 @@ class WorldModelTrainer:
                 d_model,
                 hidden=256,
                 out_dim=len(self.risk_horizons),
+                obs_dim=self.aux_raw_obs_dim,
             ).to(self.device)
             aux_params.extend(self.drawdown_head.parameters())
         else:
             self.drawdown_head = None
+
+        if self.crash_scale > 0.0:
+            self.crash_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.risk_horizons),
+                obs_dim=self.aux_raw_obs_dim,
+            ).to(self.device)
+            aux_params.extend(self.crash_head.parameters())
+        else:
+            self.crash_head = None
+
+        if self.drawdown_excess_scale > 0.0:
+            self.drawdown_excess_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.risk_horizons),
+                obs_dim=self.aux_raw_obs_dim,
+            ).to(self.device)
+            aux_params.extend(self.drawdown_excess_head.parameters())
+        else:
+            self.drawdown_excess_head = None
+
+        if self.position_utility_scale > 0.0:
+            self.position_utility_head = ReturnHead(
+                z_dim,
+                d_model,
+                hidden=256,
+                out_dim=len(self.position_utility_positions),
+                obs_dim=self.aux_raw_obs_dim,
+            ).to(self.device)
+            aux_params.extend(self.position_utility_head.parameters())
+        else:
+            self.position_utility_head = None
 
         if self.overweight_advantage_scale > 0.0:
             self.overweight_advantage_head = ReturnHead(
@@ -242,6 +314,7 @@ class WorldModelTrainer:
                 d_model,
                 hidden=256,
                 out_dim=len(self.risk_horizons),
+                obs_dim=self.aux_raw_obs_dim,
             ).to(self.device)
             aux_params.extend(self.overweight_advantage_head.parameters())
         else:
@@ -253,6 +326,7 @@ class WorldModelTrainer:
                 d_model,
                 hidden=256,
                 out_dim=len(self.risk_horizons),
+                obs_dim=self.aux_raw_obs_dim,
             ).to(self.device)
             aux_params.extend(self.recovery_head.parameters())
         else:
@@ -268,7 +342,15 @@ class WorldModelTrainer:
             for param in self.ensemble.parameters():
                 param.requires_grad_(False)
         if bool(wm_cfg.get("freeze_standard_predictive_heads", False)):
-            for head in (self.return_head, self.vol_head, self.drawdown_head, self.regime_head):
+            for head in (
+                self.return_head,
+                self.vol_head,
+                self.drawdown_head,
+                self.crash_head,
+                self.drawdown_excess_head,
+                self.position_utility_head,
+                self.regime_head,
+            ):
                 if head is not None:
                     for param in head.parameters():
                         param.requires_grad_(False)
@@ -351,11 +433,13 @@ class WorldModelTrainer:
     def _future_risk_targets(
         self,
         raw_returns: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Build future realized volatility and drawdown-risk targets."""
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Build future realized volatility, drawdown, and crash-risk targets."""
         B, T = raw_returns.shape
         vol_targets = []
         dd_targets = []
+        crash_targets = []
+        dd_excess_targets = []
         masks = []
         for horizon in self.risk_horizons:
             horizon = max(1, int(horizon))
@@ -373,12 +457,20 @@ class WorldModelTrainer:
             mask = torch.zeros((B, T), dtype=torch.bool, device=raw_returns.device)
             if valid_len > 0:
                 mask[:, :valid_len] = True
+            drawdown = -min_cum
             vol_targets.append(torch.sqrt(sq_sum / float(horizon) + 1e-12) * self.risk_target_scale)
-            dd_targets.append((-min_cum) * self.risk_target_scale)
+            dd_targets.append(drawdown * self.risk_target_scale)
+            crash_targets.append((drawdown >= float(self.crash_threshold)).to(raw_returns.dtype))
+            dd_excess_targets.append(
+                torch.clamp(drawdown - float(self.drawdown_excess_threshold), min=0.0)
+                * self.risk_target_scale
+            )
             masks.append(mask)
         return (
             torch.stack(vol_targets, dim=-1),
             torch.stack(dd_targets, dim=-1),
+            torch.stack(crash_targets, dim=-1),
+            torch.stack(dd_excess_targets, dim=-1),
             torch.stack(masks, dim=-1),
         )
 
@@ -431,6 +523,68 @@ class WorldModelTrainer:
             torch.stack(masks, dim=-1),
         )
 
+    def _future_position_utility_targets(
+        self,
+        raw_returns: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Build candidate absolute-position utility targets.
+
+        The target is benchmark-relative utility over a forward window:
+        overlay return minus one-way rebalance cost, drawdown worsening, and
+        volatility exposure. It is used only for supervised WM auxiliary
+        learning; train/val/test policy selection still uses past/current
+        features and validation thresholds.
+        """
+        B, T = raw_returns.shape
+        horizon = max(1, int(self.position_utility_horizon))
+        cum = torch.zeros_like(raw_returns)
+        sq_sum = torch.zeros_like(raw_returns)
+        utility_parts = []
+        path_cums: dict[float, torch.Tensor] = {}
+        positions = sorted(set([float(self.benchmark_position), *self.position_utility_positions]))
+        for pos in positions:
+            path_cums[pos] = torch.zeros((B, T, horizon + 1), dtype=raw_returns.dtype, device=raw_returns.device)
+
+        running = {pos: torch.zeros_like(raw_returns) for pos in positions}
+        for k in range(1, horizon + 1):
+            if k < T:
+                shifted = torch.zeros_like(raw_returns)
+                shifted[:, : T - k] = raw_returns[:, k:]
+                cum = cum + shifted
+                sq_sum = sq_sum + shifted.square()
+                for pos in positions:
+                    running[pos] = running[pos] + shifted * float(pos)
+                    path_cums[pos][:, :, k] = running[pos]
+
+        bench_path = path_cums[float(self.benchmark_position)]
+        bench_peak = torch.cummax(bench_path, dim=-1).values
+        bench_dd = (bench_peak - bench_path).amax(dim=-1)
+        future_vol = torch.sqrt(sq_sum / float(horizon) + 1e-12)
+
+        for pos in self.position_utility_positions:
+            pos = float(pos)
+            path = path_cums[pos]
+            peak = torch.cummax(path, dim=-1).values
+            dd = (peak - path).amax(dim=-1)
+            dd_worsen = F.relu(dd - bench_dd)
+            dd_improve = F.relu(bench_dd - dd)
+            overlay = pos - float(self.benchmark_position)
+            trade_cost = abs(overlay) * float(self.cost_rate)
+            utility = (
+                overlay * cum
+                - trade_cost
+                - float(self.position_utility_dd_penalty) * dd_worsen
+                + float(self.position_utility_dd_improve_reward) * dd_improve
+                - float(self.position_utility_vol_penalty) * abs(overlay) * future_vol
+            )
+            utility_parts.append(utility * self.position_utility_target_scale)
+
+        valid_len = T - horizon
+        mask = torch.zeros((B, T), dtype=torch.bool, device=raw_returns.device)
+        if valid_len > 0:
+            mask[:, :valid_len] = True
+        return torch.stack(utility_parts, dim=-1), mask.unsqueeze(-1).expand(-1, -1, len(utility_parts))
+
     @staticmethod
     def _masked_smooth_l1(
         pred: torch.Tensor,
@@ -441,6 +595,74 @@ class WorldModelTrainer:
         if not torch.any(valid):
             return pred.sum() * 0.0
         return F.smooth_l1_loss(pred[valid], target[valid])
+
+    def _position_utility_loss(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        valid = mask & torch.isfinite(target) & torch.isfinite(pred)
+        if not torch.any(valid):
+            return pred.sum() * 0.0
+
+        per_elem = F.smooth_l1_loss(pred, target, reduction="none")
+        weights = torch.ones_like(per_elem)
+        if self.position_utility_positive_weight > 0.0:
+            weights = weights + float(self.position_utility_positive_weight) * (
+                target > float(self.position_utility_rank_margin)
+            ).to(weights.dtype)
+
+        bench_idx = int(
+            min(
+                range(len(self.position_utility_positions)),
+                key=lambda i: abs(float(self.position_utility_positions[i]) - float(self.benchmark_position)),
+            )
+        )
+        row_valid = torch.all(valid, dim=-1)
+        target_best = torch.argmax(target, dim=-1)
+        target_best_value = torch.gather(target, -1, target_best.unsqueeze(-1)).squeeze(-1)
+        bench_value = target[..., bench_idx]
+        best_improvement = target_best_value - bench_value
+        row_weight = torch.ones_like(best_improvement)
+        if self.position_utility_nonbench_weight > 0.0:
+            nonbench = target_best != bench_idx
+            actionable = best_improvement > float(self.position_utility_rank_margin)
+            row_weight = row_weight + float(self.position_utility_nonbench_weight) * (nonbench & actionable).to(
+                row_weight.dtype
+            )
+        weights = weights * row_weight.unsqueeze(-1)
+
+        denom = torch.clamp(weights[valid].sum(), min=1e-6)
+        regression_loss = (per_elem[valid] * weights[valid]).sum() / denom
+        if self.position_utility_rank_scale <= 0.0 or not torch.any(row_valid):
+            return regression_loss
+
+        logits = pred[row_valid]
+        labels = target_best[row_valid]
+        ce = F.cross_entropy(logits, labels, reduction="none")
+        ce_weight = row_weight[row_valid]
+        rank_loss = (ce * ce_weight).sum() / torch.clamp(ce_weight.sum(), min=1e-6)
+        return regression_loss + float(self.position_utility_rank_scale) * rank_loss
+
+    @staticmethod
+    def _masked_bce_with_logits(
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        pos_weight: float = 1.0,
+    ) -> torch.Tensor:
+        valid = mask & torch.isfinite(target) & torch.isfinite(pred)
+        if not torch.any(valid):
+            return pred.sum() * 0.0
+        weight = None
+        if float(pos_weight) > 0.0 and abs(float(pos_weight) - 1.0) > 1e-8:
+            weight = torch.where(
+                target[valid] > 0.5,
+                torch.full_like(target[valid], float(pos_weight)),
+                torch.ones_like(target[valid]),
+            )
+        return F.binary_cross_entropy_with_logits(pred[valid], target[valid], weight=weight)
 
     def train_on_dataset(
         self,
@@ -545,6 +767,9 @@ class WorldModelTrainer:
                 return_loss_val = 0.0
                 vol_loss_val = 0.0
                 drawdown_loss_val = 0.0
+                crash_loss_val = 0.0
+                drawdown_excess_loss_val = 0.0
+                position_utility_loss_val = 0.0
                 overweight_advantage_loss_val = 0.0
                 recovery_loss_val = 0.0
                 regime_loss_val = 0.0
@@ -553,6 +778,9 @@ class WorldModelTrainer:
                     self.return_head is not None
                     or self.vol_head is not None
                     or self.drawdown_head is not None
+                    or self.crash_head is not None
+                    or self.drawdown_excess_head is not None
+                    or self.position_utility_head is not None
                     or self.overweight_advantage_head is not None
                     or self.recovery_head is not None
                     or self.regime_head is not None
@@ -579,23 +807,60 @@ class WorldModelTrainer:
                         h = out_h["h"]  # (B, T, d_model)
                     if self.return_head is not None and raw_returns is not None and h is not None:
                         target, mask = self._future_return_targets(raw_returns)
-                        pred = self.return_head(z, h)
+                        pred = self.return_head(z, h, obs)
                         return_loss = self._masked_smooth_l1(pred, target, mask)
                         total_loss = total_loss + self.return_scale * return_loss
                         return_loss_val = return_loss.item()
 
-                    if (self.vol_head is not None or self.drawdown_head is not None) and raw_returns is not None and h is not None:
-                        vol_target, dd_target, risk_mask = self._future_risk_targets(raw_returns)
+                    if (
+                        (
+                            self.vol_head is not None
+                            or self.drawdown_head is not None
+                            or self.crash_head is not None
+                            or self.drawdown_excess_head is not None
+                        )
+                        and raw_returns is not None
+                        and h is not None
+                    ):
+                        vol_target, dd_target, crash_target, dd_excess_target, risk_mask = (
+                            self._future_risk_targets(raw_returns)
+                        )
                         if self.vol_head is not None:
-                            vol_pred = self.vol_head(z, h)
+                            vol_pred = self.vol_head(z, h, obs)
                             vol_loss = self._masked_smooth_l1(vol_pred, vol_target, risk_mask)
                             total_loss = total_loss + self.vol_scale * vol_loss
                             vol_loss_val = vol_loss.item()
                         if self.drawdown_head is not None:
-                            dd_pred = self.drawdown_head(z, h)
+                            dd_pred = self.drawdown_head(z, h, obs)
                             drawdown_loss = self._masked_smooth_l1(dd_pred, dd_target, risk_mask)
                             total_loss = total_loss + self.drawdown_scale * drawdown_loss
                             drawdown_loss_val = drawdown_loss.item()
+                        if self.crash_head is not None:
+                            crash_pred = self.crash_head(z, h, obs)
+                            crash_loss = self._masked_bce_with_logits(
+                                crash_pred,
+                                crash_target,
+                                risk_mask,
+                                pos_weight=self.crash_pos_weight,
+                            )
+                            total_loss = total_loss + self.crash_scale * crash_loss
+                            crash_loss_val = crash_loss.item()
+                        if self.drawdown_excess_head is not None:
+                            dd_excess_pred = self.drawdown_excess_head(z, h, obs)
+                            dd_excess_loss = self._masked_smooth_l1(
+                                dd_excess_pred,
+                                dd_excess_target,
+                                risk_mask,
+                            )
+                            total_loss = total_loss + self.drawdown_excess_scale * dd_excess_loss
+                            drawdown_excess_loss_val = dd_excess_loss.item()
+
+                    if self.position_utility_head is not None and raw_returns is not None and h is not None:
+                        utility_target, utility_mask = self._future_position_utility_targets(raw_returns)
+                        utility_pred = self.position_utility_head(z, h, obs)
+                        utility_loss = self._position_utility_loss(utility_pred, utility_target, utility_mask)
+                        total_loss = total_loss + self.position_utility_scale * utility_loss
+                        position_utility_loss_val = utility_loss.item()
 
                     if (
                         (self.overweight_advantage_head is not None or self.recovery_head is not None)
@@ -604,12 +869,12 @@ class WorldModelTrainer:
                     ):
                         ow_target, recovery_target, control_mask = self._future_control_targets(raw_returns)
                         if self.overweight_advantage_head is not None:
-                            ow_pred = self.overweight_advantage_head(z, h)
+                            ow_pred = self.overweight_advantage_head(z, h, obs)
                             ow_loss = self._masked_smooth_l1(ow_pred, ow_target, control_mask)
                             total_loss = total_loss + self.overweight_advantage_scale * ow_loss
                             overweight_advantage_loss_val = ow_loss.item()
                         if self.recovery_head is not None:
-                            recovery_pred = self.recovery_head(z, h)
+                            recovery_pred = self.recovery_head(z, h, obs)
                             recovery_loss = self._masked_smooth_l1(recovery_pred, recovery_target, control_mask)
                             total_loss = total_loss + self.recovery_scale * recovery_loss
                             recovery_loss_val = recovery_loss.item()
@@ -640,6 +905,9 @@ class WorldModelTrainer:
                     "return_loss": return_loss_val,
                     "vol_loss": vol_loss_val,
                     "drawdown_loss": drawdown_loss_val,
+                    "crash_loss": crash_loss_val,
+                    "drawdown_excess_loss": drawdown_excess_loss_val,
+                    "position_utility_loss": position_utility_loss_val,
                     "overweight_advantage_loss": overweight_advantage_loss_val,
                     "recovery_loss": recovery_loss_val,
                     "regime_loss": regime_loss_val,
@@ -658,6 +926,12 @@ class WorldModelTrainer:
                         aux_str += f" | Vol: {log['vol_loss']:.4f}"
                     if self.drawdown_head is not None:
                         aux_str += f" | DD: {log['drawdown_loss']:.4f}"
+                    if self.crash_head is not None:
+                        aux_str += f" | Crash: {log['crash_loss']:.4f}"
+                    if self.drawdown_excess_head is not None:
+                        aux_str += f" | DDEx: {log['drawdown_excess_loss']:.4f}"
+                    if self.position_utility_head is not None:
+                        aux_str += f" | PosU: {log['position_utility_loss']:.4f}"
                     if self.overweight_advantage_head is not None:
                         aux_str += f" | OWA: {log['overweight_advantage_loss']:.4f}"
                     if self.recovery_head is not None:
@@ -765,6 +1039,9 @@ class WorldModelTrainer:
                 self.return_head is not None
                 or self.vol_head is not None
                 or self.drawdown_head is not None
+                or self.crash_head is not None
+                or self.drawdown_excess_head is not None
+                or self.position_utility_head is not None
                 or self.overweight_advantage_head is not None
                 or self.recovery_head is not None
                 or self.regime_head is not None
@@ -774,38 +1051,71 @@ class WorldModelTrainer:
                 h = self.ensemble.forward(z, actions)["h"]
                 if self.return_head is not None and raw_returns is not None:
                     target, mask = self._future_return_targets(raw_returns)
-                    pred = self.return_head(z, h)
+                    pred = self.return_head(z, h, obs)
                     total_loss = total_loss + self.return_scale * self._masked_smooth_l1(pred, target, mask)
-                if (self.vol_head is not None or self.drawdown_head is not None) and raw_returns is not None:
-                    vol_target, dd_target, risk_mask = self._future_risk_targets(raw_returns)
+                if (
+                    (
+                        self.vol_head is not None
+                        or self.drawdown_head is not None
+                        or self.crash_head is not None
+                        or self.drawdown_excess_head is not None
+                    )
+                    and raw_returns is not None
+                ):
+                    vol_target, dd_target, crash_target, dd_excess_target, risk_mask = (
+                        self._future_risk_targets(raw_returns)
+                    )
                     if self.vol_head is not None:
-                        vol_pred = self.vol_head(z, h)
+                        vol_pred = self.vol_head(z, h, obs)
                         total_loss = total_loss + self.vol_scale * self._masked_smooth_l1(
                             vol_pred,
                             vol_target,
                             risk_mask,
                         )
                     if self.drawdown_head is not None:
-                        dd_pred = self.drawdown_head(z, h)
+                        dd_pred = self.drawdown_head(z, h, obs)
                         total_loss = total_loss + self.drawdown_scale * self._masked_smooth_l1(
                             dd_pred,
                             dd_target,
                             risk_mask,
                         )
+                    if self.crash_head is not None:
+                        crash_pred = self.crash_head(z, h, obs)
+                        total_loss = total_loss + self.crash_scale * self._masked_bce_with_logits(
+                            crash_pred,
+                            crash_target,
+                            risk_mask,
+                            pos_weight=self.crash_pos_weight,
+                        )
+                    if self.drawdown_excess_head is not None:
+                        dd_excess_pred = self.drawdown_excess_head(z, h, obs)
+                        total_loss = total_loss + self.drawdown_excess_scale * self._masked_smooth_l1(
+                            dd_excess_pred,
+                            dd_excess_target,
+                            risk_mask,
+                        )
+                if self.position_utility_head is not None and raw_returns is not None:
+                    utility_target, utility_mask = self._future_position_utility_targets(raw_returns)
+                    utility_pred = self.position_utility_head(z, h, obs)
+                    total_loss = total_loss + self.position_utility_scale * self._position_utility_loss(
+                        utility_pred,
+                        utility_target,
+                        utility_mask,
+                    )
                 if (
                     (self.overweight_advantage_head is not None or self.recovery_head is not None)
                     and raw_returns is not None
                 ):
                     ow_target, recovery_target, control_mask = self._future_control_targets(raw_returns)
                     if self.overweight_advantage_head is not None:
-                        ow_pred = self.overweight_advantage_head(z, h)
+                        ow_pred = self.overweight_advantage_head(z, h, obs)
                         total_loss = total_loss + self.overweight_advantage_scale * self._masked_smooth_l1(
                             ow_pred,
                             ow_target,
                             control_mask,
                         )
                     if self.recovery_head is not None:
-                        recovery_pred = self.recovery_head(z, h)
+                        recovery_pred = self.recovery_head(z, h, obs)
                         total_loss = total_loss + self.recovery_scale * self._masked_smooth_l1(
                             recovery_pred,
                             recovery_target,
@@ -921,6 +1231,12 @@ class WorldModelTrainer:
             ckpt["vol_head"] = self.vol_head.state_dict()
         if self.drawdown_head is not None:
             ckpt["drawdown_head"] = self.drawdown_head.state_dict()
+        if self.crash_head is not None:
+            ckpt["crash_head"] = self.crash_head.state_dict()
+        if self.drawdown_excess_head is not None:
+            ckpt["drawdown_excess_head"] = self.drawdown_excess_head.state_dict()
+        if self.position_utility_head is not None:
+            ckpt["position_utility_head"] = self.position_utility_head.state_dict()
         if self.overweight_advantage_head is not None:
             ckpt["overweight_advantage_head"] = self.overweight_advantage_head.state_dict()
         if self.recovery_head is not None:
@@ -947,6 +1263,12 @@ class WorldModelTrainer:
             self.vol_head.load_state_dict(ckpt["vol_head"])
         if self.drawdown_head is not None and "drawdown_head" in ckpt:
             self.drawdown_head.load_state_dict(ckpt["drawdown_head"])
+        if self.crash_head is not None and "crash_head" in ckpt:
+            self.crash_head.load_state_dict(ckpt["crash_head"])
+        if self.drawdown_excess_head is not None and "drawdown_excess_head" in ckpt:
+            self.drawdown_excess_head.load_state_dict(ckpt["drawdown_excess_head"])
+        if self.position_utility_head is not None and "position_utility_head" in ckpt:
+            self.position_utility_head.load_state_dict(ckpt["position_utility_head"])
         if self.overweight_advantage_head is not None and "overweight_advantage_head" in ckpt:
             self.overweight_advantage_head.load_state_dict(ckpt["overweight_advantage_head"])
         if self.recovery_head is not None and "recovery_head" in ckpt:
@@ -960,6 +1282,7 @@ class WorldModelTrainer:
         self,
         z: np.ndarray,
         h: np.ndarray,
+        features: np.ndarray | None = None,
         batch_size: int = 8192,
     ) -> dict[str, np.ndarray]:
         """Return predictive auxiliary head outputs for already encoded states."""
@@ -967,6 +1290,9 @@ class WorldModelTrainer:
             "return": self.return_head,
             "vol": self.vol_head,
             "drawdown": self.drawdown_head,
+            "crash": self.crash_head,
+            "drawdown_excess": self.drawdown_excess_head,
+            "position_utility": self.position_utility_head,
             "overweight_advantage": self.overweight_advantage_head,
             "recovery": self.recovery_head,
         }
@@ -981,14 +1307,22 @@ class WorldModelTrainer:
 
         z_arr = np.asarray(z, dtype=np.float32)
         h_arr = np.asarray(h, dtype=np.float32)
+        feat_arr = None if features is None else np.asarray(features, dtype=np.float32)
         outputs: dict[str, list[np.ndarray]] = {name: [] for name in active}
         n = min(len(z_arr), len(h_arr))
+        if feat_arr is not None:
+            n = min(n, len(feat_arr))
         for start in range(0, n, batch_size):
             end = min(start + batch_size, n)
             z_t = torch.as_tensor(z_arr[start:end], dtype=torch.float32, device=self.device)
             h_t = torch.as_tensor(h_arr[start:end], dtype=torch.float32, device=self.device)
+            obs_t = (
+                None
+                if feat_arr is None
+                else torch.as_tensor(feat_arr[start:end], dtype=torch.float32, device=self.device)
+            )
             for name, head in active.items():
-                pred = head(z_t, h_t)
+                pred = head(z_t, h_t, obs_t)
                 if pred.ndim == 1:
                     pred = pred.unsqueeze(-1)
                 outputs[name].append(pred.detach().cpu().numpy().astype(np.float32))
@@ -1005,6 +1339,12 @@ class WorldModelTrainer:
             names.extend([f"wm_pred_vol_h{h}" for h in self.risk_horizons])
         if self.drawdown_head is not None:
             names.extend([f"wm_pred_drawdown_h{h}" for h in self.risk_horizons])
+        if self.crash_head is not None:
+            names.extend([f"wm_pred_crash_h{h}" for h in self.risk_horizons])
+        if self.drawdown_excess_head is not None:
+            names.extend([f"wm_pred_drawdown_excess_h{h}" for h in self.risk_horizons])
+        if self.position_utility_head is not None:
+            names.extend([f"wm_pred_position_utility_p{pos:g}" for pos in self.position_utility_positions])
         if self.overweight_advantage_head is not None:
             names.extend([f"wm_pred_overweight_advantage_h{h}" for h in self.risk_horizons])
         if self.recovery_head is not None:

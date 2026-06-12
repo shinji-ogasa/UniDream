@@ -1,0 +1,355 @@
+ac:
+  abs_max_position: 1.12
+  abs_min_position: 0.65
+  ac_layers: 2
+  actor_dropout: 0.05
+  actor_hidden: 256
+  actor_lr: 3.0e-05
+  batch_size: 512
+  adaptive_bc: true
+  advantage_input_mode: concat
+  alpha_decay_steps: 260
+  alpha_final: 0.05
+  alpha_init: 0.35
+  band_aux_coef: 0.08
+  bc_loss_patience: 2
+  checkpoint_interval: 150
+  controller_state_dim: 4
+  critic_hidden: 256
+  critic_lr: 0.0003
+  critic_pretrain_steps: 0
+  dd_budget: 0.002
+  dd_budget_coef: 1.4
+  dd_level_coef: 0.18
+  downside_coef: 0.08
+  edge_overlay_coef: 0.10
+  edge_state_center: 0.0
+  edge_state_indices:
+  - 10
+  - 11
+  - 12
+  - 13
+  - 15
+  - 16
+  - 17
+  - 18
+  edge_state_scale: -1.5
+  ema_decay: 0.98
+  entropy_scale: 0.012
+  flow_change_coef: 0.08
+  gamma: 0.99
+  grad_clip: 100.0
+  horizon: 8
+  infer_temperature: 1.0
+  infer_min_trade_floor: 0.08
+  infer_min_trade_gap: 0.015
+  infer_min_trade_scale: 0.06
+  infer_trade_threshold: 0.7
+  lam: 0.95
+  logwealth_coef: 1.0
+  max_band: 0.08
+  max_position_step: 0.08
+  max_steps: 300
+  max_target_std: 0.12
+  min_band: 0.005
+  min_target_std: 0.02
+  online_wm_interval: 0
+  overlay_l2_coef: 0.012
+  overweight_l1_coef: 0.020
+  positive_advantages: false
+  prior_band_coef: 0.002
+  prior_flow_coef: 0.004
+  prior_kl_coef: 0.001
+  prior_trade_coef: 0.001
+  restore_best_val_checkpoint: false
+  residual_controller: true
+  residual_init_overlay: 0.0
+  residual_max_overlay: 0.12
+  residual_min_overlay: -0.35
+  reward_objective: risk_budget
+  risk_state_center: 0.0
+  risk_state_exposure_coef: 0.10
+  risk_state_indices:
+  - 10
+  - 11
+  - 12
+  - 13
+  - 15
+  - 16
+  - 17
+  - 18
+  risk_state_scale: 3.0
+  risk_tilt_coef: 0.25
+  route_delta_scale: 0.0
+  route_dim: 0
+  selector_max_turnover: 6.5
+  selector_win_rate_metric: period
+  tail_coef: 0.10
+  tail_margin: 0.0
+  target_aux_coef: 1.0
+  short_l1_coef: 0.050
+  td3bc_alpha: 0.35
+  terminal_dd_coef: 0.10
+  trade_aux_coef: 0.20
+  turnover_coef: 0.14
+  use_benchmark_exposure_floor: false
+  use_benchmark_overweight_adapter: false
+  benchmark_overweight_advantage_index: 10
+  benchmark_overweight_advantage_min: 0.25
+  benchmark_overweight_delta_range: 0.10
+  benchmark_overweight_epsilon: 0.15
+  benchmark_overweight_long_rate_max: 0.15
+  benchmark_overweight_max_position: 1.20
+  benchmark_overweight_min_hold_bars: 0
+  benchmark_overweight_min_position: 0.80
+  benchmark_overweight_require_base_near_bench: false
+  benchmark_overweight_trainable_delta_range: 0.06
+  benchmark_overweight_underweight_duration_max: 1.0
+  use_dsr: false
+  use_inventory_recovery_controller: false
+  use_route_controller: false
+  use_state_machine_route: false
+  use_trainable_benchmark_overweight_sizing_adapter: false
+  use_wm_predictive_state: true
+  val_adjust_rate_scale_grid:
+  - 0.7
+  - 1.0
+  - 1.3
+  val_patience: 3
+  wm_predictive_state_clip: 5.0
+  wm_predictive_state_heads:
+  - vol
+  - drawdown
+  - crash
+  - drawdown_excess
+  wm_predictive_state_scale: 1.0
+  wm_predictive_state_standardize: true
+  curriculum:
+  - name: overlay_head_warmup
+    until_step: 120
+    critic_only: false
+    trainable_actor_prefixes:
+    - residual_head
+    - trade_head
+    - execution_head
+    - band_head
+    - target_std_head
+    actor_lr: 1.0e-05
+    td3bc_alpha: 0.45
+    turnover_coef: 0.16
+    flow_change_coef: 0.10
+    entropy_scale: 0.010
+  - name: overlay_risk_opt
+    until_step: 300
+    critic_only: false
+    trainable_actor_prefixes:
+    - trunk
+    - residual_head
+    - trade_head
+    - execution_head
+    - band_head
+    - target_std_head
+    actor_lr: 2.0e-05
+    td3bc_alpha: 0.25
+    turnover_coef: 0.10
+    flow_change_coef: 0.06
+    entropy_scale: 0.012
+actions:
+  values:
+  - 0.0
+  - 0.5
+  - 1.0
+  - 1.25
+bc:
+  band_aux_coef: 0.08
+  band_aux_trade_only: true
+  batch_size: 512
+  benchmark_overlay_deadzone: 0.012
+  benchmark_overlay_max: 0.12
+  benchmark_overlay_max_step: 0.08
+  benchmark_overlay_min: -0.35
+  benchmark_overlay_scale: 0.75
+  benchmark_overlay_teacher: true
+  chunk_size: 4
+  class_balanced: false
+  direct_band_gap_min: 0.02
+  direct_band_margin: 0.04
+  direct_band_target_coef: 0.08
+  direct_band_trade_only: true
+  direct_hold_band_margin: 0.0
+  entropy_coef: 0.005
+  execution_aux_coef: 0.5
+  inventory_recovery_coef: 0.0
+  label_smoothing: 0.0
+  lr: 0.0003
+  n_epochs: 5
+  residual_target_coef: 2.0
+  route_adv_tau: 0.002
+  route_advantage_clip: 2.0
+  route_advantage_weight_coef: 0.0
+  route_entropy_coef: 0.0
+  route_focal_gamma: 0.0
+  route_label_smoothing: 0.08
+  route_target_coef: 0.0
+  sample_quality_clip: 2.0
+  sample_quality_coef: 0.25
+  sample_quality_mode: outcome_edge
+  sirl_hidden: 0
+  target_aux_coef: 0.8
+  trade_aux_coef: 0.25
+  transition_advantage_horizon_weights:
+  - 0.15
+  - 0.25
+  - 0.35
+  - 0.25
+  transition_advantage_horizons:
+  - 4
+  - 8
+  - 16
+  - 32
+  transition_advantage_margin: 0.0005
+  transition_advantage_relabel: true
+  transition_candidate_actions:
+  - 0.0
+  - 0.5
+  - 1.0
+  - 1.25
+  transition_drawdown_penalty_coef: 0.65
+  transition_leverage_penalty_coef: 0.00008
+  transition_relabel_band: 0.02
+  transition_relabel_max_step: 0.1
+  transition_relabel_smooth: true
+  transition_relabel_underweight_confirm_bars: 16
+  transition_relabel_underweight_min_scale: 0.5
+  transition_relabel_underweight_step_scale: 0.5
+  transition_route_labels: false
+  transition_route_margins:
+    de_risk: 0.0003
+    neutral: 0.0005
+    overweight: 0.0010
+    recovery: 0.0001
+  transition_route_penalties:
+    de_risk: 0.0
+    overweight: 0.0003
+    recovery: -0.0001
+  transition_volatility_penalty_coef: 0.25
+costs:
+  fee_rate: 0.0003
+  slippage_bps: 1.0
+  spread_bps: 3.0
+data:
+  interval: 15m
+  seq_len: 64
+  symbol: BTCUSDT
+  test_months: 3
+  train_years: 2
+  val_months: 3
+eval:
+  hmm_n_states: 3
+  pbo_n_trials: 50
+  regime_source: feature_stress_tri
+  report_metrics:
+  - sharpe
+  - sortino
+  - max_drawdown
+  - calmar
+logging:
+  checkpoint_dir: checkpoints/plan011_overlay_actor_v1_s007
+  eval_interval: 150
+  log_interval: 75
+normalization:
+  zscore_window_days: 60
+oracle:
+  action_values:
+  - 0.0
+  - 0.5
+  - 1.0
+  - 1.25
+  aim_band: 0.02
+  aim_max_step: 0.1
+  aim_underweight_confirm_bars: 8
+  aim_underweight_min_scale: 0.25
+  aim_underweight_step_scale: 0.5
+  discount: 1.0
+  min_hold: 64
+  signal_ceiling_position: 1.25
+  signal_clip: 4.0
+  signal_deadzone: 0.15
+  signal_downside_horizon: 16
+  signal_downside_weight: 0.0
+  signal_floor_position: 0.0
+  signal_horizon_weights:
+  - 0.2
+  - 0.3
+  - 0.5
+  signal_horizons:
+  - 4
+  - 16
+  - 64
+  signal_scale: 1.2
+  soft_label_temp: 0.5
+  teacher_mode: signal_aim
+  use_aim_targets: true
+plan004_residual_bc_ac:
+  enabled: false
+reward:
+  benchmark_position: 1.0
+  beta: 0.1
+  dsr_eta: 0.01
+  mode: excess_bh
+world_model:
+  aux_use_raw_features: true
+  batch_size: 64
+  bin_range:
+  - -20.0
+  - 20.0
+  d_ff: 768
+  d_model: 192
+  disagree_scale: 0.1
+  done_scale: 0.0
+  crash_pos_weight: 4.0
+  crash_scale: 5.0
+  crash_threshold: 0.012
+  drawdown_excess_scale: 4.0
+  drawdown_excess_threshold: 0.012
+  drawdown_scale: 2.0
+  dropout: 0.1
+  dyn_scale: 0.2
+  encoder_hidden: 192
+  encoder_layers: 2
+  free_bits: 1.0
+  grad_clip: 100.0
+  idm_scale: 0.05
+  lr: 0.0001
+  max_seq_len: 128
+  max_steps: 900
+  n_bins: 255
+  n_categoricals: 32
+  n_classes: 32
+  n_ensemble: 1
+  n_heads: 4
+  n_layers: 2
+  recon_scale: 0.3
+  recovery_scale: 0.0
+  rep_scale: 0.05
+  return_horizon: 10
+  return_horizons:
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  return_include_current: false
+  return_scale: 0.0
+  return_target_scale: 100.0
+  reward_scale: 0.3
+  risk_horizons:
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  risk_target_scale: 100.0
+  unimix_ratio: 0.01
+  vol_scale: 2.0
+  overweight_advantage_scale: 0.0

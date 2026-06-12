@@ -230,6 +230,31 @@ class ImagACTrainer:
         self.abs_min_position: float = ac_cfg.get("abs_min_position", -1.0)
         self.abs_max_position: float = ac_cfg.get("abs_max_position", 1.0)
 
+        self.reward_objective = str(ac_cfg.get("reward_objective", "legacy")).lower()
+        self.logwealth_coef = float(ac_cfg.get("logwealth_coef", 1.0))
+        self.dd_level_coef = float(ac_cfg.get("dd_level_coef", 0.0))
+        self.dd_budget_coef = float(ac_cfg.get("dd_budget_coef", 0.0))
+        self.dd_budget = float(ac_cfg.get("dd_budget", 0.0))
+        self.terminal_dd_coef = float(ac_cfg.get("terminal_dd_coef", 0.0))
+        self.downside_coef = float(ac_cfg.get("downside_coef", 0.0))
+        self.tail_coef = float(ac_cfg.get("tail_coef", 0.0))
+        self.tail_margin = float(ac_cfg.get("tail_margin", 0.0))
+        self.overlay_l2_coef = float(ac_cfg.get("overlay_l2_coef", 0.0))
+        self.abs_exposure_l2_coef = float(ac_cfg.get("abs_exposure_l2_coef", 0.0))
+        self.risk_state_exposure_coef = float(ac_cfg.get("risk_state_exposure_coef", 0.0))
+        self.risk_tilt_coef = float(ac_cfg.get("risk_tilt_coef", 0.0))
+        self.risk_state_center = float(ac_cfg.get("risk_state_center", 0.0))
+        self.risk_state_scale = float(ac_cfg.get("risk_state_scale", 1.0))
+        raw_risk_state_indices = ac_cfg.get("risk_state_indices", [])
+        self.risk_state_indices = tuple(int(i) for i in raw_risk_state_indices)
+        self.edge_overlay_coef = float(ac_cfg.get("edge_overlay_coef", 0.0))
+        self.edge_state_center = float(ac_cfg.get("edge_state_center", 0.0))
+        self.edge_state_scale = float(ac_cfg.get("edge_state_scale", 1.0))
+        raw_edge_state_indices = ac_cfg.get("edge_state_indices", [])
+        self.edge_state_indices = tuple(int(i) for i in raw_edge_state_indices)
+        self.short_l1_coef = float(ac_cfg.get("short_l1_coef", 0.0))
+        self.overweight_l1_coef = float(ac_cfg.get("overweight_l1_coef", 0.0))
+
         # Adaptive BC
         self.adaptive_bc: bool = ac_cfg.get("adaptive_bc", False)
         self._alpha_speed: float = 1.0   # multiplier on alpha decay speed
@@ -242,6 +267,7 @@ class ImagACTrainer:
 
         # Online WM update interval
         self.online_wm_interval: int = ac_cfg.get("online_wm_interval", 0)
+        self.restore_best_val_checkpoint: bool = bool(ac_cfg.get("restore_best_val_checkpoint", True))
 
     def _apply_actor_trainable_mask(self) -> None:
         if self.critic_only:
@@ -382,21 +408,33 @@ class ImagACTrainer:
         """
         zs, hs, inventories, acts, log_probs_list, entropies_list, rewards_list, dones_list = [], [], [], [], [], [], [], []
 
-        z = z0
-        h = h0
+        z = torch.nan_to_num(z0, nan=0.0, posinf=0.0, neginf=0.0)
+        h = torch.nan_to_num(h0, nan=0.0, posinf=0.0, neginf=0.0)
         pzs = past_zs
         pas = past_as
+        if pzs is not None:
+            pzs = torch.nan_to_num(pzs, nan=0.0, posinf=0.0, neginf=0.0)
+        if pas is not None:
+            pas = torch.nan_to_num(pas, nan=0.0, posinf=0.0, neginf=0.0)
+        if regime0 is not None:
+            regime0 = torch.nan_to_num(regime0, nan=0.0, posinf=0.0, neginf=0.0)
+        if advantage0 is not None:
+            advantage0 = torch.nan_to_num(advantage0, nan=0.0, posinf=0.0, neginf=0.0)
         if inventory0 is None:
             inventory = torch.zeros(z0.shape[0], 1, dtype=z0.dtype, device=z0.device)
         elif inventory0.ndim == 1:
             inventory = inventory0.unsqueeze(-1)
         else:
             inventory = inventory0
+        inventory = torch.nan_to_num(inventory, nan=0.0, posinf=0.0, neginf=0.0)
 
         for _ in range(self.horizon):
             next_inventory, log_prob, entropy = self.actor.get_action(
                 z, h, inventory=inventory, regime=regime0, advantage=advantage0
             )
+            next_inventory = torch.nan_to_num(next_inventory, nan=self.benchmark_position, posinf=self.abs_max_position, neginf=self.abs_min_position)
+            log_prob = torch.nan_to_num(log_prob, nan=0.0, posinf=0.0, neginf=0.0)
+            entropy = torch.nan_to_num(entropy, nan=0.0, posinf=0.0, neginf=0.0)
 
             with torch.no_grad():
                 result = self.ensemble.imagine_step(z, h, next_inventory, pzs, pas)
@@ -408,13 +446,13 @@ class ImagACTrainer:
             acts.append(next_overlay)
             log_probs_list.append(log_prob)
             entropies_list.append(entropy)
-            rewards_list.append(result["reward"])   # net_return（原スケール）
-            dones_list.append(result["done"])
+            rewards_list.append(torch.nan_to_num(result["reward"], nan=0.0, posinf=0.0, neginf=0.0))   # net_return（原スケール）
+            dones_list.append(torch.nan_to_num(result["done"], nan=1.0, posinf=1.0, neginf=0.0))
 
-            z = result["next_z"].detach()
-            h = result["next_h"].detach()
-            pzs = result["past_zs"]
-            pas = result["past_as"]
+            z = torch.nan_to_num(result["next_z"].detach(), nan=0.0, posinf=0.0, neginf=0.0)
+            h = torch.nan_to_num(result["next_h"].detach(), nan=0.0, posinf=0.0, neginf=0.0)
+            pzs = torch.nan_to_num(result["past_zs"], nan=0.0, posinf=0.0, neginf=0.0)
+            pas = torch.nan_to_num(result["past_as"], nan=0.0, posinf=0.0, neginf=0.0)
             inventory = next_overlay.unsqueeze(-1)
 
         return {
@@ -484,6 +522,129 @@ class ImagACTrainer:
         cum_rets = net_returns.cumsum(dim=1)                       # (B, H)
         peak = cum_rets.cummax(dim=1).values                       # running max
         return (peak - cum_rets).clamp(min=0.0)                    # DD レベル ≥ 0
+
+    def _risk_state_from_advantage(
+        self,
+        advantage: Optional[torch.Tensor],
+        ref: torch.Tensor,
+    ) -> torch.Tensor:
+        """WM predictive state から高リスク度合いを作る。
+
+        risk_state_indices は標準化済み predictive state のうち、vol/DD 系列を
+        指す想定。正の側だけを使い、高ボラ/高DD予測時の absolute exposure を
+        落とす圧として使う。
+        """
+        if (
+            advantage is None
+            or self.risk_state_exposure_coef <= 0.0
+            or not self.risk_state_indices
+        ):
+            return torch.zeros_like(ref)
+        adv = advantage
+        if adv.ndim == 1:
+            adv = adv.unsqueeze(-1)
+        if adv.shape[-1] <= 0:
+            return torch.zeros_like(ref)
+        valid_indices = [i for i in self.risk_state_indices if 0 <= i < adv.shape[-1]]
+        if not valid_indices:
+            return torch.zeros_like(ref)
+        idx = torch.tensor(valid_indices, dtype=torch.long, device=adv.device)
+        risk_raw = adv.index_select(-1, idx).mean(dim=-1)
+        risk = F.relu((risk_raw - self.risk_state_center) * self.risk_state_scale)
+        while risk.ndim < ref.ndim:
+            risk = risk.unsqueeze(-1)
+        return risk.expand_as(ref)
+
+    def _signed_state_from_advantage(
+        self,
+        advantage: Optional[torch.Tensor],
+        ref: torch.Tensor,
+        indices: tuple[int, ...],
+        *,
+        center: float = 0.0,
+        scale: float = 1.0,
+    ) -> torch.Tensor:
+        if advantage is None or not indices:
+            return torch.zeros_like(ref)
+        adv = advantage
+        if adv.ndim == 1:
+            adv = adv.unsqueeze(-1)
+        valid_indices = [i for i in indices if 0 <= i < adv.shape[-1]]
+        if not valid_indices:
+            return torch.zeros_like(ref)
+        idx = torch.tensor(valid_indices, dtype=torch.long, device=adv.device)
+        signal = adv.index_select(-1, idx).mean(dim=-1)
+        signal = torch.nan_to_num((signal - center) * scale, nan=0.0, posinf=0.0, neginf=0.0)
+        while signal.ndim < ref.ndim:
+            signal = signal.unsqueeze(-1)
+        return signal.expand_as(ref)
+
+    def _risk_budget_rewards(
+        self,
+        *,
+        net_returns: torch.Tensor,
+        next_inventory: torch.Tensor,
+        rewards_norm: torch.Tensor,
+        advantage0: Optional[torch.Tensor],
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        """Risk-budget overlay 用の報酬を作る。
+
+        WM reward は benchmark-relative net return なので、ここでは
+        absolute wealth ではなく B&H relative wealth growth を近似する。
+        """
+        reward_scale = max(float(self.reward_ema.scale), 1e-8)
+        logwealth = torch.log1p(net_returns.clamp(min=-0.95))
+        rewards = self.logwealth_coef * (logwealth / reward_scale)
+        if self.logwealth_coef == 0.0:
+            rewards = rewards_norm
+
+        drawdown = self._compute_drawdown(net_returns)
+        if self.dd_level_coef > 0.0:
+            rewards = rewards - self.dd_level_coef * (drawdown / reward_scale)
+        if self.dd_budget_coef > 0.0:
+            dd_excess = F.relu(drawdown - self.dd_budget)
+            rewards = rewards - self.dd_budget_coef * (dd_excess / reward_scale)
+        if self.terminal_dd_coef > 0.0 and drawdown.shape[1] > 0:
+            terminal_dd = drawdown[:, -1:].expand_as(drawdown)
+            rewards = rewards - self.terminal_dd_coef * (terminal_dd / reward_scale)
+        if self.downside_coef > 0.0:
+            rewards = rewards - self.downside_coef * F.relu(-rewards_norm)
+        if self.tail_coef > 0.0:
+            tail = F.relu((-net_returns) - self.tail_margin)
+            rewards = rewards - self.tail_coef * (tail / reward_scale)
+        if self.overlay_l2_coef > 0.0:
+            rewards = rewards - self.overlay_l2_coef * next_inventory.pow(2)
+        if self.short_l1_coef > 0.0:
+            rewards = rewards - self.short_l1_coef * F.relu(-next_inventory)
+        if self.overweight_l1_coef > 0.0:
+            rewards = rewards - self.overweight_l1_coef * F.relu(next_inventory)
+
+        abs_position = next_inventory + self.benchmark_position
+        if self.abs_exposure_l2_coef > 0.0:
+            rewards = rewards - self.abs_exposure_l2_coef * abs_position.pow(2)
+        risk_state = self._risk_state_from_advantage(advantage0, next_inventory)
+        if self.risk_state_exposure_coef > 0.0:
+            rewards = rewards - self.risk_state_exposure_coef * risk_state * abs_position.pow(2)
+        if self.risk_tilt_coef > 0.0:
+            rewards = rewards - self.risk_tilt_coef * risk_state * next_inventory
+        edge_state = self._signed_state_from_advantage(
+            advantage0,
+            next_inventory,
+            self.edge_state_indices,
+            center=self.edge_state_center,
+            scale=self.edge_state_scale,
+        )
+        if self.edge_overlay_coef > 0.0:
+            rewards = rewards + self.edge_overlay_coef * edge_state * next_inventory
+
+        diagnostics = {
+            "rb_logwealth": float(logwealth.detach().mean().item()),
+            "rb_dd": float(drawdown.detach().mean().item()),
+            "rb_risk_state": float(risk_state.detach().mean().item()),
+            "rb_edge_state": float(edge_state.detach().mean().item()),
+            "rb_abs_exposure": float(abs_position.detach().abs().mean().item()),
+        }
+        return rewards, diagnostics
 
     def _bc_loss_batch(self, batch_size: int = 128) -> torch.Tensor:
         """Oracle データからランダムサンプルして BC 損失を計算する."""
@@ -706,9 +867,9 @@ class ImagACTrainer:
         zs = rollout["zs"]            # (B, H, z_dim)
         hs = rollout["hs"]            # (B, H, h_dim)
         inventories = rollout["inventories"]  # (B, H)
-        net_returns = rollout["rewards"]  # (B, H) 原スケール（WM 予測の net_return）
-        dones = rollout["dones"]      # (B, H)
-        next_inventory = rollout["actions"]
+        net_returns = torch.nan_to_num(rollout["rewards"], nan=0.0, posinf=0.0, neginf=0.0)  # (B, H) 原スケール（WM 予測の net_return）
+        dones = torch.nan_to_num(rollout["dones"], nan=1.0, posinf=1.0, neginf=0.0)      # (B, H)
+        next_inventory = torch.nan_to_num(rollout["actions"], nan=0.0, posinf=self.abs_max_position - self.benchmark_position, neginf=self.abs_min_position - self.benchmark_position)
         delta_inventory = torch.abs(next_inventory - inventories)
         flow_change = torch.zeros_like(delta_inventory)
         if self.horizon > 1:
@@ -719,9 +880,17 @@ class ImagACTrainer:
         last_h = rollout["last_h"]
 
         # --- 報酬計算 ---
+        reward_diag: dict[str, float] = {}
         self.reward_ema.update(net_returns)
         rewards_norm = net_returns / self.reward_ema.scale
-        if self.use_dsr:
+        if self.reward_objective in {"risk_budget", "risk_budget_overlay"}:
+            rewards_for_ac, reward_diag = self._risk_budget_rewards(
+                net_returns=net_returns,
+                next_inventory=next_inventory,
+                rewards_norm=rewards_norm,
+                advantage0=advantage0,
+            )
+        elif self.use_dsr:
             rewards_for_ac = self._compute_dsr_rewards(net_returns)
         else:
             # SPEC 準拠の報酬: R_t ≈ net_return / EMA_scale - β·DD_t
@@ -820,6 +989,7 @@ class ImagACTrainer:
             "alpha": alpha,
             "reward_mean": net_returns.mean().item(),
             "reward_scale": self.reward_ema.scale,
+            **reward_diag,
         }
 
     def pretrain_critic(
@@ -1029,6 +1199,14 @@ class ImagACTrainer:
 
             if self.global_step % self.log_interval == 0:
                 ts = datetime.now().strftime("%H:%M:%S")
+                rb_bits = ""
+                if "rb_dd" in step_log:
+                    rb_bits = (
+                        f" | rb_dd={step_log['rb_dd']:.5f}"
+                        f" risk={step_log['rb_risk_state']:.3f}"
+                        f" edge={step_log.get('rb_edge_state', 0.0):+.3f}"
+                        f" exp={step_log['rb_abs_exposure']:.3f}"
+                    )
                 print(
                     f"[{ts}] [AC] Step {self.global_step}/{max_steps} | "
                     f"Actor: {step_log['actor_loss']:.4f} | "
@@ -1036,6 +1214,7 @@ class ImagACTrainer:
                     f"BC: {step_log['bc_loss']:.4f} | "
                     f"Critic: {step_log['critic_loss']:.4f} | "
                     f"α={step_log['alpha']:.3f}"
+                    f"{rb_bits}"
                 )
 
             # Online WM callback
@@ -1150,7 +1329,9 @@ class ImagACTrainer:
                     self._last_val_sharpe = val_sharpe
 
         # 最良 val checkpoint に復元
-        if best_checkpoint_path is not None and os.path.exists(best_checkpoint_path):
+        if not self.restore_best_val_checkpoint:
+            pass
+        elif best_checkpoint_path is not None and os.path.exists(best_checkpoint_path):
             print(f"[AC] Restoring best fire checkpoint (score={best_checkpoint_score:.3f})")
             saved_step = self.global_step
             self.load(best_checkpoint_path)

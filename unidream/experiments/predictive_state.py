@@ -11,7 +11,7 @@ def _concat_selected_aux(
     for head in heads:
         arr = aux.get(head)
         if arr is not None and arr.size > 0:
-            parts.append(np.asarray(arr, dtype=np.float32))
+            parts.append(np.nan_to_num(np.asarray(arr, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0))
     if not parts:
         return None
     return np.concatenate(parts, axis=1).astype(np.float32)
@@ -31,19 +31,22 @@ def build_wm_predictive_state_bundle(
         return None
 
     heads = list(ac_cfg.get("wm_predictive_state_heads", ["return", "vol", "drawdown"]))
-    train = _concat_selected_aux(wm_trainer.predict_auxiliary_from_encoded(z_train, h_train), heads)
+    train = _concat_selected_aux(
+        wm_trainer.predict_auxiliary_from_encoded(z_train, h_train, features=wfo_dataset.train_features),
+        heads,
+    )
     if train is None or train.shape[1] == 0:
         print(f"[{log_ts()}] [PredictiveState] skipped: no active WM auxiliary heads")
         return None
 
     enc_val = wm_trainer.encode_sequence(wfo_dataset.val_features, seq_len=seq_len)
     val = _concat_selected_aux(
-        wm_trainer.predict_auxiliary_from_encoded(enc_val["z"], enc_val["h"]),
+        wm_trainer.predict_auxiliary_from_encoded(enc_val["z"], enc_val["h"], features=wfo_dataset.val_features),
         heads,
     )
     enc_test = wm_trainer.encode_sequence(wfo_dataset.test_features, seq_len=seq_len)
     test = _concat_selected_aux(
-        wm_trainer.predict_auxiliary_from_encoded(enc_test["z"], enc_test["h"]),
+        wm_trainer.predict_auxiliary_from_encoded(enc_test["z"], enc_test["h"], features=wfo_dataset.test_features),
         heads,
     )
     if val is None:
@@ -51,8 +54,8 @@ def build_wm_predictive_state_bundle(
     if test is None:
         test = np.zeros((len(wfo_dataset.test_features), train.shape[1]), dtype=np.float32)
 
-    mean = train.mean(axis=0, keepdims=True)
-    std = train.std(axis=0, keepdims=True)
+    mean = np.nan_to_num(train.mean(axis=0, keepdims=True), nan=0.0, posinf=0.0, neginf=0.0)
+    std = np.nan_to_num(train.std(axis=0, keepdims=True), nan=1.0, posinf=1.0, neginf=1.0)
     std = np.where(std < 1e-6, 1.0, std)
     if bool(ac_cfg.get("wm_predictive_state_standardize", True)):
         train = (train - mean) / std

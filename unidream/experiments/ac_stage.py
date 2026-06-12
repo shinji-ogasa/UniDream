@@ -4,6 +4,11 @@ import torch
 
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.imagination_ac import ImagACTrainer
+from unidream.experiments.overlay_teacher import (
+    apply_benchmark_overlay_teacher,
+    benchmark_overlay_teacher_enabled,
+    describe_benchmark_overlay_teacher,
+)
 from unidream.experiments.policy_fire import evaluate_fire_metrics, format_fire_metrics
 
 
@@ -168,10 +173,23 @@ def run_ac_stage(
         return ac_trainer
 
     t_enc = min(len(z_train), len(oracle_positions))
+    ac_oracle_positions = oracle_positions[:t_enc]
+    if benchmark_overlay_teacher_enabled(cfg.get("bc", {}), ac_cfg):
+        ac_oracle_positions = apply_benchmark_overlay_teacher(
+            ac_oracle_positions,
+            bc_cfg=cfg.get("bc", {}),
+            ac_cfg=ac_cfg,
+            reward_cfg=cfg.get("reward", {}),
+            advantage_values=train_advantage_values[:t_enc] if train_advantage_values is not None else None,
+            returns=wfo_dataset.train_returns[:t_enc] if wfo_dataset is not None else None,
+        )
+        print(
+            f"[AC] {describe_benchmark_overlay_teacher(oracle_positions[:t_enc], ac_oracle_positions, reward_cfg=cfg.get('reward', {}))}"
+        )
     ac_trainer.set_oracle_data(
         z=z_train[:t_enc],
         h=h_train[:t_enc],
-        oracle_positions=oracle_positions[:t_enc],
+        oracle_positions=ac_oracle_positions,
         regime_probs=train_regime_probs[:t_enc] if train_regime_probs is not None else None,
         advantage_values=train_advantage_values[:t_enc] if train_advantage_values is not None else None,
     )

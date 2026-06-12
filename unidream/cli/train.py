@@ -525,6 +525,7 @@ def run_fold(
         oracle_soft_labels=oracle_soft_labels,
         bc_sample_quality=bc_sample_quality,
         bc_advantage_values=bc_advantage_values,
+        train_returns=train_returns,
         train_route_labels=train_route_labels,
         train_route_soft_labels=train_route_soft_labels,
         train_route_advantage=train_route_advantage,

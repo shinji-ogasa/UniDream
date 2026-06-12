@@ -75,7 +75,7 @@ class EnsembleWorldModel(nn.Module):
         # shape: (n_models, B, T, n_cats, n_classes) → variance over n_models
         stacked_priors = torch.stack(all_prior_logits, dim=0)  # (n_models, B, T, n_cats, n_classes)
         prior_probs = F.softmax(stacked_priors, dim=-1)
-        disagreement = prior_probs.var(dim=0).mean()  # scalar
+        disagreement = prior_probs.var(dim=0, unbiased=False).mean()  # scalar
 
         # disagreement は学習時の loss には加算しない（アンサンブル多様性を保つ）
         # imagination 時の reward ペナルティとしてのみ使用する（imagine_step 参照）
@@ -149,7 +149,7 @@ class EnsembleWorldModel(nn.Module):
         # 各モデルの prior_logits の softmax
         all_priors = torch.stack([r["prior_logits"] for r in all_results], dim=0)
         prior_probs = F.softmax(all_priors, dim=-1)
-        disagreement = prior_probs.var(dim=0).mean(-1).mean(-1)  # (B,)
+        disagreement = prior_probs.var(dim=0, unbiased=False).mean(-1).mean(-1)  # (B,)
 
         # 平均化した next_z（先頭モデルのサンプルを使用）
         next_z = all_results[0]["next_z"]

@@ -211,6 +211,7 @@ class BCPretrainer:
         recovery_execution_coef: float = 0.0,
         recovery_underweight_margin: float = 0.05,
         recovery_target_margin: float = 0.05,
+        residual_target_loss_scale: float = 1.0,
         route_target_coef: float = 0.0,
         route_advantage_weight_coef: float = 0.0,
         route_advantage_clip: float = 2.0,
@@ -320,6 +321,7 @@ class BCPretrainer:
         self.recovery_execution_coef = float(max(recovery_execution_coef, 0.0))
         self.recovery_underweight_margin = float(max(recovery_underweight_margin, 0.0))
         self.recovery_target_margin = float(max(recovery_target_margin, 0.0))
+        self.residual_target_loss_scale = float(max(residual_target_loss_scale, 1.0))
         self.route_target_coef = float(max(route_target_coef, 0.0))
         self.route_advantage_weight_coef = float(max(route_advantage_weight_coef, 0.0))
         self.route_advantage_clip = float(max(route_advantage_clip, 0.0))
@@ -538,7 +540,15 @@ class BCPretrainer:
             trade_targets = (target_gap / float(scale)).clamp(0.0, 1.0)
         else:
             trade_targets = trade_mask
-        target_reg_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
+        if self.residual_target_loss_scale > 1.0:
+            loss_scale = self.residual_target_loss_scale
+            target_reg_loss = F.smooth_l1_loss(
+                target_mean * loss_scale,
+                oracle_target * loss_scale,
+                reduction="none",
+            ) / loss_scale
+        else:
+            target_reg_loss = F.smooth_l1_loss(target_mean, oracle_target, reduction="none")
         target_dist_penalty = None
         position_mean_penalty = None
         target_regime_penalty = None
