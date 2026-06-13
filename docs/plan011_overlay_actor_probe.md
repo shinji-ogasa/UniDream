@@ -601,6 +601,33 @@ fold3一次結果:
 - ただしAC更新はBC teacherの強いalphaを削り、val selectionではBC初期状態に負ける。
 - 次の検証は、報酬式そのものをさらに強くするより、BC近傍制約を保ったまま「DDイベント時だけoverlayを動かす」actor更新に寄せるべき。具体的には `alpha_final` を高める、AC stepを短くする、またはDDイベント重み付きのconservative policy updateを入れる。
 
+追加でfold4/5も同じv31 configで学習した。
+
+```bash
+.venv/bin/python -u -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --start 2018-01-01 --end 2024-01-01 \
+  --folds 4,5 --seed 7 --device cpu \
+  --start-from bc --stop-after test
+```
+
+test結果:
+
+| fold | AlphaEx | MaxDDDelta | 判断 |
+|---:|---:|---:|---|
+| 3 | +18.86 | +0.22 | alphaは大きく正、DDはわずかに悪化 |
+| 4 | -0.20 | +0.32 | ほぼ±圏、DDはわずかに悪化 |
+| 5 | +39.17 | +0.25 | alphaは大きく正、DDはわずかに悪化 |
+
+fold4/5のAC途中val:
+
+| fold | BC-only val AlphaEx | AC step150 val AlphaEx | AC step300 val AlphaEx | 判断 |
+|---:|---:|---:|---:|---|
+| 4 | +14.83 | +8.70 | +12.67 | ACはalpha正を保つがBCに負ける |
+| 5 | -0.28 | -0.29 | -0.18 | ACで微改善はあるが誤差圏 |
+
+`AlphaExが大きく正、または大きく壊れない` という基準ならv31はfold3/4/5で悪くない。一方で、現時点の改善は主にBC/restore-best由来で、AC学習そのものが安定してBCを上回る証拠はまだない。
+
 ## 更新判断
 
 - `+3/-3` の材料はfold4局所には何度も出ている。
