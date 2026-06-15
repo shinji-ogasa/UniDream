@@ -628,6 +628,50 @@ fold4/5のAC途中val:
 
 `AlphaExが大きく正、または大きく壊れない` という基準ならv31はfold3/4/5で悪くない。一方で、現時点の改善は主にBC/restore-best由来で、AC学習そのものが安定してBCを上回る証拠はまだない。
 
+### v31 0-12 fold scale result
+
+fold0-12までv31 checkpointを揃えてtest-onlyで再集計した。
+
+```bash
+PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --start 2018-01-01 --end 2024-01-01 \
+  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
+  --seed 7 --device mps \
+  --start-from test --stop-after test
+```
+
+| fold | AlphaEx | MaxDDDelta | 判断 |
+|---:|---:|---:|---|
+| 0 | +2.44 | +0.02 | 小幅プラス |
+| 1 | +1.64 | +0.06 | 小幅プラス |
+| 2 | +477.79 | +0.05 | 大幅プラス |
+| 3 | +18.86 | +0.22 | 大幅プラス |
+| 4 | -0.20 | +0.32 | ±圏 |
+| 5 | +39.17 | +0.25 | 大幅プラス |
+| 6 | -0.32 | +0.28 | ±圏 |
+| 7 | -1.28 | +0.24 | 小幅マイナス |
+| 8 | -0.22 | +0.39 | ±圏 |
+| 9 | -0.53 | +0.26 | ±圏 |
+| 10 | +0.81 | +0.15 | 小幅プラス |
+| 11 | +5.61 | +0.17 | プラス |
+| 12 | -0.45 | +0.22 | ±圏 |
+
+Aggregate:
+
+- `AlphaEx +41.79pt`
+- `SharpeDelta -0.001`
+- `MaxDDDelta +0.20pt`
+- `PBO 0.420`
+- worst AlphaEx: `-1.28pt`
+
+所感:
+
+- `AlphaExが大きく正、または±圏ならOK` という評価ではかなり良い。0-12で大きく壊れるfoldはない。
+- 一方、`MaxDDDelta <= 0` 方向ではまだない。全体としてDDを改善するより、B&H近辺の低回転overlayでalphaを取りにいく挙動。
+- fold2の `+477.79pt` がaggregateを強く押し上げているため、平均だけでは過信しない。中央値/最悪値で見ると「小幅プラスから小幅マイナスに収まる安定overlay」と見るのが妥当。
+- 次はこのv31をベースに、DD改善を狙うなら別objectiveで全体を動かすより、DDイベント時だけ発火する小さいconservative adapterを足す方が筋が良い。
+
 ## 更新判断
 
 - `+3/-3` の材料はfold4局所には何度も出ている。
