@@ -10,9 +10,38 @@ BTCUSDT 15分足を対象に、Transformer World Model、Behavior Cloning、Imag
 
 UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior Cloning で模倣し、その方策を World Model 上の imagination rollouts で Actor-Critic fine-tune する研究コード。Buy & Hold をベンチマークとして、OOS の超過成績、Sharpe 改善、最大ドローダウン改善、collapse 回避を同時に評価する。
 
-研究基盤として WM → BC → AC の学習パイプラインと各種診断 CLI を保持している。一方、リアルタイムデモの現行採用版は checkpoint export ではなく Plan009 depth calibrator bundle。raw returns から shifted trailing-return feature だけで past-only guard を作り、validation-gated depth と軽い execution compression をかけて position を出す。
+研究基盤として WM → BC → AC の学習パイプラインと各種診断 CLI を保持している。現時点の外部説明向け主結果は Plan011 v31。B&H exposure `1.0` 近傍の低回転 overlay actor として、13fold test で大崩れを避けながら AlphaEx の右側テールを取りにいく構成。
 
-Plan009 compression 版の fold0-12 開発評価では `AlphaEx >= +3pt && MaxDDDelta <= -3pt` を `13/13` pass。集計は `Alpha median +16.025pt`、`Alpha worst +4.690pt`、`MaxDD worst -3.026pt`、`TO mean 24.956`。ただし cost stress はまだ課題で、`cost_x2` は `9/13`、`cost_x3` は `6/13` pass。fold0-12 は開発セットであり、pristine holdout の主張ではない。
+Plan011 v31 の fold0-12 開発WFOでは、aggregate `AlphaEx +41.79pt`、worst AlphaEx `-1.28pt`、fold2除外平均 `+5.46pt`。ただし `MaxDDDelta +0.20pt`、`SharpeDelta -0.001` なので、DD改善AIではなく AlphaEx overlay として主張する。
+
+## Plan011 v31 検証スナップショット
+
+Plan011 v31 は、B&H exposure `1.0` を基準にした低回転 overlay actor。VC/外部説明で守れる主成果は「B&H近傍の低回転overlayとして、13fold testで大崩れを避けながらAlphaExの右側テールを獲得した」こと。
+
+0-12 fold test-only 再集計:
+
+| 指標 | 値 |
+|---|---:|
+| Aggregate AlphaEx | `+41.79pt` |
+| Aggregate SharpeDelta | `-0.001` |
+| Aggregate MaxDDDelta | `+0.20pt` |
+| PBO | `0.420` |
+| AlphaEx median | `+0.81pt` |
+| AlphaEx worst | `-1.28pt` |
+| AlphaEx mean excluding fold2 | `+5.46pt` |
+| AlphaEx >= 0 or abs(AlphaEx) <= 1pt | `12/13` |
+| AlphaEx >= +3pt | `4/13` |
+
+Fold2 の `AlphaEx +477.79pt` が aggregate を強く押し上げているため、平均だけでは評価しない。中央値・worst・fold2除外平均で見ると「小幅プラスから小幅マイナスに収まりやすく、右側テールを取る低回転overlay」と整理するのが妥当。
+
+重要な限界:
+
+- `MaxDDDelta <= 0` は `0/13`。現状はDD改善モデルではない。
+- aggregate `SharpeDelta` は `-0.001`。リスク調整後リターン改善の主張はまだ弱い。
+- fold0-12 は開発WFOであり、pristine holdoutではない。
+- Live / Space runtime へ Plan011 v31 を採用する場合は、別途 v31 checkpoint set に合わせた export と runtime 差し替えが必要。
+
+詳細なfold別結果・外れ値除外統計・bootstrap CI・再現コマンドは [docs/plan011_v31_investor_evidence.md](docs/plan011_v31_investor_evidence.md) にまとめている。
 
 ## パイプライン
 
@@ -26,8 +55,8 @@ OHLCV / features
   -> Imagination Actor-Critic
   -> Validation selector
   -> Test backtest / M2 scorecard / PBO / regime report
-  -> Plan009 depth calibrator / execution compression validation
-  -> Space bundle export
+  -> Plan011 v31 scale evaluation / investor evidence report
+  -> Space bundle export utilities
 ```
 
 ## ステージごとの責務
@@ -38,8 +67,9 @@ OHLCV / features
 - `bc`: Actor を oracle position に模倣、route head・inventory recovery controller・state machine gate を学習
 - `ac`: World Model 上で imagination actor-critic fine-tune
 - `selector`: validation split で selector / scorecard を評価
-- `plan009`: current demo 用 depth calibrator、execution compression、cost stress 検証
-- `deploy`: Plan009 dev candidate を HF Spaces 向け bundle として export
+- `plan011`: B&H-relative low-turnover overlay actor、relative-constraint AC reward、0-12 scale evaluation
+- `plan009`: legacy depth calibrator、execution compression、cost stress 検証用CLI
+- `deploy`: HF Spaces 向け bundle export utility
 - `test`: test split で backtest、PBO、Deflated Sharpe、HMM regime、M2 scorecard を出力
 
 ## ディレクトリツリー
@@ -177,41 +207,41 @@ uv run python -m unidream.cli.train --start-from ac --stop-after ac --resume --d
 uv run python -m unidream.cli.train --start-from test --resume --device cuda
 ```
 
-### Plan009 current demo の再現
+### Plan011 v31 の再現
 
-リアルタイムデモ採用中の Plan009 depth calibrator を再現する:
+Plan011 v31 の0-12 fold test-only再集計:
 
 ```bash
-PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan009_depth_calibrator_probe \
-  --config configs/trading.yaml \
+PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --start 2018-01-01 --end 2024-01-01 \
   --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
-  --seed 7 \
-  --val-dd-target -4.8 \
-  --safety-multiplier 2.0 \
-  --max-depth-cap 0.94 \
-  --output-json docs_local/20260528_plan009_depth_calibrator_f0_12_m48_x2_cap094.json \
-  --output-md docs_local/20260528_plan009_depth_calibrator_f0_12_m48_x2_cap094.md
+  --seed 7 --device mps \
+  --start-from test --stop-after test
 ```
 
-現行 bundle に入れている execution compression 版の確認結果:
+checkpoint を作り直す場合は `--start-from wm --stop-after test` にする。`checkpoints/` はGit管理外なので、外部監査ではconfig・commit・checkpoint directoryをセットで固定する。
 
-```text
-docs_local/20260528_plan009_gap16_next_mindelta010_full.json
+### Plan011 v31 checkpoint の作り直し
+
+checkpoint を含めて Plan011 v31 を fold0-12 で作り直す:
+
+```bash
+PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --start 2018-01-01 --end 2024-01-01 \
+  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
+  --seed 7 --device mps \
+  --start-from wm --stop-after test
 ```
 
-この probe は fold0-12 の開発検証用。depth は validation split だけで選び、test 指標は report-only として扱う。
+この実行は fold ごとに `world_model.pt`、`bc_actor.pt`、`ac.pt` を作る。fold0-12 は開発WFOであり、pristine holdout の主張ではない。
 
 ### Space bundle export
 
-現行デモ bundle を `unidream-space/bundles/current` に再生成する:
+HF Spaces 向け bundle export utility は残っている。ただし Plan011 v31 を live demo へ採用するには、v31 checkpoint set に合わせた export path と Space runtime の差し替えが必要。現行の legacy bundle と Plan011 v31 の検証数値は分けて扱う。
 
-```bash
-uv run python -m unidream.cli.export_plan009_depth_calibrator_bundle \
-  --config configs/trading.yaml \
-  --output-dir /Users/sophie/Documents/UniDream/unidream-space/bundles/current
-```
-
-生成後、Space 側で sample parity を確認する:
+Space 側で bundle を更新した後は sample parity を確認する:
 
 ```bash
 cd /Users/sophie/Documents/UniDream/unidream-space
@@ -222,7 +252,7 @@ PYTHONPATH=/Users/sophie/Documents/UniDream/unidream-space \
   --tolerance 0.000001
 ```
 
-Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。Supabase demo 側は raw 15分足 candle を `/predict` に送り、Space runtime が直近60日を取引対象、その前の履歴を past-only guard history として使う。
+Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。
 
 ### 診断 CLI
 
@@ -242,7 +272,7 @@ uv run python -m unidream.cli.wm_probe
 uv run python -m unidream.cli.ac_candidate_q_probe
 ```
 
-Plan009 の部品検証:
+Legacy Plan009 の部品検証:
 
 ```bash
 uv run python -m unidream.cli.plan009_component_probe --help
