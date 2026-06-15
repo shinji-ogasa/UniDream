@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -72,6 +73,10 @@ def main() -> None:
         default="Best=checkpoints/acplan7_sizing_adapter_s007@ac_best.pt:ac",
         help="label=checkpoint_dir[@ac_file][:ac|:bc]",
     )
+    parser.add_argument("--bundle-type", default="unidream_neural_actor")
+    parser.add_argument("--status", default="dev_candidate")
+    parser.add_argument("--source", default="wm_bc_ac_actor")
+    parser.add_argument("--spec", default="")
     parser.add_argument("--sample-bars", type=int, default=0, help="0 exports the full WFO test split")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
@@ -172,14 +177,24 @@ def main() -> None:
         timestamps=np.asarray([_json_safe_time(x) for x in test_index[start_idx:t]], dtype=object),
     )
     manifest = {
-        "bundle_version": 1,
+        "bundle_version": 2,
+        "bundle_type": str(args.bundle_type),
         "created_by": "unidream.cli.export_inference_bundle",
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "run": {
             "label": run.label,
             "checkpoint_dir": run.checkpoint_dir,
             "mode": "ac" if run.use_ac else "bc",
             "ac_filename": run.ac_filename,
             "fold": int(split.fold_idx),
+            "seed": int(args.seed),
+            "status": str(args.status),
+            "source": str(args.source),
+            "spec": str(args.spec or run.label),
+            "no_leak_scope": (
+                "Walk-forward bundle uses only the selected fold train/validation data for model fitting "
+                "and exports the selected fold test split only as a sample verification path."
+            ),
         },
         "data": {
             "symbol": symbol,
@@ -213,8 +228,11 @@ def main() -> None:
         "artifacts": {
             "actor": "actor_full.pt",
             "world_model": "checkpoints/world_model.pt",
+            "bc_actor": "checkpoints/bc_actor.pt",
+            "ac": "checkpoints/ac.pt",
             "predictive_state": "predictive_state.npz",
             "sample_input": "sample_input.npz",
+            "sample_output": "sample_output.json",
             "config": "model_config.yaml",
         },
     }
