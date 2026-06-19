@@ -1,5 +1,7 @@
 # Plan004 Production Adoption Report (2026-05-06)
 
+> Archived result. Plan004 mainline override and its checkpoint-compatible training path were removed. The commands below are retained only as historical evidence and are not accepted by the current strict runner.
+
 ## 結論
 
 Plan004 residual BC/AC は no-leak 条件で本流候補に昇格。主指標では全14foldで `AlphaEx > +1` かつ `MaxDDDelta <= +1` を達成した。

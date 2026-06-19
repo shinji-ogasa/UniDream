@@ -1,3 +1,10 @@
+run:
+  start: "2018-01-01"
+  end: "2024-01-01"
+  folds: all
+  clean_checkpoint_dir: true
+  deterministic_algorithms: true
+
 ac:
   abs_max_position: 1.25
   abs_min_position: 0.0
@@ -244,6 +251,9 @@ costs:
   slippage_bps: 1.0
   spread_bps: 3.0
 data:
+  include_funding: true
+  include_oi: false
+  include_mark: true
   interval: 15m
   seq_len: 64
   symbol: BTCUSDT
@@ -260,6 +270,7 @@ eval:
   - max_drawdown
   - calmar
 logging:
+  cache_dir: checkpoints/data_cache
   checkpoint_dir: checkpoints/plan010_edge_allocator_v2_s007
   eval_interval: 150
   log_interval: 75
@@ -296,8 +307,6 @@ oracle:
   soft_label_temp: 0.5
   teacher_mode: signal_aim
   use_aim_targets: true
-plan004_residual_bc_ac:
-  enabled: false
 reward:
   benchmark_position: 1.0
   beta: 0.1

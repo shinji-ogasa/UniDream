@@ -76,10 +76,7 @@ def run_val_selector_stage(
             print(f"  [ValAdj] {candidate_to_text_fn(candidate_key)} {candidate_rec['label']}")
 
     chosen = select_policy_candidate_fn(selector_candidates, selector_cfg)
-    chosen_candidate = chosen["candidate"] if isinstance(chosen["candidate"], dict) else {
-        "scale": float(chosen["candidate"]),
-        "adv": original_adv,
-    }
+    chosen_candidate = chosen["candidate"]
     actor.infer_adjust_rate_scale = float(chosen_candidate["scale"])
     actor.infer_advantage_level = float(chosen_candidate.get("adv", original_adv))
     print(

@@ -1,8 +1,8 @@
 {
   "experiment": "plan011_v31_holdout_2024_2026",
-  "config": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
-  "checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007",
-  "command": "PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml --start 2018-01-01 --end 2026-04-17 --folds 15,16,17,18,19,20,21,22,23 --seed 7 --device mps --start-from test --stop-after test",
+  "config": "configs/plan011_overlay_actor_v31_holdout.yaml",
+  "checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_holdout_s007",
+  "command": "uv run python -m unidream.cli.train --config configs/plan011_overlay_actor_v31_holdout.yaml --seed 7 --device cuda",
   "symbol": "BTCUSDT",
   "interval": "15m",
   "seed": 7,

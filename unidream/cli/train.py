@@ -4,19 +4,20 @@ SPEC.md の実装順序に従って以下を実行する:
   1. データ取得・特徴量計算
   2. WFO 分割
   3. train 期間で Hindsight Oracle 計算
-  4. BC 初期化（Actor を oracle に模倣させる）
-  5. Transformer 世界モデル学習
+  4. Transformer 世界モデル学習
+  5. BC 初期化（Actor を oracle に模倣させる）
   6. Imagination AC fine-tune
   7. test 期間バックテスト
   8. PBO / Deflated Sharpe による過学習検出
   9. HMM レジーム別メトリクス
 
 Usage:
-    python -m unidream.cli.train --config configs/trading.yaml
+    python -m unidream.cli.train --config configs/trading.yaml --seed 7 --device cuda
 """
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime
 
 import numpy as np
@@ -32,10 +33,10 @@ from unidream.data.features import compute_features, get_raw_returns
 from unidream.data.oracle import _forward_window_stats, oracle_to_dataset
 from unidream.data.dataset import WFODataset, SequenceDataset
 from unidream.actor_critic.imagination_ac import _action_stats, _fmt_action_stats, _ac_alerts_ascii as _ac_alerts
-from unidream.device import add_device_argument, resolve_device
+from unidream.device import DEVICE_HELP, resolve_device
 from unidream.eval.backtest import Backtest, pnl_attribution
 from unidream.experiments.runtime import load_config, resolve_costs, set_seed
-from unidream.experiments.fold_runtime import PIPELINE_STAGES, prepare_fold_runtime, stage_idx
+from unidream.experiments.fold_runtime import resolve_ac_max_steps
 from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.train_app import run_training_app
 from unidream.experiments.m2 import (
@@ -51,7 +52,7 @@ from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
-from unidream.experiments.plan004_stage import run_plan004_stage
+from unidream.experiments.run_config import configure_determinism, load_training_run_config
 
 
 def _ts() -> str:
@@ -145,7 +146,7 @@ def _is_benchmark_hold(stats: dict, benchmark_position: float) -> bool:
 
 
 def _selector_candidate(
-    candidate: float,
+    candidate: dict[str, float],
     metrics,
     stats: dict,
     benchmark_position: float,
@@ -259,12 +260,10 @@ def _selector_candidate(
     }
 
 
-def _candidate_to_text(candidate) -> str:
-    if isinstance(candidate, dict):
-        scale = float(candidate.get("scale", 0.0))
-        adv = float(candidate.get("adv", 0.0))
-        return f"scale={scale:.3f} adv={adv:.2f}"
-    return f"scale={float(candidate):.3f}"
+def _candidate_to_text(candidate: dict[str, float]) -> str:
+    scale = float(candidate["scale"])
+    adv = float(candidate["adv"])
+    return f"scale={scale:.3f} adv={adv:.2f}"
 
 
 def _select_policy_candidate(candidates: list[dict], selector_cfg: dict) -> dict:
@@ -331,20 +330,8 @@ def run_fold(
     cfg: dict,
     device: str,
     checkpoint_dir: str,
-    resume: bool = False,
-    start_from: str = "wm",
-    stop_after: str = "test",
 ) -> dict:
-    """1 WFO fold の学習・評価を実行する.
-
-    resume=True の場合、保存済みチェックポイントから再開する:
-      - ac.pt が存在 → fold 全体をスキップ（バックテストのみ再実行）
-      - bc_actor.pt が存在 → WM・BC をロードして AC から再開
-      - world_model.pt が存在 → WM をロードして BC から再開
-
-    Returns:
-        {"fold": fold_idx, "metrics": BacktestMetrics, "positions": np.ndarray}
-    """
+    """Train and evaluate one WFO fold from scratch."""
     print(f"\n{'='*60}")
     print(f"Fold {fold_idx}: train {wfo_dataset.split.train_start.date()} → "
           f"{wfo_dataset.split.train_end.date()} | "
@@ -360,41 +347,12 @@ def run_fold(
     obs_dim = wfo_dataset.obs_dim
     seq_len = cfg.get("data", {}).get("seq_len", 64)
 
-    fold_runtime = prepare_fold_runtime(
-        fold_idx=fold_idx,
-        checkpoint_dir=checkpoint_dir,
-        ac_cfg=ac_cfg,
-        resume=resume,
-        start_from=start_from,
-        stop_after=stop_after,
-    )
-    fold_ckpt_dir = fold_runtime["fold_ckpt_dir"]
-    wm_path = fold_runtime["wm_path"]
-    bc_path = fold_runtime["bc_path"]
-    ac_path = fold_runtime["ac_path"]
-    ac_max_steps_cfg = fold_runtime["ac_max_steps_cfg"]
-    ignore_ac_ckpt = fold_runtime["ignore_ac_ckpt"]
-    start_idx = fold_runtime["start_idx"]
-    stop_idx = fold_runtime["stop_idx"]
-    has_wm_ckpt = fold_runtime["has_wm_ckpt"]
-    has_bc_ckpt = fold_runtime["has_bc_ckpt"]
-    has_ac_ckpt = fold_runtime["has_ac_ckpt"]
-    has_wm = fold_runtime["has_wm"]
-    has_bc = fold_runtime["has_bc"]
-    has_ac = fold_runtime["has_ac"]
-
-    if start_idx > stage_idx("wm") and not has_wm_ckpt:
-        raise FileNotFoundError(
-            f"Fold {fold_idx}: missing WM checkpoint for --start-from {start_from}: {wm_path}"
-        )
-    if start_from == "ac" and not has_bc_ckpt:
-        raise FileNotFoundError(
-            f"Fold {fold_idx}: missing BC checkpoint for --start-from ac: {bc_path}"
-        )
-    if start_from == "test" and not (has_bc_ckpt or has_ac_ckpt):
-        raise FileNotFoundError(
-            f"Fold {fold_idx}: --start-from test requires {bc_path} or {ac_path}"
-        )
+    fold_ckpt_dir = os.path.join(checkpoint_dir, f"fold_{fold_idx}")
+    os.makedirs(fold_ckpt_dir, exist_ok=True)
+    wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
+    bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
+    ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
+    ac_max_steps_cfg = resolve_ac_max_steps(ac_cfg)
 
     reward_cfg = cfg.get("reward", {})
     fold_inputs = prepare_fold_inputs(
@@ -443,7 +401,7 @@ def run_fold(
         obs_dim=obs_dim,
         cfg=cfg,
         device=device,
-        has_wm=has_wm,
+        has_wm=False,
         wm_path=wm_path,
         wfo_dataset=wfo_dataset,
         oracle_positions=oracle_positions,
@@ -453,10 +411,6 @@ def run_fold(
         val_regime_probs=val_regime_probs,
         log_ts=_ts,
     )
-
-    if stop_after == "wm":
-        print(f"\n[{_ts()}] [Stop] Requested stop after WM")
-        return {"fold": fold_idx, "completed_stage": "wm"}
 
     # train 期間の全シーケンスをエンコード
     # BC 学習・評価の一貫性のため no-action（flat）context で encode する。
@@ -514,9 +468,6 @@ def run_fold(
         ac_cfg=ac_cfg,
         reward_cfg=reward_cfg,
         device=device,
-        has_bc=has_bc,
-        start_idx=start_idx,
-        bc_stage_idx=stage_idx("bc"),
         bc_path=bc_path,
         z_train=z_train,
         h_train=h_train,
@@ -531,10 +482,6 @@ def run_fold(
         train_route_advantage=train_route_advantage,
         log_ts=_ts,
     )
-
-    if stop_after == "bc":
-        print(f"\n[{_ts()}] [Stop] Requested stop after BC")
-        return {"fold": fold_idx, "completed_stage": "bc"}
 
     # --------- Step 4: Imagination AC Fine-tune ---------
     # no-action h（z_train/h_train）を AC でもそのまま使う。
@@ -552,7 +499,6 @@ def run_fold(
         wm_cfg=wm_cfg,
         costs_cfg=costs_cfg,
         device=device,
-        has_ac=has_ac,
         ac_path=ac_path,
         z_train=z_train,
         h_train=h_train,
@@ -565,9 +511,6 @@ def run_fold(
         val_regime_probs=val_regime_probs,
         val_advantage_values=val_advantage_values,
         val_oracle_positions=val_oracle_positions,
-        start_idx=start_idx,
-        stop_idx=stop_idx,
-        ac_stage_idx=stage_idx("ac"),
         ac_max_steps_cfg=ac_max_steps_cfg,
         log_ts=_ts,
         backtest_cls=Backtest,
@@ -580,10 +523,6 @@ def run_fold(
         policy_score_fn=_policy_score,
         sequence_dataset_cls=SequenceDataset,
     )
-
-    if stop_after == "ac":
-        print(f"\n[{_ts()}] [Stop] Requested stop after AC")
-        return {"fold": fold_idx, "completed_stage": "ac"}
 
     run_val_selector_stage(
         actor=actor,
@@ -604,15 +543,6 @@ def run_fold(
         candidate_to_text_fn=_candidate_to_text,
         benchmark_positions_fn=lambda length: _benchmark_positions(length, cfg),
         benchmark_position=_benchmark_position_value(cfg),
-    )
-
-    plan004_result = run_plan004_stage(
-        fold_idx=fold_idx,
-        wfo_dataset=wfo_dataset,
-        cfg=cfg,
-        costs_cfg=costs_cfg,
-        fold_ckpt_dir=fold_ckpt_dir,
-        log_ts=_ts,
     )
 
     # --------- Step 5: Test バックテスト ---------
@@ -637,68 +567,47 @@ def run_fold(
         format_m2_scorecard_fn=_format_m2_scorecard,
         log_ts=_ts,
         fold_idx=fold_idx,
-        override_positions=None if plan004_result is None else plan004_result["positions"],
-        override_policy_name=None if plan004_result is None else "plan004_residual_bc_ac",
+        override_positions=None,
+        override_policy_name=None,
     )
     test_result["fold"] = fold_idx
-    if plan004_result is not None:
-        test_result["plan004"] = {
-            "status": plan004_result.get("status"),
-            "selected": plan004_result.get("selected_row"),
-            "config": plan004_result.get("config"),
-        }
     return test_result
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m unidream.cli.train",
-        description="UniDream training pipeline",
+        description="Strict reproducible UniDream WM -> BC -> AC -> Test pipeline",
+        allow_abbrev=False,
     )
-    parser.add_argument("--config", default="configs/trading.yaml")
-    parser.add_argument("--start", default="2018-01-01")
-    parser.add_argument("--end", default="2024-01-01")
-    add_device_argument(parser)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Resume from existing checkpoints",
-    )
-    parser.add_argument(
-        "--start-from",
-        default="wm",
-        choices=PIPELINE_STAGES,
-        help="Start pipeline from this stage",
-    )
-    parser.add_argument(
-        "--stop-after",
-        default="test",
-        choices=PIPELINE_STAGES,
-        help="Stop pipeline after this stage",
-    )
-    parser.add_argument(
-        "--folds",
-        default=None,
-        help="Comma-separated fold indices to run (for example: 0,1,4)",
-    )
+    parser.add_argument("--config", required=True, help="Self-contained training YAML")
+    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--device", required=True, help=DEVICE_HELP)
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
     args.device = resolve_device(args.device)
 
-    if stage_idx(args.start_from) > stage_idx(args.stop_after):
-        parser.error("--start-from must be earlier than or equal to --stop-after")
-
     cfg = load_config(args.config)
     cfg, active_cost_profile = resolve_costs(cfg)
-    args.checkpoint_dir = cfg.get("logging", {}).get("checkpoint_dir", "checkpoints")
+    try:
+        run_cfg = load_training_run_config(cfg)
+    except (TypeError, ValueError) as exc:
+        parser.error(str(exc))
+    configure_determinism(args.seed)
     set_seed(args.seed)
     run_training_app(
-        args=args,
+        config_path=args.config,
         cfg=cfg,
+        run_cfg=run_cfg,
+        seed=args.seed,
+        device=args.device,
         active_cost_profile=active_cost_profile,
         run_fold_fn=run_fold,
         format_m2_scorecard_fn=_format_m2_scorecard,
-        parser_error_fn=parser.error,
     )
 
 

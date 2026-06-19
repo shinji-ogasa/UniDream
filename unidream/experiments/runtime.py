@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import glob
 import os
 import random
-import time
 
 import numpy as np
 import pandas as pd
@@ -19,36 +17,10 @@ from unidream.data.download import (
 from unidream.data.features import align_extra_series, compute_features, get_raw_returns
 
 
-_CACHE_STALE_DAYS = 7
-
-
-def cache_is_fresh(path: str, stale_days: int = _CACHE_STALE_DAYS) -> bool:
-    if not os.path.exists(path):
-        return False
-    return (time.time() - os.path.getmtime(path)) / 86400 < stale_days
-
-
 def resolve_cache_pair(cache_dir: str, cache_tag: str) -> tuple[str, str]:
     features_cache = os.path.join(cache_dir, f"{cache_tag}_features.parquet")
     returns_cache = os.path.join(cache_dir, f"{cache_tag}_returns.parquet")
-    if os.path.exists(features_cache) and os.path.exists(returns_cache):
-        return features_cache, returns_cache
-
-    feature_candidates = sorted(glob.glob(os.path.join(cache_dir, f"{cache_tag}*_features.parquet")))
-    return_candidates = sorted(glob.glob(os.path.join(cache_dir, f"{cache_tag}*_returns.parquet")))
-    if feature_candidates and return_candidates:
-        return feature_candidates[0], return_candidates[0]
     return features_cache, returns_cache
-
-
-def resolve_optional_cache(cache_dir: str, cache_tag: str, suffix: str) -> str:
-    path = os.path.join(cache_dir, f"{cache_tag}_{suffix}.parquet")
-    if os.path.exists(path):
-        return path
-    candidates = sorted(glob.glob(os.path.join(cache_dir, f"{cache_tag}*_{suffix}.parquet")))
-    if candidates:
-        return candidates[0]
-    return path
 
 
 def read_optional_parquet(path: str) -> pd.DataFrame | None:
@@ -69,12 +41,17 @@ def read_optional_parquet(path: str) -> pd.DataFrame | None:
 
 def read_extra_series_caches(cache_dir: str, cache_tag: str) -> dict[str, pd.Series]:
     series_map: dict[str, pd.Series] = {}
-    pattern = os.path.join(cache_dir, f"{cache_tag}*_series_*.parquet")
-    for path in sorted(glob.glob(pattern)):
+    prefix = f"{cache_tag}_series_"
+    if not os.path.isdir(cache_dir):
+        return series_map
+    for filename in sorted(os.listdir(cache_dir)):
+        if not filename.startswith(prefix) or not filename.endswith(".parquet"):
+            continue
+        path = os.path.join(cache_dir, filename)
         df = read_optional_parquet(path)
         if df is None or df.empty or df.shape[1] == 0:
             continue
-        name = os.path.basename(path).split("_series_", 1)[-1].replace(".parquet", "")
+        name = filename[len(prefix) : -len(".parquet")]
         series_map[name] = df.iloc[:, 0].rename(name)
     return series_map
 

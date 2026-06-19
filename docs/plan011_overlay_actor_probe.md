@@ -1,5 +1,7 @@
 # Plan011 benchmark-relative overlay actor probe
 
+> Historical experiment log. Commands using `--start-from`, `--stop-after`, `--folds`, `--start`, or `--end` predate the strict runner and are intentionally no longer accepted. Recreate an experiment by encoding those values in a self-contained YAML and using only `--config`, `--seed`, and `--device`.
+
 Plan010 は失敗ログとして固定する。Plan011 は route class (`de_risk/neutral/overweight`) を捨て、
 B&H exposure `1.0` を基準にした small continuous overlay actor として分離する。
 

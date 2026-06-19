@@ -31,30 +31,26 @@ Each fold uses:
 - test: 3 months
 - slide: 3 months
 
-Validation selects only inference adjustment scale. Test is reported after loading locked checkpoints.
+Validation selects only inference adjustment scale. Test remains report-only; the strict reproduction run recreates WM/BC/AC before evaluating it.
 
 ## Reproduction Commands
 
-Full missing-fold training was run with the same v31 config. To reproduce final test metrics from saved checkpoints:
+The strict runner retrains WM, BC and AC from scratch. Reproduce fold0-12 with the self-contained v31 config:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
+uv run python -m unidream.cli.train \
   --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --start 2018-01-01 --end 2024-01-01 \
-  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
-  --seed 7 --device mps \
-  --start-from test --stop-after test
+  --seed 7 \
+  --device cuda
 ```
 
 CPU fallback:
 
 ```bash
-.venv/bin/python -u -m unidream.cli.train \
+uv run python -m unidream.cli.train \
   --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --start 2018-01-01 --end 2024-01-01 \
-  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
-  --seed 7 --device cpu \
-  --start-from test --stop-after test
+  --seed 7 \
+  --device cpu
 ```
 
 ## Fold Results
@@ -131,12 +127,10 @@ The locked v31 spec was retrained/evaluated on folds 15-23 with data through `20
 Reproduction:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
-  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --start 2018-01-01 --end 2026-04-17 \
-  --folds 15,16,17,18,19,20,21,22,23 \
-  --seed 7 --device mps \
-  --start-from test --stop-after test
+uv run python -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_holdout.yaml \
+  --seed 7 \
+  --device cuda
 ```
 
 | fold | test period | AlphaEx pt/yr | SharpeDelta | MaxDDDelta pt | turnover |

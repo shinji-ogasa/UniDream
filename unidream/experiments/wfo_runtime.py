@@ -32,3 +32,15 @@ def select_wfo_splits(splits, folds_arg: str | None):
             f"--folds selected {selected_folds}, but no matching folds were found in this dataset"
         )
     return selected, selected_folds
+
+
+def select_configured_wfo_splits(splits, folds: tuple[int, ...] | None):
+    if folds is None:
+        return splits, [split.fold_idx for split in splits]
+    selected_set = set(folds)
+    selected = [split for split in splits if split.fold_idx in selected_set]
+    found = {split.fold_idx for split in selected}
+    missing = sorted(selected_set - found)
+    if missing:
+        raise ValueError(f"run.folds contains unavailable fold indices: {missing}")
+    return selected, [split.fold_idx for split in selected]

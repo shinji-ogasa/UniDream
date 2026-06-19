@@ -1,5 +1,15 @@
+run:
+  start: "2018-01-01"
+  end: "2024-01-01"
+  folds: [0]
+  clean_checkpoint_dir: true
+  deterministic_algorithms: true
+
 # Smoke test — minimal config that exercises the full pipeline code path.
 data:
+  include_funding: true
+  include_oi: false
+  include_mark: true
   interval: 15m
   symbol: BTCUSDT
   seq_len: 32
@@ -17,7 +27,7 @@ world_model:
   n_classes: 4
   n_bins: 255
   max_steps: 2
-  max_seq_len: 32
+  max_seq_len: 128
   batch_size: 16
   lr: 0.0001
   dropout: 0.0
@@ -94,10 +104,11 @@ normalization:
   zscore_window_days: 60
 
 actions:
-  dim: 4
+  dim: 1
 
 eval:
   hmm_n_states: 3
 
 logging:
+  cache_dir: checkpoints/data_cache
   checkpoint_dir: checkpoints/_smoke

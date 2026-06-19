@@ -1,52 +1,35 @@
-import os
-
 import numpy as np
 
 from unidream.data.features import augment_with_rebound_features
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
 
+from .run_config import finalize_run_manifest, prepare_run_directory, write_run_manifest
 from .runtime import load_training_features
 from .train_pipeline import run_wfo_folds
 from .train_reporting import (
     aggregate_scorecards,
     compute_overfitting_diagnostics,
-    print_stage_summary,
     print_training_summary,
 )
-from .wfo_runtime import build_wfo_splits, select_wfo_splits
-
-
-def resolve_cache_dir(checkpoint_dir: str, cfg: dict) -> str:
-    logging_cfg = cfg.get("logging", {})
-    if logging_cfg.get("cache_dir"):
-        return str(logging_cfg["cache_dir"])
-
-    candidate_dirs = [
-        os.path.join(checkpoint_dir, "data_cache"),
-        os.path.join(os.path.dirname(checkpoint_dir), "data_cache"),
-        "checkpoints/data_cache",
-    ]
-    for path in candidate_dirs:
-        if os.path.exists(path):
-            return path
-    return candidate_dirs[0]
+from .wfo_runtime import build_wfo_splits, select_configured_wfo_splits
 
 
 def run_training_app(
     *,
-    args,
+    config_path: str,
     cfg: dict,
+    run_cfg,
+    seed: int,
+    device: str,
     active_cost_profile: str,
     run_fold_fn,
     format_m2_scorecard_fn,
-    parser_error_fn,
 ):
     symbol = cfg.get("data", {}).get("symbol", "BTCUSDT")
     interval = cfg.get("data", {}).get("interval", "15m")
 
-    print(f"UniDream Training | {symbol} {interval} | {args.start} → {args.end}")
-    print(f"Device: {args.device} | Seed: {args.seed} | Resume: {args.resume}")
-    print(f"Stages: {args.start_from} -> {args.stop_after}")
+    print(f"UniDream Training | {symbol} {interval} | {run_cfg.start} → {run_cfg.end}")
+    print(f"Device: {device} | Seed: {seed} | Pipeline: WM -> BC -> AC -> Test")
     costs_cfg = cfg.get("costs", {})
     total_cost_bps = (
         costs_cfg.get("spread_bps", 0.0) / 2
@@ -62,15 +45,16 @@ def run_training_app(
         f"=> one-way Δpos=1 cost={total_cost_bps:.2f}bps"
     )
 
-    cache_dir = resolve_cache_dir(args.checkpoint_dir, cfg)
+    prepare_run_directory(run_cfg, cfg)
+    cache_dir = str(run_cfg.cache_dir)
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
+    cache_tag = f"{symbol}_{interval}_{run_cfg.start}_{run_cfg.end}_z{zscore_window}_v2"
     data_cfg = cfg.get("data", {})
     features_df, raw_returns = load_training_features(
         symbol=symbol,
         interval=interval,
-        start=args.start,
-        end=args.end,
+        start=run_cfg.start,
+        end=run_cfg.end,
         zscore_window=zscore_window,
         cache_dir=cache_dir,
         cache_tag=cache_tag,
@@ -100,13 +84,21 @@ def run_training_app(
         print("ERROR: WFO splits が空です。データ期間が短すぎます。")
         return
 
-    try:
-        splits, selected_folds = select_wfo_splits(splits, args.folds)
-    except ValueError as exc:
-        parser_error_fn(str(exc))
-        return
-    if selected_folds is not None:
-        print(f"  Running selected folds only: {selected_folds}")
+    splits, selected_folds = select_configured_wfo_splits(splits, run_cfg.folds)
+    print(f"  Running configured folds: {selected_folds}")
+
+    manifest = write_run_manifest(
+        run_cfg=run_cfg,
+        cfg=cfg,
+        config_path=config_path,
+        seed=seed,
+        device=device,
+        active_cost_profile=active_cost_profile,
+        features_df=features_df,
+        raw_returns=raw_returns,
+        selected_folds=selected_folds,
+    )
+    print(f"  Run ID: {manifest['run_id']} | data sha256={manifest['data']['fingerprint_sha256'][:12]}")
 
     fold_results = run_wfo_folds(
         features_df=features_df,
@@ -114,18 +106,12 @@ def run_training_app(
         splits=splits,
         data_cfg=data_cfg,
         cfg=cfg,
-        device=args.device,
-        checkpoint_dir=args.checkpoint_dir,
-        resume=args.resume,
-        start_from=args.start_from,
-        stop_after=args.stop_after,
+        device=device,
+        checkpoint_dir=str(run_cfg.checkpoint_dir),
         run_fold_fn=run_fold_fn,
-        seed=args.seed,
+        seed=seed,
     )
-
-    if args.stop_after != "test":
-        print_stage_summary(fold_results, args.stop_after)
-        return
+    finalize_run_manifest(run_cfg, fold_results)
 
     print("\n[Eval] Overfitting Diagnostics (simplified)...")
     eval_cfg = cfg.get("eval", {})

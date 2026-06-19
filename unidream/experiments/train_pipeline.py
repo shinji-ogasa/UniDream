@@ -14,9 +14,6 @@ def run_wfo_folds(
     cfg: dict,
     device: str,
     checkpoint_dir: str,
-    resume: bool,
-    start_from: str,
-    stop_after: str,
     run_fold_fn,
     seed: int | None = None,
 ) -> dict:
@@ -36,9 +33,6 @@ def run_wfo_folds(
             cfg=cfg,
             device=device,
             checkpoint_dir=checkpoint_dir,
-            resume=resume,
-            start_from=start_from,
-            stop_after=stop_after,
         )
         fold_results[split.fold_idx] = result
     return fold_results

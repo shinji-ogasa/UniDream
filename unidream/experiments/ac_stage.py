@@ -89,8 +89,6 @@ def build_ac_trainer(
     ac_cfg: dict,
     wm_cfg: dict,
     device: str,
-    has_ac: bool,
-    ac_path: str,
 ) -> ImagACTrainer:
     critic = Critic(
         z_dim=ensemble.get_z_dim(),
@@ -107,8 +105,6 @@ def build_ac_trainer(
         cfg=cfg,
         device=device,
     )
-    if has_ac:
-        ac_trainer.load(ac_path)
     return ac_trainer
 
 
@@ -121,7 +117,6 @@ def run_ac_stage(
     wm_cfg: dict,
     costs_cfg: dict,
     device: str,
-    has_ac: bool,
     ac_path: str,
     z_train,
     h_train,
@@ -134,9 +129,6 @@ def run_ac_stage(
     val_regime_probs,
     val_advantage_values,
     val_oracle_positions,
-    start_idx: int,
-    stop_idx: int,
-    ac_stage_idx: int,
     ac_max_steps_cfg: int,
     log_ts,
     backtest_cls,
@@ -149,8 +141,7 @@ def run_ac_stage(
     policy_score_fn,
     sequence_dataset_cls,
 ):
-    ac_requested = ((stop_idx >= ac_stage_idx) and ac_max_steps_cfg > 0) or has_ac
-    if not ac_requested:
+    if ac_max_steps_cfg <= 0:
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
         return None
 
@@ -161,16 +152,7 @@ def run_ac_stage(
         ac_cfg=ac_cfg,
         wm_cfg=wm_cfg,
         device=device,
-        has_ac=has_ac,
-        ac_path=ac_path,
     )
-
-    if not (start_idx <= ac_stage_idx or has_ac):
-        print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
-        return ac_trainer
-    if start_idx > ac_stage_idx and has_ac:
-        print(f"\n[{log_ts()}] [Step 4] AC - loaded checkpoint for downstream test")
-        return ac_trainer
 
     t_enc = min(len(z_train), len(oracle_positions))
     ac_oracle_positions = oracle_positions[:t_enc]
@@ -276,70 +258,63 @@ def run_ac_stage(
         }
 
     ac_max_steps = ac_max_steps_cfg
-    if ac_trainer.global_step >= ac_max_steps:
-        print(f"\n[{log_ts()}] [Step 4] AC - already complete (step={ac_trainer.global_step})")
-        return ac_trainer
-
     bc_val_sharpe = -float("inf")
-    if has_ac:
-        print(f"\n[{log_ts()}] [Step 4] AC - resuming from step {ac_trainer.global_step}/{ac_max_steps}")
-    else:
-        print(f"\n[{log_ts()}] [Step 4] Imagination AC Fine-tuning...")
-        bc_val_sharpe, bc_val_label = _val_eval()
-        print(f"[AC] BC-only val score: {bc_val_label}")
-        if z_val_fixed is not None:
-            bc_pos = actor.predict_positions(
-                z_val_fixed,
-                h_val_fixed,
-                regime_np=val_regime_probs,
-                advantage_np=val_advantage_values,
-                device=device,
-            )
-            bc_t = min(len(val_returns_arr), len(bc_pos))
-            bc_metrics = backtest_cls(
-                val_returns_arr[:bc_t],
-                bc_pos[:bc_t],
-                spread_bps=costs_cfg.get("spread_bps", 5.0),
-                fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-                interval=cfg.get("data", {}).get("interval", "15m"),
-                benchmark_positions=benchmark_positions_fn(bc_t),
-            ).run()
-            fire_selector_bc_baseline["alpha_excess_pt"] = 100.0 * float(bc_metrics.alpha_excess or 0.0)
-            fire_selector_bc_baseline["sharpe_delta"] = float(bc_metrics.sharpe_delta or 0.0)
-            bc_attr = pnl_attribution_fn(
-                val_returns_arr[:bc_t],
-                bc_pos[:bc_t],
-                spread_bps=costs_cfg.get("spread_bps", 5.0),
-                fee_rate=costs_cfg.get("fee_rate", 0.0004),
-                slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-            )
-            bc_stats = action_stats_fn(bc_pos[:bc_t], benchmark_position=benchmark_position)
-            print(f"  BC val dist: {format_action_stats_fn(bc_stats)}")
-            print(
-                f"  BC val: TotalRet={bc_metrics.total_return:.3f}  "
-                f"AlphaExcess={100.0 * (bc_metrics.alpha_excess or 0.0):+.2f}pt  "
-                f"long={bc_attr['long_gross']:+.4f}  "
-                f"short={bc_attr['short_gross']:+.4f}  "
-                f"cost={bc_attr['cost_total']:.4f}"
-            )
-            oracle_val_pos = val_oracle_positions[:bc_t]
-            oracle_val_stats = action_stats_fn(oracle_val_pos, benchmark_position=benchmark_position)
-            print(f"  Oracle val dist: {format_action_stats_fn(oracle_val_stats)}")
-            ac_alerts_fn("BC-val", bc_stats)
+    print(f"\n[{log_ts()}] [Step 4] Imagination AC Fine-tuning...")
+    bc_val_sharpe, bc_val_label = _val_eval()
+    print(f"[AC] BC-only val score: {bc_val_label}")
+    if z_val_fixed is not None:
+        bc_pos = actor.predict_positions(
+            z_val_fixed,
+            h_val_fixed,
+            regime_np=val_regime_probs,
+            advantage_np=val_advantage_values,
+            device=device,
+        )
+        bc_t = min(len(val_returns_arr), len(bc_pos))
+        bc_metrics = backtest_cls(
+            val_returns_arr[:bc_t],
+            bc_pos[:bc_t],
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+            interval=cfg.get("data", {}).get("interval", "15m"),
+            benchmark_positions=benchmark_positions_fn(bc_t),
+        ).run()
+        fire_selector_bc_baseline["alpha_excess_pt"] = 100.0 * float(bc_metrics.alpha_excess or 0.0)
+        fire_selector_bc_baseline["sharpe_delta"] = float(bc_metrics.sharpe_delta or 0.0)
+        bc_attr = pnl_attribution_fn(
+            val_returns_arr[:bc_t],
+            bc_pos[:bc_t],
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+        )
+        bc_stats = action_stats_fn(bc_pos[:bc_t], benchmark_position=benchmark_position)
+        print(f"  BC val dist: {format_action_stats_fn(bc_stats)}")
+        print(
+            f"  BC val: TotalRet={bc_metrics.total_return:.3f}  "
+            f"AlphaExcess={100.0 * (bc_metrics.alpha_excess or 0.0):+.2f}pt  "
+            f"long={bc_attr['long_gross']:+.4f}  "
+            f"short={bc_attr['short_gross']:+.4f}  "
+            f"cost={bc_attr['cost_total']:.4f}"
+        )
+        oracle_val_pos = val_oracle_positions[:bc_t]
+        oracle_val_stats = action_stats_fn(oracle_val_pos, benchmark_position=benchmark_position)
+        print(f"  Oracle val dist: {format_action_stats_fn(oracle_val_stats)}")
+        ac_alerts_fn("BC-val", bc_stats)
 
-        critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
-        if critic_pretrain_steps > 0:
-            ac_trainer.pretrain_critic(
-                encoded_sequences=encoded_list,
-                n_steps=critic_pretrain_steps,
-                batch_size=ac_cfg.get("batch_size", 32),
-            )
-        if ac_cfg.get("critic_only", False) and not ac_cfg.get("curriculum"):
-            if ac_path:
-                ac_trainer.save(ac_path)
-            print(f"[{log_ts()}] [Step 4] AC critic-only requested; actor update skipped")
-            return ac_trainer
+    critic_pretrain_steps = ac_cfg.get("critic_pretrain_steps", 0)
+    if critic_pretrain_steps > 0:
+        ac_trainer.pretrain_critic(
+            encoded_sequences=encoded_list,
+            n_steps=critic_pretrain_steps,
+            batch_size=ac_cfg.get("batch_size", 32),
+        )
+    if ac_cfg.get("critic_only", False) and not ac_cfg.get("curriculum"):
+        if ac_path:
+            ac_trainer.save(ac_path)
+        print(f"[{log_ts()}] [Step 4] AC critic-only requested; actor update skipped")
+        return ac_trainer
 
     interval = cfg.get("data", {}).get("interval", "15m")
     bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(interval, 96)

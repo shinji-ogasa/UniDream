@@ -165,9 +165,6 @@ def run_bc_stage(
     ac_cfg: dict,
     reward_cfg: dict,
     device: str,
-    has_bc: bool,
-    start_idx: int,
-    bc_stage_idx: int,
     bc_path: str,
     z_train,
     h_train,
@@ -191,46 +188,33 @@ def run_bc_stage(
         reward_cfg=reward_cfg,
         device=device,
     )
-    if has_bc:
-        print(f"\n[{log_ts()}] [Step 3] BC - loading checkpoint: {bc_path}")
-        bc_trainer.load(bc_path)
-        return bc_trainer
-
-    if start_idx <= bc_stage_idx:
-        init_bc_path = bc_cfg.get("init_checkpoint")
-        if init_bc_path:
-            print(f"\n[{log_ts()}] [Step 3] BC - warm start from: {init_bc_path}")
-            bc_trainer.load(init_bc_path)
-        reinit_prefixes = bc_cfg.get("reinit_actor_prefixes", [])
-        if reinit_prefixes:
-            _reinitialize_actor_prefixes(actor, reinit_prefixes)
-        print(f"\n[{log_ts()}] [Step 3] BC Pre-training...")
-        t_enc = min(len(z_train), len(oracle_positions))
-        train_positions = np.asarray(oracle_positions[:t_enc], dtype=np.float32)
-        if benchmark_overlay_teacher_enabled(bc_cfg, ac_cfg):
-            train_positions = apply_benchmark_overlay_teacher(
-                train_positions,
-                bc_cfg=bc_cfg,
-                ac_cfg=ac_cfg,
-                reward_cfg=reward_cfg,
-                advantage_values=bc_advantage_values[:t_enc] if bc_advantage_values is not None else None,
-                returns=train_returns[:t_enc] if train_returns is not None else None,
-            )
-            print(f"[BC] {describe_benchmark_overlay_teacher(oracle_positions[:t_enc], train_positions, reward_cfg=reward_cfg)}")
-        bc_trainer.train(
-            z=z_train[:t_enc],
-            h=h_train[:t_enc],
-            oracle_positions=train_positions,
-            regime_probs=train_regime_probs[:t_enc] if train_regime_probs is not None else None,
-            soft_labels=oracle_soft_labels[:t_enc] if oracle_soft_labels is not None else None,
-            sample_quality=bc_sample_quality[:t_enc] if bc_sample_quality is not None else None,
+    reinit_prefixes = bc_cfg.get("reinit_actor_prefixes", [])
+    if reinit_prefixes:
+        _reinitialize_actor_prefixes(actor, reinit_prefixes)
+    print(f"\n[{log_ts()}] [Step 3] BC Pre-training...")
+    t_enc = min(len(z_train), len(oracle_positions))
+    train_positions = np.asarray(oracle_positions[:t_enc], dtype=np.float32)
+    if benchmark_overlay_teacher_enabled(bc_cfg, ac_cfg):
+        train_positions = apply_benchmark_overlay_teacher(
+            train_positions,
+            bc_cfg=bc_cfg,
+            ac_cfg=ac_cfg,
+            reward_cfg=reward_cfg,
             advantage_values=bc_advantage_values[:t_enc] if bc_advantage_values is not None else None,
-            route_labels=train_route_labels[:t_enc] if train_route_labels is not None else None,
-            route_soft_labels=train_route_soft_labels[:t_enc] if train_route_soft_labels is not None else None,
-            route_advantage=train_route_advantage[:t_enc] if train_route_advantage is not None else None,
+            returns=train_returns[:t_enc] if train_returns is not None else None,
         )
-        bc_trainer.save(bc_path)
-        return bc_trainer
-
-    print(f"\n[{log_ts()}] [Step 3] BC - skipped (AC checkpoint will provide actor weights)")
+        print(f"[BC] {describe_benchmark_overlay_teacher(oracle_positions[:t_enc], train_positions, reward_cfg=reward_cfg)}")
+    bc_trainer.train(
+        z=z_train[:t_enc],
+        h=h_train[:t_enc],
+        oracle_positions=train_positions,
+        regime_probs=train_regime_probs[:t_enc] if train_regime_probs is not None else None,
+        soft_labels=oracle_soft_labels[:t_enc] if oracle_soft_labels is not None else None,
+        sample_quality=bc_sample_quality[:t_enc] if bc_sample_quality is not None else None,
+        advantage_values=bc_advantage_values[:t_enc] if bc_advantage_values is not None else None,
+        route_labels=train_route_labels[:t_enc] if train_route_labels is not None else None,
+        route_soft_labels=train_route_soft_labels[:t_enc] if train_route_soft_labels is not None else None,
+        route_advantage=train_route_advantage[:t_enc] if train_route_advantage is not None else None,
+    )
+    bc_trainer.save(bc_path)
     return bc_trainer

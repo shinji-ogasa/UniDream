@@ -57,14 +57,6 @@ def aggregate_scorecards(scorecards: list[dict]) -> dict | None:
     return aggregate_scorecard
 
 
-def print_stage_summary(fold_results: dict, default_stage: str) -> None:
-    print("\n" + "=" * 60)
-    print("Stage Summary")
-    print("=" * 60)
-    for fold_idx, result in fold_results.items():
-        print(f"  Fold {fold_idx}: completed_stage={result.get('completed_stage', default_stage)}")
-
-
 def print_training_summary(
     fold_results: dict,
     all_sharpes: list[float],

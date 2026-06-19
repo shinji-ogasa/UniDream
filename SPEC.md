@@ -2,77 +2,83 @@
 
 ## Scope
 
-現行 scope は Plan009 depth calibrator の検証・bundle export・Space 推論。
+現行mainlineは Plan011 v31 の Transformer WM -> BC -> Imagination AC -> Test pipeline。
 
 ```text
-OHLCV / returns
-  -> shifted trailing-return features
-  -> past-only guard
-  -> validation-gated depth
-  -> execution compression
-  -> cost stress evaluation
-  -> Space bundle export
+OHLCV / funding / mark
+  -> exact cache key
+  -> Walk-Forward split
+  -> Hindsight Oracle
+  -> Transformer World Model
+  -> WM predictive state
+  -> Behavior Cloning
+  -> Imagination Actor-Critic
+  -> validation selector
+  -> test-only backtest
 ```
 
-## Entrypoints
+## Training Contract
 
-Plan009 dev evaluation:
+学習entrypointは以下だけを受け付ける。
 
 ```bash
-PYTHONWARNINGS=ignore uv run python -u -m unidream.cli.plan009_depth_calibrator_probe \
+uv run python -m unidream.cli.train \
   --config configs/trading.yaml \
-  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
   --seed 7 \
-  --val-dd-target -4.8 \
-  --safety-multiplier 2.0 \
-  --max-depth-cap 0.94
+  --device cuda
 ```
 
-Space bundle export:
+- 期間・fold・cost・checkpoint/cache pathはYAMLからのみ読む。
+- pipelineは常にWMからTestまで順番に実行する。
+- `--resume`, `--start-from`, `--stop-after`, `--start`, `--end`, `--folds`は廃止。
+- mainlineのcheckpoint warm-startとPlan004 overrideは廃止。
+- 実行前にconfigured checkpoint directoryをcleanし、古いartifactを参照しない。
+- cacheは完全一致するtagだけを読み、wildcard fallbackは行わない。
 
-```bash
-uv run python -m unidream.cli.export_plan009_depth_calibrator_bundle \
-  --config configs/trading.yaml \
-  --output-dir /Users/sophie/Documents/UniDream/unidream-space/bundles/current
+## Required YAML
+
+```yaml
+run:
+  start: "2018-01-01"
+  end: "2024-01-01"
+  folds: [0, 1, 2]
+  clean_checkpoint_dir: true
+  deterministic_algorithms: true
+
+data:
+  include_funding: true
+  include_oi: false
+  include_mark: true
+
+logging:
+  checkpoint_dir: checkpoints/example_s007
+  cache_dir: checkpoints/data_cache
 ```
 
-## Current Bundle Contract
+`run.folds: all`も許可する。その他のrun keyや旧互換fieldはvalidation errorにする。
 
-- `bundle_type`: `plan009_depth_calibrator`
-- input: raw 15m candles or aligned `features + returns`
-- runtime history: latest request is split into current 60d trading window plus preceding guard history
-- signals: shifted trailing-return features only
-- output: absolute position in `[0.0, 1.0]`
-- benchmark: `1.0`
+## Reproducibility Artifacts
 
-## Current Dev Metrics
+各run directoryに以下を保存する。
 
-`docs_local/20260528_plan009_gap16_next_mindelta010_full.json`:
+- `resolved_config.yaml`: cost profile解決後の完全config
+- `run_manifest.json`
+  - deterministic run ID
+  - config/source/data SHA256
+  - Git commit / dirty state
+  - seed / device / library versions
+  - selected folds
+  - WM/BC/AC semantic checkpoint SHA256
+- `fold_<n>/world_model.pt`
+- `fold_<n>/bc_actor.pt`
+- `fold_<n>/ac.pt`
 
-```text
-folds: 0-12
-cost_x1 pass +3/-3: 13/13
-Alpha median: +16.025pt
-Alpha worst: +4.690pt
-MaxDD worst: -3.026pt
-TO mean: 24.956
-cost_x2 pass: 9/13
-cost_x3 pass: 6/13
-```
+run IDはconfig、source、data、seedから生成する。PyTorch checkpointはZIP file hashではなくtensor内容のsemantic hashで比較する。
 
 ## Leak Discipline
 
-- Runtime features are shifted; values at bar `t` use information available before `t`.
-- Depth settings are chosen from validation-gated development probes.
-- Test metrics in fold0-12 are report-only.
-- fold0-12 is a development set, not a pristine holdout.
-
-## Generated Files
-
-- `docs_local/*.json`
-- `docs_local/*.md`
-- `checkpoints/data_cache/*_features.parquet`
-- `checkpoints/data_cache/*_returns.parquet`
-- `unidream-space/bundles/current/*`
-
-`checkpoints/`, `docs_local/`, and `.venv/` are local generated outputs.
+- trainでWM/BC/ACをfitする。
+- validationでcheckpoint/inference selectorを選ぶ。
+- testはreport-only。
+- fold境界、期間、特徴系列の有無はYAMLに固定する。
+- latest holdout configは`configs/plan011_overlay_actor_v31_holdout.yaml`。

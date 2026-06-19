@@ -187,7 +187,7 @@ uv run python -m unidream.cli.plan009_depth_calibrator_probe --help
 
 ### 本トレーニング
 
-`--config` のデフォルトは `configs/trading.yaml`。WM → BC → AC → Test まで通す本トレーニングはこのコマンドで実行する。
+WM → BC → AC → Test まで通す本トレーニングはこのコマンドで実行する。CLIで変更できるのはconfig・seed・deviceだけで、期間、fold、cost、checkpoint先はYAMLに固定する。
 
 ```bash
 uv run python -m unidream.cli.train \
@@ -196,74 +196,55 @@ uv run python -m unidream.cli.train \
   --device cuda
 ```
 
-fold を絞る場合:
+実行条件はYAMLの`run`で管理する:
 
-```bash
-uv run python -m unidream.cli.train \
-  --config configs/trading.yaml \
-  --folds 13 \
-  --seed 7 \
-  --device cuda
+```yaml
+run:
+  start: "2018-01-01"
+  end: "2024-01-01"
+  folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  clean_checkpoint_dir: true
+  deterministic_algorithms: true
+
+data:
+  include_funding: true
+  include_oi: false
+  include_mark: true
+
+logging:
+  checkpoint_dir: checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007
+  cache_dir: checkpoints/data_cache
 ```
 
-### ステージ単位の実行
+`run.clean_checkpoint_dir: true`では実行開始時に当該checkpoint directoryを削除して作り直す。既存WM/BC/ACのresume、stage途中開始、warm-startはmainlineから削除済み。
 
-`--start-from` と `--stop-after` で `wm` / `bc` / `ac` / `test` を切り出せる。既存 checkpoint がある場合は `--resume` で自動ロード。
+各runには以下を保存する:
 
-```bash
-# WM だけ学習
-uv run python -m unidream.cli.train --stop-after wm --device cuda
-
-# BC だけ学習
-uv run python -m unidream.cli.train --start-from bc --stop-after bc --resume --device cuda
-
-# AC だけ学習
-uv run python -m unidream.cli.train --start-from ac --stop-after ac --resume --device cuda
-
-# Test backtest だけ再実行
-uv run python -m unidream.cli.train --start-from test --resume --device cuda
-```
+- `resolved_config.yaml`: cost profile解決後の実設定
+- `run_manifest.json`: run ID、Git commit、source/config/data SHA256、seed、device、環境、fold一覧
+- `checkpoint_semantic_sha256`: PyTorch ZIP metadataに依存しないWM/BC/AC tensor内容hash
 
 ### Plan011 v31 の再現
 
-Plan011 v31 の0-12 fold test-only再集計:
+Plan011 v31 のfold0-12を最初から再学習・評価する:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
+uv run python -m unidream.cli.train \
   --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --start 2018-01-01 --end 2024-01-01 \
-  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
-  --seed 7 --device mps \
-  --start-from test --stop-after test
+  --seed 7 \
+  --device cuda
 ```
 
-完全未使用 2024-2026 holdout の test-only 再集計:
+完全未使用 2024-2026 holdoutを最初から再学習・評価する:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
-  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --start 2018-01-01 --end 2026-04-17 \
-  --folds 15,16,17,18,19,20,21,22,23 \
-  --seed 7 --device mps \
-  --start-from test --stop-after test
+uv run python -m unidream.cli.train \
+  --config configs/plan011_overlay_actor_v31_holdout.yaml \
+  --seed 7 \
+  --device cuda
 ```
 
-checkpoint を作り直す場合は `--start-from wm --stop-after test` にする。`checkpoints/` はGit管理外なので、外部監査ではconfig・commit・checkpoint directoryをセットで固定する。
-
-### Plan011 v31 checkpoint の作り直し
-
-checkpoint を含めて Plan011 v31 を fold0-12 で作り直す:
-
-```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 .venv/bin/python -u -m unidream.cli.train \
-  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --start 2018-01-01 --end 2024-01-01 \
-  --folds 0,1,2,3,4,5,6,7,8,9,10,11,12 \
-  --seed 7 --device mps \
-  --start-from wm --stop-after test
-```
-
-この実行は fold ごとに `world_model.pt`、`bc_actor.pt`、`ac.pt` を作る。fold0-12 は開発WFOであり、pristine holdout の主張ではない。
+YAMLを変えた場合は別configとして保存し、そのファイル名だけを`--config`で差し替える。CLIによる一時上書きはできない。
 
 ### Space bundle export
 
@@ -330,7 +311,8 @@ uv run python -m unidream.cli.plan009_depth_learner_probe --help
 
 実行時に以下が生成される。
 
-- `checkpoints/<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt}`: 学習 pipeline の checkpoint
+- `<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt}`: 学習 pipeline の checkpoint
+- `<logging.checkpoint_dir>/{resolved_config.yaml, run_manifest.json}`: 再現条件とfingerprint
 - `checkpoints/data_cache/`: feature / returns の parquet キャッシュ
 - `docs_local/`: Plan009 などのローカル実験JSON/Markdown/log
 - `documents/logs/`, `documents/route_probe/`, `documents/wm_probe/`, `documents/ac_candidate_q/`: ログ・診断出力
