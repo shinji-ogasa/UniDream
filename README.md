@@ -36,7 +36,18 @@ Fold2 の `AlphaEx +477.79pt` が aggregate を強く押し上げているため
 
 ### Holdout policy-family ablation
 
-完全未使用だった2024-01-16〜2026-04-16（fold15-23）を同一cost・B&H基準で比較した結果は [policy_family_holdout_comparison.md](docs/policy_family_holdout_comparison.md) に固定した。9fold平均は、単純vol-targetが `AlphaEx -1.14pt / MaxDDDelta -1.44pt`、tabular MLが `-6.11pt / -0.34pt`、WM-onlyが `-17.41pt / -1.28pt`、WM+BC（ACなし）が `+2.83pt / +0.24pt`。現状はBCがalpha側、WM単体がDD側に寄り、両立はできていない。
+完全未使用だった2024-01-16〜2026-04-16（fold15-23）を同一cost・B&H基準で比較した。数値は9fold平均で、MaxDDDeltaはマイナスが改善。
+
+| 方式 | AlphaEx | MaxDDDelta |
+|---|---:|---:|
+| B&H | `+0.00pt` | `+0.00pt` |
+| 単純vol-target | `-1.14pt` | `-1.44pt` |
+| tabular ML | `-6.11pt` | `-0.34pt` |
+| Transformer WMのみ | `-17.41pt` | `-1.28pt` |
+| Transformer WM + BC（ACなし） | **`+2.83pt`** | `+0.24pt` |
+| Plan011 v31（WM + BC + AC） | **`+2.32pt`** | `+0.20pt` |
+
+Transformer WM + BCは、4方式ablationで唯一AlphaEx平均をプラスにしたため、B&H-relative alpha overlayの中核として有効性が見える。一方、AC込みv31はBC-only比でAlphaExが`-0.51pt`、MaxDDDeltaが`-0.04pt`の差にとどまり、turnoverも増えている。validation checkpoint selectorがBCまたは早期checkpointへ戻すfoldもあり、現時点でAC tuningの明確な優位性は確認できていない。WM単体はDD方向のsignalを持つがalphaを失い、BC/ACを含めてもDD改善との両立は未達。詳細、fold別結果、再現hashは [policy_family_holdout_comparison.md](docs/policy_family_holdout_comparison.md) に固定している。
 
 完全未使用 2024-2026 holdout fold15-23:
 
