@@ -175,7 +175,7 @@ Interpretation:
 
 Highest-priority additions for investor diligence:
 
-1. Ablation table: WM predictive state vs no-WM actor vs price-only actor vs simple momentum vs vol-target baseline.
+1. Policy-family ablation completed: see `docs/policy_family_holdout_comparison.md` for simple vol-target vs tabular ML vs WM-only vs WM+BC (ACなし).
 2. Same-turnover / same-exposure random overlay baseline.
 3. Live paper-trading immutable log: timestamp, model hash, input timestamp, position, fee/slippage assumption, realized B&H comparison.
 4. Fold-level cumulative wealth and drawdown charts.
