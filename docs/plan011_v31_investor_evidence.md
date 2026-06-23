@@ -120,6 +120,28 @@ Interpretation:
 - Live / Space adoption is wired to the Plan011 v31 fold23 neural bundle. `/sample/verify` passes with `strict_ok=True`.
 - This result should be presented as model research evidence, not as a live trading track record.
 
+## Fold0-12 Trade / Equity Charts
+
+Saved checkpoint inference has been replayed for fold0-12, including validation-time `infer_adjust_rate_scale` selection. The generated artifacts are:
+
+- Chart index: `docs/figures/plan011_v31_folds0_12/README.md`
+- Per-fold equity / B&H / position-change PNGs: `docs/figures/plan011_v31_folds0_12/fold_XX_equity_trades.png`
+- Metrics CSV: `docs/figures/plan011_v31_folds0_12/metrics.csv`
+- Position-change events CSV: `docs/figures/plan011_v31_folds0_12/trades.csv`
+- Full per-bar arrays: `docs/figures/plan011_v31_folds0_12/timeseries.npz`
+
+Reproduce the charts:
+
+```bash
+uv run python -m unidream.cli.plot_plan011_fold_trades \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007 \
+  --folds 0-12 \
+  --seed 7 \
+  --device cpu \
+  --output-dir docs/figures/plan011_v31_folds0_12
+```
+
 ## Untouched Holdout 2024-2026
 
 The locked v31 spec was retrained/evaluated on folds 15-23 with data through `2026-04-17`. Current date during the run was `2026-06-16 JST`, so the latest roughly 60 days were left outside this holdout and live bundle export.
