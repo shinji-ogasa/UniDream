@@ -15,9 +15,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import torch
 
-from unidream.cli.compare_policy_families import _fold_model_context
 from unidream.cli.train import (
     _action_stats,
     _benchmark_position_value,
@@ -28,6 +26,7 @@ from unidream.cli.train import (
 )
 from unidream.data.dataset import WFODataset
 from unidream.eval.backtest import Backtest, compute_pnl
+from unidream.experiments.checkpoint_eval import load_actor_state_checkpoint, load_fold_model_context
 from unidream.experiments.run_config import configure_determinism
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
 from unidream.experiments.val_selector_stage import run_val_selector_stage
@@ -66,38 +65,6 @@ def _parse_folds(raw: str | None, default: tuple[int, ...]) -> tuple[int, ...]:
     if not values:
         raise ValueError("--folds did not contain any fold ids")
     return tuple(dict.fromkeys(values))
-
-
-def _load_actor_checkpoint(actor, path: Path, device: str) -> None:
-    ckpt = torch.load(path, map_location=torch.device(device), weights_only=False)
-    state = ckpt.get("actor", ckpt)
-    incompatible = actor.load_state_dict(state, strict=False)
-    optional_missing = {
-        "execution_head.weight",
-        "execution_head.bias",
-        "residual_head_a.weight",
-        "residual_head_a.bias",
-        "residual_head_b.weight",
-        "residual_head_b.bias",
-        "regime_mode_gate_head.weight",
-        "route_head.weight",
-        "route_head.bias",
-        "route_delta_head.weight",
-        "route_delta_head.bias",
-        "route_active_head.weight",
-        "route_active_head.bias",
-        "route_active_class_head.weight",
-        "route_active_class_head.bias",
-        "route_advantage_gate.weight",
-        "benchmark_overweight_sizing_adapter.weight",
-        "benchmark_overweight_sizing_adapter.bias",
-        "inventory_recovery_head.weight",
-        "inventory_recovery_head.bias",
-    }
-    missing = [key for key in incompatible.missing_keys if key not in optional_missing]
-    unexpected = list(incompatible.unexpected_keys)
-    if missing or unexpected:
-        raise RuntimeError(f"Actor checkpoint incompatibility while loading {path}: missing={missing}, unexpected={unexpected}")
 
 
 def _benchmark_positions(length: int, benchmark: float) -> np.ndarray:
@@ -176,12 +143,15 @@ def _metrics_record(
         benchmark_positions=_benchmark_positions(t, benchmark),
     ).run()
     stats = _action_stats(positions[:t], benchmark_position=benchmark)
+    total_return_dec = float(metrics.total_return)
+    bench_return_dec = float(metrics.benchmark_total_return or 0.0)
     return {
         "alpha_excess_pt": 100.0 * float(metrics.alpha_excess or 0.0),
+        "final_excess_pt": 100.0 * (total_return_dec - bench_return_dec),
         "sharpe_delta": float(metrics.sharpe_delta or 0.0),
         "maxdd_delta_pt": 100.0 * float(metrics.maxdd_delta or 0.0),
-        "total_return_pt": 100.0 * float(metrics.total_return),
-        "benchmark_total_return_pt": 100.0 * float(metrics.benchmark_total_return or 0.0),
+        "total_return_pt": 100.0 * total_return_dec,
+        "benchmark_total_return_pt": 100.0 * bench_return_dec,
         "max_drawdown_pt": 100.0 * abs(float(metrics.max_drawdown)),
         "benchmark_max_drawdown_pt": 100.0 * abs(float(metrics.benchmark_max_drawdown or 0.0)),
         "turnover": float(stats["turnover"]),
@@ -219,7 +189,7 @@ def _plot_fold(
     fig.suptitle(
         (
             f"Plan011 v31 fold {fold} test | "
-            f"AlphaEx {metrics['alpha_excess_pt']:+.2f}pt | "
+            f"FinalExcess {metrics['final_excess_pt']:+.2f}pt | "
             f"MaxDDDelta {metrics['maxdd_delta_pt']:+.2f}pt | "
             f"turnover {metrics['turnover']:.2f}"
         ),
@@ -227,10 +197,10 @@ def _plot_fold(
     )
 
     for start, end in blocks:
-        ax_eq.axvspan(times[start], times[end], color="#8a8f98", alpha=0.08, linewidth=0)
+        ax_eq.axvspan(times[start], times[end], color="#8a8f98", alpha=0.08, linewidth=0, zorder=1)
 
-    ax_eq.plot(times, benchmark_equity, color="#6b7280", linewidth=1.8, label="B&H equity")
-    ax_eq.plot(times, strategy_equity, color="#2563eb", linewidth=1.9, label="Strategy equity")
+    ax_eq.plot(times, benchmark_equity, color="#6b7280", linewidth=1.8, label="B&H equity", zorder=2)
+    ax_eq.plot(times, strategy_equity, color="#2563eb", linewidth=1.9, label="Strategy equity", zorder=3)
 
     if len(trade_idx) > 0:
         up_idx = trade_idx[pos_delta[trade_idx] > 0]
@@ -240,20 +210,26 @@ def _plot_fold(
                 times[up_idx],
                 strategy_equity[up_idx],
                 marker="^",
-                s=18,
+                s=32,
                 color="#16a34a",
-                alpha=0.65,
+                alpha=0.9,
                 label="position up",
+                zorder=5,
+                edgecolors="white",
+                linewidths=0.4,
             )
         if len(down_idx) > 0:
             ax_eq.scatter(
                 times[down_idx],
                 strategy_equity[down_idx],
                 marker="v",
-                s=18,
+                s=32,
                 color="#dc2626",
-                alpha=0.65,
+                alpha=0.9,
                 label="position down",
+                zorder=5,
+                edgecolors="white",
+                linewidths=0.4,
             )
 
     ax_eq.set_ylabel("Equity multiple")
@@ -398,14 +374,21 @@ def main() -> None:
         fold_idx = int(split.fold_idx)
         print(f"\n[Plot] fold={fold_idx} test={split.test_start} -> {split.test_end}")
         dataset = WFODataset(features, returns, split, seq_len=int(data_cfg["seq_len"]))
-        context = _fold_model_context(fold_idx, dataset, cfg, checkpoint_dir, args.device)
+        context = load_fold_model_context(
+            fold_idx=fold_idx,
+            dataset=dataset,
+            cfg=cfg,
+            checkpoint_dir=checkpoint_dir,
+            device=args.device,
+            benchmark_position=benchmark,
+        )
 
         actor_ckpt = checkpoint_dir / f"fold_{fold_idx}" / args.actor_checkpoint
         if not actor_ckpt.exists() and args.actor_checkpoint == "ac.pt":
             actor_ckpt = checkpoint_dir / f"fold_{fold_idx}" / "ac_best.pt"
         if not actor_ckpt.exists():
             raise FileNotFoundError(f"missing actor checkpoint: {actor_ckpt}")
-        _load_actor_checkpoint(context["actor"], actor_ckpt, args.device)
+        load_actor_state_checkpoint(context["actor"], actor_ckpt, args.device)
 
         run_val_selector_stage(
             actor=context["actor"],

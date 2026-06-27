@@ -7,7 +7,6 @@ validation slice; test data is report-only.
 from __future__ import annotations
 
 import argparse
-import copy
 import hashlib
 import json
 from dataclasses import dataclass
@@ -16,31 +15,23 @@ from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
-import torch
 from sklearn.ensemble import HistGradientBoostingRegressor
 
 from unidream.cli.train import (
     _action_stats,
     _benchmark_position_value,
-    _forward_window_stats,
-    _fmt_action_stats,
-    _ts,
 )
 from unidream.data.dataset import WFODataset
 from unidream.eval.backtest import Backtest
-from unidream.experiments.bc_setup import prepare_bc_setup
-from unidream.experiments.bc_stage import build_bc_trainer
-from unidream.experiments.fold_inputs import prepare_fold_inputs
-from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
+from unidream.experiments.checkpoint_eval import load_fold_model_context
 from unidream.experiments.run_config import (
-    checkpoint_semantic_fingerprint,
     configure_determinism,
     data_fingerprint,
     source_fingerprint,
 )
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
 from unidream.experiments.wfo_runtime import build_wfo_splits, select_configured_wfo_splits
-from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
+from unidream.world_model.train_wm import WorldModelTrainer
 
 
 METHODS = ("simple_algorithm", "tabular_ml", "wm_only", "bc_only")
@@ -68,9 +59,11 @@ def _metrics(returns: np.ndarray, positions: np.ndarray, cfg: dict, benchmark: f
     stats = _action_stats(positions[:t], benchmark_position=benchmark)
     return {
         "alpha_excess_pt": 100.0 * float(result.alpha_excess or 0.0),
+        "final_excess_pt": 100.0 * (float(result.total_return) - float(result.benchmark_total_return or 0.0)),
         "maxdd_delta_pt": 100.0 * float(result.maxdd_delta or 0.0),
         "sharpe_delta": float(result.sharpe_delta or 0.0),
         "total_return": float(result.total_return),
+        "benchmark_total_return": float(result.benchmark_total_return or 0.0),
         "max_drawdown": 100.0 * abs(float(result.max_drawdown)),
         "turnover": float(stats["turnover"]),
     }
@@ -355,102 +348,6 @@ def _bc_only(
     return positions, {"infer_adjust_rate_scale": selected_scale}, val_metrics
 
 
-def _fold_model_context(
-    fold_idx: int,
-    dataset: WFODataset,
-    cfg: dict,
-    checkpoint_dir: Path,
-    device: str,
-) -> dict[str, Any]:
-    ac_cfg = copy.deepcopy(cfg["ac"])
-    bc_cfg = cfg["bc"]
-    reward_cfg = cfg["reward"]
-    benchmark = _benchmark_position_value(cfg)
-    fold_inputs = prepare_fold_inputs(
-        fold_idx=fold_idx,
-        wfo_dataset=dataset,
-        cfg=cfg,
-        costs_cfg=cfg["costs"],
-        ac_cfg=ac_cfg,
-        bc_cfg=bc_cfg,
-        reward_cfg=reward_cfg,
-        action_stats_fn=_action_stats,
-        format_action_stats_fn=_fmt_action_stats,
-        benchmark_position=benchmark,
-        forward_window_stats_fn=_forward_window_stats,
-        log_ts=_ts,
-    )
-    cfg_model = copy.deepcopy(cfg)
-    if fold_inputs["train_regime_probs"] is not None:
-        cfg_model.setdefault("world_model", {})["regime_dim"] = int(fold_inputs["train_regime_probs"].shape[1])
-    ensemble = build_ensemble(dataset.obs_dim, cfg_model)
-    wm_trainer = WorldModelTrainer(ensemble, cfg_model, device=device)
-    fold_dir = checkpoint_dir / f"fold_{fold_idx}"
-    wm_path = fold_dir / "world_model.pt"
-    bc_path = fold_dir / "bc_actor.pt"
-    if not wm_path.exists() or not bc_path.exists():
-        raise FileNotFoundError(f"missing fold checkpoint under {fold_dir}")
-    wm_trainer.load(str(wm_path))
-    seq_len = int(cfg["data"]["seq_len"])
-    encoded_train = wm_trainer.encode_sequence(dataset.train_features, actions=None, seq_len=seq_len)
-    encoded_val = wm_trainer.encode_sequence(dataset.val_features, actions=None, seq_len=seq_len)
-    encoded_test = wm_trainer.encode_sequence(dataset.test_features, actions=None, seq_len=seq_len)
-    predictive = build_wm_predictive_state_bundle(
-        wm_trainer=wm_trainer,
-        wfo_dataset=dataset,
-        z_train=encoded_train["z"],
-        h_train=encoded_train["h"],
-        seq_len=seq_len,
-        ac_cfg=ac_cfg,
-        log_ts=_ts,
-    )
-    train_advantage = fold_inputs["train_advantage_values"]
-    val_advantage = fold_inputs["val_advantage_values"]
-    test_advantage = fold_inputs["test_advantage_values"]
-    if predictive is not None:
-        ac_cfg["advantage_conditioned"] = True
-        ac_cfg["advantage_dim"] = int(predictive["train"].shape[1])
-        train_advantage = predictive["train"]
-        val_advantage = predictive["val"]
-        test_advantage = predictive["test"]
-    bc_setup = prepare_bc_setup(
-        ensemble=ensemble,
-        oracle_action_values=fold_inputs["oracle_bundle"]["oracle_action_values"],
-        oracle_positions=fold_inputs["oracle_positions"],
-        oracle_values=fold_inputs["oracle_bundle"]["oracle_values"],
-        train_regime_probs=fold_inputs["train_regime_probs"],
-        outcome_edge=fold_inputs["outcome_edge"],
-        ac_cfg=ac_cfg,
-        bc_cfg=bc_cfg,
-        reward_cfg=reward_cfg,
-        oracle_teacher_mode=fold_inputs["oracle_bundle"]["oracle_teacher_mode"],
-    )
-    actor = bc_setup["actor"]
-    bc_trainer = build_bc_trainer(
-        actor=actor,
-        ensemble=ensemble,
-        bc_cfg=bc_cfg,
-        oracle_cfg=fold_inputs["oracle_cfg"],
-        ac_cfg=ac_cfg,
-        reward_cfg=reward_cfg,
-        device=device,
-    )
-    bc_trainer.load(str(bc_path))
-    actor.eval()
-    return {
-        "fold_inputs": fold_inputs,
-        "wm_trainer": wm_trainer,
-        "actor": actor,
-        "encoded_val": encoded_val,
-        "encoded_test": encoded_test,
-        "train_advantage": train_advantage,
-        "val_advantage": val_advantage,
-        "test_advantage": test_advantage,
-        "wm_hash": checkpoint_semantic_fingerprint(wm_path),
-        "bc_hash": checkpoint_semantic_fingerprint(bc_path),
-    }
-
-
 def _aggregate(rows: list[dict[str, Any]], method: str) -> dict[str, float | int]:
     metrics = [row["methods"][method]["test"] for row in rows]
     alpha = np.asarray([item["alpha_excess_pt"] for item in metrics], dtype=np.float64)
@@ -573,7 +470,14 @@ def main() -> None:
         fold_idx = int(split.fold_idx)
         print(f"\n[Compare] fold={fold_idx} test={split.test_start} -> {split.test_end}")
         dataset = WFODataset(features, returns, split, seq_len=int(data_cfg["seq_len"]))
-        context = _fold_model_context(fold_idx, dataset, cfg, checkpoint_dir, args.device)
+        context = load_fold_model_context(
+            fold_idx=fold_idx,
+            dataset=dataset,
+            cfg=cfg,
+            checkpoint_dir=checkpoint_dir,
+            device=args.device,
+            benchmark_position=benchmark,
+        )
         fold_inputs = context["fold_inputs"]
         simple_pos, simple_selected, simple_val = _simple_algorithm(
             dataset, cfg, benchmark, min_position, max_position
