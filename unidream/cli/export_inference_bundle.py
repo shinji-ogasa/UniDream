@@ -11,8 +11,9 @@ import numpy as np
 import torch
 import yaml
 
-from unidream.cli.ac_fire_timing_probe import _load_actor_for_run, _parse_run
+from unidream.cli.train import _benchmark_position_value
 from unidream.data.dataset import WFODataset
+from unidream.experiments.checkpoint_eval import load_inference_run_context, parse_checkpoint_run_spec
 from unidream.experiments.fold_inputs import _normalized_feature_stress_signal
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
 from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
@@ -107,19 +108,22 @@ def main() -> None:
     if not splits:
         raise RuntimeError(f"Fold {args.fold} not found")
     split = splits[0]
-    run = _parse_run(args.run)
-    payload = _load_actor_for_run(
+    run = parse_checkpoint_run_spec(args.run)
+    seq_len = cfg.get("data", {}).get("seq_len", 64)
+    wfo_dataset = WFODataset(features_df, raw_returns, split, seq_len=seq_len)
+    benchmark_position = _benchmark_position_value(cfg)
+    payload = load_inference_run_context(
         run=run,
         split=split,
-        features_df=features_df,
-        raw_returns=raw_returns,
+        dataset=wfo_dataset,
         cfg=cfg,
         device=args.device,
+        benchmark_position=benchmark_position,
     )
     actor = payload["actor"]
-    enc = payload["enc_test"]
-    regime = payload["test_regime_probs"]
-    advantage = payload["test_advantage_values"]
+    enc = payload["encoded_test"]
+    regime = payload["fold_inputs"]["test_regime_probs"]
+    advantage = payload["test_advantage"]
     positions = actor.predict_positions(
         enc["z"],
         enc["h"],
@@ -128,8 +132,6 @@ def main() -> None:
         device=args.device,
     )
 
-    seq_len = cfg.get("data", {}).get("seq_len", 64)
-    wfo_dataset = WFODataset(features_df, raw_returns, split, seq_len=seq_len)
     test_index = features_df.loc[(features_df.index >= split.test_start) & (features_df.index <= split.test_end)].index
     test_features = wfo_dataset.test_features
     test_returns = wfo_dataset.test_returns
@@ -216,14 +218,14 @@ def main() -> None:
             "test_end": _json_safe_time(split.test_end),
         },
         "policy": {
-            "benchmark_position": float(payload["benchmark_position"]),
+            "benchmark_position": float(benchmark_position),
             "last_sample_position": float(positions[t - 1]) if t else None,
             "sample_bars": int(t - start_idx),
         },
         "regime": _stress_stats_for_split(
             wfo_dataset=wfo_dataset,
             cfg=cfg,
-            benchmark_position=float(payload["benchmark_position"]),
+            benchmark_position=float(benchmark_position),
         ),
         "artifacts": {
             "actor": "actor_full.pt",

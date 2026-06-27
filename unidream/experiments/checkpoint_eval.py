@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,34 @@ from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.run_config import checkpoint_semantic_fingerprint
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
+
+
+@dataclass(frozen=True)
+class CheckpointRunSpec:
+    label: str
+    checkpoint_dir: str
+    use_ac: bool
+    ac_filename: str = "ac.pt"
+
+
+def parse_checkpoint_run_spec(spec: str) -> CheckpointRunSpec:
+    parts = spec.split("=", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ValueError(f"Run spec must be label=checkpoint_dir[:bc|:ac], got: {spec}")
+    label, raw_path = parts
+    mode = "ac"
+    if raw_path.endswith(":bc"):
+        raw_path = raw_path[:-3]
+        mode = "bc"
+    elif raw_path.endswith(":ac"):
+        raw_path = raw_path[:-3]
+        mode = "ac"
+    ac_filename = "ac.pt"
+    if "@" in raw_path:
+        raw_path, ac_filename = raw_path.rsplit("@", 1)
+        if not raw_path or not ac_filename:
+            raise ValueError(f"Run spec has invalid checkpoint file override: {spec}")
+    return CheckpointRunSpec(label=label, checkpoint_dir=raw_path, use_ac=(mode == "ac"), ac_filename=ac_filename)
 
 
 def load_fold_model_context(
@@ -108,6 +137,7 @@ def load_fold_model_context(
         "encoded_train": encoded_train,
         "encoded_val": encoded_val,
         "encoded_test": encoded_test,
+        "predictive_bundle": predictive,
         "train_advantage": train_advantage,
         "val_advantage": val_advantage,
         "test_advantage": test_advantage,
@@ -147,3 +177,32 @@ def load_actor_state_checkpoint(actor: Any, path: Path, device: str) -> None:
     unexpected = list(incompatible.unexpected_keys)
     if missing or unexpected:
         raise RuntimeError(f"Actor checkpoint incompatibility while loading {path}: missing={missing}, unexpected={unexpected}")
+
+
+def load_inference_run_context(
+    *,
+    run: CheckpointRunSpec,
+    split: Any,
+    dataset: WFODataset,
+    cfg: dict[str, Any],
+    device: str,
+    benchmark_position: float,
+) -> dict[str, Any]:
+    context = load_fold_model_context(
+        fold_idx=int(split.fold_idx),
+        dataset=dataset,
+        cfg=cfg,
+        checkpoint_dir=Path(run.checkpoint_dir),
+        device=device,
+        benchmark_position=benchmark_position,
+    )
+    if run.use_ac:
+        ac_path = Path(run.checkpoint_dir) / f"fold_{int(split.fold_idx)}" / run.ac_filename
+        if not ac_path.exists():
+            raise FileNotFoundError(f"{run.label}: requested AC actor but missing {ac_path}")
+        load_actor_state_checkpoint(context["actor"], ac_path, device)
+    adjust_grid = cfg.get("ac", {}).get("val_adjust_rate_scale_grid") or [1.0]
+    context["actor"].infer_adjust_rate_scale = float(adjust_grid[0])
+    context["actor"].infer_advantage_level = float(cfg.get("ac", {}).get("infer_advantage_level", 0.0))
+    context["actor"].eval()
+    return context

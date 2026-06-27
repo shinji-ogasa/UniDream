@@ -10,7 +10,7 @@ BTCUSDT 15分足を対象に、Transformer World Model、Behavior Cloning、Imag
 
 UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior Cloning で模倣し、その方策を World Model 上の imagination rollouts で Actor-Critic fine-tune する研究コード。Buy & Hold をベンチマークとして、OOS の超過成績、Sharpe 改善、最大ドローダウン改善、collapse 回避を同時に評価する。
 
-研究基盤として WM → BC → AC の学習パイプラインと各種診断 CLI を保持している。現時点の外部説明向け主結果は Plan011 v31。B&H exposure `1.0` 近傍の低回転 overlay actor として、13fold test で大崩れを避けながら AlphaEx の右側テールを取りにいく構成。
+研究基盤として WM → BC → AC の学習パイプラインと、Plan011 v31 の再現・比較・bundle export に必要な最小 CLI だけを保持している。現時点の外部説明向け主結果は Plan011 v31。B&H exposure `1.0` 近傍の低回転 overlay actor として、13fold test で大崩れを避けながら AlphaEx の右側テールを取りにいく構成。
 
 Plan011 v31 の fold0-12 開発WFOでは、aggregate `AlphaEx +41.79pt`、worst AlphaEx `-1.28pt`、fold2除外平均 `+5.46pt`。完全未使用の 2024-2026 holdout fold15-23 では aggregate `AlphaEx +2.32pt`、`SharpeDelta -0.003`、`MaxDDDelta +0.20pt`。DD改善AIではなく、低回転の AlphaEx overlay として主張する。
 
@@ -83,7 +83,7 @@ OHLCV / features
   -> Hindsight Oracle / signal_aim teacher
   -> Transformer World Model
   -> WM predictive state bundle (return / vol / drawdown)
-  -> Behavior Cloning (route head + inventory recovery + state machine)
+  -> Behavior Cloning (B&H-relative residual overlay)
   -> Imagination Actor-Critic
   -> Validation selector
   -> Test backtest / M2 scorecard / PBO / regime report
@@ -96,11 +96,10 @@ OHLCV / features
 - `data`: Binance OHLCV / funding / OI / mark price 取得、特徴量計算、returns 整形
 - `oracle`: signal_aim teacher で aim positions を生成、smooth aim、soft labels
 - `world_model`: Transformer ベースの latent dynamics、predictive head (return / vol / drawdown / regime)
-- `bc`: Actor を oracle position に模倣、route head・inventory recovery controller・state machine gate を学習
+- `bc`: Actor を B&H-relative residual overlay teacher に模倣
 - `ac`: World Model 上で imagination actor-critic fine-tune
 - `selector`: validation split で selector / scorecard を評価
 - `plan011`: B&H-relative low-turnover overlay actor、relative-constraint AC reward、0-12 scale evaluation
-- `plan009`: legacy depth calibrator、execution compression、cost stress 検証用CLI
 - `deploy`: HF Spaces 向け bundle export utility
 - `test`: test split で backtest、PBO、Deflated Sharpe、HMM regime、M2 scorecard を出力
 
@@ -110,28 +109,20 @@ OHLCV / features
 UniDream/
 ├── README.md
 ├── SPEC.md
-├── CLAUDE.md
 ├── pyproject.toml
 ├── uv.lock
 ├── configs/
-│   └── trading.yaml
+│   ├── trading.yaml
+│   ├── plan011_overlay_actor_v31_relative_constraint_ac.yaml
+│   └── plan011_overlay_actor_v31_holdout.yaml
 ├── docs/
-├── docs_local/
-├── documents/
 └── unidream/
     ├── device.py
     ├── cli/
     │   ├── train.py
-    │   ├── plan009_depth_calibrator_probe.py
-    │   ├── plan009_component_probe.py
-    │   ├── plan009_depth_learner_probe.py
-    │   ├── plan009_guard_student_probe.py
-    │   ├── plan009_guard_sweep_probe.py
-    │   ├── export_plan009_depth_calibrator_bundle.py
-    │   ├── route_probe.py
-    │   ├── wm_probe.py
-    │   ├── transition_advantage_probe.py
-    │   └── ac_candidate_q_probe.py
+    │   ├── compare_policy_families.py
+    │   ├── plot_plan011_fold_trades.py
+    │   └── export_inference_bundle.py
     ├── data/
     │   ├── dataset.py
     │   ├── download.py
@@ -145,10 +136,8 @@ UniDream/
     ├── actor_critic/
     │   ├── actor.py
     │   ├── critic.py
-    │   ├── state_action_critic.py
     │   ├── bc_pretrain.py
     │   └── imagination_ac.py
-    ├── research/
     ├── experiments/
     │   ├── runtime.py
     │   ├── train_app.py
@@ -195,7 +184,9 @@ uv sync
 
 ```bash
 uv run python -m unidream.cli.train --help
-uv run python -m unidream.cli.plan009_depth_calibrator_probe --help
+uv run python -m unidream.cli.compare_policy_families --help
+uv run python -m unidream.cli.plot_plan011_fold_trades --help
+uv run python -m unidream.cli.export_inference_bundle --help
 ```
 
 ## 使い方
@@ -295,31 +286,23 @@ PYTHONPATH=/Users/sophie/Documents/UniDream/unidream-space \
 
 Space 側へ反映する場合は `unidream-space` repo を更新して Hugging Face Space に push する。
 
-### 診断 CLI
-
-BC checkpoint を AC に渡す前のチェックや、世界モデルの予測力評価に使う。
+### 評価・図表 CLI
 
 ```bash
-# Route 分類性能 (CE / Macro-F1 / per-route recall)
-uv run python -m unidream.cli.route_probe
+uv run python -m unidream.cli.compare_policy_families \
+  --config configs/plan011_overlay_actor_v31_holdout.yaml \
+  --seed 7 \
+  --device cpu \
+  --output-json docs/policy_family_holdout_comparison.json \
+  --output-md docs/policy_family_holdout_comparison.md
 
-# 行動候補別の realized advantage
-uv run python -m unidream.cli.transition_advantage_probe
-
-# WM linear probe (return / vol / drawdown / regime の予測力)
-uv run python -m unidream.cli.wm_probe
-
-# State-action critic Q(s,a) の rank IC / top-decile advantage
-uv run python -m unidream.cli.ac_candidate_q_probe
-```
-
-Legacy Plan009 の部品検証:
-
-```bash
-uv run python -m unidream.cli.plan009_component_probe --help
-uv run python -m unidream.cli.plan009_guard_sweep_probe --help
-uv run python -m unidream.cli.plan009_guard_student_probe --help
-uv run python -m unidream.cli.plan009_depth_learner_probe --help
+uv run python -m unidream.cli.plot_plan011_fold_trades \
+  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007 \
+  --folds 0-12 \
+  --seed 7 \
+  --device cpu \
+  --output-dir docs/figures/plan011_v31_folds0_12
 ```
 
 ## 生成物
@@ -329,13 +312,12 @@ uv run python -m unidream.cli.plan009_depth_learner_probe --help
 - `<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt}`: 学習 pipeline の checkpoint
 - `<logging.checkpoint_dir>/{resolved_config.yaml, run_manifest.json}`: 再現条件とfingerprint
 - `checkpoints/data_cache/`: feature / returns の parquet キャッシュ
-- `docs_local/`: Plan009 などのローカル実験JSON/Markdown/log
-- `documents/logs/`, `documents/route_probe/`, `documents/wm_probe/`, `documents/ac_candidate_q/`: ログ・診断出力
+- `docs/`: Plan011 v31 の投資家向け evidence、holdout、policy-family comparison、fold chart
 - `/Users/sophie/Documents/UniDream/unidream-space/bundles/current`: HF Spaces current bundle
 - `__pycache__/`: Python 実行キャッシュ
 - `.venv/`: `uv sync` が作る仮想環境
 
-`checkpoints/`、`docs_local/`、`.venv/` は Git 管理対象外。checkpoint は再実行で作り直す前提。
+`checkpoints/` と `.venv/` は Git 管理対象外。checkpoint は再実行で作り直す前提。
 
 ## 依存
 

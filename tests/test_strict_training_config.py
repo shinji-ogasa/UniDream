@@ -67,11 +67,11 @@ class StrictTrainingConfigTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "warm-start/resume"):
                 load_training_run_config(cfg)
 
-    def test_removed_plan004_mainline_stage_is_rejected(self) -> None:
+    def test_removed_non_mainline_stage_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cfg = _config(Path(temp_dir))
             cfg["plan004_residual_bc_ac"] = {"enabled": False}
-            with self.assertRaisesRegex(ValueError, "removed from the main training pipeline"):
+            with self.assertRaisesRegex(ValueError, "removed from the strict training pipeline"):
                 load_training_run_config(cfg)
 
     def test_prepare_run_directory_removes_stale_checkpoints(self) -> None:

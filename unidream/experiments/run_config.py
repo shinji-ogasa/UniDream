@@ -80,8 +80,8 @@ def load_training_run_config(cfg: dict) -> TrainingRunConfig:
 
     if "plan004_residual_bc_ac" in cfg:
         raise ValueError(
-            "'plan004_residual_bc_ac' was removed from the main training pipeline; "
-            "use a dedicated research CLI for legacy Plan004 experiments"
+            "'plan004_residual_bc_ac' was removed from the strict training pipeline; "
+            "only the current WM->BC->AC mainline is supported"
         )
     for section, key in _REMOVED_CONFIG_PATHS:
         section_cfg = cfg.get(section)
