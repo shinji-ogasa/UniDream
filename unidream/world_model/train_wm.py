@@ -216,7 +216,7 @@ class WorldModelTrainer:
             + (costs_cfg.get("slippage_bps", 2.0) / 10000)
         )
         reward_cfg = cfg.get("reward", {})
-        self.reward_mode = reward_cfg.get("mode", "absolute")
+        self.reward_mode = wm_cfg.get("reward_mode", reward_cfg.get("mode", "absolute"))
         self.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
 
         # Auxiliary heads（スケール > 0 の場合のみ構築）

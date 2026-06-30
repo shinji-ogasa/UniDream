@@ -235,6 +235,8 @@ class ImagACTrainer:
         self.relative_dd_coef = float(ac_cfg.get("relative_dd_coef", 0.0))
         self.relative_dd_budget = float(ac_cfg.get("relative_dd_budget", 0.0))
         self.relative_terminal_dd_coef = float(ac_cfg.get("relative_terminal_dd_coef", 0.0))
+        self.relative_dd_improve_coef = float(ac_cfg.get("relative_dd_improve_coef", 0.0))
+        self.relative_terminal_dd_improve_coef = float(ac_cfg.get("relative_terminal_dd_improve_coef", 0.0))
         self.alpha_floor_coef = float(ac_cfg.get("alpha_floor_coef", 0.0))
         self.alpha_floor = float(ac_cfg.get("alpha_floor", 0.0))
         self.relative_cvar_coef = float(ac_cfg.get("relative_cvar_coef", 0.0))
@@ -474,6 +476,35 @@ class ImagACTrainer:
             "last_h": h,
         }
 
+    @torch.no_grad()
+    def _benchmark_rollout_rewards(
+        self,
+        z0: torch.Tensor,
+        h0: torch.Tensor,
+        past_zs: Optional[torch.Tensor] = None,
+        past_as: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Roll out fixed B&H exposure from the same initial states."""
+        rewards = []
+        z = torch.nan_to_num(z0.detach(), nan=0.0, posinf=0.0, neginf=0.0)
+        h = torch.nan_to_num(h0.detach(), nan=0.0, posinf=0.0, neginf=0.0)
+        pzs = torch.nan_to_num(past_zs.detach(), nan=0.0, posinf=0.0, neginf=0.0) if past_zs is not None else None
+        pas = torch.nan_to_num(past_as.detach(), nan=0.0, posinf=0.0, neginf=0.0) if past_as is not None else None
+        action = torch.full(
+            (z.shape[0], 1),
+            float(self.benchmark_position),
+            dtype=z.dtype,
+            device=z.device,
+        )
+        for _ in range(self.horizon):
+            result = self.ensemble.imagine_step(z, h, action, pzs, pas)
+            rewards.append(torch.nan_to_num(result["reward"], nan=0.0, posinf=0.0, neginf=0.0))
+            z = torch.nan_to_num(result["next_z"].detach(), nan=0.0, posinf=0.0, neginf=0.0)
+            h = torch.nan_to_num(result["next_h"].detach(), nan=0.0, posinf=0.0, neginf=0.0)
+            pzs = torch.nan_to_num(result["past_zs"], nan=0.0, posinf=0.0, neginf=0.0)
+            pas = torch.nan_to_num(result["past_as"], nan=0.0, posinf=0.0, neginf=0.0)
+        return torch.stack(rewards, dim=1)
+
     def _compute_lambda_returns(
         self,
         rewards: torch.Tensor,
@@ -542,7 +573,7 @@ class ImagACTrainer:
         """
         if (
             advantage is None
-            or self.risk_state_exposure_coef <= 0.0
+            or (self.risk_state_exposure_coef <= 0.0 and self.risk_tilt_coef <= 0.0)
             or not self.risk_state_indices
         ):
             return torch.zeros_like(ref)
@@ -646,6 +677,97 @@ class ImagACTrainer:
         diagnostics = {
             "rb_logwealth": float(logwealth.detach().mean().item()),
             "rb_dd": float(drawdown.detach().mean().item()),
+            "rb_risk_state": float(risk_state.detach().mean().item()),
+            "rb_edge_state": float(edge_state.detach().mean().item()),
+            "rb_abs_exposure": float(abs_position.detach().abs().mean().item()),
+        }
+        return rewards, diagnostics
+
+    def _benchmark_absolute_constraint_rewards(
+        self,
+        *,
+        strategy_returns: torch.Tensor,
+        benchmark_returns: torch.Tensor,
+        next_inventory: torch.Tensor,
+        rewards_norm: torch.Tensor,
+        advantage0: Optional[torch.Tensor],
+    ) -> tuple[torch.Tensor, dict[str, float]]:
+        """Final-metric aligned reward using absolute WM rewards.
+
+        Requires ``world_model.reward_mode: absolute``. The objective optimizes
+        B&H-relative log wealth while constraining strategy drawdown against a
+        parallel B&H imagination path.
+        """
+        reward_scale = max(float(self.reward_ema.scale), 1e-8)
+        horizon = max(1, int(strategy_returns.shape[1]))
+        strategy_log = torch.log1p(strategy_returns.clamp(min=-0.95))
+        benchmark_log = torch.log1p(benchmark_returns.clamp(min=-0.95))
+        excess_logwealth = strategy_log - benchmark_log
+        rewards = self.logwealth_coef * (excess_logwealth / reward_scale)
+        if self.logwealth_coef == 0.0:
+            rewards = rewards_norm
+
+        cum_excess = excess_logwealth.cumsum(dim=1)
+        strategy_dd = self._compute_drawdown(strategy_log)
+        benchmark_dd = self._compute_drawdown(benchmark_log)
+        dd_delta = strategy_dd - benchmark_dd
+
+        if self.relative_dd_coef > 0.0:
+            dd_worse = F.relu(dd_delta - self.relative_dd_budget)
+            rewards = rewards - self.relative_dd_coef * (dd_worse / reward_scale)
+        if self.relative_dd_improve_coef > 0.0:
+            dd_better = F.relu((-dd_delta) - self.relative_dd_budget)
+            rewards = rewards + self.relative_dd_improve_coef * (dd_better / reward_scale)
+        if self.relative_terminal_dd_coef > 0.0 and dd_delta.shape[1] > 0:
+            terminal_worse = F.relu(dd_delta[:, -1:] - self.relative_dd_budget).expand_as(dd_delta)
+            rewards = rewards - self.relative_terminal_dd_coef * (terminal_worse / reward_scale)
+        if self.relative_terminal_dd_improve_coef > 0.0 and dd_delta.shape[1] > 0:
+            terminal_better = F.relu((-dd_delta[:, -1:]) - self.relative_dd_budget).expand_as(dd_delta)
+            rewards = rewards + self.relative_terminal_dd_improve_coef * (terminal_better / reward_scale)
+        if self.alpha_floor_coef > 0.0 and cum_excess.shape[1] > 0:
+            terminal_excess = cum_excess[:, -1:]
+            alpha_shortfall = F.relu(self.alpha_floor - terminal_excess).expand_as(cum_excess)
+            rewards = rewards - self.alpha_floor_coef * (alpha_shortfall / reward_scale) / float(horizon)
+        if self.relative_cvar_coef > 0.0:
+            tail = F.relu((-excess_logwealth) - self.tail_margin)
+            rewards = rewards - self.relative_cvar_coef * (tail / reward_scale)
+
+        if self.overlay_l2_coef > 0.0:
+            rewards = rewards - self.overlay_l2_coef * next_inventory.pow(2)
+        if self.short_l1_coef > 0.0:
+            rewards = rewards - self.short_l1_coef * F.relu(-next_inventory)
+        if self.overweight_l1_coef > 0.0:
+            rewards = rewards - self.overweight_l1_coef * F.relu(next_inventory)
+
+        abs_position = next_inventory + self.benchmark_position
+        if self.abs_exposure_l2_coef > 0.0:
+            rewards = rewards - self.abs_exposure_l2_coef * abs_position.pow(2)
+        risk_state = self._risk_state_from_advantage(advantage0, next_inventory)
+        if self.risk_state_exposure_coef > 0.0:
+            rewards = rewards - self.risk_state_exposure_coef * risk_state * abs_position.pow(2)
+        if self.risk_tilt_coef > 0.0:
+            rewards = rewards - self.risk_tilt_coef * risk_state * next_inventory
+        edge_state = self._signed_state_from_advantage(
+            advantage0,
+            next_inventory,
+            self.edge_state_indices,
+            center=self.edge_state_center,
+            scale=self.edge_state_scale,
+        )
+        if self.edge_overlay_coef > 0.0:
+            rewards = rewards + self.edge_overlay_coef * edge_state * next_inventory
+
+        terminal_excess_mean = cum_excess[:, -1].detach().mean().item() if cum_excess.shape[1] > 0 else 0.0
+        terminal_dd_delta = dd_delta[:, -1].detach().mean().item() if dd_delta.shape[1] > 0 else 0.0
+        diagnostics = {
+            "bac_excess": float(excess_logwealth.detach().mean().item()),
+            "bac_strategy_dd": float(strategy_dd.detach().mean().item()),
+            "bac_benchmark_dd": float(benchmark_dd.detach().mean().item()),
+            "bac_dd_delta": float(dd_delta.detach().mean().item()),
+            "bac_terminal_excess": float(terminal_excess_mean),
+            "bac_terminal_dd_delta": float(terminal_dd_delta),
+            "rb_logwealth": float(excess_logwealth.detach().mean().item()),
+            "rb_dd": float(dd_delta.detach().mean().item()),
             "rb_risk_state": float(risk_state.detach().mean().item()),
             "rb_edge_state": float(edge_state.detach().mean().item()),
             "rb_abs_exposure": float(abs_position.detach().abs().mean().item()),
@@ -971,8 +1093,19 @@ class ImagACTrainer:
 
         # --- 報酬計算 ---
         reward_diag: dict[str, float] = {}
-        self.reward_ema.update(net_returns)
-        rewards_norm = net_returns / self.reward_ema.scale
+        benchmark_returns = None
+        if self.reward_objective in {"benchmark_absolute_constraint", "absolute_bh_constraint", "final_metric"}:
+            benchmark_returns = self._benchmark_rollout_rewards(
+                z0,
+                h0,
+                past_zs,
+                past_as,
+            )
+            reward_basis = net_returns - benchmark_returns
+        else:
+            reward_basis = net_returns
+        self.reward_ema.update(reward_basis)
+        rewards_norm = reward_basis / self.reward_ema.scale
         if self.reward_objective in {"risk_budget", "risk_budget_overlay"}:
             rewards_for_ac, reward_diag = self._risk_budget_rewards(
                 net_returns=net_returns,
@@ -983,6 +1116,14 @@ class ImagACTrainer:
         elif self.reward_objective in {"relative_constraint", "bh_relative_constraint", "constrained_relative"}:
             rewards_for_ac, reward_diag = self._relative_constraint_rewards(
                 net_returns=net_returns,
+                next_inventory=next_inventory,
+                rewards_norm=rewards_norm,
+                advantage0=advantage0,
+            )
+        elif self.reward_objective in {"benchmark_absolute_constraint", "absolute_bh_constraint", "final_metric"}:
+            rewards_for_ac, reward_diag = self._benchmark_absolute_constraint_rewards(
+                strategy_returns=net_returns,
+                benchmark_returns=benchmark_returns,
                 next_inventory=next_inventory,
                 rewards_norm=rewards_norm,
                 advantage0=advantage0,
