@@ -6,6 +6,7 @@ Plan012 is a working branch for final-value AlphaEx optimization:
 - MaxDDDelta is `strategy abs(MaxDD) - B&H abs(MaxDD)`, so negative is improvement.
 - WM reward training can use `world_model.reward_mode: absolute` while oracle/BC can remain benchmark-relative.
 - AC reward can roll out a fixed B&H benchmark path from the same imagined state and optimize B&H-relative log wealth with relative drawdown penalties.
+- The current probe uses an affine continuous WM overlay teacher instead of hard route classes.
 
 ## Current 3-Fold Probe
 
@@ -20,11 +21,16 @@ Direct AC checkpoint replay with validation-selected inference scale:
 
 | actor | fold | AlphaEx | MaxDDDelta | note |
 |---|---:|---:|---:|---|
-| `ac.pt` | 0 | -0.72pt | -0.45pt | mild DD improvement, Alpha below target |
-| `ac.pt` | 2 | -16.17pt | -1.64pt | bull-market underweight still damages Alpha |
-| `ac.pt` | 8 | +0.91pt | -1.34pt | correct direction, not enough magnitude |
+| `ac.pt` | 0 | -1.63pt | -0.34pt | small de-risk, Alpha below target |
+| `ac.pt` | 2 | -5.07pt | -0.33pt | bull-fold Alpha damage reduced but still negative |
+| `ac.pt` | 8 | +0.36pt | -0.76pt | correct direction, not enough DD improvement |
 
-Mean over folds 0/2/8: `AlphaEx -5.33pt`, `MaxDDDelta -1.14pt`.
+Mean over folds 0/2/8: `AlphaEx -2.11pt`, `MaxDDDelta -0.47pt`.
+
+BC-only/policy-family replay for the same checkpoint is stored in:
+
+- `docs/plan012_probe_current_compare.md`
+- `docs/plan012_probe_current_compare.json`
 
 The earlier strong de-risk probe showed DD can be forced lower but destroys bull-fold Alpha:
 
@@ -34,4 +40,4 @@ The earlier strong de-risk probe showed DD can be forced lower but destroys bull
 | 2 | -38.10pt | -3.02pt |
 | 8 | +2.95pt | -3.46pt |
 
-Interpretation: WM risk/utility signal is present, but simple hard-gated underweight teachers do not yet separate bull high-risk from true de-risk regimes well enough. Next work should focus on continuous risk-budget sizing and AC reward/selector alignment rather than more threshold-only gates.
+Interpretation: WM risk/utility signal is present, but hard-gated underweight teachers over-de-risk and the current affine teacher is too weak. The next useful change is not more threshold searching; it is stronger alpha-protected AC optimization and a selector that rejects validation candidates which gain DD by sacrificing final-value AlphaEx.

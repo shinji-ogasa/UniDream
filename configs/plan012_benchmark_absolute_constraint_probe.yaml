@@ -196,7 +196,62 @@ bc:
   benchmark_overlay_risk_gate_min: 0.05
   benchmark_overlay_risk_gate_scale: 2.0
   benchmark_overlay_scale: 0.75
-  benchmark_overlay_teacher_mode: lowfreq_wm_overlay
+  benchmark_overlay_teacher_mode: affine_wm_overlay
+  benchmark_overlay_affine_risk_indices:
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  benchmark_overlay_affine_edge_indices:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 30
+  - 31
+  - 32
+  - 33
+  - 34
+  - 35
+  - 36
+  - 37
+  - 38
+  - 39
+  - 40
+  - 41
+  benchmark_overlay_affine_utility_low_indices:
+  - 25
+  - 26
+  - 27
+  - 28
+  benchmark_overlay_affine_utility_high_indices:
+  - 29
+  - 30
+  - 31
+  benchmark_overlay_affine_ema_span: 256
+  benchmark_overlay_affine_trend_lookback: 128
+  benchmark_overlay_affine_base: 0.0
+  benchmark_overlay_affine_risk_center: 0.0
+  benchmark_overlay_affine_edge_center: 0.25
+  benchmark_overlay_affine_trend_center: 0.0
+  benchmark_overlay_affine_edge_gate_scale: 3.0
+  benchmark_overlay_affine_risk_coef: 0.10
+  benchmark_overlay_affine_edge_coef: 0.020
+  benchmark_overlay_affine_utility_coef: 0.040
+  benchmark_overlay_affine_trend_down_coef: 0.80
+  benchmark_overlay_affine_trend_up_coef: 0.20
   benchmark_overlay_edge_protect_indices:
   - 2
   - 3

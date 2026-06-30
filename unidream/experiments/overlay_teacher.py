@@ -181,6 +181,89 @@ def _lowfreq_wm_overlay(
     return overlay
 
 
+def _affine_wm_overlay(
+    *,
+    advantage_values,
+    returns,
+    bc_cfg: dict,
+    length: int,
+) -> np.ndarray | None:
+    """Build a continuous WM risk-budget overlay.
+
+    Unlike the low-frequency hard gate, this keeps sizing continuous: risk only
+    reduces exposure when edge is weak, while edge/utility can add a small
+    positive overlay.
+    """
+    risk_indices = tuple(
+        int(i)
+        for i in (
+            bc_cfg.get("benchmark_overlay_affine_risk_indices")
+            or bc_cfg.get("benchmark_overlay_risk_gate_indices", [])
+            or []
+        )
+    )
+    edge_indices = tuple(
+        int(i)
+        for i in (
+            bc_cfg.get("benchmark_overlay_affine_edge_indices")
+            or bc_cfg.get("benchmark_overlay_edge_protect_indices", [])
+            or []
+        )
+    )
+    utility_low_indices = tuple(
+        int(i)
+        for i in bc_cfg.get("benchmark_overlay_affine_utility_low_indices", [25, 26, 27, 28])
+    )
+    utility_high_indices = tuple(
+        int(i)
+        for i in bc_cfg.get("benchmark_overlay_affine_utility_high_indices", [29, 30, 31])
+    )
+    risk = _risk_signal_from_advantage(advantage_values, indices=risk_indices, length=length)
+    edge = _risk_signal_from_advantage(advantage_values, indices=edge_indices, length=length)
+    utility_low = _risk_signal_from_advantage(advantage_values, indices=utility_low_indices, length=length)
+    utility_high = _risk_signal_from_advantage(advantage_values, indices=utility_high_indices, length=length)
+    if risk is None and edge is None and utility_low is None and utility_high is None:
+        return None
+
+    span = int(bc_cfg.get("benchmark_overlay_affine_ema_span", bc_cfg.get("benchmark_overlay_lowfreq_ema_span", 256)))
+    zeros = np.zeros(length, dtype=np.float32)
+    risk_slow = _ema(risk if risk is not None else zeros, span)
+    edge_slow = _ema(edge if edge is not None else zeros, span)
+    utility_low_slow = _ema(utility_low if utility_low is not None else zeros, span)
+    utility_high_slow = _ema(utility_high if utility_high is not None else zeros, span)
+    utility_bias = utility_high_slow - utility_low_slow
+    trend = _causal_trailing_sum(
+        returns,
+        length,
+        int(bc_cfg.get("benchmark_overlay_affine_trend_lookback", bc_cfg.get("benchmark_overlay_lowfreq_trend_lookback", 128))),
+    )
+
+    base = float(bc_cfg.get("benchmark_overlay_affine_base", 0.0))
+    risk_center = float(bc_cfg.get("benchmark_overlay_affine_risk_center", 0.0))
+    edge_center = float(bc_cfg.get("benchmark_overlay_affine_edge_center", 0.0))
+    trend_center = float(bc_cfg.get("benchmark_overlay_affine_trend_center", 0.0))
+    edge_gate_scale = float(bc_cfg.get("benchmark_overlay_affine_edge_gate_scale", 3.0))
+    risk_coef = float(bc_cfg.get("benchmark_overlay_affine_risk_coef", 0.0))
+    edge_coef = float(bc_cfg.get("benchmark_overlay_affine_edge_coef", 0.0))
+    utility_coef = float(bc_cfg.get("benchmark_overlay_affine_utility_coef", 0.0))
+    trend_down_coef = float(bc_cfg.get("benchmark_overlay_affine_trend_down_coef", 0.0))
+    trend_up_coef = float(bc_cfg.get("benchmark_overlay_affine_trend_up_coef", 0.0))
+
+    risk_excess = np.maximum(risk_slow - risk_center, 0.0)
+    weak_edge_gate = 1.0 / (1.0 + np.exp(np.clip((edge_slow - edge_center) * edge_gate_scale, -30.0, 30.0)))
+    bad_trend = np.maximum(trend_center - trend, 0.0)
+    good_trend = np.maximum(trend - trend_center, 0.0)
+    overlay = (
+        base
+        + edge_coef * edge_slow
+        + utility_coef * utility_bias
+        + trend_up_coef * good_trend
+        - risk_coef * risk_excess * weak_edge_gate
+        - trend_down_coef * bad_trend
+    )
+    return np.nan_to_num(overlay, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+
+
 def benchmark_overlay_teacher_enabled(bc_cfg: dict | None, ac_cfg: dict | None = None) -> bool:
     """Return whether the benchmark-relative overlay teacher is requested."""
     bc_cfg = bc_cfg or {}
@@ -243,6 +326,15 @@ def apply_benchmark_overlay_teacher(
     mode = str(bc_cfg.get("benchmark_overlay_teacher_mode", "oracle_scaled")).lower()
     if mode in {"lowfreq_wm", "lowfreq_wm_overlay"}:
         overlay = _lowfreq_wm_overlay(
+            advantage_values=advantage_values,
+            returns=returns,
+            bc_cfg=bc_cfg,
+            length=arr.shape[0],
+        )
+        if overlay is None:
+            overlay = np.zeros(arr.shape[0], dtype=np.float32)
+    elif mode in {"affine_wm", "affine_wm_overlay", "continuous_wm_overlay"}:
+        overlay = _affine_wm_overlay(
             advantage_values=advantage_values,
             returns=returns,
             bc_cfg=bc_cfg,
