@@ -53,7 +53,9 @@ class BacktestMetrics:
     benchmark_annual_return: float | None = None
     benchmark_sharpe: float | None = None
     benchmark_max_drawdown: float | None = None
+    final_excess: float | None = None
     alpha_excess: float | None = None
+    annual_alpha_excess: float | None = None
     sharpe_delta: float | None = None
     maxdd_delta: float | None = None
     win_rate_vs_bh: float | None = None
@@ -76,7 +78,9 @@ class BacktestMetrics:
             "benchmark_annual_return": self.benchmark_annual_return,
             "benchmark_sharpe": self.benchmark_sharpe,
             "benchmark_max_drawdown": self.benchmark_max_drawdown,
+            "final_excess": self.final_excess,
             "alpha_excess": self.alpha_excess,
+            "annual_alpha_excess": self.annual_alpha_excess,
             "sharpe_delta": self.sharpe_delta,
             "maxdd_delta": self.maxdd_delta,
             "win_rate_vs_bh": self.win_rate_vs_bh,
@@ -278,7 +282,9 @@ class Backtest:
         benchmark_annual_return = None
         benchmark_sharpe = None
         benchmark_max_drawdown = None
+        final_excess = None
         alpha_excess = None
+        annual_alpha_excess = None
         sharpe_delta = None
         maxdd_delta = None
         win_rate_vs_bh = None
@@ -299,7 +305,9 @@ class Backtest:
             benchmark_annual_return = compute_annual_return(benchmark_total_return, period_years)
             benchmark_sharpe = compute_sharpe(bench_pnl, self.ann_factor)
             benchmark_max_drawdown = compute_max_drawdown(bench_equity)
-            alpha_excess = annual_return - benchmark_annual_return
+            final_excess = total_return - benchmark_total_return
+            alpha_excess = final_excess
+            annual_alpha_excess = annual_return - benchmark_annual_return
             sharpe_delta = sharpe - benchmark_sharpe
             maxdd_delta = abs(max_dd) - abs(benchmark_max_drawdown)
             win_rate_vs_bh = float(np.mean(pnl > bench_pnl))
@@ -322,7 +330,9 @@ class Backtest:
             benchmark_annual_return=benchmark_annual_return,
             benchmark_sharpe=benchmark_sharpe,
             benchmark_max_drawdown=benchmark_max_drawdown,
+            final_excess=final_excess,
             alpha_excess=alpha_excess,
+            annual_alpha_excess=annual_alpha_excess,
             sharpe_delta=sharpe_delta,
             maxdd_delta=maxdd_delta,
             win_rate_vs_bh=win_rate_vs_bh,

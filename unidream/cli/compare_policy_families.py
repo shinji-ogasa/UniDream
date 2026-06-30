@@ -367,6 +367,7 @@ def _aggregate(rows: list[dict[str, Any]], method: str) -> dict[str, float | int
 
 
 def _write_markdown(payload: dict[str, Any], path: Path) -> None:
+    fold_count = len(payload["folds"])
     labels = {
         "simple_algorithm": "単純アルゴリズム (causal vol-target)",
         "tabular_ml": "ML (HistGradientBoosting)",
@@ -379,15 +380,16 @@ def _write_markdown(payload: dict[str, Any], path: Path) -> None:
         f"- period: `{payload['test_period']['start']}` to `{payload['test_period']['end']}`",
         f"- folds: `{', '.join(map(str, payload['folds']))}`",
         f"- config: `{payload['config']}`",
+        f"- checkpoint dir: `{payload['checkpoint_dir']}`",
         f"- seed/device: `{payload['seed']}` / `{payload['device']}`",
         "- selection: train fit + validation selection only; test is report-only",
         "- benchmark: B&H exposure=1.0",
         "",
-        "## Summary (mean across 9 quarterly test folds)",
+        f"## Summary (mean across {fold_count} quarterly test folds)",
         "",
         "| method | AlphaEx | MaxDDDelta | median AlphaEx | worst AlphaEx | DD improved | mean turnover |",
         "|---|---:|---:|---:|---:|---:|---:|",
-        "| B&H | +0.00pt | +0.00pt | +0.00pt | +0.00pt | 0/9 | 0.00 |",
+        f"| B&H | +0.00pt | +0.00pt | +0.00pt | +0.00pt | 0/{fold_count} | 0.00 |",
     ]
     for method in METHODS:
         row = payload["summary"][method]
@@ -420,6 +422,7 @@ def _write_markdown(payload: dict[str, Any], path: Path) -> None:
         "- ML: HistGradientBoosting learns the training-only oracle position from causal tabular features; execution is selected on validation.",
         "- WM only: the Transformer WM position-utility head selects exposure directly; no actor, BC, or AC is used.",
         "- BC only: the Transformer WM encoder/predictive state and BC actor are used; the AC checkpoint is never loaded.",
+        "- AlphaEx = strategy final total return minus B&H final total return. It is not annualized.",
         "- MaxDDDelta = strategy absolute MaxDD minus B&H absolute MaxDD. Negative is improvement.",
     ])
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -428,6 +431,7 @@ def _write_markdown(payload: dict[str, Any], path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--config", default="configs/plan011_overlay_actor_v31_holdout.yaml")
+    parser.add_argument("--checkpoint-dir", default=None)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--output", default="docs/policy_family_holdout_comparison")
@@ -462,7 +466,7 @@ def main() -> None:
     benchmark = _benchmark_position_value(cfg)
     min_position = float(cfg["ac"]["abs_min_position"])
     max_position = float(cfg["ac"]["abs_max_position"])
-    checkpoint_dir = Path("checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007")
+    checkpoint_dir = Path(args.checkpoint_dir or cfg.get("logging", {}).get("checkpoint_dir", "checkpoints"))
     results = []
     checkpoint_hashes: dict[str, dict[str, str]] = {}
 
@@ -542,6 +546,7 @@ def main() -> None:
         "schema_version": 1,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "config": args.config,
+        "checkpoint_dir": str(checkpoint_dir),
         "config_sha256": hashlib.sha256(
             json.dumps(cfg, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest(),

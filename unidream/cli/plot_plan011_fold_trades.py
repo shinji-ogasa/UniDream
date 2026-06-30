@@ -270,8 +270,14 @@ def _plot_fold(
 
 
 def _write_markdown(results: list[FoldPlotResult], output_dir: Path, payload: dict[str, Any]) -> None:
+    fold_values = [int(value) for value in payload["folds"]]
+    fold_label = f"{fold_values[0]}-{fold_values[-1]}" if fold_values else ""
+    folds_arg = ""
+    if fold_values:
+        contiguous = fold_values == list(range(fold_values[0], fold_values[-1] + 1))
+        folds_arg = fold_label if contiguous else ",".join(str(value) for value in fold_values)
     lines = [
-        "# Plan011 v31 Fold0-12 Trade Charts",
+        f"# Plan011 v31 Fold{fold_label} Trade Charts",
         "",
         "保存済み checkpoint から実モデル推論を再実行し、test split の資産推移、B&H、position 変更点を可視化した。",
         "",
@@ -281,7 +287,7 @@ def _write_markdown(results: list[FoldPlotResult], output_dir: Path, payload: di
         "uv run python -m unidream.cli.plot_plan011_fold_trades \\",
         f"  --config {payload['config']} \\",
         f"  --checkpoint-dir {payload['checkpoint_dir']} \\",
-        "  --folds 0-12 \\",
+        f"  --folds {folds_arg} \\",
         "  --seed 7 \\",
         "  --device cpu \\",
         f"  --output-dir {output_dir.as_posix()}",
@@ -312,6 +318,7 @@ def _write_markdown(results: list[FoldPlotResult], output_dir: Path, payload: di
         )
     lines.extend([
         "",
+        "AlphaEx は strategy の最終total return minus B&Hの最終total return。年率換算ではない。",
         "MaxDDDelta は strategy の絶対MaxDD minus B&Hの絶対MaxDD。マイナスが改善。",
         "取引点は exposure が前バーから `trade_eps` 以上変化したバー。active block は `abs(exposure - 1.0) > active_eps` の連続区間。",
         "全バーのposition系列は `timeseries.npz` に保存している。",

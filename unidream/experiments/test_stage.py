@@ -418,7 +418,7 @@ def run_test_stage(
     print(f"  Calmar:   {metrics.calmar:.3f}")
     print(f"  TotalRet: {metrics.total_return:.4f}")
     if metrics.alpha_excess is not None:
-        print(f"  AlphaEx:  {100.0 * metrics.alpha_excess:+.2f} pt/yr")
+        print(f"  AlphaEx:  {100.0 * metrics.alpha_excess:+.2f} pt final")
         print(f"  SharpeΔ:  {(metrics.sharpe_delta or 0.0):+.3f}")
         print(f"  MaxDDΔ:   {100.0 * (metrics.maxdd_delta or 0.0):+.2f} pt")
         print(f"  WinRate:  {(metrics.win_rate_vs_bh or 0.0):.1%}")

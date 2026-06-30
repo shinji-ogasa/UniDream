@@ -331,6 +331,11 @@ reward:
   beta: 0.1
   dsr_eta: 0.01
   mode: excess_bh
+targets:
+  alpha_excess_pt: 3.0
+  maxdd_delta_pt: -3.0
+  stretch_alpha_excess_pt: 10.0
+  stretch_maxdd_delta_pt: -5.0
 world_model:
   aux_use_raw_features: true
   batch_size: 64

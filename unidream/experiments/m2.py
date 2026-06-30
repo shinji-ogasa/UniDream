@@ -28,12 +28,12 @@ def collapse_guard(stats: dict, benchmark_position: float) -> tuple[bool, list[s
 def goal_cfg(cfg: dict) -> dict:
     targets = cfg.get("targets", {})
     return {
-        "alpha_excess_pt": float(targets.get("alpha_excess_pt", 5.0)),
+        "alpha_excess_pt": float(targets.get("alpha_excess_pt", 3.0)),
         "sharpe_delta": float(targets.get("sharpe_delta", 0.20)),
-        "maxdd_delta_pt": float(targets.get("maxdd_delta_pt", -10.0)),
+        "maxdd_delta_pt": float(targets.get("maxdd_delta_pt", -3.0)),
         "win_rate_vs_bh": float(targets.get("win_rate_vs_bh", 0.60)),
-        "stretch_alpha_excess_pt": float(targets.get("stretch_alpha_excess_pt", 8.0)),
-        "stretch_maxdd_delta_pt": float(targets.get("stretch_maxdd_delta_pt", -15.0)),
+        "stretch_alpha_excess_pt": float(targets.get("stretch_alpha_excess_pt", 10.0)),
+        "stretch_maxdd_delta_pt": float(targets.get("stretch_maxdd_delta_pt", -5.0)),
     }
 
 

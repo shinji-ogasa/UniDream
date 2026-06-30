@@ -35,7 +35,7 @@
       "test_start": "2020-04-16 13:45:00",
       "test_end": "2020-07-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 2.444048660222675,
+        "alpha_excess_pt": 0.2788214656902932,
         "final_excess_pt": 0.2788214656902932,
         "sharpe_delta": 0.008584896061076819,
         "maxdd_delta_pt": 0.01893764371505846,
@@ -59,7 +59,7 @@
       "test_start": "2020-07-16 13:45:00",
       "test_end": "2020-10-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 1.6415187849045942,
+        "alpha_excess_pt": 0.21298530534672455,
         "final_excess_pt": 0.21298530534672455,
         "sharpe_delta": 0.008924458286650117,
         "maxdd_delta_pt": 0.06458883702405438,
@@ -83,7 +83,7 @@
       "test_start": "2020-10-16 13:45:00",
       "test_end": "2021-01-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 477.79386135022577,
+        "alpha_excess_pt": 3.4620523640104484,
         "final_excess_pt": 3.4620523640104484,
         "sharpe_delta": 0.019610229664176693,
         "maxdd_delta_pt": 0.0512705919821721,
@@ -107,7 +107,7 @@
       "test_start": "2021-01-16 13:45:00",
       "test_end": "2021-04-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 18.86006240721665,
+        "alpha_excess_pt": 1.0474305654676108,
         "final_excess_pt": 1.0474305654676108,
         "sharpe_delta": 0.009146700346499781,
         "maxdd_delta_pt": 0.22399781943743813,
@@ -131,7 +131,7 @@
       "test_start": "2021-04-16 13:45:00",
       "test_end": "2021-07-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": -0.19665310933492108,
+        "alpha_excess_pt": -0.3535982230824519,
         "final_excess_pt": -0.3535982230824519,
         "sharpe_delta": -0.010180080317827134,
         "maxdd_delta_pt": 0.3155404008352347,
@@ -155,7 +155,7 @@
       "test_start": "2021-07-16 13:45:00",
       "test_end": "2021-10-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 39.17341666992886,
+        "alpha_excess_pt": 1.4004562818080935,
         "final_excess_pt": 1.4004562818080935,
         "sharpe_delta": -0.004617796868407353,
         "maxdd_delta_pt": 0.24893179894587836,
@@ -179,7 +179,7 @@
       "test_start": "2021-10-16 13:45:00",
       "test_end": "2022-01-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": -0.3241197961153852,
+        "alpha_excess_pt": -0.23092193090991087,
         "final_excess_pt": -0.23092193090991087,
         "sharpe_delta": -0.00022966266507662425,
         "maxdd_delta_pt": 0.27553214964104455,
@@ -203,7 +203,7 @@
       "test_start": "2022-01-16 13:45:00",
       "test_end": "2022-04-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": -1.280227955908031,
+        "alpha_excess_pt": -0.3833701917182797,
         "final_excess_pt": -0.3833701917182797,
         "sharpe_delta": -0.021233024850707716,
         "maxdd_delta_pt": 0.24096903520739732,
@@ -227,7 +227,7 @@
       "test_start": "2022-04-16 13:45:00",
       "test_end": "2022-07-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": -0.21743981896247266,
+        "alpha_excess_pt": -0.4033940671991143,
         "final_excess_pt": -0.4033940671991143,
         "sharpe_delta": -0.005570472247546476,
         "maxdd_delta_pt": 0.3937302402380216,
@@ -251,7 +251,7 @@
       "test_start": "2022-07-16 13:45:00",
       "test_end": "2022-10-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": -0.5262409765793619,
+        "alpha_excess_pt": -0.1709937117492455,
         "final_excess_pt": -0.1709937117492455,
         "sharpe_delta": -0.006410174549440817,
         "maxdd_delta_pt": 0.26348717762667007,
@@ -275,7 +275,7 @@
       "test_start": "2022-10-16 13:45:00",
       "test_end": "2023-01-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 0.809574981749428,
+        "alpha_excess_pt": 0.15857975873572183,
         "final_excess_pt": 0.15857975873572183,
         "sharpe_delta": 0.006944748646311116,
         "maxdd_delta_pt": 0.1533729490979574,
@@ -299,7 +299,7 @@
       "test_start": "2023-01-16 13:45:00",
       "test_end": "2023-04-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": 5.609831410186139,
+        "alpha_excess_pt": 0.44311033921362597,
         "final_excess_pt": 0.44311033921362597,
         "sharpe_delta": -0.0035954262945967486,
         "maxdd_delta_pt": 0.17114979388557217,
@@ -323,7 +323,7 @@
       "test_start": "2023-04-16 13:45:00",
       "test_end": "2023-07-16 13:45:00",
       "metrics": {
-        "alpha_excess_pt": -0.45374621723230923,
+        "alpha_excess_pt": -0.11275214161696745,
         "final_excess_pt": -0.11275214161696745,
         "sharpe_delta": -0.011173841653869736,
         "maxdd_delta_pt": 0.22472330523172213,

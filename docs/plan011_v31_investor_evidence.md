@@ -4,25 +4,26 @@
 
 ## 主成果
 
-Plan011 v31 は、B&H exposure `1.0` を基準にした低回転 overlay actor。主張できる成果は以下に絞る。
+Plan011 v31 は、B&H exposure `1.0` を基準にした低回転 overlay actor。現在の正しい評価定義では、主張できる成果は以下に絞る。
 
-> B&H近傍の低回転overlayとして、13fold testで大崩れを避けながらAlphaExの右側テールを獲得した。
+> 実モデル推論の WM -> BC -> AC pipeline を live/demo runtime に接続し、B&H近傍の低回転 neural overlay として collapse を避ける研究証跡を作った。
 
-現時点では、DD改善AIやリスク調整後リターン改善AIとしては主張しない。0-12集計の `MaxDDDelta` はプラス寄りで、DDを下げるよりAlphaExを取りにいく挙動になっている。
+現時点では、DD改善AI、リスク調整後リターン改善AI、または `AlphaEx >= +3pt` / `MaxDDDelta <= -3pt` 達成モデルとしては主張しない。
 
-2024-2026 の完全未使用 holdout fold15-23 では aggregate `AlphaEx +2.32pt`、`SharpeDelta -0.003`、`MaxDDDelta +0.20pt`。低回転と一部foldのAlphaEx右テールは残ったが、DD改善は残っていない。
+AlphaEx は strategy の最終total return minus B&Hの最終total return。年率換算ではない。MaxDDDelta は strategy の絶対MaxDD minus B&Hの絶対MaxDDで、マイナスが改善。
 
 ## Locked Spec
 
 - Config: `configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml`
 - Checkpoint dir: `checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007`
-- Result commit before evidence docs: `caa2695`
 - Symbol / interval: `BTCUSDT`, `15m`
-- Date range: `2018-01-01` to `2024-01-01`
-- Fold range: `0-12`
+- Development date range: `2018-01-01` to `2024-01-01`
+- Development fold range: `0-12`
+- Holdout config: `configs/plan011_overlay_actor_v31_holdout.yaml`
+- Holdout range: `2024-01-16` to `2026-04-16` (`fold15-23`)
 - Seed: `7`
-- Device used for final reproduction: `mps` with `PYTORCH_ENABLE_MPS_FALLBACK=1`
-- Costs: default profile, one-way full `Δpos=1` cost `5.50bps`
+- Replay device used for evidence: `cpu`
+- Costs: default profile, one-way full `Delta position = 1` cost `5.50bps`
 
 Each fold uses:
 
@@ -31,7 +32,7 @@ Each fold uses:
 - test: 3 months
 - slide: 3 months
 
-Validation selects only inference adjustment scale. Test remains report-only; the strict reproduction run recreates WM/BC/AC before evaluating it.
+Validation selects inference adjustment scale. Test remains report-only.
 
 ## Reproduction Commands
 
@@ -44,93 +45,7 @@ uv run python -m unidream.cli.train \
   --device cuda
 ```
 
-CPU fallback:
-
-```bash
-uv run python -m unidream.cli.train \
-  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
-  --seed 7 \
-  --device cpu
-```
-
-## Fold Results
-
-| fold | test period | AlphaEx pt/yr | SharpeDelta | MaxDDDelta pt | turnover | verdict |
-|---:|---|---:|---:|---:|---:|---|
-| 0 | 2020-04-16 to 2020-07-16 | +2.44 | +0.009 | +0.02 | 1.06 | small positive |
-| 1 | 2020-07-16 to 2020-10-16 | +1.64 | +0.009 | +0.06 | 0.19 | small positive |
-| 2 | 2020-10-16 to 2021-01-16 | +477.79 | +0.020 | +0.05 | 0.77 | large positive outlier |
-| 3 | 2021-01-16 to 2021-04-16 | +18.86 | +0.009 | +0.22 | 0.56 | positive |
-| 4 | 2021-04-16 to 2021-07-16 | -0.20 | -0.010 | +0.32 | 0.53 | flat / near neutral |
-| 5 | 2021-07-16 to 2021-10-16 | +39.17 | -0.005 | +0.25 | 0.48 | positive |
-| 6 | 2021-10-16 to 2022-01-16 | -0.32 | -0.000 | +0.28 | 0.52 | flat / near neutral |
-| 7 | 2022-01-16 to 2022-04-16 | -1.28 | -0.021 | +0.24 | 0.55 | worst AlphaEx |
-| 8 | 2022-04-16 to 2022-07-16 | -0.22 | -0.006 | +0.39 | 0.09 | flat / near neutral |
-| 9 | 2022-07-16 to 2022-10-16 | -0.53 | -0.006 | +0.26 | 0.07 | flat / near neutral |
-| 10 | 2022-10-16 to 2023-01-16 | +0.81 | +0.007 | +0.15 | 0.35 | small positive |
-| 11 | 2023-01-16 to 2023-04-16 | +5.61 | -0.004 | +0.17 | 0.08 | positive |
-| 12 | 2023-04-16 to 2023-07-16 | -0.45 | -0.011 | +0.22 | 0.49 | flat / near neutral |
-
-Aggregate reported by the evaluation run:
-
-- `AlphaEx +41.79pt`
-- `SharpeDelta -0.001`
-- `MaxDDDelta +0.20pt`
-- `PBO 0.420`
-- worst AlphaEx: `-1.28pt`
-
-## Distribution Stats
-
-AlphaEx distribution:
-
-- mean: `+41.79pt`
-- median: `+0.81pt`
-- worst: `-1.28pt` (fold7)
-- best: `+477.79pt` (fold2)
-- mean excluding fold2: `+5.46pt`
-- median excluding fold2: `+0.31pt`
-- AlphaEx `> 0`: `7/13`
-- AlphaEx `>= +3pt`: `4/13`
-- `abs(AlphaEx) <= 1pt`: `6/13`
-- AlphaEx `>= 0` or `abs(AlphaEx) <= 1pt`: `12/13`
-- fold-resampling bootstrap 95% CI of mean: `[+1.03pt, +116.88pt]`
-- fold2-excluded bootstrap 95% CI of mean: `[+0.30pt, +13.03pt]`
-
-MaxDDDelta distribution:
-
-- mean: `+0.20pt`
-- median: `+0.22pt`
-- best: `+0.02pt` (fold0)
-- worst: `+0.39pt` (fold8)
-- MaxDDDelta `<= 0`: `0/13`
-- MaxDDDelta `<= +0.30pt`: `11/13`
-
-Interpretation:
-
-- The mean AlphaEx is strong, but fold2 is a large positive outlier.
-- The robust read is not "all folds produce large alpha"; it is "most folds stay near neutral or positive, with right-tail upside."
-- The model does not improve drawdown yet. DD is slightly worse than B&H in every fold, although the deterioration is small in this v31 run.
-
-## Reproducibility Notes
-
-- `checkpoints/` is git-ignored. Reproduce checkpoints with the config above, or preserve the local checkpoint directory when auditing.
-- Validation is used for inference adjustment scale selection. Test split is report-only within each fold.
-- Fold0-12 are development WFO folds, not a pristine post-lock holdout.
-- Fold15-23 are the current untouched 2024-2026 holdout, ending at `2026-04-16` and excluding roughly the latest 60 days at run time.
-- Live / Space adoption is wired to the Plan011 v31 fold23 neural bundle. `/sample/verify` passes with `strict_ok=True`.
-- This result should be presented as model research evidence, not as a live trading track record.
-
-## Fold0-12 Trade / Equity Charts
-
-Saved checkpoint inference has been replayed for fold0-12, including validation-time `infer_adjust_rate_scale` selection. The generated artifacts are:
-
-- Chart index: `docs/figures/plan011_v31_folds0_12/README.md`
-- Per-fold equity / B&H / position-change PNGs: `docs/figures/plan011_v31_folds0_12/fold_XX_equity_trades.png`
-- Metrics CSV: `docs/figures/plan011_v31_folds0_12/metrics.csv`
-- Position-change events CSV: `docs/figures/plan011_v31_folds0_12/trades.csv`
-- Full per-bar arrays: `docs/figures/plan011_v31_folds0_12/timeseries.npz`
-
-Reproduce the charts:
+Replay saved fold0-12 checkpoint inference and regenerate charts:
 
 ```bash
 uv run python -m unidream.cli.plot_plan011_fold_trades \
@@ -142,63 +57,122 @@ uv run python -m unidream.cli.plot_plan011_fold_trades \
   --output-dir docs/figures/plan011_v31_folds0_12
 ```
 
-## Untouched Holdout 2024-2026
-
-The locked v31 spec was retrained/evaluated on folds 15-23 with data through `2026-04-17`. Current date during the run was `2026-06-16 JST`, so the latest roughly 60 days were left outside this holdout and live bundle export.
-
-Reproduction:
+Replay saved holdout fold15-23 checkpoint inference and regenerate charts:
 
 ```bash
-uv run python -m unidream.cli.train \
+uv run python -m unidream.cli.plot_plan011_fold_trades \
   --config configs/plan011_overlay_actor_v31_holdout.yaml \
+  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007 \
+  --folds 15-23 \
   --seed 7 \
-  --device cuda
+  --device cpu \
+  --output-dir docs/figures/plan011_v31_holdout_folds15_23
 ```
 
-| fold | test period | AlphaEx pt/yr | SharpeDelta | MaxDDDelta pt | turnover |
-|---:|---|---:|---:|---:|---:|
-| 15 | 2024-01-16 to 2024-04-16 | +11.35 | +0.006 | +0.21 | 0.52 |
-| 16 | 2024-04-16 to 2024-07-16 | -0.51 | -0.012 | +0.28 | 0.41 |
-| 17 | 2024-07-16 to 2024-10-16 | -0.10 | -0.001 | +0.03 | 1.09 |
-| 18 | 2024-10-16 to 2025-01-16 | +8.17 | +0.003 | +0.12 | 0.14 |
-| 19 | 2025-01-16 to 2025-04-16 | -0.74 | -0.014 | +0.35 | 0.44 |
-| 20 | 2025-04-16 to 2025-07-16 | +3.64 | -0.014 | +0.14 | 1.73 |
-| 21 | 2025-07-16 to 2025-10-16 | -0.14 | +0.003 | +0.11 | 0.50 |
-| 22 | 2025-10-16 to 2026-01-16 | -0.51 | -0.001 | +0.37 | 0.34 |
-| 23 | 2026-01-16 to 2026-04-16 | -0.26 | -0.002 | +0.17 | 0.23 |
+## Fold0-12 Results
+
+| fold | test period | AlphaEx | SharpeDelta | MaxDDDelta | turnover | verdict |
+|---:|---|---:|---:|---:|---:|---|
+| 0 | 2020-04-16 to 2020-07-16 | +0.28pt | +0.009 | +0.02pt | 1.06 | small positive |
+| 1 | 2020-07-16 to 2020-10-16 | +0.21pt | +0.009 | +0.06pt | 0.19 | small positive |
+| 2 | 2020-10-16 to 2021-01-16 | +3.46pt | +0.020 | +0.05pt | 0.77 | best alpha |
+| 3 | 2021-01-16 to 2021-04-16 | +1.05pt | +0.009 | +0.22pt | 0.56 | positive |
+| 4 | 2021-04-16 to 2021-07-16 | -0.35pt | -0.010 | +0.32pt | 0.53 | small negative |
+| 5 | 2021-07-16 to 2021-10-16 | +1.40pt | -0.005 | +0.25pt | 0.48 | positive |
+| 6 | 2021-10-16 to 2022-01-16 | -0.23pt | -0.000 | +0.28pt | 0.52 | small negative |
+| 7 | 2022-01-16 to 2022-04-16 | -0.38pt | -0.021 | +0.24pt | 0.55 | small negative |
+| 8 | 2022-04-16 to 2022-07-16 | -0.40pt | -0.006 | +0.39pt | 0.09 | worst alpha |
+| 9 | 2022-07-16 to 2022-10-16 | -0.17pt | -0.006 | +0.26pt | 0.07 | near neutral |
+| 10 | 2022-10-16 to 2023-01-16 | +0.16pt | +0.007 | +0.15pt | 0.35 | near neutral |
+| 11 | 2023-01-16 to 2023-04-16 | +0.44pt | -0.004 | +0.17pt | 0.08 | small positive |
+| 12 | 2023-04-16 to 2023-07-16 | -0.11pt | -0.011 | +0.22pt | 0.49 | near neutral |
 
 Aggregate:
 
-- `AlphaEx +2.32pt`
-- `SharpeDelta -0.003`
-- `MaxDDDelta +0.20pt`
-- `PBO 0.400`
+- AlphaEx mean: `+0.41pt`
+- AlphaEx median: `+0.16pt`
+- AlphaEx best / worst: `+3.46pt / -0.40pt`
+- AlphaEx `> 0`: `7/13`
+- AlphaEx `>= +3pt`: `1/13`
+- MaxDDDelta mean: `+0.20pt`
+- MaxDDDelta median: `+0.22pt`
+- MaxDDDelta `<= 0`: `0/13`
+- MaxDDDelta `<= -3pt`: `0/13`
+- Goal pass (`AlphaEx >= +3pt` and `MaxDDDelta <= -3pt`): `0/13`
+- Turnover mean: `0.44`
+
+## Untouched Holdout 2024-2026
+
+| fold | test period | AlphaEx | SharpeDelta | MaxDDDelta | turnover |
+|---:|---|---:|---:|---:|---:|
+| 15 | 2024-01-16 to 2024-04-16 | +0.90pt | +0.006 | +0.21pt | 0.52 |
+| 16 | 2024-04-16 to 2024-07-16 | -0.12pt | -0.012 | +0.28pt | 0.41 |
+| 17 | 2024-07-16 to 2024-10-16 | -0.02pt | -0.000 | +0.03pt | 1.09 |
+| 18 | 2024-10-16 to 2025-01-16 | +0.65pt | +0.003 | +0.12pt | 0.14 |
+| 19 | 2025-01-16 to 2025-04-16 | -0.31pt | -0.014 | +0.35pt | 0.44 |
+| 20 | 2025-04-16 to 2025-07-16 | +0.32pt | -0.014 | +0.14pt | 1.73 |
+| 21 | 2025-07-16 to 2025-10-16 | -0.04pt | +0.003 | +0.11pt | 0.50 |
+| 22 | 2025-10-16 to 2026-01-16 | -0.20pt | -0.001 | +0.37pt | 0.34 |
+| 23 | 2026-01-16 to 2026-04-16 | -0.14pt | -0.002 | +0.17pt | 0.23 |
+
+Aggregate:
+
+- AlphaEx mean: `+0.11pt`
+- AlphaEx median: `-0.04pt`
+- AlphaEx best / worst: `+0.90pt / -0.31pt`
 - AlphaEx `> 0`: `3/9`
-- AlphaEx `>= +3pt`: `3/9`
+- AlphaEx `>= +3pt`: `0/9`
+- MaxDDDelta mean: `+0.20pt`
+- MaxDDDelta median: `+0.17pt`
 - MaxDDDelta `<= 0`: `0/9`
-- turnover mean: `0.60`
+- MaxDDDelta `<= -3pt`: `0/9`
+- Goal pass (`AlphaEx >= +3pt` and `MaxDDDelta <= -3pt`): `0/9`
+- Turnover mean: `0.60`
 
-Interpretation:
+## Policy-Family Ablation
 
-- Low turnover survived on untouched data.
-- Aggregate AlphaEx stayed positive, but the median fold was slightly negative.
-- DD improvement did not survive. Do not claim `MaxDDDelta <= -3pt`, or even `MaxDDDelta <= 0`, on untouched holdout.
-- The live Space bundle now uses fold23 as the latest no-leak deployment candidate.
+完全未使用 holdout fold15-23 を同一cost・B&H基準で比較した。testはreport-only。
+
+| method | AlphaEx | MaxDDDelta | median AlphaEx | worst AlphaEx | DD improved |
+|---|---:|---:|---:|---:|---:|
+| B&H | +0.00pt | +0.00pt | +0.00pt | +0.00pt | 0/9 |
+| 単純アルゴリズム (causal vol-target) | -1.27pt | -1.66pt | -0.62pt | -14.79pt | 5/9 |
+| ML (HistGradientBoosting) | -0.38pt | -0.36pt | -0.12pt | -1.81pt | 9/9 |
+| WMのみ (position-utility allocator) | -1.63pt | -1.33pt | -0.48pt | -7.19pt | 9/9 |
+| BCのみ (WM+BC, ACなし) | +0.13pt | +0.24pt | -0.12pt | -0.32pt | 0/9 |
+
+Read:
+
+- WM-only / tabular ML / simple vol-target はDD改善方向のsignalを持つが、alphaを失う。
+- WM+BC はalphaを残すが、DD改善を失う。
+- AC込みv31はBC-onlyに対する優位性が限定的。
+- 次の改善対象は、報酬関数とselectorを final AlphaEx + DD改善の同時達成へ寄せること。
+
+## Artifacts
+
+- Fold0-12 chart index: `docs/figures/plan011_v31_folds0_12/README.md`
+- Holdout chart index: `docs/figures/plan011_v31_holdout_folds15_23/README.md`
+- Policy-family comparison: `docs/policy_family_holdout_comparison.md`
+- Metrics CSVs:
+  - `docs/figures/plan011_v31_folds0_12/metrics.csv`
+  - `docs/figures/plan011_v31_holdout_folds15_23/metrics.csv`
+- Position-change events CSVs:
+  - `docs/figures/plan011_v31_folds0_12/trades.csv`
+  - `docs/figures/plan011_v31_holdout_folds15_23/trades.csv`
 
 ## What This Does Not Prove Yet
 
-- It does not prove drawdown improvement: aggregate `MaxDDDelta` is `+0.20pt`.
-- It does not prove Sharpe improvement: aggregate `SharpeDelta` is `-0.001`.
-- It does not isolate Transformer WM contribution. WM/no-WM and shuffled-latent ablations are still needed.
-- It does not prove production-grade robustness. The untouched holdout is positive on aggregate AlphaEx but not on drawdown or Sharpe.
+- It does not prove drawdown improvement: aggregate `MaxDDDelta` is positive in both fold0-12 and holdout.
+- It does not prove Sharpe improvement.
+- It does not meet `AlphaEx >= +3pt` and `MaxDDDelta <= -3pt`.
+- It does not prove production-grade robustness.
 - It does not prove execution capacity, market impact robustness, or live-only performance.
 
 ## Next Evidence To Add
 
-Highest-priority additions for investor diligence:
+Highest-priority additions:
 
-1. Policy-family ablation completed: see `docs/policy_family_holdout_comparison.md` for simple vol-target vs tabular ML vs WM-only vs WM+BC (ACなし).
+1. Reward/selector revision that directly optimizes final-value AlphaEx and MaxDDDelta.
 2. Same-turnover / same-exposure random overlay baseline.
-3. Live paper-trading immutable log: timestamp, model hash, input timestamp, position, fee/slippage assumption, realized B&H comparison.
-4. Fold-level cumulative wealth and drawdown charts.
-5. A reward/selector revision specifically targeting MaxDDDelta, because v31 does not reduce DD on holdout.
+3. Shuffled-latent and no-WM ablations to isolate Transformer WM contribution.
+4. Live paper-trading immutable log: timestamp, model hash, input timestamp, position, fee/slippage assumption, realized B&H comparison.
