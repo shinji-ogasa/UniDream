@@ -144,11 +144,15 @@ def compute_sharpe(pnl: np.ndarray, ann_factor: float) -> float:
 
 
 def compute_sortino(pnl: np.ndarray, ann_factor: float) -> float:
-    """年換算 Sortino Ratio を計算する."""
-    downside = pnl[pnl < 0]
-    if len(downside) == 0 or downside.std() < 1e-10:
+    """年換算 Sortino Ratio を計算する.
+
+    分母は標準的な下方偏差 sqrt(mean(min(pnl, 0)^2))（target=0、全期間で平均）。
+    負リターンのみの標本標準偏差を使う定義は外部と比較できないため使わない。
+    """
+    downside_dev = float(np.sqrt(np.mean(np.square(np.minimum(pnl, 0.0)))))
+    if downside_dev < 1e-10:
         return 99.0 if pnl.mean() > 0 else 0.0
-    return float(pnl.mean() / downside.std() * np.sqrt(ann_factor))
+    return float(pnl.mean() / downside_dev * np.sqrt(ann_factor))
 
 
 def compute_max_drawdown(equity: np.ndarray) -> float:
@@ -159,10 +163,13 @@ def compute_max_drawdown(equity: np.ndarray) -> float:
 
 
 def compute_calmar(total_return: float, max_dd: float, period_years: float = 1.0) -> float:
-    """Calmar Ratio を計算する."""
+    """Calmar Ratio を計算する.
+
+    分子は annual_return と同じ幾何年率換算（算術換算だと他指標と不整合になる）。
+    """
     if abs(max_dd) < 1e-10:
         return 99.0 if total_return > 0 else 0.0
-    return float((total_return / period_years) / abs(max_dd))
+    return float(compute_annual_return(total_return, period_years) / abs(max_dd))
 
 
 def compute_annual_return(total_return: float, period_years: float) -> float:
@@ -217,6 +224,8 @@ class Backtest:
         fee_rate: 手数料率
         slippage_bps: スリッページ (basis points)
         interval: 足種（年換算係数計算に使用）
+        execution_delay_bars: 決定から執行までの遅延バー数（感度分析用、デフォルト 0）。
+            positions を後方シフトし、先頭は最初の決定値で埋める。benchmark には適用しない。
     """
 
     def __init__(
@@ -228,6 +237,7 @@ class Backtest:
         slippage_bps: float = 2.0,
         interval: str = "15m",
         benchmark_positions: np.ndarray | None = None,
+        execution_delay_bars: int = 0,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -236,6 +246,7 @@ class Backtest:
         self.fee_rate = fee_rate
         self.slippage_bps = slippage_bps
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
+        self.execution_delay_bars = int(execution_delay_bars)
         self.benchmark_positions = (
             np.asarray(benchmark_positions, dtype=np.float64)
             if benchmark_positions is not None else None
@@ -247,7 +258,11 @@ class Backtest:
 
     def run(self) -> BacktestMetrics:
         """バックテストを実行してメトリクスを返す."""
-        pnl = compute_pnl(self.returns, self.positions, self.spread_bps, self.fee_rate, self.slippage_bps)
+        positions = self.positions
+        if self.execution_delay_bars > 0 and len(positions) > 0:
+            d = min(self.execution_delay_bars, len(positions))
+            positions = np.concatenate([np.full(d, positions[0]), positions[:-d]])
+        pnl = compute_pnl(self.returns, positions, self.spread_bps, self.fee_rate, self.slippage_bps)
         # position * log_return ≈ log(1 + position * simple_return) for small returns
         # 15分足では十分な近似。厳密な対数リターンは position=1.0 の場合のみ。
         equity = np.exp(np.cumsum(pnl))  # 累積 PnL → equity curve
@@ -263,14 +278,14 @@ class Backtest:
         calmar = compute_calmar(total_return, max_dd, period_years)
 
         # トレード数・平均保有期間
-        pos_changes = np.diff(self.positions, prepend=0.0) != 0
+        pos_changes = np.diff(positions, prepend=0.0) != 0
         n_trades = int(pos_changes.sum())
 
         # 連続して同じポジションを保持した期間の平均
         holding_lengths = []
         current_len = 1
-        for i in range(1, len(self.positions)):
-            if self.positions[i] == self.positions[i - 1]:
+        for i in range(1, len(positions)):
+            if positions[i] == positions[i - 1]:
                 current_len += 1
             else:
                 holding_lengths.append(current_len)
@@ -367,28 +382,3 @@ def pnl_attribution(
         "cost_total":  float(costs.sum()),
         "net_total":   float((gross - costs).sum()),
     }
-
-
-def regime_backtest(
-    returns: np.ndarray,
-    positions: np.ndarray,
-    regimes: np.ndarray,
-    n_regimes: int = 3,
-    **backtest_kwargs,
-) -> dict[int, BacktestMetrics]:
-    """レジーム別にバックテストを実行する.
-
-    Args:
-        regimes: レジームラベル列 (T,) ∈ {0, 1, ..., n_regimes-1}
-
-    Returns:
-        {regime_id: BacktestMetrics}
-    """
-    results = {}
-    for r in range(n_regimes):
-        mask = regimes == r
-        if mask.sum() < 10:
-            continue
-        bt = Backtest(returns[mask], positions[mask], **backtest_kwargs)
-        results[r] = bt.run()
-    return results

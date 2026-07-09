@@ -89,7 +89,7 @@ def main() -> None:
     symbol = data_cfg.get("symbol", "BTCUSDT")
     interval = data_cfg.get("interval", "15m")
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v2"
+    cache_tag = f"{symbol}_{interval}_{args.start}_{args.end}_z{zscore_window}_v3"
     features_df, raw_returns = load_training_features(
         symbol=symbol,
         interval=interval,

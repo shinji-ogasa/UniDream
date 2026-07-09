@@ -18,6 +18,40 @@ from .transition_advantage import (
 )
 
 
+def _stress_teacher_kwargs(
+    oracle_cfg: dict,
+    benchmark_position: float,
+    abs_min_position: float,
+    abs_max_position: float,
+) -> dict:
+    return {
+        "benchmark_position": benchmark_position,
+        "min_position": oracle_cfg.get("stress_floor_position", abs_min_position),
+        "max_position": oracle_cfg.get("stress_ceiling_position", abs_max_position),
+        "fast_vol_col": oracle_cfg.get("stress_fast_vol_col", "rv_16"),
+        "slow_vol_col": oracle_cfg.get("stress_slow_vol_col", "rv_96"),
+        "shock_col": oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
+        "drift_col": oracle_cfg.get("stress_drift_col", "open_ret"),
+        "macd_col": oracle_cfg.get("stress_macd_col", "macd"),
+        "macd_signal_col": oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
+        "funding_col": oracle_cfg.get("stress_funding_col", "funding_rate"),
+        "fast_vol_threshold": oracle_cfg.get("stress_fast_vol_threshold", 0.8),
+        "slow_vol_threshold": oracle_cfg.get("stress_slow_vol_threshold", 0.8),
+        "shock_threshold": oracle_cfg.get("stress_shock_threshold", 0.8),
+        "drift_threshold": oracle_cfg.get("stress_drift_threshold", 0.2),
+        "trend_threshold": oracle_cfg.get("stress_trend_threshold", 0.1),
+        "funding_threshold": oracle_cfg.get("stress_funding_threshold", -0.5),
+        "fast_vol_weight": oracle_cfg.get("stress_fast_vol_weight", 0.45),
+        "slow_vol_weight": oracle_cfg.get("stress_slow_vol_weight", 0.25),
+        "shock_weight": oracle_cfg.get("stress_shock_weight", 0.20),
+        "drift_weight": oracle_cfg.get("stress_drift_weight", 0.10),
+        "trend_weight": oracle_cfg.get("stress_trend_weight", 0.15),
+        "funding_weight": oracle_cfg.get("stress_funding_weight", 0.05),
+        "entry_threshold": oracle_cfg.get("stress_entry_threshold", 0.15),
+        "signal_scale": oracle_cfg.get("stress_signal_scale", 1.0),
+    }
+
+
 def _normalized_feature_stress_signal(
     *,
     train_features,
@@ -29,61 +63,18 @@ def _normalized_feature_stress_signal(
     abs_max_position: float,
     train_signal_stats: tuple[float, float] | None = None,
 ) -> tuple[np.ndarray, tuple[float, float]]:
+    teacher_kwargs = _stress_teacher_kwargs(
+        oracle_cfg, benchmark_position, abs_min_position, abs_max_position
+    )
     _positions_train, train_signal = feature_stress_teacher(
         train_features,
         feature_columns=feature_columns,
-        benchmark_position=benchmark_position,
-        min_position=oracle_cfg.get("stress_floor_position", abs_min_position),
-        max_position=oracle_cfg.get("stress_ceiling_position", abs_max_position),
-        fast_vol_col=oracle_cfg.get("stress_fast_vol_col", "rv_16"),
-        slow_vol_col=oracle_cfg.get("stress_slow_vol_col", "rv_96"),
-        shock_col=oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
-        drift_col=oracle_cfg.get("stress_drift_col", "open_ret"),
-        macd_col=oracle_cfg.get("stress_macd_col", "macd"),
-        macd_signal_col=oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
-        funding_col=oracle_cfg.get("stress_funding_col", "funding_rate"),
-        fast_vol_threshold=oracle_cfg.get("stress_fast_vol_threshold", 0.8),
-        slow_vol_threshold=oracle_cfg.get("stress_slow_vol_threshold", 0.8),
-        shock_threshold=oracle_cfg.get("stress_shock_threshold", 0.8),
-        drift_threshold=oracle_cfg.get("stress_drift_threshold", 0.2),
-        trend_threshold=oracle_cfg.get("stress_trend_threshold", 0.1),
-        funding_threshold=oracle_cfg.get("stress_funding_threshold", -0.5),
-        fast_vol_weight=oracle_cfg.get("stress_fast_vol_weight", 0.45),
-        slow_vol_weight=oracle_cfg.get("stress_slow_vol_weight", 0.25),
-        shock_weight=oracle_cfg.get("stress_shock_weight", 0.20),
-        drift_weight=oracle_cfg.get("stress_drift_weight", 0.10),
-        trend_weight=oracle_cfg.get("stress_trend_weight", 0.15),
-        funding_weight=oracle_cfg.get("stress_funding_weight", 0.05),
-        entry_threshold=oracle_cfg.get("stress_entry_threshold", 0.15),
-        signal_scale=oracle_cfg.get("stress_signal_scale", 1.0),
+        **teacher_kwargs,
     )
     _positions_fold, fold_signal = feature_stress_teacher(
         fold_features,
         feature_columns=feature_columns,
-        benchmark_position=benchmark_position,
-        min_position=oracle_cfg.get("stress_floor_position", abs_min_position),
-        max_position=oracle_cfg.get("stress_ceiling_position", abs_max_position),
-        fast_vol_col=oracle_cfg.get("stress_fast_vol_col", "rv_16"),
-        slow_vol_col=oracle_cfg.get("stress_slow_vol_col", "rv_96"),
-        shock_col=oracle_cfg.get("stress_shock_col", "atr_norm_ret"),
-        drift_col=oracle_cfg.get("stress_drift_col", "open_ret"),
-        macd_col=oracle_cfg.get("stress_macd_col", "macd"),
-        macd_signal_col=oracle_cfg.get("stress_macd_signal_col", "macd_signal"),
-        funding_col=oracle_cfg.get("stress_funding_col", "funding_rate"),
-        fast_vol_threshold=oracle_cfg.get("stress_fast_vol_threshold", 0.8),
-        slow_vol_threshold=oracle_cfg.get("stress_slow_vol_threshold", 0.8),
-        shock_threshold=oracle_cfg.get("stress_shock_threshold", 0.8),
-        drift_threshold=oracle_cfg.get("stress_drift_threshold", 0.2),
-        trend_threshold=oracle_cfg.get("stress_trend_threshold", 0.1),
-        funding_threshold=oracle_cfg.get("stress_funding_threshold", -0.5),
-        fast_vol_weight=oracle_cfg.get("stress_fast_vol_weight", 0.45),
-        slow_vol_weight=oracle_cfg.get("stress_slow_vol_weight", 0.25),
-        shock_weight=oracle_cfg.get("stress_shock_weight", 0.20),
-        drift_weight=oracle_cfg.get("stress_drift_weight", 0.10),
-        trend_weight=oracle_cfg.get("stress_trend_weight", 0.15),
-        funding_weight=oracle_cfg.get("stress_funding_weight", 0.05),
-        entry_threshold=oracle_cfg.get("stress_entry_threshold", 0.15),
-        signal_scale=oracle_cfg.get("stress_signal_scale", 1.0),
+        **teacher_kwargs,
     )
     if train_signal_stats is None:
         train_pos = train_signal[train_signal > 0.0]

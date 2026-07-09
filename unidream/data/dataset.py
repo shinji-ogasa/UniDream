@@ -165,20 +165,18 @@ class WFODataset:
         self._feature_columns = list(features_df.columns)
 
         # 各 split のデータを切り出す
-        # train/val: 右端 exclusive（次の期間の開始バーと重複を防ぐ）
-        # test: 右端 inclusive（後続期間がないため末尾バーを含める）
-        def _slice(start, end, right_inclusive=False):
-            if right_inclusive:
-                mask = (features_df.index >= start) & (features_df.index <= end)
-            else:
-                mask = (features_df.index >= start) & (features_df.index < end)
+        # train/val/test すべて右端 exclusive。
+        # test を inclusive にすると test_end == 次 fold の test_start のバーが
+        # 両方の fold で二重計上される（最終 fold の末尾 1 バー欠落より悪い）。
+        def _slice(start, end):
+            mask = (features_df.index >= start) & (features_df.index < end)
             feat = features_df[mask].to_numpy()
             ret = returns[mask].to_numpy()
             return feat, ret
 
         self._train_feat, self._train_ret = _slice(split.train_start, split.train_end)
         self._val_feat, self._val_ret = _slice(split.val_start, split.val_end)
-        self._test_feat, self._test_ret = _slice(split.test_start, split.test_end, right_inclusive=True)
+        self._test_feat, self._test_ret = _slice(split.test_start, split.test_end)
 
         # Oracle 行動列（train 期間のみ）
         if oracle_actions is not None:

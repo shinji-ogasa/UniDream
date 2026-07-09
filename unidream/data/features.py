@@ -265,7 +265,9 @@ def compute_basis_features(
     if mark_price_df is None or mark_price_df.empty:
         return pd.DataFrame(index=spot_close.index)
     mark_close = mark_price_df["mark_close"].reindex(spot_close.index, method="ffill")
-    mark_close = mark_close.bfill().ffill()
+    # mark データ開始前を bfill すると未来の先物価格レベルがリークする
+    # （basis が「未来のアンカー価格 − 現在価格」になる）。開始前は乖離情報なし = 0.0 とし、
+    # 行数（fold 境界・特徴量次元）は維持する。
     basis = np.log(mark_close / spot_close).shift(1)
     basis_mom = basis.diff().shift(1)
     basis_abs = basis.abs().shift(1)
@@ -276,7 +278,7 @@ def compute_basis_features(
             "basis_abs": basis_abs,
         },
         index=spot_close.index,
-    )
+    ).fillna(0.0)
 
 
 def align_extra_series(
@@ -295,7 +297,9 @@ def align_extra_series(
             series = value
         series = series.rename(name)
         series = series.reindex(target_index, method="ffill")
-        series = series.bfill().ffill().shift(1)
+        # bfill は系列開始前に未来の初観測値を埋め込むため使わない。
+        # 開始前は NaN のまま残し、下流の dropna に委ねる。
+        series = series.ffill().shift(1)
         aligned.append(series)
     return aligned
 
@@ -367,7 +371,8 @@ def compute_oi_change(
     if oi_df is None or oi_df.empty:
         return pd.Series(0.0, index=target_index, name="oi_change")
     oi = oi_df["open_interest"].reindex(target_index, method="ffill")
-    oi = oi.fillna(method="bfill").fillna(method="ffill")
+    # bfill は OI データ開始前に未来値を埋めるため使わない。開始前の変化率は 0.0 になる。
+    oi = oi.ffill()
     oi_change = np.log(oi / oi.shift(1)).fillna(0.0)
     return oi_change.shift(1).rename("oi_change")
 

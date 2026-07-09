@@ -48,7 +48,7 @@ def run_training_app(
     prepare_run_directory(run_cfg, cfg)
     cache_dir = str(run_cfg.cache_dir)
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{run_cfg.start}_{run_cfg.end}_z{zscore_window}_v2"
+    cache_tag = f"{symbol}_{interval}_{run_cfg.start}_{run_cfg.end}_z{zscore_window}_v3"
     data_cfg = cfg.get("data", {})
     features_df, raw_returns = load_training_features(
         symbol=symbol,

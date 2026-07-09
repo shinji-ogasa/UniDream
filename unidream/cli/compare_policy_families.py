@@ -445,7 +445,7 @@ def main() -> None:
     symbol = str(data_cfg["symbol"])
     interval = str(data_cfg["interval"])
     zscore_window = int(cfg["normalization"]["zscore_window_days"])
-    cache_tag = f"{symbol}_{interval}_{run_cfg['start']}_{run_cfg['end']}_z{zscore_window}_v2"
+    cache_tag = f"{symbol}_{interval}_{run_cfg['start']}_{run_cfg['end']}_z{zscore_window}_v3"
     features, returns = load_training_features(
         symbol=symbol,
         interval=interval,

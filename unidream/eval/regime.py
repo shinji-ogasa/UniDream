@@ -15,7 +15,16 @@ try:
 except ImportError:
     HAS_HMMLEARN = False
 
-from unidream.eval.backtest import Backtest, BacktestMetrics, ANNUALIZATION
+from unidream.eval.backtest import (
+    ANNUALIZATION,
+    BacktestMetrics,
+    compute_annual_return,
+    compute_calmar,
+    compute_max_drawdown,
+    compute_pnl,
+    compute_sharpe,
+    compute_sortino,
+)
 
 
 class RegimeDetector:
@@ -76,7 +85,11 @@ class RegimeDetector:
         return self._inv_perm[raw]
 
     def predict_proba(self, returns: np.ndarray | pd.Series) -> np.ndarray:
-        """各レジームの事後確率を返す（平均リターン昇順にソート済み）.
+        """各レジームの平滑化事後確率を返す（平均リターン昇順にソート済み）.
+
+        警告: hmmlearn の forward-backward 平滑化を使うため、probs[t] は系列全体
+        （未来のリターンを含む）に依存する。事後分析・レポート専用。
+        方策・推論の入力には predict_proba_causal() を使うこと。
 
         Returns:
             事後確率行列 (T, n_states)  ─ 列 0 = bearish、列 n-1 = bullish
@@ -86,6 +99,38 @@ class RegimeDetector:
         r = np.asarray(returns).reshape(-1, 1)
         raw = self.model.predict_proba(r)          # (T, n_states) 元の順
         return raw[:, self._state_perm]             # ソート済み列順に並べ替え
+
+    def predict_proba_causal(self, returns: np.ndarray | pd.Series) -> np.ndarray:
+        """因果的（filtering）なレジーム確率を返す（平均リターン昇順にソート済み）.
+
+        probs[t] は returns[0..t-1] のみから計算した予測分布 P(state_t | r_{<t})。
+        バー t のポジションが returns[t] を稼ぐ規約に合わせて、returns[t] 自身も
+        未来のリターンも一切使わない。推論入力にはこちらを使う。
+
+        Returns:
+            確率行列 (T, n_states)  ─ 列 0 = bearish、列 n-1 = bullish
+        """
+        if not self._fitted:
+            raise RuntimeError("fit() を先に呼んでください")
+        r = np.asarray(returns, dtype=np.float64).reshape(-1)
+        n = self.n_states
+        means = self.model.means_.reshape(n)
+        variances = np.maximum(self.model.covars_.reshape(n), 1e-18)
+        transmat = np.asarray(self.model.transmat_, dtype=np.float64)
+        belief = np.maximum(np.asarray(self.model.startprob_, dtype=np.float64), 1e-12)
+        belief = belief / belief.sum()
+        probs = np.zeros((len(r), n), dtype=np.float64)
+        for t in range(len(r)):
+            probs[t] = belief
+            log_like = -0.5 * (np.log(2.0 * np.pi * variances) + (r[t] - means) ** 2 / variances)
+            posterior = belief * np.exp(log_like - log_like.max())
+            total = posterior.sum()
+            if total > 1e-300:
+                posterior = posterior / total
+            else:
+                posterior = belief
+            belief = posterior @ transmat
+        return probs[:, self._state_perm]
 
     def fit_predict(self, returns: np.ndarray | pd.Series) -> np.ndarray:
         """fit と predict を一度に実行する."""
@@ -116,7 +161,12 @@ def regime_metrics(
     interval: str = "15m",
     **backtest_kwargs,
 ) -> dict[int, dict]:
-    """レジーム別にバックテストメトリクスを計算する.
+    """レジーム別にバックテストメトリクスを計算する（診断用）.
+
+    PnL・トランザクションコストは全期間の連続系列で一度だけ計算し、
+    その後レジームでマスクする。非連続バーを連結してからコストを計算すると、
+    ギャップをまたぐポジション差分が実在しないトレードコストを生むため。
+    注意: レジーム別 equity/MaxDD は非連続バーの連結上の値であり、実運用の DD ではない。
 
     Args:
         returns: 対数リターン列 (T,)
@@ -127,19 +177,34 @@ def regime_metrics(
         {regime_id: {"metrics": BacktestMetrics, "n_bars": int, "fraction": float}}
     """
     T = len(returns)
+    ann_factor = ANNUALIZATION.get(interval, 365 * 96)
+    returns = np.asarray(returns, dtype=np.float64)
+    positions = np.asarray(positions, dtype=np.float64)
+    pnl_full = compute_pnl(returns, positions, **backtest_kwargs)
+    pos_change_full = np.abs(np.diff(positions, prepend=0.0)) > 0
     results = {}
     for r in range(n_states):
         mask = regimes == r
         n_bars = int(mask.sum())
         if n_bars < 10:
             continue
-        bt = Backtest(
-            returns[mask],
-            positions[mask],
-            interval=interval,
-            **backtest_kwargs,
+        pnl = pnl_full[mask]
+        equity = np.exp(np.cumsum(pnl))
+        total_return = float(equity[-1] - 1.0)
+        max_dd = compute_max_drawdown(equity)
+        period_years = len(pnl) / ann_factor
+        metrics = BacktestMetrics(
+            sharpe=compute_sharpe(pnl, ann_factor),
+            sortino=compute_sortino(pnl, ann_factor),
+            max_drawdown=max_dd,
+            calmar=compute_calmar(total_return, max_dd, max(period_years, 1e-9)),
+            total_return=total_return,
+            annual_return=compute_annual_return(total_return, period_years),
+            n_trades=int(pos_change_full[mask].sum()),
+            avg_holding=0.0,
+            equity_curve=equity,
+            pnl_series=pnl,
         )
-        metrics = bt.run()
         results[r] = {
             "metrics": metrics,
             "n_bars": n_bars,
