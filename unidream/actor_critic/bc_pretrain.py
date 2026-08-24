@@ -1601,6 +1601,8 @@ class BCPretrainer:
             "route_advantage_gate.weight",
             "benchmark_overweight_sizing_adapter.weight",
             "benchmark_overweight_sizing_adapter.bias",
+            "ac_residual_adapter.weight",
+            "ac_residual_adapter.bias",
             "inventory_recovery_head.weight",
             "inventory_recovery_head.bias",
         }

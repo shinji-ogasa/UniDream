@@ -17,12 +17,10 @@ from typing import Any, Callable
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 
-from unidream.cli.train import (
-    _action_stats,
-    _benchmark_position_value,
-)
 from unidream.data.dataset import WFODataset
 from unidream.eval.backtest import Backtest
+from unidream.eval.policy_stats import action_stats
+from unidream.experiments.m2 import benchmark_position_value
 from unidream.experiments.checkpoint_eval import load_fold_model_context
 from unidream.experiments.run_config import (
     configure_determinism,
@@ -56,7 +54,7 @@ def _metrics(returns: np.ndarray, positions: np.ndarray, cfg: dict, benchmark: f
         interval=str(cfg["data"]["interval"]),
         benchmark_positions=np.full(t, benchmark, dtype=np.float64),
     ).run()
-    stats = _action_stats(positions[:t], benchmark_position=benchmark)
+    stats = action_stats(positions[:t], benchmark_position=benchmark)
     return {
         "alpha_excess_pt": 100.0 * float(result.alpha_excess or 0.0),
         "final_excess_pt": 100.0 * (float(result.total_return) - float(result.benchmark_total_return or 0.0)),
@@ -463,7 +461,7 @@ def main() -> None:
     splits, fold_ids = select_configured_wfo_splits(
         build_wfo_splits(features, data_cfg), tuple(int(value) for value in run_cfg["folds"])
     )
-    benchmark = _benchmark_position_value(cfg)
+    benchmark = benchmark_position_value(cfg)
     min_position = float(cfg["ac"]["abs_min_position"])
     max_position = float(cfg["ac"]["abs_max_position"])
     checkpoint_dir = Path(args.checkpoint_dir or cfg.get("logging", {}).get("checkpoint_dir", "checkpoints"))

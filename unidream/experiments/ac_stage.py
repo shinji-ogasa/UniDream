@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+
 import torch
 
 from unidream.actor_critic.critic import Critic
@@ -56,7 +58,12 @@ def _apply_curriculum_stage(
     for key, value in actor_overrides.items():
         if not hasattr(actor, key):
             raise KeyError(f"Unknown AC curriculum actor override: {key}")
+        if key not in ac_trainer.actor_runtime_defaults:
+            ac_trainer.actor_runtime_defaults[key] = getattr(actor, key)
         setattr(actor, key, value)
+        ac_trainer.actor_runtime_overrides[key] = value
+        if key in {"abs_min_position", "abs_max_position"}:
+            setattr(ac_trainer, key, float(value))
 
     lr = float(trainer_overrides.pop(
         "actor_lr",
@@ -76,6 +83,9 @@ def _apply_curriculum_stage(
         if not hasattr(ac_trainer, key):
             raise KeyError(f"Unknown AC curriculum trainer override: {key}")
         setattr(ac_trainer, key, value)
+
+    if bool(stage_cfg.get("reset_alpha_schedule", True)):
+        ac_trainer.begin_alpha_stage()
 
     if rebuild_actor_optimizer or abs(lr - _optimizer_lr(ac_trainer.actor_optimizer, lr)) > 0.0:
         _rebuild_actor_optimizer(ac_trainer, lr)
@@ -354,6 +364,18 @@ def run_ac_stage(
     curriculum = ac_cfg.get("curriculum") or []
     if curriculum:
         print(f"[{log_ts()}] [Step 4] AC curriculum enabled ({len(curriculum)} stages)")
+        select_curriculum_stage = bool(ac_cfg.get("select_curriculum_stage", False))
+        stage_candidates: list[dict] = []
+        if select_curriculum_stage:
+            bc_stage_path = ac_path.replace(".pt", "_stage_00_bc.pt")
+            ac_trainer.save(bc_stage_path)
+            stage_candidates.append({
+                "name": "bc",
+                "score": float(bc_val_sharpe),
+                "label": str(bc_val_label),
+                "path": bc_stage_path,
+            })
+            print(f"[{log_ts()}] [AC curriculum] saved candidate bc: {bc_val_label}")
         for idx, stage_cfg in enumerate(curriculum, start=1):
             until_step = int(stage_cfg.get("until_step", stage_cfg.get("max_steps", 0)))
             if until_step <= 0:
@@ -382,20 +404,78 @@ def run_ac_stage(
                 ac_trainer.global_step = until_step
                 if ac_path:
                     ac_trainer.save(ac_path)
-                continue
-
-            ac_trainer.train(
-                encoded_sequences=encoded_list,
-                max_steps=until_step,
-                batch_size=batch_size,
-                checkpoint_path=ac_path,
-                val_eval_fn=_val_eval,
-                checkpoint_eval_fn=_fire_checkpoint_eval if fire_selector_enabled else None,
-                val_baseline_sharpe=bc_val_sharpe,
-                online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
-            )
+            else:
+                ac_trainer.train(
+                    encoded_sequences=encoded_list,
+                    max_steps=until_step,
+                    batch_size=batch_size,
+                    checkpoint_path=ac_path,
+                    val_eval_fn=_val_eval,
+                    checkpoint_eval_fn=_fire_checkpoint_eval if fire_selector_enabled else None,
+                    val_baseline_sharpe=bc_val_sharpe,
+                    online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
+                )
             if ac_path:
                 ac_trainer.save(ac_path)
+            if select_curriculum_stage:
+                safe_stage_name = "".join(
+                    char if char.isalnum() or char in {"-", "_"} else "_"
+                    for char in str(stage_name)
+                )
+                train_best = ac_trainer.last_train_best_candidate
+                if train_best is not None:
+                    best_stage_path = ac_path.replace(
+                        ".pt",
+                        f"_stage_{idx:02d}_{safe_stage_name}_best.pt",
+                    )
+                    shutil.copy2(str(train_best["path"]), best_stage_path)
+                    stage_candidates.append({
+                        "name": f"{stage_name}_best",
+                        "score": float(train_best["score"]),
+                        "label": str(train_best["label"]),
+                        "path": best_stage_path,
+                    })
+                    print(
+                        f"[{log_ts()}] [AC curriculum] saved candidate "
+                        f"{stage_name}_best: {train_best['label']}"
+                    )
+                stage_score, stage_label = _val_eval()
+                stage_path = ac_path.replace(
+                    ".pt",
+                    f"_stage_{idx:02d}_{safe_stage_name}.pt",
+                )
+                ac_trainer.save(stage_path)
+                stage_candidates.append({
+                    "name": str(stage_name),
+                    "score": float(stage_score),
+                    "label": str(stage_label),
+                    "path": stage_path,
+                })
+                print(
+                    f"[{log_ts()}] [AC curriculum] saved candidate "
+                    f"{stage_name}: {stage_label}"
+                )
+
+        if select_curriculum_stage:
+            selected = max(stage_candidates, key=lambda candidate: candidate["score"])
+            ac_trainer.load(selected["path"])
+            ac_trainer.checkpoint_metadata["curriculum_stage_selection"] = {
+                "selected": selected["name"],
+                "score": selected["score"],
+                "label": selected["label"],
+                "candidates": [
+                    {
+                        "name": candidate["name"],
+                        "score": candidate["score"],
+                        "label": candidate["label"],
+                    }
+                    for candidate in stage_candidates
+                ],
+            }
+            print(
+                f"[{log_ts()}] [AC curriculum] selected stage "
+                f"{selected['name']}: {selected['label']}"
+            )
     else:
         ac_trainer.train(
             encoded_sequences=encoded_list,

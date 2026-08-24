@@ -12,6 +12,8 @@ UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior
 
 研究基盤として WM → BC → AC の学習パイプラインと、Plan011 v31 の再現・比較・bundle export に必要な最小 CLI だけを保持している。現時点の主評価対象は Plan011 v31。B&H exposure `1.0` 近傍の低回転 overlay actor として動くが、目標である `AlphaEx >= +3pt` かつ `MaxDDDelta <= -3pt` は未達。
 
+リポジトリ間の責務境界と現行の入口は [docs/project_map.md](docs/project_map.md) にまとめている。
+
 AlphaEx は strategy の最終total return minus B&Hの最終total return。年率換算ではない。Plan011 v31 の fold0-12 開発WFOでは平均 `AlphaEx +0.41pt`、中央値 `+0.16pt`、best `+3.46pt`、worst `-0.40pt`、`MaxDDDelta +0.20pt`。完全未使用の 2024-2026 holdout fold15-23 では平均 `AlphaEx +0.11pt`、中央値 `-0.04pt`、`MaxDDDelta +0.20pt`。DD改善AIではなく、現状は低回転の B&H-relative neural overlay の研究証跡として扱う。
 
 ## Plan011 v31 検証スナップショット

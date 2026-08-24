@@ -16,16 +16,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from unidream.cli.train import (
-    _action_stats,
-    _benchmark_position_value,
-    _candidate_to_text,
-    _select_policy_candidate,
-    _selector_candidate,
-    _selector_cfg,
-)
 from unidream.data.dataset import WFODataset
 from unidream.eval.backtest import Backtest, compute_pnl
+from unidream.eval.policy_stats import action_stats
+from unidream.eval.selector import (
+    benchmark_position_value,
+    candidate_to_text,
+    select_policy_candidate,
+    selector_candidate,
+    selector_config,
+)
 from unidream.experiments.checkpoint_eval import load_actor_state_checkpoint, load_fold_model_context
 from unidream.experiments.run_config import configure_determinism
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
@@ -142,7 +142,7 @@ def _metrics_record(
         interval=str(cfg.get("data", {}).get("interval", "15m")),
         benchmark_positions=_benchmark_positions(t, benchmark),
     ).run()
-    stats = _action_stats(positions[:t], benchmark_position=benchmark)
+    stats = action_stats(positions[:t], benchmark_position=benchmark)
     total_return_dec = float(metrics.total_return)
     bench_return_dec = float(metrics.benchmark_total_return or 0.0)
     return {
@@ -334,11 +334,17 @@ def main() -> None:
     parser.add_argument("--folds", default=None)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="cpu")
-    parser.add_argument("--actor-checkpoint", default="ac.pt", choices=("ac.pt", "ac_best.pt"))
+    parser.add_argument("--actor-checkpoint", default="ac.pt")
     parser.add_argument("--output-dir", default="docs/figures/plan011_v31_folds0_12")
     parser.add_argument("--trade-eps", type=float, default=5e-4)
     parser.add_argument("--active-eps", type=float, default=0.005)
     args = parser.parse_args()
+    actor_checkpoint_arg = Path(args.actor_checkpoint)
+    if (
+        actor_checkpoint_arg.name != args.actor_checkpoint
+        or actor_checkpoint_arg.suffix != ".pt"
+    ):
+        parser.error("--actor-checkpoint must be a .pt filename without directories")
 
     configure_determinism(args.seed)
     set_seed(args.seed)
@@ -370,7 +376,7 @@ def main() -> None:
         include_mark=bool(data_cfg["include_mark"]),
     )
     splits, fold_ids = select_configured_wfo_splits(build_wfo_splits(features, data_cfg), folds)
-    benchmark = _benchmark_position_value(cfg)
+    benchmark = benchmark_position_value(cfg)
 
     metrics_rows: list[dict[str, Any]] = []
     trade_rows: list[dict[str, Any]] = []
@@ -409,11 +415,11 @@ def main() -> None:
             ac_cfg=cfg["ac"],
             costs_cfg=cfg["costs"],
             backtest_cls=Backtest,
-            action_stats_fn=_action_stats,
-            selector_cfg_fn=_selector_cfg,
-            selector_candidate_fn=_selector_candidate,
-            select_policy_candidate_fn=_select_policy_candidate,
-            candidate_to_text_fn=_candidate_to_text,
+            action_stats_fn=action_stats,
+            selector_cfg_fn=selector_config,
+            selector_candidate_fn=selector_candidate,
+            select_policy_candidate_fn=select_policy_candidate,
+            candidate_to_text_fn=candidate_to_text,
             benchmark_positions_fn=lambda length, bench=benchmark: _benchmark_positions(length, bench),
             benchmark_position=benchmark,
         )

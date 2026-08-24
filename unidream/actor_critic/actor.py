@@ -99,6 +99,10 @@ class Actor(nn.Module):
             else None
         )
         self.benchmark_overweight_sizing_adapter = nn.Linear(hidden_dim, 1)
+        # Optional head追加で既存モデルの初期化乱数列を変えない。
+        rng_state = torch.random.get_rng_state()
+        self.ac_residual_adapter = nn.Linear(hidden_dim, 1)
+        torch.random.set_rng_state(rng_state)
         self.advantage_adapter = (
             nn.Linear(self.advantage_dim, hidden_dim, bias=False) if use_advantage_adapter else None
         )
@@ -106,6 +110,8 @@ class Actor(nn.Module):
             nn.init.zeros_(self.advantage_adapter.weight)
         nn.init.zeros_(self.benchmark_overweight_sizing_adapter.weight)
         nn.init.zeros_(self.benchmark_overweight_sizing_adapter.bias)
+        nn.init.zeros_(self.ac_residual_adapter.weight)
+        nn.init.zeros_(self.ac_residual_adapter.bias)
 
         # 初期状態は「まず hold、必要なときだけ動く」に寄せる。
         nn.init.constant_(self.trade_head.bias, -0.5)
@@ -767,6 +773,7 @@ class Actor(nn.Module):
                 inventory_t,
                 advantage=advantage_t,
             )
+            target_mean = self._apply_ac_residual_adapter(target_mean, hidden)
             logit_scale = target_std.clamp_min(1e-4).unsqueeze(-1) * max(temperature, 1e-6)
             target_logits = -0.5 * ((target_values.unsqueeze(0) - target_mean.unsqueeze(-1)) / logit_scale) ** 2
         else:
@@ -1181,6 +1188,24 @@ class Actor(nn.Module):
         adapted_abs = torch.maximum(target_abs, bench + epsilon)
         adapted_abs = adapted_abs.clamp(min=bench, max=max_position)
         return torch.where(gate, adapted_abs - bench, target_overlay)
+
+    def _apply_ac_residual_adapter(
+        self,
+        target_overlay: torch.Tensor,
+        hidden: torch.Tensor,
+    ) -> torch.Tensor:
+        """Frozen BC targetへzero-init AC補正を加える."""
+        if not bool(getattr(self, "use_ac_residual_adapter", False)):
+            return target_overlay
+        scale = float(getattr(self, "ac_residual_adapter_scale", 0.0))
+        if scale <= 0.0:
+            return target_overlay
+        delta = scale * torch.tanh(self.ac_residual_adapter(hidden).squeeze(-1))
+        overlay_low, overlay_high = self._overlay_bounds()
+        residual_min, residual_max = self._residual_overlay_range()
+        lower = max(overlay_low, residual_min)
+        upper = min(overlay_high, residual_max)
+        return (target_overlay + delta).clamp(min=lower, max=upper)
 
     def _apply_benchmark_exposure_floor(
         self,

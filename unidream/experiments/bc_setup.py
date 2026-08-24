@@ -286,6 +286,8 @@ def prepare_bc_setup(
     actor.use_trainable_benchmark_overweight_sizing_adapter = bool(
         ac_cfg.get("use_trainable_benchmark_overweight_sizing_adapter", False)
     )
+    actor.use_ac_residual_adapter = bool(ac_cfg.get("use_ac_residual_adapter", False))
+    actor.ac_residual_adapter_scale = float(ac_cfg.get("ac_residual_adapter_scale", 0.0))
     actor.benchmark_overweight_trainable_delta_range = ac_cfg.get(
         "benchmark_overweight_trainable_delta_range",
         0.05,

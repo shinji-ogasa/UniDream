@@ -11,10 +11,10 @@ import numpy as np
 import torch
 import yaml
 
-from unidream.cli.train import _benchmark_position_value
 from unidream.data.dataset import WFODataset
 from unidream.experiments.checkpoint_eval import load_inference_run_context, parse_checkpoint_run_spec
 from unidream.experiments.fold_inputs import _normalized_feature_stress_signal
+from unidream.experiments.m2 import benchmark_position_value
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
 from unidream.experiments.wfo_runtime import build_wfo_splits, select_wfo_splits
 
@@ -111,7 +111,7 @@ def main() -> None:
     run = parse_checkpoint_run_spec(args.run)
     seq_len = cfg.get("data", {}).get("seq_len", 64)
     wfo_dataset = WFODataset(features_df, raw_returns, split, seq_len=seq_len)
-    benchmark_position = _benchmark_position_value(cfg)
+    benchmark_position = benchmark_position_value(cfg)
     payload = load_inference_run_context(
         run=run,
         split=split,

@@ -303,6 +303,8 @@ def finalize_run_manifest(run_cfg: TrainingRunConfig, fold_results: dict[int, di
             path = fold_dir / filename
             if path.exists():
                 fold_artifacts[filename] = checkpoint_semantic_fingerprint(path)
+        for path in sorted(fold_dir.glob("ac_stage_*.pt")):
+            fold_artifacts[path.name] = checkpoint_semantic_fingerprint(path)
         artifacts[str(fold_idx)] = fold_artifacts
     manifest["checkpoint_semantic_sha256"] = artifacts
     manifest["completed"] = True

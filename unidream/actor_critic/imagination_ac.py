@@ -34,46 +34,10 @@ import torch.nn.functional as F
 from unidream.actor_critic.actor import Actor
 from unidream.actor_critic.critic import Critic, RewardEMANorm
 from unidream.device import resolve_device
+from unidream.eval.policy_stats import action_stats as _action_stats
+from unidream.eval.policy_stats import format_action_stats as _fmt_action_stats
 from unidream.world_model.ensemble import EnsembleWorldModel
 from unidream.world_model.transformer import symlog, symexp, twohot_decode, twohot_encode
-
-
-def _action_stats(positions: np.ndarray, benchmark_position: float = 0.0) -> dict:
-    """ポジション配列の行動分布統計を計算する.
-
-    excess_bh では絶対ポジションではなく benchmark からの overlay を見る。
-    """
-    total = max(len(positions), 1)
-    active_eps = 0.05
-    overlay = np.asarray(positions, dtype=np.float64) - float(benchmark_position)
-    delta = np.abs(np.diff(overlay)) if total > 1 else np.zeros(0, dtype=np.float64)
-    counts = {
-        "long": int((overlay > active_eps).sum()),
-        "short": int((overlay < -active_eps).sum()),
-        "flat": int((np.abs(overlay) <= active_eps).sum()),
-    }
-    long_r  = counts["long"] / total
-    short_r = counts["short"] / total
-    flat_r  = counts["flat"] / total
-    mean_p  = float(np.mean(overlay)) if total > 0 else 0.0
-    turnover = float(delta.sum()) if delta.size > 0 else 0.0
-    nz_delta = delta[delta > 1e-8]
-    step_ref = float(np.quantile(nz_delta, 0.90)) if nz_delta.size > 0 else active_eps
-    step_ref = max(step_ref, active_eps)
-    hard_switches = int((delta > active_eps).sum()) if delta.size > 0 else 0
-    flow_switches = int(np.rint(turnover / step_ref)) if turnover > 0.0 else 0
-    switches = max(hard_switches, flow_switches)
-    avg_hold = total / max(switches, 1)
-    return dict(long=long_r, short=short_r, flat=flat_r, mean=mean_p,
-                switches=switches, avg_hold=avg_hold, counts=counts,
-                turnover=turnover, step_ref=step_ref, mean_abs_delta=(turnover / max(total - 1, 1)))
-
-
-def _fmt_action_stats(s: dict) -> str:
-    return (f"long={s['long']:.0%} short={s['short']:.0%} flat={s['flat']:.0%} "
-            f"mean={s['mean']:+.3f} switches={s['switches']} avg_hold={s['avg_hold']:.1f}b "
-            f"turnover={s['turnover']:.2f}")
-
 
 def _ac_alerts(label: str, s: dict, bc_loss: float | None = None) -> None:
     """ポジション偏り・turnover・BC loss の異常を検出してアラートを出す."""
@@ -208,6 +172,16 @@ class ImagACTrainer:
 
         # α が単調非増加になるよう到達済み最大 t を追跡する
         self._max_alpha_t: float = 0.0
+        # Curriculum stage ごとに α schedule を再開始できるようにする。
+        # 非 curriculum 実行では 0 のままなので従来挙動と同じ。
+        self._alpha_stage_start_step: int = 0
+        self.gradient_diagnostics_interval: int = int(
+            ac_cfg.get("gradient_diagnostics_interval", 0)
+        )
+        self.actor_runtime_overrides: dict[str, object] = {}
+        self.actor_runtime_defaults: dict[str, object] = {}
+        self.checkpoint_metadata: dict[str, object] = {}
+        self.last_train_best_candidate: dict[str, object] | None = None
 
         # BC 損失用の oracle データ（bc_pretrain 後に set_oracle_data で設定）
         self._oracle_z: Optional[torch.Tensor] = None
@@ -371,14 +345,90 @@ class ImagACTrainer:
             self._oracle_anchor_advantage = None
 
     def _get_alpha(self) -> float:
-        """現在の BC/AC 混合比率 α を返す（単調非増加で線形減衰: alpha_init→alpha_final）.
+        """現在の BC/AC 混合比率 α を返す（stage 内で単調非増加）.
 
         adaptive_bc で _alpha_speed が下がっても α が増加しないよう
         _max_alpha_t で到達済み最大 t を追跡する。
         """
-        t = min(self.global_step * self._alpha_speed, self.alpha_decay_steps)
+        decay_steps = max(float(self.alpha_decay_steps), 1.0)
+        stage_step = max(self.global_step - self._alpha_stage_start_step, 0)
+        t = min(stage_step * self._alpha_speed, decay_steps)
         self._max_alpha_t = max(self._max_alpha_t, t)   # 単調増加を強制
-        return self.alpha_init + (self.alpha_final - self.alpha_init) * (self._max_alpha_t / self.alpha_decay_steps)
+        return self.alpha_init + (self.alpha_final - self.alpha_init) * (self._max_alpha_t / decay_steps)
+
+    def begin_alpha_stage(self) -> None:
+        """現在 step を起点に stage-local α schedule を開始する."""
+        self._alpha_stage_start_step = int(self.global_step)
+        self._max_alpha_t = 0.0
+        self._alpha_speed = 1.0
+        self._last_val_sharpe = None
+
+    def _restore_actor_runtime_config(
+        self,
+        *,
+        defaults: dict[str, object],
+        overrides: dict[str, object],
+    ) -> None:
+        """Actor runtime属性を既定値へ戻してからcheckpoint差分を適用する."""
+        self.actor_runtime_defaults.update(defaults)
+        for name, value in self.actor_runtime_defaults.items():
+            if not hasattr(self.actor, name):
+                raise RuntimeError(
+                    f"AC checkpoint has unknown actor runtime default: {name}"
+                )
+            setattr(self.actor, name, value)
+            if name in {"abs_min_position", "abs_max_position"}:
+                setattr(self, name, float(value))
+
+        self.actor_runtime_overrides = dict(overrides)
+        for name, value in self.actor_runtime_overrides.items():
+            if not hasattr(self.actor, name):
+                raise RuntimeError(
+                    f"AC checkpoint has unknown actor runtime override: {name}"
+                )
+            setattr(self.actor, name, value)
+            if name in {"abs_min_position", "abs_max_position"}:
+                setattr(self, name, float(value))
+
+    def _actor_gradient_diagnostics(
+        self,
+        bc_component: torch.Tensor,
+        ac_component: torch.Tensor,
+    ) -> dict[str, float]:
+        """BC と AC の actor gradient norm/cosine を副作用なしで測る."""
+        params = [p for p in self.actor.parameters() if p.requires_grad]
+        if not params:
+            return {}
+        bc_grads = torch.autograd.grad(
+            bc_component,
+            params,
+            retain_graph=True,
+            allow_unused=True,
+        )
+        ac_grads = torch.autograd.grad(
+            ac_component,
+            params,
+            retain_graph=True,
+            allow_unused=True,
+        )
+        bc_sq = torch.zeros((), device=self.device)
+        ac_sq = torch.zeros((), device=self.device)
+        dot = torch.zeros((), device=self.device)
+        for bc_grad, ac_grad in zip(bc_grads, ac_grads):
+            if bc_grad is not None:
+                bc_sq = bc_sq + bc_grad.detach().square().sum()
+            if ac_grad is not None:
+                ac_sq = ac_sq + ac_grad.detach().square().sum()
+            if bc_grad is not None and ac_grad is not None:
+                dot = dot + (bc_grad.detach() * ac_grad.detach()).sum()
+        bc_norm = bc_sq.sqrt()
+        ac_norm = ac_sq.sqrt()
+        denom = (bc_norm * ac_norm).clamp_min(1e-12)
+        return {
+            "bc_grad_norm": float(bc_norm.item()),
+            "ac_grad_norm": float(ac_norm.item()),
+            "bc_ac_grad_cosine": float((dot / denom).item()),
+        }
 
     def _compute_dsr_rewards(self, net_returns: torch.Tensor) -> torch.Tensor:
         """DSR 報酬を計算する（インクリメンタル Sharpe 改善量）."""
@@ -1207,7 +1257,16 @@ class ImagACTrainer:
         prior_loss = self._prior_anchor_loss(z0, h0, inventory0, regime=regime0, advantage=advantage0)
         nn_anchor_loss = self._nearest_oracle_anchor_loss(z0, h0, inventory0, regime=regime0, advantage=advantage0)
         bc_loss = self._bc_loss_batch()
-        actor_loss = alpha * bc_loss + (1.0 - alpha) * ac_loss + prior_loss + nn_anchor_loss
+        bc_component = alpha * bc_loss
+        ac_component = (1.0 - alpha) * ac_loss
+        actor_loss = bc_component + ac_component + prior_loss + nn_anchor_loss
+
+        gradient_diag: dict[str, float] = {}
+        if (
+            self.gradient_diagnostics_interval > 0
+            and (self.global_step + 1) % self.gradient_diagnostics_interval == 0
+        ):
+            gradient_diag = self._actor_gradient_diagnostics(bc_component, ac_component)
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -1227,6 +1286,7 @@ class ImagACTrainer:
             "alpha": alpha,
             "reward_mean": net_returns.mean().item(),
             "reward_scale": self.reward_ema.scale,
+            **gradient_diag,
             **reward_diag,
         }
 
@@ -1385,6 +1445,7 @@ class ImagACTrainer:
         # 学習開始時点（BC 状態）を _best.pt に必ず保存する
         if best_ckpt_path is not None:
             self.save(best_ckpt_path)
+        self.last_train_best_candidate = None
 
         # Early stop カウンター
         _no_improve_count = 0
@@ -1470,6 +1531,13 @@ class ImagACTrainer:
             ):
                 self.save(checkpoint_path)
                 print(f"[AC] Checkpoint saved: {checkpoint_path} (step={self.global_step})")
+                if "bc_grad_norm" in step_log:
+                    print(
+                        "[AC] Gradient diag: "
+                        f"BC={step_log['bc_grad_norm']:.4e} "
+                        f"AC={step_log['ac_grad_norm']:.4e} "
+                        f"cos={step_log['bc_ac_grad_cosine']:+.3f}"
+                    )
                 if self.save_step_checkpoints:
                     base_dir = os.path.dirname(checkpoint_path)
                     step_path = os.path.join(
@@ -1545,6 +1613,11 @@ class ImagACTrainer:
                     if val_sharpe > best_val_sharpe:
                         best_val_sharpe = val_sharpe
                         self.save(best_ckpt_path)
+                        self.last_train_best_candidate = {
+                            "score": float(val_sharpe),
+                            "label": str(val_label),
+                            "path": str(best_ckpt_path),
+                        }
                         marker = " ★ best"
                         _no_improve_count = 0
                     else:
@@ -1595,6 +1668,10 @@ class ImagACTrainer:
             "dsr_B": self._dsr_B,
             "alpha_speed": self._alpha_speed,
             "max_alpha_t": self._max_alpha_t,
+            "alpha_stage_start_step": self._alpha_stage_start_step,
+            "actor_runtime_overrides": self.actor_runtime_overrides,
+            "actor_runtime_defaults": self.actor_runtime_defaults,
+            "checkpoint_metadata": self.checkpoint_metadata,
         }, path)
 
     def load(self, path: str) -> None:
@@ -1616,6 +1693,8 @@ class ImagACTrainer:
             "route_advantage_gate.weight",
             "benchmark_overweight_sizing_adapter.weight",
             "benchmark_overweight_sizing_adapter.bias",
+            "ac_residual_adapter.weight",
+            "ac_residual_adapter.bias",
             "inventory_recovery_head.weight",
             "inventory_recovery_head.bias",
         }
@@ -1626,6 +1705,11 @@ class ImagACTrainer:
                 f"AC checkpoint incompatibility while loading {path}: "
                 f"missing={missing}, unexpected={unexpected}"
             )
+        self._restore_actor_runtime_config(
+            defaults=dict(ckpt.get("actor_runtime_defaults") or {}),
+            overrides=dict(ckpt.get("actor_runtime_overrides") or {}),
+        )
+        self.checkpoint_metadata = dict(ckpt.get("checkpoint_metadata") or {})
         self.critic.load_state_dict(ckpt["critic"])
         try:
             self.actor_optimizer.load_state_dict(ckpt["actor_optimizer"])
@@ -1640,3 +1724,4 @@ class ImagACTrainer:
         self._dsr_B = ckpt.get("dsr_B", 1e-4)
         self._alpha_speed = ckpt.get("alpha_speed", 1.0)
         self._max_alpha_t = ckpt.get("max_alpha_t", 0.0)
+        self._alpha_stage_start_step = ckpt.get("alpha_stage_start_step", 0)

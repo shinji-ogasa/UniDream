@@ -8,11 +8,13 @@ from typing import Any
 
 import torch
 
-from unidream.cli.train import _action_stats, _fmt_action_stats, _forward_window_stats, _ts
 from unidream.data.dataset import WFODataset
+from unidream.data.oracle import _forward_window_stats
+from unidream.eval.policy_stats import action_stats, format_action_stats
 from unidream.experiments.bc_setup import prepare_bc_setup
 from unidream.experiments.bc_stage import build_bc_trainer
 from unidream.experiments.fold_inputs import prepare_fold_inputs
+from unidream.experiments.logging import log_timestamp
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.run_config import checkpoint_semantic_fingerprint
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
@@ -67,11 +69,11 @@ def load_fold_model_context(
         ac_cfg=ac_cfg,
         bc_cfg=bc_cfg,
         reward_cfg=reward_cfg,
-        action_stats_fn=_action_stats,
-        format_action_stats_fn=_fmt_action_stats,
+        action_stats_fn=action_stats,
+        format_action_stats_fn=format_action_stats,
         benchmark_position=benchmark_position,
         forward_window_stats_fn=_forward_window_stats,
-        log_ts=_ts,
+        log_ts=log_timestamp,
     )
     cfg_model = copy.deepcopy(cfg)
     if fold_inputs["train_regime_probs"] is not None:
@@ -95,7 +97,7 @@ def load_fold_model_context(
         h_train=encoded_train["h"],
         seq_len=seq_len,
         ac_cfg=ac_cfg,
-        log_ts=_ts,
+        log_ts=log_timestamp,
     )
     train_advantage = fold_inputs["train_advantage_values"]
     val_advantage = fold_inputs["val_advantage_values"]
@@ -151,6 +153,10 @@ def load_actor_state_checkpoint(actor: Any, path: Path, device: str) -> None:
     ckpt = torch.load(path, map_location=torch.device(device), weights_only=False)
     state = ckpt.get("actor", ckpt)
     incompatible = actor.load_state_dict(state, strict=False)
+    for name, value in dict(ckpt.get("actor_runtime_overrides") or {}).items():
+        if not hasattr(actor, name):
+            raise RuntimeError(f"Checkpoint has unknown actor runtime override: {name}")
+        setattr(actor, name, value)
     optional_missing = {
         "execution_head.weight",
         "execution_head.bias",
@@ -170,6 +176,8 @@ def load_actor_state_checkpoint(actor: Any, path: Path, device: str) -> None:
         "route_advantage_gate.weight",
         "benchmark_overweight_sizing_adapter.weight",
         "benchmark_overweight_sizing_adapter.bias",
+        "ac_residual_adapter.weight",
+        "ac_residual_adapter.bias",
         "inventory_recovery_head.weight",
         "inventory_recovery_head.bias",
     }
