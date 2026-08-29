@@ -202,6 +202,13 @@ class WorldModelTrainer:
         # caller can opt into workers explicitly in a self-contained config.
         self.num_workers = int(wm_cfg.get("num_workers", 0))
         self.log_interval = cfg.get("logging", {}).get("log_interval", 1000)
+        val_max_batches = wm_cfg.get("val_max_batches")
+        if val_max_batches is None:
+            self.val_max_batches: int | None = None
+        else:
+            self.val_max_batches = int(val_max_batches)
+            if self.val_max_batches <= 0:
+                raise ValueError("world_model.val_max_batches must be positive when configured")
 
         # 損失ハイパーパラメータ
         self.free_bits = wm_cfg.get("free_bits", 1.0)
@@ -415,6 +422,54 @@ class WorldModelTrainer:
 
         self.global_step = 0
         self.loss_history: list[dict] = []
+
+    def _active_auxiliary_heads(self) -> dict[str, nn.Module]:
+        """Return all auxiliary heads that participate in this trainer."""
+        return {
+            name: head
+            for name in (
+                "idm_head",
+                "return_head",
+                "vol_head",
+                "drawdown_head",
+                "crash_head",
+                "drawdown_excess_head",
+                "position_utility_head",
+                "overweight_advantage_head",
+                "recovery_head",
+                "regime_head",
+            )
+            if (head := getattr(self, name, None)) is not None
+        }
+
+    @staticmethod
+    def _clone_state_dict(module: nn.Module) -> dict[str, torch.Tensor]:
+        """Clone a module state to CPU so a best snapshot cannot be mutated."""
+        return {
+            key: value.detach().cpu().clone()
+            for key, value in module.state_dict().items()
+        }
+
+    def _capture_model_state(self) -> dict[str, dict[str, torch.Tensor]]:
+        """Capture one coherent snapshot of the ensemble and active heads."""
+        state = {"ensemble": self._clone_state_dict(self.ensemble)}
+        state.update(
+            {
+                name: self._clone_state_dict(head)
+                for name, head in self._active_auxiliary_heads().items()
+            }
+        )
+        return state
+
+    def _restore_model_state(self, state: dict[str, dict[str, torch.Tensor]]) -> None:
+        """Restore an ensemble/head snapshot captured by ``_capture_model_state``."""
+        self.ensemble.load_state_dict(state["ensemble"])
+        for name, head in self._active_auxiliary_heads().items():
+            if name in state:
+                head.load_state_dict(state[name])
+        self.ensemble.to(self.device)
+        for head in self._active_auxiliary_heads().values():
+            head.to(self.device)
 
     def _loader_options(self, num_workers: int) -> dict:
         workers = max(0, int(num_workers))
@@ -1004,15 +1059,15 @@ class WorldModelTrainer:
 
                     # Validation loss + early stopping
                     if val_dataset is not None:
-                        val_loss = self._eval_loss(val_dataset)
+                        if self.val_max_batches is None:
+                            val_loss = self._eval_loss(val_dataset)
+                        else:
+                            val_loss = self._eval_loss(val_dataset, n_batches=self.val_max_batches)
                         print(f"       Val Loss: {val_loss:.4f}", end="")
 
                         if val_loss < best_val_loss:
                             best_val_loss = val_loss
-                            best_state_dict = {
-                                k: v.cpu().clone()
-                                for k, v in self.ensemble.state_dict().items()
-                            }
+                            best_state_dict = self._capture_model_state()
                             no_improve_count = 0
                             print(" ★ best")
                         else:
@@ -1031,8 +1086,7 @@ class WorldModelTrainer:
 
         # Best model を復元（val_dataset があり、改善があった場合）
         if best_state_dict is not None:
-            self.ensemble.load_state_dict(best_state_dict)
-            self.ensemble.to(self.device)
+            self._restore_model_state(best_state_dict)
             print(f"[WM] Restored best model (val loss: {best_val_loss:.4f})")
             if checkpoint_path is not None:
                 self.save(checkpoint_path)
@@ -1040,27 +1094,33 @@ class WorldModelTrainer:
         return logs
 
     @torch.no_grad()
-    def _eval_loss(self, dataset: SequenceDataset, n_batches: int = 10) -> float:
-        """Validation loss を計算する（n_batches 分のミニバッチ平均）.
+    def _eval_loss(self, dataset: SequenceDataset, n_batches: Optional[int] = None) -> float:
+        """Validation loss を計算する（既定では全ミニバッチの平均）.
 
+        ``n_batches`` が明示された場合だけ先頭からその数に制限する。
         学習時と同じ net_return（コスト控除後）を reward として使用する。
         """
         self.ensemble.eval()
         loader = DataLoader(
             dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False,
             **self._loader_options(min(self.num_workers, 2)),
         )
         total = 0.0
         count = 0
         for i, batch in enumerate(loader):
-            if i >= n_batches:
+            if n_batches is not None and i >= n_batches:
                 break
             obs = batch["obs"].to(self.device)
             obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)  # training と同一処理
             default_action = self.benchmark_position if self.reward_mode == "excess_bh" else 0.0
-            actions = batch.get("actions", torch.full((*obs.shape[:2], 1), default_action, dtype=torch.float32))
+            batch_actions = batch.get("actions") if self.use_dataset_actions else None
+            actions = (
+                batch_actions
+                if batch_actions is not None
+                else torch.full((*obs.shape[:2], 1), default_action, dtype=torch.float32)
+            )
             actions = actions.to(self.device)
             if actions.ndim == 2 and not torch.is_floating_point(actions):
                 actions = self.action_values[actions].unsqueeze(-1)
@@ -1102,9 +1162,27 @@ class WorldModelTrainer:
                 or self.recovery_head is not None
                 or self.regime_head is not None
             )
-            if has_predictive_head:
+            has_idm_target = (
+                self.idm_head is not None
+                and batch_actions is not None
+                and not torch.is_floating_point(batch_actions)
+            )
+            if has_idm_target or has_predictive_head:
                 z, _ = self.ensemble.encode(obs)
-                h = self.ensemble.forward(z, actions)["h"]
+                if has_idm_target:
+                    z_t = z[:, :-1, :]
+                    z_t1 = z[:, 1:, :]
+                    idm_logits = self.idm_head(z_t, z_t1)
+                    oracle_acts = batch_actions.to(self.device)[:, :-1]
+                    B_, T_, A_ = idm_logits.shape
+                    idm_loss = F.cross_entropy(
+                        idm_logits.reshape(B_ * T_, A_),
+                        oracle_acts.reshape(B_ * T_),
+                    )
+                    total_loss = total_loss + self.idm_scale * idm_loss
+                h = None
+                if has_predictive_head:
+                    h = self.ensemble.forward(z, actions)["h"]
                 if self.return_head is not None and raw_returns is not None:
                     target, mask = self._future_return_targets(raw_returns)
                     pred = self.return_head(z, h, obs)
@@ -1177,7 +1255,7 @@ class WorldModelTrainer:
                             recovery_target,
                             control_mask,
                         )
-            if self.regime_head is not None and "regime" in batch:
+            if self.regime_head is not None and "regime" in batch and h is not None:
                 regime_probs = batch["regime"].to(self.device)
                 regime_logits = self.regime_head(z, h)
                 log_probs = F.log_softmax(regime_logits, dim=-1)
