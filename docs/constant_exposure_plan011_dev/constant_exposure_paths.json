@@ -1,0 +1,1721 @@
+{
+  "definition": "effective positions are decision positions[:-1] scored on returns[1:] under fixed delay=1",
+  "entries": [
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_bnh__alpha_excess",
+        "benchmark_pnl": "fold_00_bnh__benchmark_pnl",
+        "effective_positions": "fold_00_bnh__effective_positions",
+        "returns": "fold_00_bnh__returns",
+        "strategy_pnl": "fold_00_bnh__strategy_pnl",
+        "timestamps_ns": "fold_00_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "bnh",
+      "rows": 8711
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_00_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_00_fixed_0p500__effective_positions",
+        "returns": "fold_00_fixed_0p500__returns",
+        "strategy_pnl": "fold_00_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_00_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8711
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_00_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_00_fixed_0p750__effective_positions",
+        "returns": "fold_00_fixed_0p750__returns",
+        "strategy_pnl": "fold_00_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_00_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8711
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_00_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_00_fixed_1p000__effective_positions",
+        "returns": "fold_00_fixed_1p000__returns",
+        "strategy_pnl": "fold_00_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_00_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8711
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_00_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_00_fixed_1p050__effective_positions",
+        "returns": "fold_00_fixed_1p050__returns",
+        "strategy_pnl": "fold_00_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_00_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8711
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_00_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_00_fixed_1p100__effective_positions",
+        "returns": "fold_00_fixed_1p100__returns",
+        "strategy_pnl": "fold_00_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_00_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8711
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_00_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_00_fixed_1p120__effective_positions",
+        "returns": "fold_00_fixed_1p120__returns",
+        "strategy_pnl": "fold_00_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_00_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8711
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2020-04-16 14:00:00",
+      "fold": 0,
+      "keys": {
+        "alpha_excess": "fold_00_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_00_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_00_selected_constant__effective_positions",
+        "returns": "fold_00_selected_constant__returns",
+        "strategy_pnl": "fold_00_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_00_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2020-07-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8711
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_bnh__alpha_excess",
+        "benchmark_pnl": "fold_01_bnh__benchmark_pnl",
+        "effective_positions": "fold_01_bnh__effective_positions",
+        "returns": "fold_01_bnh__returns",
+        "strategy_pnl": "fold_01_bnh__strategy_pnl",
+        "timestamps_ns": "fold_01_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "bnh",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_01_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_01_fixed_0p500__effective_positions",
+        "returns": "fold_01_fixed_0p500__returns",
+        "strategy_pnl": "fold_01_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_01_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_01_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_01_fixed_0p750__effective_positions",
+        "returns": "fold_01_fixed_0p750__returns",
+        "strategy_pnl": "fold_01_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_01_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_01_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_01_fixed_1p000__effective_positions",
+        "returns": "fold_01_fixed_1p000__returns",
+        "strategy_pnl": "fold_01_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_01_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_01_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_01_fixed_1p050__effective_positions",
+        "returns": "fold_01_fixed_1p050__returns",
+        "strategy_pnl": "fold_01_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_01_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_01_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_01_fixed_1p100__effective_positions",
+        "returns": "fold_01_fixed_1p100__returns",
+        "strategy_pnl": "fold_01_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_01_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_01_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_01_fixed_1p120__effective_positions",
+        "returns": "fold_01_fixed_1p120__returns",
+        "strategy_pnl": "fold_01_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_01_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_01_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_01_selected_constant__effective_positions",
+        "returns": "fold_01_selected_constant__returns",
+        "strategy_pnl": "fold_01_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_01_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2020-07-16 14:00:00",
+      "fold": 1,
+      "keys": {
+        "alpha_excess": "fold_01_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_01_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_01_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_01_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_01_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_01_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2020-10-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_bnh__alpha_excess",
+        "benchmark_pnl": "fold_02_bnh__benchmark_pnl",
+        "effective_positions": "fold_02_bnh__effective_positions",
+        "returns": "fold_02_bnh__returns",
+        "strategy_pnl": "fold_02_bnh__strategy_pnl",
+        "timestamps_ns": "fold_02_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "bnh",
+      "rows": 8807
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_02_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_02_fixed_0p500__effective_positions",
+        "returns": "fold_02_fixed_0p500__returns",
+        "strategy_pnl": "fold_02_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_02_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8807
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_02_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_02_fixed_0p750__effective_positions",
+        "returns": "fold_02_fixed_0p750__returns",
+        "strategy_pnl": "fold_02_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_02_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_02_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_02_fixed_1p000__effective_positions",
+        "returns": "fold_02_fixed_1p000__returns",
+        "strategy_pnl": "fold_02_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_02_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_02_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_02_fixed_1p050__effective_positions",
+        "returns": "fold_02_fixed_1p050__returns",
+        "strategy_pnl": "fold_02_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_02_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_02_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_02_fixed_1p100__effective_positions",
+        "returns": "fold_02_fixed_1p100__returns",
+        "strategy_pnl": "fold_02_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_02_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_02_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_02_fixed_1p120__effective_positions",
+        "returns": "fold_02_fixed_1p120__returns",
+        "strategy_pnl": "fold_02_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_02_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_02_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_02_selected_constant__effective_positions",
+        "returns": "fold_02_selected_constant__returns",
+        "strategy_pnl": "fold_02_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_02_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2020-10-16 14:00:00",
+      "fold": 2,
+      "keys": {
+        "alpha_excess": "fold_02_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_02_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_02_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_02_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_02_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_02_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-01-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8807
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_bnh__alpha_excess",
+        "benchmark_pnl": "fold_03_bnh__benchmark_pnl",
+        "effective_positions": "fold_03_bnh__effective_positions",
+        "returns": "fold_03_bnh__returns",
+        "strategy_pnl": "fold_03_bnh__strategy_pnl",
+        "timestamps_ns": "fold_03_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "bnh",
+      "rows": 8622
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_03_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_03_fixed_0p500__effective_positions",
+        "returns": "fold_03_fixed_0p500__returns",
+        "strategy_pnl": "fold_03_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_03_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8622
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_03_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_03_fixed_0p750__effective_positions",
+        "returns": "fold_03_fixed_0p750__returns",
+        "strategy_pnl": "fold_03_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_03_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_03_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_03_fixed_1p000__effective_positions",
+        "returns": "fold_03_fixed_1p000__returns",
+        "strategy_pnl": "fold_03_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_03_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_03_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_03_fixed_1p050__effective_positions",
+        "returns": "fold_03_fixed_1p050__returns",
+        "strategy_pnl": "fold_03_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_03_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_03_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_03_fixed_1p100__effective_positions",
+        "returns": "fold_03_fixed_1p100__returns",
+        "strategy_pnl": "fold_03_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_03_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_03_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_03_fixed_1p120__effective_positions",
+        "returns": "fold_03_fixed_1p120__returns",
+        "strategy_pnl": "fold_03_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_03_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_03_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_03_selected_constant__effective_positions",
+        "returns": "fold_03_selected_constant__returns",
+        "strategy_pnl": "fold_03_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_03_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-01-16 14:00:00",
+      "fold": 3,
+      "keys": {
+        "alpha_excess": "fold_03_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_03_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_03_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_03_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_03_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_03_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-04-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8622
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_bnh__alpha_excess",
+        "benchmark_pnl": "fold_04_bnh__benchmark_pnl",
+        "effective_positions": "fold_04_bnh__effective_positions",
+        "returns": "fold_04_bnh__returns",
+        "strategy_pnl": "fold_04_bnh__strategy_pnl",
+        "timestamps_ns": "fold_04_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "bnh",
+      "rows": 8707
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_04_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_04_fixed_0p500__effective_positions",
+        "returns": "fold_04_fixed_0p500__returns",
+        "strategy_pnl": "fold_04_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_04_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8707
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_04_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_04_fixed_0p750__effective_positions",
+        "returns": "fold_04_fixed_0p750__returns",
+        "strategy_pnl": "fold_04_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_04_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_04_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_04_fixed_1p000__effective_positions",
+        "returns": "fold_04_fixed_1p000__returns",
+        "strategy_pnl": "fold_04_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_04_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_04_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_04_fixed_1p050__effective_positions",
+        "returns": "fold_04_fixed_1p050__returns",
+        "strategy_pnl": "fold_04_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_04_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_04_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_04_fixed_1p100__effective_positions",
+        "returns": "fold_04_fixed_1p100__returns",
+        "strategy_pnl": "fold_04_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_04_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_04_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_04_fixed_1p120__effective_positions",
+        "returns": "fold_04_fixed_1p120__returns",
+        "strategy_pnl": "fold_04_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_04_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_04_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_04_selected_constant__effective_positions",
+        "returns": "fold_04_selected_constant__returns",
+        "strategy_pnl": "fold_04_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_04_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-04-16 14:00:00",
+      "fold": 4,
+      "keys": {
+        "alpha_excess": "fold_04_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_04_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_04_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_04_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_04_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_04_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-07-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8707
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_bnh__alpha_excess",
+        "benchmark_pnl": "fold_05_bnh__benchmark_pnl",
+        "effective_positions": "fold_05_bnh__effective_positions",
+        "returns": "fold_05_bnh__returns",
+        "strategy_pnl": "fold_05_bnh__strategy_pnl",
+        "timestamps_ns": "fold_05_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "bnh",
+      "rows": 8805
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_05_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_05_fixed_0p500__effective_positions",
+        "returns": "fold_05_fixed_0p500__returns",
+        "strategy_pnl": "fold_05_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_05_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8805
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_05_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_05_fixed_0p750__effective_positions",
+        "returns": "fold_05_fixed_0p750__returns",
+        "strategy_pnl": "fold_05_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_05_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8805
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_05_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_05_fixed_1p000__effective_positions",
+        "returns": "fold_05_fixed_1p000__returns",
+        "strategy_pnl": "fold_05_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_05_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8805
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_05_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_05_fixed_1p050__effective_positions",
+        "returns": "fold_05_fixed_1p050__returns",
+        "strategy_pnl": "fold_05_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_05_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8805
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_05_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_05_fixed_1p100__effective_positions",
+        "returns": "fold_05_fixed_1p100__returns",
+        "strategy_pnl": "fold_05_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_05_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8805
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_05_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_05_fixed_1p120__effective_positions",
+        "returns": "fold_05_fixed_1p120__returns",
+        "strategy_pnl": "fold_05_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_05_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8805
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_05_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_05_selected_constant__effective_positions",
+        "returns": "fold_05_selected_constant__returns",
+        "strategy_pnl": "fold_05_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_05_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8805
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-07-16 14:00:00",
+      "fold": 5,
+      "keys": {
+        "alpha_excess": "fold_05_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_05_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_05_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_05_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_05_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_05_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2021-10-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8805
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_bnh__alpha_excess",
+        "benchmark_pnl": "fold_06_bnh__benchmark_pnl",
+        "effective_positions": "fold_06_bnh__effective_positions",
+        "returns": "fold_06_bnh__returns",
+        "strategy_pnl": "fold_06_bnh__strategy_pnl",
+        "timestamps_ns": "fold_06_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "bnh",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_06_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_06_fixed_0p500__effective_positions",
+        "returns": "fold_06_fixed_0p500__returns",
+        "strategy_pnl": "fold_06_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_06_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_06_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_06_fixed_0p750__effective_positions",
+        "returns": "fold_06_fixed_0p750__returns",
+        "strategy_pnl": "fold_06_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_06_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_06_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_06_fixed_1p000__effective_positions",
+        "returns": "fold_06_fixed_1p000__returns",
+        "strategy_pnl": "fold_06_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_06_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_06_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_06_fixed_1p050__effective_positions",
+        "returns": "fold_06_fixed_1p050__returns",
+        "strategy_pnl": "fold_06_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_06_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_06_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_06_fixed_1p100__effective_positions",
+        "returns": "fold_06_fixed_1p100__returns",
+        "strategy_pnl": "fold_06_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_06_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_06_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_06_fixed_1p120__effective_positions",
+        "returns": "fold_06_fixed_1p120__returns",
+        "strategy_pnl": "fold_06_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_06_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_06_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_06_selected_constant__effective_positions",
+        "returns": "fold_06_selected_constant__returns",
+        "strategy_pnl": "fold_06_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_06_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2021-10-16 14:00:00",
+      "fold": 6,
+      "keys": {
+        "alpha_excess": "fold_06_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_06_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_06_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_06_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_06_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_06_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-01-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_bnh__alpha_excess",
+        "benchmark_pnl": "fold_07_bnh__benchmark_pnl",
+        "effective_positions": "fold_07_bnh__effective_positions",
+        "returns": "fold_07_bnh__returns",
+        "strategy_pnl": "fold_07_bnh__strategy_pnl",
+        "timestamps_ns": "fold_07_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "bnh",
+      "rows": 8639
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_07_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_07_fixed_0p500__effective_positions",
+        "returns": "fold_07_fixed_0p500__returns",
+        "strategy_pnl": "fold_07_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_07_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8639
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_07_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_07_fixed_0p750__effective_positions",
+        "returns": "fold_07_fixed_0p750__returns",
+        "strategy_pnl": "fold_07_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_07_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8639
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_07_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_07_fixed_1p000__effective_positions",
+        "returns": "fold_07_fixed_1p000__returns",
+        "strategy_pnl": "fold_07_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_07_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8639
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_07_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_07_fixed_1p050__effective_positions",
+        "returns": "fold_07_fixed_1p050__returns",
+        "strategy_pnl": "fold_07_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_07_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8639
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_07_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_07_fixed_1p100__effective_positions",
+        "returns": "fold_07_fixed_1p100__returns",
+        "strategy_pnl": "fold_07_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_07_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8639
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_07_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_07_fixed_1p120__effective_positions",
+        "returns": "fold_07_fixed_1p120__returns",
+        "strategy_pnl": "fold_07_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_07_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8639
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_07_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_07_selected_constant__effective_positions",
+        "returns": "fold_07_selected_constant__returns",
+        "strategy_pnl": "fold_07_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_07_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8639
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2022-01-16 14:00:00",
+      "fold": 7,
+      "keys": {
+        "alpha_excess": "fold_07_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_07_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_07_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_07_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_07_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_07_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-04-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8639
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_bnh__alpha_excess",
+        "benchmark_pnl": "fold_08_bnh__benchmark_pnl",
+        "effective_positions": "fold_08_bnh__effective_positions",
+        "returns": "fold_08_bnh__returns",
+        "strategy_pnl": "fold_08_bnh__strategy_pnl",
+        "timestamps_ns": "fold_08_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "bnh",
+      "rows": 8735
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_08_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_08_fixed_0p500__effective_positions",
+        "returns": "fold_08_fixed_0p500__returns",
+        "strategy_pnl": "fold_08_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_08_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8735
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_08_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_08_fixed_0p750__effective_positions",
+        "returns": "fold_08_fixed_0p750__returns",
+        "strategy_pnl": "fold_08_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_08_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8735
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_08_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_08_fixed_1p000__effective_positions",
+        "returns": "fold_08_fixed_1p000__returns",
+        "strategy_pnl": "fold_08_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_08_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8735
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_08_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_08_fixed_1p050__effective_positions",
+        "returns": "fold_08_fixed_1p050__returns",
+        "strategy_pnl": "fold_08_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_08_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8735
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_08_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_08_fixed_1p100__effective_positions",
+        "returns": "fold_08_fixed_1p100__returns",
+        "strategy_pnl": "fold_08_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_08_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8735
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_08_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_08_fixed_1p120__effective_positions",
+        "returns": "fold_08_fixed_1p120__returns",
+        "strategy_pnl": "fold_08_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_08_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8735
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_08_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_08_selected_constant__effective_positions",
+        "returns": "fold_08_selected_constant__returns",
+        "strategy_pnl": "fold_08_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_08_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8735
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-04-16 14:00:00",
+      "fold": 8,
+      "keys": {
+        "alpha_excess": "fold_08_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_08_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_08_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_08_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_08_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_08_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-07-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8735
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_bnh__alpha_excess",
+        "benchmark_pnl": "fold_09_bnh__benchmark_pnl",
+        "effective_positions": "fold_09_bnh__effective_positions",
+        "returns": "fold_09_bnh__returns",
+        "strategy_pnl": "fold_09_bnh__strategy_pnl",
+        "timestamps_ns": "fold_09_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "bnh",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_09_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_09_fixed_0p500__effective_positions",
+        "returns": "fold_09_fixed_0p500__returns",
+        "strategy_pnl": "fold_09_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_09_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_09_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_09_fixed_0p750__effective_positions",
+        "returns": "fold_09_fixed_0p750__returns",
+        "strategy_pnl": "fold_09_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_09_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_09_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_09_fixed_1p000__effective_positions",
+        "returns": "fold_09_fixed_1p000__returns",
+        "strategy_pnl": "fold_09_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_09_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_09_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_09_fixed_1p050__effective_positions",
+        "returns": "fold_09_fixed_1p050__returns",
+        "strategy_pnl": "fold_09_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_09_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_09_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_09_fixed_1p100__effective_positions",
+        "returns": "fold_09_fixed_1p100__returns",
+        "strategy_pnl": "fold_09_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_09_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_09_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_09_fixed_1p120__effective_positions",
+        "returns": "fold_09_fixed_1p120__returns",
+        "strategy_pnl": "fold_09_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_09_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_09_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_09_selected_constant__effective_positions",
+        "returns": "fold_09_selected_constant__returns",
+        "strategy_pnl": "fold_09_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_09_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-07-16 14:00:00",
+      "fold": 9,
+      "keys": {
+        "alpha_excess": "fold_09_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_09_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_09_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_09_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_09_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_09_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2022-10-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_bnh__alpha_excess",
+        "benchmark_pnl": "fold_10_bnh__benchmark_pnl",
+        "effective_positions": "fold_10_bnh__effective_positions",
+        "returns": "fold_10_bnh__returns",
+        "strategy_pnl": "fold_10_bnh__strategy_pnl",
+        "timestamps_ns": "fold_10_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "bnh",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_10_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_10_fixed_0p500__effective_positions",
+        "returns": "fold_10_fixed_0p500__returns",
+        "strategy_pnl": "fold_10_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_10_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_10_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_10_fixed_0p750__effective_positions",
+        "returns": "fold_10_fixed_0p750__returns",
+        "strategy_pnl": "fold_10_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_10_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_10_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_10_fixed_1p000__effective_positions",
+        "returns": "fold_10_fixed_1p000__returns",
+        "strategy_pnl": "fold_10_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_10_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_10_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_10_fixed_1p050__effective_positions",
+        "returns": "fold_10_fixed_1p050__returns",
+        "strategy_pnl": "fold_10_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_10_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_10_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_10_fixed_1p100__effective_positions",
+        "returns": "fold_10_fixed_1p100__returns",
+        "strategy_pnl": "fold_10_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_10_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_10_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_10_fixed_1p120__effective_positions",
+        "returns": "fold_10_fixed_1p120__returns",
+        "strategy_pnl": "fold_10_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_10_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_10_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_10_selected_constant__effective_positions",
+        "returns": "fold_10_selected_constant__returns",
+        "strategy_pnl": "fold_10_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_10_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2022-10-16 14:00:00",
+      "fold": 10,
+      "keys": {
+        "alpha_excess": "fold_10_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_10_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_10_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_10_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_10_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_10_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2023-01-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8831
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_bnh__alpha_excess",
+        "benchmark_pnl": "fold_11_bnh__benchmark_pnl",
+        "effective_positions": "fold_11_bnh__effective_positions",
+        "returns": "fold_11_bnh__returns",
+        "strategy_pnl": "fold_11_bnh__strategy_pnl",
+        "timestamps_ns": "fold_11_bnh__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "bnh",
+      "rows": 8628
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_fixed_0p500__alpha_excess",
+        "benchmark_pnl": "fold_11_fixed_0p500__benchmark_pnl",
+        "effective_positions": "fold_11_fixed_0p500__effective_positions",
+        "returns": "fold_11_fixed_0p500__returns",
+        "strategy_pnl": "fold_11_fixed_0p500__strategy_pnl",
+        "timestamps_ns": "fold_11_fixed_0p500__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "fixed_0p500",
+      "rows": 8628
+    },
+    {
+      "exposure": 0.75,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_fixed_0p750__alpha_excess",
+        "benchmark_pnl": "fold_11_fixed_0p750__benchmark_pnl",
+        "effective_positions": "fold_11_fixed_0p750__effective_positions",
+        "returns": "fold_11_fixed_0p750__returns",
+        "strategy_pnl": "fold_11_fixed_0p750__strategy_pnl",
+        "timestamps_ns": "fold_11_fixed_0p750__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "fixed_0p750",
+      "rows": 8628
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_fixed_1p000__alpha_excess",
+        "benchmark_pnl": "fold_11_fixed_1p000__benchmark_pnl",
+        "effective_positions": "fold_11_fixed_1p000__effective_positions",
+        "returns": "fold_11_fixed_1p000__returns",
+        "strategy_pnl": "fold_11_fixed_1p000__strategy_pnl",
+        "timestamps_ns": "fold_11_fixed_1p000__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "fixed_1p000",
+      "rows": 8628
+    },
+    {
+      "exposure": 1.05,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_fixed_1p050__alpha_excess",
+        "benchmark_pnl": "fold_11_fixed_1p050__benchmark_pnl",
+        "effective_positions": "fold_11_fixed_1p050__effective_positions",
+        "returns": "fold_11_fixed_1p050__returns",
+        "strategy_pnl": "fold_11_fixed_1p050__strategy_pnl",
+        "timestamps_ns": "fold_11_fixed_1p050__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "fixed_1p050",
+      "rows": 8628
+    },
+    {
+      "exposure": 1.1,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_fixed_1p100__alpha_excess",
+        "benchmark_pnl": "fold_11_fixed_1p100__benchmark_pnl",
+        "effective_positions": "fold_11_fixed_1p100__effective_positions",
+        "returns": "fold_11_fixed_1p100__returns",
+        "strategy_pnl": "fold_11_fixed_1p100__strategy_pnl",
+        "timestamps_ns": "fold_11_fixed_1p100__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "fixed_1p100",
+      "rows": 8628
+    },
+    {
+      "exposure": 1.12,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_fixed_1p120__alpha_excess",
+        "benchmark_pnl": "fold_11_fixed_1p120__benchmark_pnl",
+        "effective_positions": "fold_11_fixed_1p120__effective_positions",
+        "returns": "fold_11_fixed_1p120__returns",
+        "strategy_pnl": "fold_11_fixed_1p120__strategy_pnl",
+        "timestamps_ns": "fold_11_fixed_1p120__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "fixed_1p120",
+      "rows": 8628
+    },
+    {
+      "exposure": 1.0,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_11_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_11_selected_constant__effective_positions",
+        "returns": "fold_11_selected_constant__returns",
+        "strategy_pnl": "fold_11_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_11_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "selected_constant",
+      "rows": 8628
+    },
+    {
+      "exposure": 0.5,
+      "first_timestamp": "2023-01-16 14:00:00",
+      "fold": 11,
+      "keys": {
+        "alpha_excess": "fold_11_previous_fold_selected_constant__alpha_excess",
+        "benchmark_pnl": "fold_11_previous_fold_selected_constant__benchmark_pnl",
+        "effective_positions": "fold_11_previous_fold_selected_constant__effective_positions",
+        "returns": "fold_11_previous_fold_selected_constant__returns",
+        "strategy_pnl": "fold_11_previous_fold_selected_constant__strategy_pnl",
+        "timestamps_ns": "fold_11_previous_fold_selected_constant__timestamps_ns"
+      },
+      "last_timestamp": "2023-04-16 13:30:00",
+      "method": "previous_fold_selected_constant",
+      "rows": 8628
+    }
+  ],
+  "npz_path": "/Users/sophie/Documents/UniDream/UniDream/docs/constant_exposure_plan011_dev/constant_exposure_paths.npz",
+  "npz_sha256": "37224644813e97f4aa57f0bd457cdeabf50a69dbc61fd032b854ef709147e9de",
+  "schema_version": 1,
+  "wave": "wave3d_constant_exposure_diagnostic"
+}
