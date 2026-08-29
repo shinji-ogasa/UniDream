@@ -206,8 +206,10 @@ audit, so it is not corrected timing-superiority evidence. The committed
 Wave3A corrected replay below is the appropriate erratum comparison and is
 report-only.
 
-**CONFIRMED — Wave3C development result (artifact `c3b4ccb`).** The committed
-artifact `docs/forecast_context_tournament_plan011_dev/result.json` has
+**CONFIRMED — Wave3C development result (artifact `c3b4ccb`).** This refresh
+supersedes the initial `de66ff0` artifact for numeric claims; no `de66ff0`
+replay value is used below. The committed artifact
+`docs/forecast_context_tournament_plan011_dev/result.json` has
 `status: complete`, seed `7`, exact development folds `[0, 2, 8]`, horizons
 `[4, 16, 64]`, feature sets `ohlcv13` and `full17`, and candidates Ridge,
 HistGB, and downside classifier. It fits on train, selects horizon/policy on
