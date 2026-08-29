@@ -165,6 +165,7 @@ def _render_report(
             f"- REST-recovered Spot bars: `{summary.get('rest_recovered_bars')}`",
             f"- Unresolved Spot bars: `{summary.get('spot_unresolved_bars')}`",
             f"- Quarantined off-grid Spot bars: `{summary.get('quarantined_off_grid_spot_bars', 0)}`",
+            f"- Off-grid quarantine explicitly enabled: `{summary.get('off_grid_quarantine_enabled', False)}`",
             f"- Spot gap runs before REST recovery: `{gap_summary.get('gap_count', 0)}`",
             f"- Spot gap runs after REST recovery/quarantine: `{gap_summary.get('gap_count_after_rest', 0)}`",
             f"- Computed feature rows: `{summary.get('feature_rows')}`",

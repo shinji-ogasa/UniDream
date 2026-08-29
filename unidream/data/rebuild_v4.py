@@ -760,6 +760,8 @@ def rebuild_official_v4_frames(
             "archive_only_for_monthly_raw": True,
             "non_official_provider_used": False,
             "interpolation_used": False,
+            "off_grid_quarantine_enabled": bool(allow_off_grid_quarantine),
+            "off_grid_default_policy": "reject; explicit quarantine never remaps timestamps",
         },
         "scope": {
             "symbol": symbol,
@@ -811,6 +813,7 @@ def rebuild_official_v4_frames(
             "quarantined_off_grid_spot_bars": int(
                 sum(item["quarantined_count"] for item in spot_off_grid_quarantine)
             ),
+            "off_grid_quarantine_enabled": bool(allow_off_grid_quarantine),
             "feature_rows": len(features),
             "external_source_start": str(EXTERNAL_ARCHIVE_START),
             "external_pre_start_false": True,
