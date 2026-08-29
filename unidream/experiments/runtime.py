@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 import yaml
 
+from unidream.data.cache_v4 import CacheV4Error, cache_v4_paths, load_cache_v4
 from unidream.data.download import (
     fetch_binance_ohlcv,
     fetch_funding_rate,
@@ -80,6 +81,37 @@ def read_extra_series_caches(cache_dir: str, cache_tag: str) -> dict[str, pd.Ser
 
 def _cache_metadata_path(cache_dir: str, cache_tag: str) -> str:
     return os.path.join(cache_dir, f"{cache_tag}_metadata.json")
+
+
+def cache_quality_status(cache_dir: str, cache_tag: str) -> str:
+    """Return an explicit status for a legacy or schema v4 cache hit.
+
+    Historical v3 files intentionally remain readable for compatibility, but
+    they are never reported as quality-passed because they have no
+    availability sidecar.  A partial or invalid v4 set is also surfaced as a
+    failure instead of triggering a raw-data rebuild that could hide the
+    broken artifact.
+    """
+    paths = cache_v4_paths(cache_dir, cache_tag)
+    metadata_path = paths["metadata"]
+    availability_path = paths["availability"]
+    metadata: dict | None = None
+    if metadata_path.exists():
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                metadata = payload
+        except (OSError, ValueError, json.JSONDecodeError):
+            return "v4_invalid" if availability_path.exists() else "legacy_v3_unverified"
+    if not availability_path.exists() and (metadata is None or metadata.get("schema_version") != 4):
+        return "legacy_v3_unverified"
+    if not all(path.exists() for path in paths.values()):
+        return "v4_incomplete"
+    try:
+        load_cache_v4(cache_dir, cache_tag)
+    except CacheV4Error:
+        return "v4_invalid"
+    return "v4_verified"
 
 
 def _cache_parameters(
@@ -231,8 +263,28 @@ def load_training_features(
     include_funding: bool = True,
     include_oi: bool = True,
     include_mark: bool = True,
+    require_v4_cache: bool = False,
 ) -> tuple[pd.DataFrame, pd.Series]:
     features_cache, returns_cache = resolve_cache_pair(cache_dir, cache_tag)
+    v4_paths = cache_v4_paths(cache_dir, cache_tag)
+    metadata_path = _cache_metadata_path(cache_dir, cache_tag)
+    v4_sidecar_exists = v4_paths["availability"].exists()
+    metadata_version: int | None = None
+    if os.path.exists(metadata_path):
+        try:
+            metadata_payload = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
+            if isinstance(metadata_payload, dict):
+                metadata_version = metadata_payload.get("schema_version")
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            if require_v4_cache or v4_sidecar_exists:
+                raise ValueError(f"cache metadata cannot be read for v4 validation: {exc}") from exc
+    v4_declared = metadata_version == 4
+    if (require_v4_cache or v4_declared or v4_sidecar_exists) and not all(
+        path.exists() for path in v4_paths.values()
+    ):
+        missing = [str(path) for path in v4_paths.values() if not path.exists()]
+        reason = "required" if require_v4_cache else "declared or partially present"
+        raise ValueError(f"v4 cache is {reason} but incomplete; missing files: {missing}")
     parameters = _cache_parameters(
         symbol=symbol,
         interval=interval,
@@ -252,6 +304,30 @@ def load_training_features(
 
     if os.path.exists(features_cache) and os.path.exists(returns_cache):
         print("\n[Data] Loading cached features...")
+        if v4_sidecar_exists or v4_declared or require_v4_cache:
+            try:
+                features_df, raw_returns, _availability, v4_metadata = load_cache_v4(
+                    cache_dir,
+                    cache_tag,
+                )
+                _validate_training_cache(
+                    features_df,
+                    raw_returns,
+                    include_funding=include_funding,
+                    include_oi=include_oi,
+                    include_mark=include_mark,
+                    cache_tag=cache_tag,
+                )
+                cached_parameters = v4_metadata.get("parameters")
+                if cached_parameters is not None and cached_parameters != parameters:
+                    raise ValueError("cache v4 parameters do not match the requested config")
+            except (CacheV4Error, ValueError) as exc:
+                raise ValueError(f"cache {cache_tag} failed v4 validation: {exc}") from exc
+            print(
+                f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]} "
+                "| quality_status=v4_verified"
+            )
+            return features_df, raw_returns
         try:
             features_df = read_optional_parquet(features_cache)
             returns_frame = read_optional_parquet(returns_cache)
@@ -268,7 +344,6 @@ def load_training_features(
                 include_mark=include_mark,
                 cache_tag=cache_tag,
             )
-            metadata_path = _cache_metadata_path(cache_dir, cache_tag)
             if os.path.exists(metadata_path):
                 metadata = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
                 if not isinstance(metadata, dict):
@@ -295,7 +370,10 @@ def load_training_features(
                     features_df=features_df,
                     provenance="legacy_unverified",
                 )
-            print(f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]}")
+            print(
+                f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]} "
+                "| quality_status=legacy_v3_unverified"
+            )
             return features_df, raw_returns
         except Exception as exc:
             print(f"  Cache invalid; rebuilding from raw data: {exc}")
