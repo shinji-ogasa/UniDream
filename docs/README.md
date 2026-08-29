@@ -22,6 +22,7 @@
 4. [policy_family_holdout_comparison.md](policy_family_holdout_comparison.md) — policy family 比較
 5. [risk_aware_rl_unidream_holdout_2026.md](risk_aware_rl_unidream_holdout_2026.md) — 別系統の risk-aware RL probe
 6. [project_map.md](project_map.md) — research / Space / web の責務分担
+7. [statistical_gate_contract.md](statistical_gate_contract.md) — development-only statistical robustness gate contract
 
 図表は [fold0–12](figures/plan011_v31_folds0_12/README.md) と [holdout folds15–23](figures/plan011_v31_holdout_folds15_23/README.md) にまとまっています。図表の `checkpoint` 表記は、その時点の実験で使った生成物を示す履歴情報です。現在はローカル checkpoint を削除済みなので、再生成する場合は下記の学習コマンドを先に実行してください。
 
