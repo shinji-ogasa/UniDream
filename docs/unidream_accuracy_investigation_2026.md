@@ -1,17 +1,17 @@
 # UniDream accuracy investigation (2026)
 
-**Report state:** Stage 2 — complete report (evidence, hypotheses, checklist,
-literature, and agent plan). The evidence-only skeleton was first pushed as
-`66d6298`; this final report is a
-report-only artifact; it does not retrain a model, apply a Supabase migration,
-deploy a Space, or write production data.
+**Report state:** Stage 3 — complete evidence audit and report update (Wave3C
+development result, hypotheses, checklist, literature, and agent plan). The
+evidence-only skeleton was first pushed as `66d6298`, and the Stage 2 plan as
+`8737581`; this report remains a report-only artifact. It does not retrain a
+model, apply a Supabase migration, deploy a Space, or write production data.
 
 **Evidence cutoff:** 2026-08-30. The Research, Space, and Web repositories are
 separate repositories. The snapshots inspected for this report were:
 
 | repository | inspected revision | role |
 | --- | --- | --- |
-| `UniDream` | `157e408` (baseline evidence begins at `a871439`) | Research training/evaluation, official-source readers, and contract tests |
+| `UniDream` | `8e9e0fc` for the Wave3C run; artifact refresh `c3b4ccb` (baseline evidence begins at `a871439`) | Research training/evaluation, official-source readers, and contract tests |
 | `unidream-space` | `60052bc` | Plan011 v31 inference service and feature parity |
 | `unidream-demo-web` | `271baf7` | Edge data fetch, paper trading, Supabase writes, dashboard |
 
@@ -19,7 +19,8 @@ The Research working tree also contains concurrent, uncommitted forecast,
 backtest, and source-rebuild edits. They were read only and are intentionally
 not part of this report commit. Revision `157e408` adds official-source reader
 and probe code; it does not constitute a generated v4 cache or a new model
-result.
+result. Wave3C is audited from the latest committed artifact at `c3b4ccb`; its
+underlying tournament code/data commit is recorded in the Wave3C section below.
 
 ## Reading contract
 
@@ -37,9 +38,11 @@ suggests.
 * **IN PROGRESS** — implementation or review exists, but the required
   numerical evidence is not yet complete.
 
-Wave3C is not a numerical source in this report. Every Wave3C value remains an
-explicit placeholder such as `[WAVE3C_UNCONFIRMED_ALPHAEX_MEAN_PT]`; no value
-from Wave3A, the historical v31 snapshot, or a future run may be substituted.
+Wave3C is now a numerical source for a narrowly scoped, development-only
+report. Its values are not holdout or production accuracy, and `status:
+complete` means the artifact was generated—not that a candidate passed
+promotion. The separate Wave3D low-frequency exposure diagnostic remains
+unconfirmed and is intentionally not inferred from Wave3C.
 
 ## Executive evidence summary
 
@@ -62,20 +65,24 @@ generalization investigation, not a single identified model defect.
    provenance only and are **not valid accuracy estimates for the corrected
    Plan011 implementation**; retraining is required before comparing corrected
    accuracy.
-3. **The Wave3A forecast screen found no usable winner, and is itself
-   superseded for corrected timing claims.** Its six feature-set × candidate
-   combinations all failed the frozen screen, but that screen predates the
-   baseline-exposure, leading-padding, and turnover audit. It is a historical
-   diagnostic only; Wave3C errata are expected to supersede it. It does not
-   prove that derivative features or a particular architecture caused the
-   decline.
+3. **Wave3C found no usable winner under the corrected development contract.**
+   All six feature-set × candidate combinations failed the signal/timing
+   gate. The apparent roughly `+20pt` AlphaEx is the validation-selected
+   constant exposure baseline (`0.5 / 1.12 / 0.5` for folds `0 / 2 / 8`), not
+   a dynamic timing edge: every candidate's median dynamic-minus-constant
+   timing increment is negative. OHLCV13 forecast diagnostics are modest and
+   report-only; full17 is blocked by the missing availability mask. The
+   corrected Wave3A replay confirms the same interpretation.
 4. **The live contracts are stricter than the old research cache.** Space
    requires all 17 Plan011 inputs and rejects missing/non-finite funding or
    mark data. Web excludes partial candles, joins funding as-of and mark by
    candle timestamp, and commits prediction/state/snapshot/trade through one
    CAS-protected RPC. Code/tests establish these contracts; provider reachability,
    deployed revision, and production database execution remain unverified.
-5. **Statistical promotion is intentionally not claimed.** The development-only
+5. **Deep architecture and offline-RL follow-ups are gate-stopped.** C8 deep
+   architecture and C9 offline-RL experiments were not run after the Wave3C
+   signal gate failed; they are not completed results. C10/C11 statistical
+   promotion is also intentionally not claimed. The development-only
    statistical gate accepts explicit per-bar paths and has moving/stationary
    block bootstrap, DSR with an explicit trial count, CSCV/PBO, sign tests, and
    cost/regime stress. It currently has synthetic API tests only and has not
@@ -182,7 +189,7 @@ retained actor-mean row is diagnostic-only because no validation actor path
 was saved. Any new comparison must keep validation selection separate from
 test reporting and must not silently use an unselected test mean.
 
-### Wave3A and Wave3C status
+### Wave3A, Wave3C, and Wave3D status
 
 **CONFIRMED — Wave3A frozen development screen, with an erratum boundary.**
 `docs/forecast_tournament_plan011_dev/report.md` covers development folds
@@ -193,30 +200,108 @@ the retained aggregate table are full17 causal `IC -0.0329`, AlphaEx
 `-1.3651pt`; full17 HistGB `IC +0.0448`, AlphaEx `-0.7256pt`; and full17 Ridge
 `IC +0.0187`, AlphaEx `+0.8335pt`, which still failed the complete gate.
 
-These numbers are Wave3A only. They are not Wave3C results and cannot fill
-the placeholders below. The frozen screen also predates the baseline exposure
-matching, leading-padding removal, and turnover semantics audit. Consequently
-it cannot be used as corrected timing superiority evidence; Wave3C errata and
-the corrected shared execution path supersede that interpretation.
+The original Wave3A result remains a historical artifact. It predates the
+baseline-exposure matching, leading-padding removal, and turnover-semantics
+audit, so it is not corrected timing-superiority evidence. The committed
+Wave3A corrected replay below is the appropriate erratum comparison and is
+report-only.
 
-**IN PROGRESS / GATE STOPPED — Wave3C result freeze.** The exact Wave3C
-selection, timing, cost, and statistical values are not confirmed in the
-current evidence set:
+**CONFIRMED — Wave3C development result (artifact `c3b4ccb`).** The committed
+artifact `docs/forecast_context_tournament_plan011_dev/result.json` has
+`status: complete`, seed `7`, exact development folds `[0, 2, 8]`, horizons
+`[4, 16, 64]`, feature sets `ohlcv13` and `full17`, and candidates Ridge,
+HistGB, and downside classifier. It fits on train, selects horizon/policy on
+validation, and reports the development test only; no fold 15+ result is read.
+The fixed operational execution delay is one bar, with timing lags `1/16` and
+null shifts `1/16/64`. Artifact completion is not candidate promotion: all six
+candidate gate rows fail, and `next_wave_candidates` is exactly `[]`.
 
-```text
-WAVE3C_ALPHAEX_MEAN_PT                 = [UNCONFIRMED]
-WAVE3C_ALPHAEX_MEDIAN_PT               = [UNCONFIRMED]
-WAVE3C_TIMING_INCREMENT_MEAN_PT        = [UNCONFIRMED]
-WAVE3C_CONSTANT_MEAN_EXPOSURE          = [UNCONFIRMED]
-WAVE3C_DYNAMIC_MEAN_EXPOSURE           = [UNCONFIRMED]
-WAVE3C_COST_TURNOVER                   = [UNCONFIRMED]
-WAVE3C_MAXDD_DELTA_PT                  = [UNCONFIRMED]
-WAVE3C_STATISTICAL_GATE                = [UNCONFIRMED]
-```
+The selected OHLCV13 forecast quality is:
 
-Until a signed artifact records the config/data/source hashes, fold scope,
-selection split, execution delay, and exact paths, Wave3C has no pass/fail
-accuracy claim.
+| fold | Ridge (selected horizon; IC / sign accuracy) | HistGB (selected horizon; IC / sign accuracy) | downside classifier (selected horizon; AUC) |
+| ---: | --- | --- | --- |
+| 0 | h16; `+0.033066 / 0.503925` | h4; `+0.046314 / 0.518442` | h16; `0.622610` |
+| 2 | h64; `+0.071069 / 0.542780` | h16; `+0.029532 / 0.519935` | h4; `0.645271` |
+| 8 | h64; `-0.002432 / 0.495964` | h64; `-0.027998 / 0.497002` | h4; `0.678548` |
+| median | —; `+0.033066 / 0.503925` | —; `+0.029532 / 0.518442` | —; `0.645271` |
+
+The selected-quality-positive fold counts are Ridge `2/3`, HistGB `2/3`, and
+classifier AUC `3/3`. Classifier sign accuracy is not defined by this
+one-sided downside-event target; its sparse precision/recall are diagnostics,
+not a replacement for AUC. These are development-test forecast diagnostics,
+not holdout or production accuracy.
+
+The corrected economic aggregates (percentage-point AlphaEx/MaxDDDelta and
+position-path cost turnover) are:
+
+| feature set | candidate | median forecast quality | median dynamic AlphaEx | median constant AlphaEx | median timing increment | median MaxDDDelta | median cost turnover | gate |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| ohlcv13 | Ridge risk-adjusted context | `+0.033066 IC` | `+20.059139` | `+20.167520` | `-0.108381` | `-8.237799` | `10.065126` | **fail** |
+| ohlcv13 | HistGB risk-adjusted context | `+0.029532 IC` | `+18.496408` | `+20.167520` | `-1.671112` | `-8.313140` | `8.916144` | **fail** |
+| ohlcv13 | downside classifier | `0.645271 AUC` | `+20.093023` | `+20.167520` | `-0.074498` | `-8.313140` | `3.130630` | **fail** |
+| full17 | Ridge risk-adjusted context | `+0.053675 IC` | `+20.076113` | `+20.167520` | `-0.091407` | `-8.384446` | `9.682861` | **blocked: no availability mask** |
+| full17 | HistGB risk-adjusted context | `+0.061134 IC` | `+19.780975` | `+20.167520` | `-0.386545` | `-8.064934` | `5.467703` | **blocked: no availability mask** |
+| full17 | downside classifier | `0.626428 AUC` | `+19.714931` | `+20.167520` | `-0.452590` | `-8.313140` | `2.991194` | **blocked: no availability mask** |
+
+The interpretation is decisive for this screen: the apparently roughly
+`+20pt` AlphaEx is the validation-selected constant exposure component, not a
+dynamic timing improvement. The selected constant exposures are fold `0`
+`0.5`, fold `2` `1.12`, and fold `8` `0.5` (`0.5 / 1.12 / 0.5`) for every
+candidate. All six dynamic-minus-constant timing medians are negative. OHLCV13
+is the formal promotion feature set for the artifact, but every OHLCV13
+candidate still fails its signal/timing gate. Full17 is additionally blocked
+because the v3 cache has no availability mask to distinguish external zero
+from missing/imputed derivative values; this is not evidence that full17 is
+accurate or inaccurate.
+
+**Wave3A corrected replay (confirmed, report-only).** The replay in the
+Wave3C result has source artifact
+`docs/forecast_tournament_plan011_dev/result.json`, source commit
+`e0ab435ab6601ce49b4f6c28bdb15504d2c57315`, nine rows, and zero failures. It
+uses validation-selected constant exposure, a common right-side return
+window, and fixed delay one. Its medians are dynamic AlphaEx
+`+18.761945pt`, constant AlphaEx `+20.167520pt`, and timing increment
+`-1.405575pt`. It is excluded from Wave3C candidate selection/gate; it exists
+to document the corrected interpretation of the historical Wave3A screen.
+
+**Wave3C provenance and integrity audit (confirmed).** The result records
+tournament source commit `8e9e0fcfaed92c99522aa22f724943c89484aee3`, seed `7`,
+config SHA-256
+`5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944`, source
+SHA-256 `b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1`,
+data-contract SHA-256
+`bc8a53c87eb196d443b09a491cfd0803ec4ecef30c9524246dacb690f14bb2cb`, and
+data SHA-256
+`027b476f209d41f477623d92cd3e2f5061976840fd682874588fdcebdeab8704`.
+The committed artifact hashes are result
+`2966130a88b203b8250786d30ddc95f9d937b96d83f3fd2e1f2d405d39675d3d`, report
+`e3859393b622d57df1e0f65fffae3b8a2e7e0b849b2cef13e36075840232abe8`, ledger
+`a4e707fdd2af292b24395dd9c5d5aabd4b2deb5aa3337689c48b3b36b86885c1`, and
+errata `878f518a0b936c512701680f615feae6e917c011bd0d6f14eb4d12d03b17fce0`.
+The recursive result JSON audit found `0` non-finite values (the committed
+result is 14,795 lines with 18 candidate rows and 18 feature-quality rows).
+All `376` ledger lines parse as JSON and are finite; record counts are one run,
+`18` feature-coverage, `18` candidate, `180` forecast-metric, `126`
+economic-metric, `18` timing-attribution, `6` successive-halving-gate, and
+`9` corrected-replay records. The artifact runtime is `179.88257045800128s`.
+For the formal OHLCV13 rows, runtimes in seconds were:
+
+| fold | Ridge | HistGB | classifier |
+| ---: | ---: | ---: | ---: |
+| 0 | `12.797059` | `7.691945` | `6.743973` |
+| 2 | `12.708218` | `7.896540` | `7.127292` |
+| 8 | `13.426194` | `7.580536` | `6.556530` |
+
+No statistical gate was applied to these candidate paths. `full17` has
+promotion status `blocked_by_data_quality`, `ohlcv13` is only the formal
+feature-set designation, and `all_candidates_failed_gate` is true.
+
+**Wave3D low-frequency exposure diagnostic — IN PROGRESS / UNCONFIRMED.** No
+committed Wave3D result was part of this audit. The low-frequency dynamic
+AlphaEx, timing increment, exposure distribution, turnover, and MaxDD values
+remain `[WAVE3D_UNCONFIRMED]`; no Wave3C value is substituted for them. This
+diagnostic must use the shared delay/cost contract and a common evaluation
+window before it can change the interpretation above.
 
 ### Space inference service
 
@@ -298,8 +383,9 @@ significance claim for Plan011.
 | Research v3 data quality | **GATE STOPPED/fail** | audit records gaps and zero/missing ambiguity | official v4 regeneration and window exclusion |
 | v4 cache contract | **complete contract / no dataset** | writer, loader, sidecar, digest, gap policy | generate and audit the actual v4 cache |
 | Plan011 historical evidence | **complete pre-correction snapshot / not current-accuracy evidence** | dev/holdout aggregates and report-only semantics before `c8f6914`, on v3 | corrected retraining on v4; do not compare as current Plan011 |
-| Wave3A forecast tournament | **frozen pre-errata diagnostic / superseded** | all six tested combinations failed before baseline/padding/turnover audit | Wave3C errata and corrected screen |
-| Wave3C | **IN PROGRESS / stopped** | placeholders only | signed exact numerical result |
+| Wave3A forecast tournament | **frozen pre-errata diagnostic; corrected replay complete** | original six-combination screen is historical; nine-row corrected replay records the common-window/constant-baseline interpretation | no promotion from the historical screen; v4 rerun if a new candidate is justified |
+| Wave3C | **complete artifact / promotion stopped** | six development candidates ran on folds 0/2/8; all failed the signal/timing gate; `next_wave_candidates=[]`; full17 is data-quality blocked | corrected v4 data and a new preregistered run; no holdout or production claim |
+| Wave3D low-frequency exposure | **IN PROGRESS / unconfirmed** | no committed result audited | common-window, cost-aligned diagnostic and independent report |
 | Space 17-feature parity | **complete code/tests** | derivative inputs required; causal closed path | deployed provider/runtime observation |
 | Web closed-candle/atomic/cost | **complete code/tests** | closed data, derivative join, one RPC, cost contract | local SQL and production runtime verification |
 | Statistical gate | **complete fixture only** | independent API and fail-closed contract | candidate dev paths, explicit full trial count |
@@ -308,8 +394,10 @@ significance claim for Plan011.
 
 It does not prove that funding/mark features improve or harm accuracy, that a
 Transformer is inferior to a simpler model on BTCUSDT, that AC caused the
-pre-correction holdout shortfall, or that any Wave3C candidate passes. It does not prove live
-profitability, execution capacity, actual exchange fills, Supabase atomicity
+pre-correction holdout shortfall, or that any Wave3C candidate passes. The
+roughly `+20pt` Wave3C AlphaEx is explained by the selected constant exposure
+baseline in this development screen, not by a measured dynamic timing edge.
+It does not prove live profitability, execution capacity, actual exchange fills, Supabase atomicity
 under concurrent production requests, or statistical significance. Those are
 questions for the controlled checklist below.
 
@@ -337,8 +425,9 @@ questions for the controlled checklist below.
 ## Accuracy-decline hypotheses
 
 The following are ranked working hypotheses. A ranking is a decision aid, not
-a measured attribution. The only numerical values treated as evidence are the
-committed snapshots in the preceding sections; Wave3C remains unconfirmed.
+a measured attribution. The numerical values treated as evidence are the
+committed snapshots and the scoped Wave3C development artifact above; none is
+a production or corrected-v4 accuracy estimate.
 
 ### P0 — data and contract validity
 
@@ -372,12 +461,13 @@ parity replay produces a signed digest.
 
 **H4: the apparent benefit is exposure, not timing.** The retained attribution
 report defines constant exposure as the actor-mean constant path and timing as
-the actor sequence minus that constant under the same costs. Earlier audit
-notes observed a dynamic path centered near `1.0` while the validation-selected
-constant comparator spans roughly `0.5..1.12`; mean-exposure and timing can
-therefore be confounded. This is a **working INFERENCE**. The required test is
-mean-matched dynamic-versus-constant comparison on a common evaluation window,
-with paired block intervals and cost turnover reported separately.
+the actor sequence minus that constant under the same costs. Wave3C now
+provides the scoped test: validation-selected constants were `0.5 / 1.12 /
+0.5` for folds `0 / 2 / 8`, and all six dynamic timing medians were negative
+(`-1.6711` to `-0.0745pt` across OHLCV13/full17). This interpretation is
+**CONFIRMED for the Wave3C screen**, not a universal causal attribution. The
+low-frequency/common-window diagnostic remains unconfirmed and must report
+mean exposure, paired block intervals, and cost turnover separately.
 
 **H5: the training objective and promotion objective are not identical.** The
 Plan011 config uses B&H-relative rewards, relative drawdown and turnover
@@ -391,25 +481,34 @@ under the same cost and timing contract.
 The current pipeline uses WM → BC → imagination AC, with one ensemble member in
 the inspected Plan011 config and no CQL/IQL conservative objective. Offline
 distribution shift is a known mechanism in the literature, but there is no
-local OPE proof that it is the cause. This is an **INFERENCE** to test with
-action-support diagnostics, shuffled-latent/no-WM ablations, and conservative
-baselines; the untouched test/holdout must remain report-only.
+local OPE proof that it is the cause. This remains an **INFERENCE**; C9 was
+stopped before execution after the Wave3C signal gate failed, so no CQL/IQL
+result exists. Any future test needs action-support diagnostics,
+shuffled-latent/no-WM ablations, and conservative baselines; the untouched
+test/holdout must remain report-only.
 
-**H7: forecast signal is weak or regime-specific.** Wave3A's all-six-fail
-development screen is confirmed as a frozen pre-errata diagnostic, not current
-corrected evidence: its baseline exposure, leading-padding, and turnover
-semantics were later audited. The screen does not identify whether weak IC,
-policy translation, costs, or regime change is dominant. Long BTCUSDT history
-crosses materially different regimes, so non-stationarity is a plausible
-**INFERENCE**, not evidence of model failure. Regime-stratified
-development-only paths and fixed cost stress are required.
+**H7: forecast signal is weak or regime-specific.** Wave3C's selected OHLCV13
+forecast metrics are modest: Ridge median IC `+0.033066` with sign accuracy
+`0.503925`, HistGB median IC `+0.029532` with sign accuracy `0.518442`, and
+classifier median AUC `0.645271`; all six economic candidates nevertheless
+failed the signal/timing gate. These forecast values are **CONFIRMED for the
+development screen**, but do not identify whether weak IC, policy translation,
+costs, or regime change is dominant. Long BTCUSDT history crosses materially
+different regimes, so non-stationarity remains an **INFERENCE**, not evidence
+of model failure. Regime-stratified development-only paths and fixed cost
+stress are required.
 
 **H8: derivative features may add variance without incremental signal.** The
-Wave3A full17 and OHLCV13 rows both failed their complete gates; the result is
-not a causal derivative ablation because the data-quality contract itself was
-not v4-clean and all candidates failed. The only safe statement is that
-derivative usefulness is **UNVERIFIED**. Regenerate v4, preserve paired rows,
-and test full17 versus 13 with explicit zero/missing flags.
+Wave3C full17 rows are blocked because the cache lacks an availability mask;
+the OHLCV13 rows fail the timing/economic gate. This is not a causal derivative
+ablation because the data-quality contract is not v4-clean. The only safe
+statement is that derivative usefulness is **UNVERIFIED**. In addition,
+Research and Space currently derive `basis` with an effective raw lag of one
+bar, while `basis_abs` and `basis_mom` have further shifts (raw lags two and
+two-to-three respectively); this is a confirmed timing detail, not an
+accuracy attribution. C6 must compare the current compatible definition with
+any single-shift alternative on paired v4 rows, and must update the bundle
+and research contract together.
 
 ### P2 — architecture and economic measurement
 
@@ -417,7 +516,9 @@ and test full17 versus 13 with explicit zero/missing flags.
 The current model is a Transformer WM plus downstream actors. Simpler linear,
 patch, inverted-variate, non-stationary, and multiscale models are credible
 baselines, but architecture superiority is **UNVERIFIED** until the same folds,
-targets, costs, and selection rules are used.
+targets, costs, and selection rules are used. C8 was stopped before execution
+because the preceding Wave3C signal gate failed; no architecture comparison
+was completed.
 
 **H10: costs and initial-entry conventions can hide a small edge.** Research
 and demo now document fee `0.0003`, full spread `3 bps` (half spread `1.5 bps`),
@@ -481,26 +582,26 @@ hashes and a reason for every `N/A`.
 | --- | --- | --- | --- | --- | --- | --- |
 | **C0 Data QA / Research** | **GATE STOPPED** | official Spot + USDⓈ-M mark/funding, v3 audit, v4 writer/reader | exact 17 columns, complete sidecar, finite values, no unresolved window crossing; pass only after official v4 regeneration and audit | non-official source, redirect, interpolation, bfill, unresolved required input, mixed digest | v4 parquet trio + metadata, gap ledger, source response hashes | official Binance archives/REST; source reader at `157e408` |
 | **C1 Closed-candle / Space + Edge** | **complete code/tests; runtime unverified** | injected `now`, deterministic Spot/mark/funding fixtures, `TARGET_BARS` | all bars close at or before cutoff; exact count; mark timestamp equality; funding publication `<=` candle; no current partial bar; pass unit suite | latest partial included, future funding, mark fill, pagination duplicate/gap, missing derivative | fixture test output and input digest; `/health`/parity evidence | C0 source semantics; official Binance docs |
-| **C2 Research timing / Eval** | **complete helper contract; Wave3C integration pending** | positions, returns, benchmark paths, integer delay | d>0 uses `positions[:-d]` vs `returns[d:]` and same benchmark period; all metric arrays trimmed; strict type validation; pass synthetic boundary tests | p0 padding, negative/fractional/bool delay, cross-split target, `d>=len` | alignment JSON + numerical fixture report | C0; shared backtest/action_stats implementation |
+| **C2 Research timing / Eval** | **complete helper contract; Wave3C contract recorded** | positions, returns, benchmark paths, integer delay | d>0 uses `positions[:-d]` vs `returns[d:]` and same benchmark period; all metric arrays trimmed; strict type validation; pass synthetic boundary tests | p0 padding, negative/fractional/bool delay, cross-split target, `d>=len` | alignment JSON + numerical fixture report | C0; shared backtest/action_stats implementation |
 | **C3 Web atomicity / Supabase** | **code/static tests complete; SQL/runtime unverified** | migration `0003`, RPC payloads, duplicate/stale/partial-failure fixtures | one RPC; row lock + CAS; unique `(run_id, latest_timestamp)` and trade key; duplicate idempotent; any error leaves no partial four-table write; pass local Postgres or explicit N/A | service secret exposure, public write grant, NaN/Inf accepted, partial row, duplicate trade | migration review, local SQL transcript or blocked report, Edge logs | Supabase CLI/Docker/local Postgres; no production writes |
 | **C4 Cost/equity / Web + Research** | **contract/tests complete; historical parity unverified** | shared costs, flat/1.0/changed-position fixtures, B&H path | fee .0003, spread half 1.5bps, slippage 1bp times `abs(delta)`; strategy/B&H initial-entry symmetry; fixed-cash equity fixture; pass exact expected values | all-in cost labeled fee-only; initial cost double-counted/omitted; benchmark different window/unit | cost fixture JSON + metric contract report | C2; shared `paper_trading` and dashboard metrics |
-| **C5 Target/forecast / Research** | **Wave3A frozen pre-errata diagnostic/superseded; Wave3C pending** | regenerated v4 dev folds, horizons 4/16/64, train/val/test timestamps | targets exactly `t+1..t+h`; no split crossing; validation selects model/policy; test only reports; pass structural audit before score | any future leakage, target overlap, fold15+ read, execution delay selected on test, baseline/padding/turnover mismatch | forecast ledger with target masks, config/data hashes, errata record | C0, C2; corrected forecast implementation |
+| **C5 Target/forecast / Research** | **complete Wave3C report-only; candidate gate fail** | committed Wave3C dev artifact, folds 0/2/8, horizons 4/16/64, train/validation/development-test timestamps | targets exactly `t+1..t+h`; no split crossing; validation selects model/policy; development test only reports; Wave3C structural contract passes but all six economic gates fail | any future leakage, target overlap, fold15+ read, execution delay selected on test, baseline/padding/turnover mismatch | `c3b4ccb` forecast ledger/result/report; corrected replay/errata; values remain v3-cache evidence pending v4 rerun | C0, C2; corrected forecast implementation |
 | **C6 Feature ablation / Research Data + Model** | **planned; blocked by C0** | paired v4 rows, full17, OHLCV13, explicit availability flags | compare AlphaEx, MaxDDDelta, IC/MAE, sign and turnover under same folds/cost/delay; pass only preregistered superiority with no missingness confound | unpaired rows, zero/missing ambiguity, different selector, holdout selection | ablation ledger + per-fold paths + mask report | C0, C5 |
-| **C7 Exposure/timing / Research Eval** | **IN PROGRESS** | validation-selected constant, dynamic path, lag/shift nulls, common evaluation start | mean exposure, AlphaEx, timing increment, cost turnover, paired block CI; pass if mean-matched dynamic timing beats constant and nulls under preregistered margin | exposure difference explains result, period mismatch, delay mixed into selection, null beats dynamic | attribution ledger + common-window report | C2, C4, C5; Wave3C paths (currently placeholder) |
-| **C8 Architecture / Research Model** | **planned** | same v4 folds/targets and training budget for DLinear, PatchTST, iTransformer, Nonstationary Transformer, TimeMixer, current WM | forecast IC/MAE plus downstream net AlphaEx/MaxDDDelta and compute; pass only if split/cost parity and validation selection are identical | architecture gets extra tuning/data, test-driven selection, no deployment parity | architecture comparison table, checkpoints, config hashes | C0, C5; primary literature below |
-| **C9 Offline-RL / Research RL** | **planned** | same behavior data/WM and action support; current BC/AC, CQL, IQL candidates | conservative OPE diagnostics, action-support/extrapolation, net development paths, turnover; pass only if no unsupported-action optimism and fixed gate passes | unseen action mass, world-model disagreement unreported, holdout feedback, policy instability | OPE/ablation ledger + action histogram | C0, C2, C5; architecture results optional |
+| **C7 Exposure/timing / Research Eval** | **complete Wave3C report-only; gate fail; Wave3D pending** | validation-selected constant, dynamic path, lag/shift nulls, common evaluation start | Wave3C records mean exposure, AlphaEx, timing increment, cost turnover, and common-window comparisons; all six timing medians are negative, so the promotion criterion fails; paired block CI remains unrun | exposure difference explains result, period mismatch, delay mixed into selection, null beats dynamic | `c3b4ccb` attribution ledger/report; separate Wave3D diagnostic | C2, C4, C5; v4 paired paths for any rerun |
+| **C8 Architecture / Research Model** | **stopped before execution** | same v4 folds/targets and training budget for DLinear, PatchTST, iTransformer, Nonstationary Transformer, TimeMixer, current WM | no architecture result was run; resume only after a passing signal gate with split/cost parity and validation-only selection | architecture gets extra tuning/data, test-driven selection, no deployment parity | explicit stopped-run record; no checkpoints/results claimed | C0, C5; primary literature below |
+| **C9 Offline-RL / Research RL** | **stopped before execution** | same behavior data/WM and action support; current BC/AC, CQL, IQL candidates | no offline-RL result was run; resume only after a passing signal gate with conservative OPE and action-support checks | unseen action mass, world-model disagreement unreported, holdout feedback, policy instability | explicit stopped-run record; no OPE/checkpoint/result claimed | C0, C2, C5; architecture results optional |
 | **C10 Stress / Research Stats** | **statistical API complete; candidate application blocked** | development fold paths only, cost and regime cases | moving/stationary block CI with fixed/sensitivity blocks; sign/binomial; all required cost/regime stress pass; N/A rejects | missing path, future fold, omitted stress group, CI sensitivity fails, N/A treated as pass | machine-readable statistical gate output | C0, C4, C5, C7; explicit `n_trials` |
 | **C11 DSR/PBO / Research Stats** | **contract complete; no result** | all tried candidate paths/count, even pre-registered subperiods | DSR with per-bar/annualized distinction and complete `n_trials`; CSCV/PBO with >=2 candidates and even >=4 subperiods; pass only if preregistered | `n_trials` inferred from retained candidates, 13-fold odd CSCV, test/holdout consumed | gate JSON + trial registry + PBO reason | C10; candidate search registry |
 | **C12 Cross-repo parity / Space + Web + Research** | **code fixtures complete; live unverified** | same candle bundle, 17 features, model/schema/source hashes | max feature/position discrepancy within declared tolerance; same latest closed timestamp and cost metadata; pass signed replay | schema/order/hash/timestamp mismatch, partial candle, dashboard status overclaims health | parity bundle/report and status payload | C0, C1, C4; deployed revisions |
 | **C13 Shadow/replay / Web Ops** | **planned; no production run** | immutable provider responses, model hash, Edge logs, RPC rows | no missing/duplicate bar; latency, error class, fills, equity/B&H, and cost audit; pass only after operator sign-off | live partial bar, 409 storm, RPC partiality, unmodeled fill/slippage, secret/log leak | redacted replay + observability dashboard | C1, C3, C12 |
-| **C14 Wave3C freeze / Research lead + independent auditor** | **GATE STOPPED** | signed config/data/source hashes and dev-only fold paths | replace placeholders only from a reproducible artifact; statistical and timing gate status explicit; pass requires no unverified claim | any invented number, fold15+ selection, missing provenance, test result changes selector | signed Wave3C report/ledger; current values remain placeholders | C0–C11; independent review |
+| **C14 Wave3C freeze / Research lead + independent auditor** | **complete artifact audit; promotion stopped** | signed `c3b4ccb` config/data/source hashes, finite result JSON, 376-line finite ledger, dev-only fold paths | all Wave3C placeholders replaced from the reproducible artifact; six candidate gate rows fail; corrected replay is nine rows/zero failures; no statistical candidate gate claimed | any invented number, fold15+ selection, missing provenance, test result changes selector | signed Wave3C report/ledger, hashes, finite audit, errata | C0–C11; independent review |
 
 ### Checklist status interpretation
 
 * **Complete/pass** means a contract or synthetic test passed; it is not a
   profitability claim.
 * **Complete/fail** means the experiment ran and did not meet its preregistered
-  gate (Wave3A is the current example); it must not be silently retried with
+  gate (Wave3C is the current example); it must not be silently retried with
   changed thresholds until the change is documented as a new candidate.
 * **Gate stopped** means downstream numerical comparison is not promoted until
   the blocking contract is repaired.
@@ -587,8 +688,9 @@ diagnostic artifact and stops downstream promotion.
    returns to the last compatible Edge revision; never drop the migration or
    uniqueness keys while a revision may still run.
 7. **Claims:** report development, untouched holdout, live shadow, and
-   production observations in separate sections. Replace Wave3C placeholders
-   only from a signed artifact with complete provenance.
+   production observations in separate sections. Wave3C values in this report
+   come only from the signed `c3b4ccb` artifact; any future rerun must replace
+   them only with a new complete-provenance artifact.
 
 ## Known limitations and open questions
 
@@ -605,16 +707,19 @@ diagnostic artifact and stops downstream promotion.
   subperiods must be even. A future formal gate should preregister an even
   count (for example 12), preserve all trial candidates, and record the full
   search count for DSR.
-* Wave3C exact values, candidate identity, and statistical verdict remain
-  `[WAVE3C_UNCONFIRMED_*]` placeholders. No current section upgrades them.
+* Wave3C is a three-fold development screen on the prior v3 cache, not a
+  corrected-v4 retraining or holdout result. Its candidate gate is complete
+  and failed; its statistical gate remains unapplied. The separate Wave3D
+  low-frequency diagnostic is still `[WAVE3D_UNCONFIRMED]`.
 
 ## Current report completion state
 
 | stage | status | evidence |
 | --- | --- | --- |
-| Stage 1 skeleton + confirmed evidence | **complete/pushed** | commit `66d6298`, now an ancestor of `157e408` on `origin/main` |
-| Stage 2 hypotheses + checklist + literature + agent plan | **complete in this commit** | this file; docs-only change and diff-checked |
-| Wave3C numerical outcome | **GATE STOPPED / unconfirmed** | placeholders only; no invented values |
+| Stage 1 skeleton + confirmed evidence | **complete/pushed** | commit `66d6298`, now an ancestor of the current `origin/main` |
+| Stage 2 hypotheses + checklist + literature + agent plan | **complete/pushed** | commit `8737581`; this report retains the contract and updates its evidence state |
+| Wave3C numerical outcome | **complete artifact / promotion stopped** | `c3b4ccb`; six candidate rows all fail, corrected replay is nine rows with zero failures, `next_wave_candidates=[]` |
+| C8 deep architecture / C9 offline RL | **stopped before execution** | upstream Wave3C signal gate failed; no completion or result is claimed |
 | Candidate statistical promotion | **not started** | statistical API/tests exist, but no candidate input is supplied |
 
 ## Official and primary references consulted
