@@ -716,6 +716,36 @@ def rebuild_official_v4_frames(
     )
     unresolved = int((~availability["spot_bar_observed"]).sum())
     recovered = int(sum(gap.get("official_rest_covered_count", 0) for gap in gap_records))
+    availability_names = [
+        "spot_bar_observed",
+        "funding_rate_available",
+        "mark_close_available",
+    ]
+    availability_coverage: dict[str, Any] = {}
+    for name in availability_names:
+        true_count = int(availability[name].sum())
+        availability_coverage[name] = {
+            "true_count": true_count,
+            "total_count": int(len(availability)),
+            "true_fraction": float(true_count / len(availability)) if len(availability) else 0.0,
+        }
+    both_external = availability["funding_rate_available"] & availability["mark_close_available"]
+    all_three = availability[availability_names].all(axis=1)
+    for name, mask in (("funding_and_mark_available", both_external), ("all_three_available", all_three)):
+        true_count = int(mask.sum())
+        availability_coverage[name] = {
+            "true_count": true_count,
+            "total_count": int(len(availability)),
+            "true_fraction": float(true_count / len(availability)) if len(availability) else 0.0,
+        }
+    feature_all_three = int(availability.loc[features.index, availability_names].all(axis=1).sum())
+    feature_rows_by_quality = {
+        "feature_rows": int(len(features)),
+        "all_three_available_rows": feature_all_three,
+        "not_all_three_available_rows": int(len(features) - feature_all_three),
+        "body_policy": "compute causal features on observed contiguous Spot segments; do not filter body by external masks",
+        "reduction_reason": "rolling indicator warmup and unresolved Spot gaps split segments; each segment drops its own invalid warmup rows",
+    }
     provenance = {
         "kind": "official_binance_v4_rebuild",
         "source_policy": {
@@ -747,6 +777,8 @@ def rebuild_official_v4_frames(
             "mark_close_available": "exact mark candle at causal decision timestamp t-interval",
             "basis_history_requirement": "basis_mom and basis_abs also depend on prior causal mark rows; full17 training must validate that history per sequence",
         },
+        "availability_coverage": availability_coverage,
+        "feature_rows_by_quality": feature_rows_by_quality,
         "spot_gap_policy": "unresolved_bars_false; exclude_sequence_windows; no_interpolation",
         "spot_off_grid_quarantine": spot_off_grid_quarantine,
         "spot_gap_summary": {
@@ -778,6 +810,8 @@ def rebuild_official_v4_frames(
             "feature_rows": len(features),
             "external_source_start": str(EXTERNAL_ARCHIVE_START),
             "external_pre_start_false": True,
+            "availability_coverage": availability_coverage,
+            "feature_rows_by_quality": feature_rows_by_quality,
             "status": "generated_with_explicit_spot_gaps" if unresolved else "generated",
         },
     }

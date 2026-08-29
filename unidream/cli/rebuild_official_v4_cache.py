@@ -143,6 +143,16 @@ def _render_report(
         return "\n".join(lines) + "\n"
     assert rebuild is not None
     summary = rebuild["summary"]
+    recovered_spot = summary.get("rest_recovered_bars", 0)
+    quarantined_spot = summary.get("quarantined_off_grid_spot_bars", 0)
+    coverage = summary.get("availability_coverage", {})
+    feature_quality = summary.get("feature_rows_by_quality", {})
+
+    def _coverage_line(name: str, label: str) -> str:
+        value = coverage.get(name, {})
+        fraction = float(value.get("true_fraction", 0.0)) * 100.0
+        return f"- {label}: `{value.get('true_count', 0)}/{value.get('total_count', 0)}` ({fraction:.2f}%)"
+
     lines.extend(
         [
             "",
@@ -162,7 +172,19 @@ def _render_report(
             f"- Returns content digest: `{metadata.get('content_digests', {}).get('returns') if metadata else None}`",
             f"- Availability content digest: `{metadata.get('content_digests', {}).get('availability') if metadata else None}`",
             "",
-            "The v4 body excludes unresolved Spot rows; the separate full-grid sidecar marks them `spot_bar_observed=false`. The 18 bars recoverable by official REST are included only when the raw Spot merge and causal feature computation succeed. External masks remain metadata and are not mixed into model inputs.",
+            "## Availability coverage",
+            "",
+            _coverage_line("funding_rate_available", "Funding as-of available"),
+            _coverage_line("mark_close_available", "Causal mark exact available"),
+            _coverage_line("funding_and_mark_available", "Funding and mark both available"),
+            _coverage_line("all_three_available", "Spot, funding, and mark all available"),
+            f"- Feature body rows with all three flags true: `{feature_quality.get('all_three_available_rows', 0)}/{feature_quality.get('feature_rows', 0)}`",
+            f"- Feature body rows without all three flags: `{feature_quality.get('not_all_three_available_rows', 0)}`",
+            f"- Feature row policy: {feature_quality.get('body_policy', 'not recorded')}",
+            f"- Feature row reduction: {feature_quality.get('reduction_reason', 'not recorded')}",
+            "",
+            f"The v4 body excludes unresolved Spot rows; the separate full-grid sidecar marks them `spot_bar_observed=false`. The {recovered_spot} bars recovered by official REST are included only when the raw Spot merge and causal feature computation succeed. {quarantined_spot} off-grid Spot rows were quarantined without timestamp remapping. External masks remain metadata and are not mixed into model inputs.",
+            "Full17 v4 training promotion remains fail-closed until the training dataset consumes spot, funding, and mark availability masks for every sequence window.",
             "",
             "No model result was read and no v3 file was overwritten.",
         ]
