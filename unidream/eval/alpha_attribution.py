@@ -31,7 +31,7 @@ from sklearn.metrics import (
     mean_squared_error,
 )
 
-from unidream.eval.backtest import Backtest
+from unidream.eval.backtest import Backtest, align_execution_path, validate_execution_delay
 from unidream.eval.policy_stats import action_stats
 from unidream.experiments.run_config import config_fingerprint, source_fingerprint
 
@@ -391,12 +391,27 @@ def backtest_metrics(
     benchmark: float = 1.0,
     execution_delay_bars: int = 0,
 ) -> dict[str, float | int]:
-    """Compute the shared research metrics for one strategy path."""
+    """Compute the shared research metrics for one strategy path.
+
+    ``turnover`` is the compatibility/action-statistics measure: it sums
+    changes between consecutive effective positions and intentionally omits
+    the initial flat-to-first-position entry.  ``cost_turnover`` includes
+    that initial entry (``sum(abs(diff(path, prepend=0)))``), matching
+    :func:`unidream.eval.backtest.compute_costs`.  Selection continues to use
+    ``turnover``; reports expose both fields so they cannot be conflated.
+    """
     returns_arr = _finite_vector("returns", returns)
     positions_arr = _finite_vector("positions", positions)
     if len(returns_arr) != len(positions_arr):
         raise ValueError("returns and positions must have equal lengths")
     benchmark_arr = np.full(len(returns_arr), float(benchmark), dtype=np.float64)
+    delay = validate_execution_delay(execution_delay_bars)
+    _, effective_positions, _ = align_execution_path(
+        returns_arr,
+        positions_arr,
+        benchmark_arr,
+        delay,
+    )
     costs = cfg.get("costs", {})
     result = Backtest(
         returns_arr,
@@ -406,25 +421,32 @@ def backtest_metrics(
         slippage_bps=float(costs.get("slippage_bps", 2.0)),
         interval=str(cfg.get("data", {}).get("interval", "15m")),
         benchmark_positions=benchmark_arr,
-        execution_delay_bars=int(execution_delay_bars),
+        execution_delay_bars=delay,
     ).run()
-    stats = action_stats(positions_arr, benchmark_position=float(benchmark))
+    stats = action_stats(effective_positions, benchmark_position=float(benchmark))
+    cost_turnover = float(np.abs(np.diff(effective_positions, prepend=0.0)).sum())
     return {
         "alpha_excess_pt": 100.0 * float(result.alpha_excess or 0.0),
         "maxdd_delta_pt": 100.0 * float(result.maxdd_delta or 0.0),
         "sharpe_delta": float(result.sharpe_delta or 0.0),
         "turnover": float(stats["turnover"]),
+        "cost_turnover": cost_turnover,
         "total_return_pt": 100.0 * float(result.total_return),
         "benchmark_total_return_pt": 100.0 * float(result.benchmark_total_return or 0.0),
         "max_drawdown_pt": 100.0 * abs(float(result.max_drawdown)),
         "benchmark_max_drawdown_pt": 100.0 * abs(float(result.benchmark_max_drawdown or 0.0)),
         "n_trades": int(result.n_trades),
-        "execution_delay_bars": int(execution_delay_bars),
+        "execution_delay_bars": delay,
     }
 
 
 def selection_score(metrics: Mapping[str, float]) -> float:
-    """Validation-only score shared by fixed-constant selection."""
+    """Validation-only score shared by fixed-constant selection.
+
+    The historical ``turnover`` field remains the selection penalty.  The
+    separately reported ``cost_turnover`` is the execution-cost accounting
+    field and is deliberately not substituted into this compatibility score.
+    """
     return (
         float(metrics["alpha_excess_pt"])
         - max(0.0, float(metrics["maxdd_delta_pt"]))
@@ -732,6 +754,9 @@ def aggregate_trials(rows: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, A
         dd = np.asarray([float(row["metrics"]["maxdd_delta_pt"]) for row in values])
         sharpe = np.asarray([float(row["metrics"]["sharpe_delta"]) for row in values])
         turnover = np.asarray([float(row["metrics"]["turnover"]) for row in values])
+        cost_turnover = np.asarray(
+            [float(row["metrics"]["cost_turnover"]) for row in values]
+        )
         output[key] = {
             "method": values[0]["method"],
             "variant": values[0]["variant"],
@@ -743,6 +768,7 @@ def aggregate_trials(rows: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, A
             "maxdd_delta_median_pt": float(np.median(dd)),
             "sharpe_delta_mean": float(sharpe.mean()),
             "turnover_mean": float(turnover.mean()),
+            "cost_turnover_mean": float(cost_turnover.mean()),
             "alpha_positive_folds": int(np.sum(alpha > 0.0)),
             "dd_improved_folds": int(np.sum(dd < 0.0)),
         }
@@ -1532,14 +1558,15 @@ def build_report_markdown(payload: Mapping[str, Any]) -> str:
         "",
         "Constant exposure component is the actor-mean constant path; timing component is actor-sequence AlphaEx minus that constant path under the same cost contract.",
         "",
-        "| method | variant | folds | mean AlphaEx | mean MaxDDDelta | mean SharpeDelta | mean turnover |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| method | variant | folds | mean AlphaEx | mean MaxDDDelta | mean SharpeDelta | mean turnover (selection) | mean cost_turnover |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in payload["summary"].values():
         lines.append(
             f"| {row['method']} | {row['variant']} | {row['folds']} | "
             f"{row['alpha_excess_mean_pt']:+.3f}pt | {row['maxdd_delta_mean_pt']:+.3f}pt | "
-            f"{row['sharpe_delta_mean']:+.4f} | {row['turnover_mean']:.4f} |"
+            f"{row['sharpe_delta_mean']:+.4f} | {row['turnover_mean']:.4f} | "
+            f"{row['cost_turnover_mean']:.4f} |"
         )
     lines.extend([
         "",
@@ -1636,8 +1663,9 @@ def build_report_markdown(payload: Mapping[str, Any]) -> str:
         "",
         "## Metric and leakage contract",
         "",
-        "- AlphaEx = strategy final total return minus B&H final total return; MaxDDDelta = strategy absolute MaxDD minus B&H absolute MaxDD; SharpeDelta and turnover come from the shared Backtest/action_stats implementations.",
-        "- All strategy paths use the configured costs and execution delay. B&H is the benchmark path and is not delayed by Backtest's strategy-only delay.",
+        "- AlphaEx = strategy final total return minus B&H final total return; MaxDDDelta = strategy absolute MaxDD minus B&H absolute MaxDD; SharpeDelta and compatibility turnover come from the shared Backtest/action_stats implementations.",
+        "- `turnover` excludes the initial flat-to-first-position transition and remains the selection penalty; `cost_turnover` includes it and matches the position-delta basis used by transaction costs.",
+        "- All strategy paths use the configured costs and execution delay. For delay d > 0, positions[:-d] and returns[d:] are scored; B&H uses the same trimmed return window without a decision shift.",
         "- Actor lags use deterministic strategy execution delay; nulls are deterministic circular shifts and are not candidates for selection.",
         "- Fold bounds are validated as right-exclusive `[test_start, test_end)`; predictive targets mask the final unavailable future horizon.",
         "- Saved `sample_input.npz` advantage values are standardized/clipped/scaled actor inputs; diagnostics invert the affine transform and exclude clip-boundary rows from raw-head metrics. Volatility/drawdown sign accuracy is N/A because those targets are one-sided.",

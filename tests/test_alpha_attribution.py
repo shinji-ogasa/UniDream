@@ -20,7 +20,7 @@ from unidream.eval.alpha_attribution import (
     run_attribution,
     _position_utility_targets,
 )
-from unidream.eval.backtest import Backtest
+from unidream.eval.backtest import Backtest, compute_costs
 from unidream.world_model.train_wm import WorldModelTrainer
 
 
@@ -54,6 +54,10 @@ class AlphaAttributionMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(result["alpha_excess_pt"], 100.0 * expected.alpha_excess)
         self.assertAlmostEqual(result["maxdd_delta_pt"], 100.0 * expected.maxdd_delta)
         self.assertAlmostEqual(result["sharpe_delta"], expected.sharpe_delta)
+        # Effective path is positions[:-1] = [1.0, 0.5, 1.0].  Compatibility
+        # turnover omits the initial entry; cost_turnover includes it.
+        self.assertAlmostEqual(result["turnover"], 1.0)
+        self.assertAlmostEqual(result["cost_turnover"], 2.0)
         self.assertEqual(result["execution_delay_bars"], 1)
 
     def test_classification_metrics_definition_is_explicit(self) -> None:
@@ -73,6 +77,28 @@ class AlphaAttributionMetricsTest(unittest.TestCase):
         np.testing.assert_array_equal(
             circular_shift_positions(positions, 3), circular_shift_positions(positions, 3)
         )
+
+    def test_cost_turnover_matches_effective_path_cost_basis(self) -> None:
+        returns = np.asarray([0.01, 0.02, -0.01, 0.03], dtype=np.float64)
+        positions = np.asarray([1.0, 0.5, 1.0, 0.25], dtype=np.float64)
+        cfg = _cfg()
+        cfg["costs"] = {"spread_bps": 3.0, "fee_rate": 0.0003, "slippage_bps": 1.0}
+
+        result = backtest_metrics(returns, positions, cfg, execution_delay_bars=1)
+        effective_positions = positions[:-1]
+        expected_cost_turnover = float(np.abs(np.diff(effective_positions, prepend=0.0)).sum())
+        self.assertAlmostEqual(result["cost_turnover"], expected_cost_turnover)
+
+        expected_cost = float(
+            compute_costs(
+                effective_positions,
+                spread_bps=3.0,
+                fee_rate=0.0003,
+                slippage_bps=1.0,
+            ).sum()
+        )
+        per_unit_cost = 3.0 / 10000.0 / 2.0 + 0.0003 + 1.0 / 10000.0
+        self.assertAlmostEqual(expected_cost, expected_cost_turnover * per_unit_cost)
 
 
 class AlphaAttributionContractTest(unittest.TestCase):
@@ -317,7 +343,9 @@ class AlphaAttributionArtifactDiagnosticTest(unittest.TestCase):
                 artifact_path=artifact,
                 seed=7,
                 fixed_exposures=[1.0, 1.005, 1.01, 1.015],
-                lags=[1, 4, 16],
+                # Every requested delay must leave at least one evaluated bar;
+                # this four-bar fixture therefore uses only valid sensitivities.
+                lags=[1],
                 null_shifts=[1],
                 output_dir=root / "out",
                 feature_frame=features,
