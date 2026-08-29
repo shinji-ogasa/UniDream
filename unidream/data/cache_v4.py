@@ -81,6 +81,12 @@ def _frame_content_digest(frame: pd.DataFrame) -> str:
         frame = frame.to_frame()
     if not isinstance(frame, pd.DataFrame):
         raise CacheV4Error("content digest input must be a DataFrame")
+    if not frame.columns.is_unique:
+        duplicates = frame.columns[frame.columns.duplicated(keep=False)].unique()
+        raise CacheV4Error(
+            "frame contains duplicate columns: "
+            + ", ".join(str(value) for value in duplicates[:5])
+        )
     descriptor = {
         "shape": [int(frame.shape[0]), int(frame.shape[1])],
         "index_name": frame.index.name,
@@ -639,6 +645,7 @@ def build_v4_metadata(
         interval=interval,
         gap_policy=normalized_policy,
     )
+    _validate_frames(features, returns_frame, availability, metadata)
     return metadata
 
 
