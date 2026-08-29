@@ -12,9 +12,9 @@ This report reads no model results. It uses only Binance-owned sources and never
 
 | Source | Probe responses | HTTP 200 | HTTP 404 |
 | --- | ---: | ---: | ---: |
-| `spot_klines` | 3 | 3 | 0 |
-| `um_mark_price_klines` | 3 | 1 | 2 |
-| `um_funding_rate` | 3 | 1 | 2 |
+| `spot_klines` | 4 | 4 | 0 |
+| `um_mark_price_klines` | 4 | 1 | 3 |
+| `um_funding_rate` | 4 | 1 | 3 |
 
 UM mark/funding archives before `2020-01-01` are treated as unavailable and their masks are false; no future value is backfilled into that period.
 
