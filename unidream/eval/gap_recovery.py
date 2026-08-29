@@ -292,7 +292,10 @@ def probe_official_gap_recovery(
             source_records: list[Mapping[str, Any]] = [rest_record]
             if use_archive_fallback and not expected.issubset(official):
                 missing = expected - official
-                months = sorted({value.replace(day=1) for value in missing})
+                # Normalize to a true month key.  ``Timestamp.replace(day=1)``
+                # preserves the hour/minute, which used to make one archive
+                # request appear as many distinct records for a single month.
+                months = sorted({value.to_period("M").to_timestamp() for value in missing})
                 for month in months:
                     month_key = f"{month.year:04d}-{month.month:02d}"
                     if month_key not in archive_cache:
