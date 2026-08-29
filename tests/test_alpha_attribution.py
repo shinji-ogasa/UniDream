@@ -100,6 +100,13 @@ class AlphaAttributionMetricsTest(unittest.TestCase):
         per_unit_cost = 3.0 / 10000.0 / 2.0 + 0.0003 + 1.0 / 10000.0
         self.assertAlmostEqual(expected_cost, expected_cost_turnover * per_unit_cost)
 
+    def test_backtest_metrics_rejects_non_integral_delay(self) -> None:
+        returns = np.asarray([0.01, 0.02, -0.01], dtype=np.float64)
+        positions = np.ones_like(returns)
+        for delay in (1.5, True):
+            with self.assertRaisesRegex(ValueError, "execution_delay_bars"):
+                backtest_metrics(returns, positions, _cfg(), execution_delay_bars=delay)
+
 
 class AlphaAttributionContractTest(unittest.TestCase):
     def test_holdout_cannot_be_used_for_selection(self) -> None:
