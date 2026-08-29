@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import torch
 
 from unidream.eval.alpha_attribution import (
     FoldSeries,
@@ -17,8 +18,10 @@ from unidream.eval.alpha_attribution import (
     load_timeseries_artifact,
     right_exclusive_mask,
     run_attribution,
+    _position_utility_targets,
 )
 from unidream.eval.backtest import Backtest
+from unidream.world_model.train_wm import WorldModelTrainer
 
 
 def _cfg() -> dict:
@@ -251,6 +254,40 @@ class AlphaAttributionArtifactDiagnosticTest(unittest.TestCase):
         self.assertNotIn("balanced_accuracy", utility["metrics"])
         argmax = next(row for row in rows if row["head"] == "position_utility_argmax")
         self.assertEqual(argmax["target_type"], "best_utility_action_from_regression_scores")
+        self.assertEqual(argmax["position_name_alignment"], "exact_order_match")
+        self.assertIn("target_distribution", argmax["class_summary"])
+        self.assertIn("predicted_distribution", argmax["class_summary"])
+        self.assertIn("majority_class_accuracy", argmax["metrics"])
+
+    def test_position_utility_targets_match_world_model_generator(self) -> None:
+        cfg = _cfg()
+        returns = np.asarray([0.01, -0.02, 0.03, 0.01, -0.01, 0.02], dtype=np.float64)
+        expected, expected_mask, _positions = _position_utility_targets(returns, cfg)
+
+        # Avoid constructing a neural ensemble: the target generator only
+        # depends on these explicit trainer hyperparameters.
+        trainer = object.__new__(WorldModelTrainer)
+        wm_cfg = cfg["world_model"]
+        trainer.position_utility_horizon = int(wm_cfg["position_utility_horizon"])
+        trainer.position_utility_positions = [float(x) for x in wm_cfg["position_utility_positions"]]
+        trainer.benchmark_position = 1.0
+        trainer.position_utility_dd_penalty = float(wm_cfg.get("position_utility_dd_penalty", 1.0))
+        trainer.position_utility_dd_improve_reward = float(
+            wm_cfg.get("position_utility_dd_improve_reward", 0.0)
+        )
+        trainer.position_utility_vol_penalty = float(wm_cfg.get("position_utility_vol_penalty", 0.25))
+        trainer.position_utility_target_scale = float(wm_cfg.get("position_utility_target_scale", 1.0))
+        trainer.cost_rate = 0.0
+        actual, actual_mask = trainer._future_position_utility_targets(
+            torch.as_tensor(returns, dtype=torch.float32).unsqueeze(0)
+        )
+        actual_values = actual.detach().cpu().numpy()[0]
+        actual_valid = actual_mask.detach().cpu().numpy()[0]
+        np.testing.assert_allclose(actual_values[expected_mask], expected[expected_mask], atol=1e-6)
+        np.testing.assert_array_equal(
+            actual_valid,
+            np.repeat(expected_mask[:, None], len(_positions), axis=1),
+        )
 
     def test_ledger_has_provenance_metrics_and_feature_quality(self) -> None:
         index = pd.date_range("2020-01-01", periods=4, freq="15min")

@@ -971,6 +971,33 @@ def _head_kind(name: str) -> tuple[str, int | None]:
     return "unknown", None
 
 
+def _position_utility_name_position(name: str) -> float | None:
+    prefix = "wm_pred_position_utility_p"
+    if not name.startswith(prefix):
+        return None
+    try:
+        return float(name[len(prefix) :])
+    except ValueError:
+        return None
+
+
+def _sample_manifest_bounds(path: Path) -> tuple[str | None, str | None]:
+    manifest_path = path.parent / "manifest.json"
+    if not manifest_path.exists():
+        return None, None
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    split = payload.get("split", {})
+    if not isinstance(split, Mapping):
+        return None, None
+    return (
+        str(split["test_start"]) if split.get("test_start") is not None else None,
+        str(split["test_end"]) if split.get("test_end") is not None else None,
+    )
+
+
 def _inverse_predictive_state(
     advantage: np.ndarray,
     names: list[str],
@@ -1051,6 +1078,59 @@ def diagnose_saved_artifact(
             ]
         returns = _finite_vector("sample returns", data["returns"])
         advantage = np.asarray(data["advantage"], dtype=np.float64)
+        sample_original_len = len(returns)
+        sample_start, sample_end = _sample_manifest_bounds(sample_path)
+        sample_keep = np.ones(len(returns), dtype=bool)
+        if "timestamps" in data.files:
+            timestamps = np.asarray(data["timestamps"])
+            if len(timestamps) != len(returns) or (
+                advantage.ndim == 2 and len(advantage) != len(returns)
+            ):
+                return [
+                    {
+                        **provenance,
+                        "schema_version": SCHEMA_VERSION,
+                        "record_type": "predictive_head_diagnostic",
+                        "status": "N/A",
+                        "fold": int(fold),
+                        "head": "all",
+                        "reason": "sample timestamps, returns, and advantage rows are unaligned",
+                    }
+                ]
+            timestamp_index = _timestamp_index(timestamps)
+            if not timestamp_index.is_monotonic_increasing or not timestamp_index.is_unique:
+                return [
+                    {
+                        **provenance,
+                        "schema_version": SCHEMA_VERSION,
+                        "record_type": "predictive_head_diagnostic",
+                        "status": "N/A",
+                        "fold": int(fold),
+                        "head": "all",
+                        "reason": "sample timestamps are not sorted and unique",
+                    }
+                ]
+            if sample_start is not None and sample_end is not None:
+                sample_keep = right_exclusive_mask(timestamp_index, sample_start, sample_end)
+                if not bool(np.all(sample_keep)):
+                    end_timestamp = pd.Timestamp(sample_end)
+                    if bool(timestamp_index[-1] == end_timestamp) and bool(np.all(sample_keep[:-1])):
+                        sample_keep = np.asarray(sample_keep, dtype=bool)
+                        sample_keep[-1] = False
+                    else:
+                        return [
+                            {
+                                **provenance,
+                                "schema_version": SCHEMA_VERSION,
+                                "record_type": "predictive_head_diagnostic",
+                                "status": "N/A",
+                                "fold": int(fold),
+                                "head": "all",
+                                "reason": f"sample timestamps violate right-exclusive bounds [{sample_start}, {sample_end})",
+                            }
+                        ]
+                returns = returns[sample_keep]
+                advantage = advantage[sample_keep]
         names: list[str]
         predictive_state = None
         if predictive_state_path is not None and Path(predictive_state_path).exists():
@@ -1116,6 +1196,8 @@ def diagnose_saved_artifact(
                 "fold": int(fold),
                 "head": name,
                 "artifact_path": str(sample_path),
+                "sample_test_start": sample_start,
+                "sample_test_end_exclusive": sample_end,
                 "prediction_space": transform_meta["prediction_space"],
                 "source_space": transform_meta["source_space"],
             }
@@ -1127,13 +1209,27 @@ def diagnose_saved_artifact(
                 utility_names = [value for value in names if _head_kind(value)[0] == "position_utility"]
                 utility_indices = [names.index(value) for value in utility_names]
                 targets, mask, positions = _position_utility_targets(returns, cfg)
-                if targets.shape[1] != len(utility_indices):
+                named_positions = [_position_utility_name_position(value) for value in utility_names]
+                position_alignment_ok = (
+                    targets.shape[1] == len(utility_indices)
+                    and all(value is not None for value in named_positions)
+                    and np.allclose(
+                        np.asarray(named_positions, dtype=np.float64),
+                        np.asarray(positions, dtype=np.float64),
+                        rtol=0.0,
+                        atol=1e-8,
+                    )
+                )
+                if not position_alignment_ok:
                     records.append(
                         {
                             **common,
                             "head": "position_utility",
                             "status": "N/A",
-                            "reason": "position_utility target positions are absent or mismatched",
+                            "reason": (
+                                "predictive_state position names/config positions are absent, "
+                                "mismatched, or out of order"
+                            ),
                         }
                     )
                 else:
@@ -1163,10 +1259,11 @@ def diagnose_saved_artifact(
                             utility_indices,
                             positions,
                         ):
+                            target_index = utility_names.index(utility_name)
                             utility_valid = valid & transform_valid[:, utility_index]
                             utility_metrics, utility_reasons = _regression_metrics(
                                 raw[utility_valid, utility_index],
-                                targets[utility_valid, utility_names.index(utility_name)],
+                                targets[utility_valid, target_index],
                             )
                             records.append(
                                 {
@@ -1175,6 +1272,7 @@ def diagnose_saved_artifact(
                                     "status": "ok" if utility_metrics else "N/A",
                                     "target_type": "position_utility_regression",
                                     "action_position": float(position),
+                                    "position_name_alignment": "exact_order_match",
                                     "n_valid": int(np.sum(utility_valid)),
                                     "metrics": utility_metrics,
                                     **({"reason": "; ".join(utility_reasons)} if utility_reasons else {}),
@@ -1182,6 +1280,33 @@ def diagnose_saved_artifact(
                             )
                         labels = np.argmax(targets[valid], axis=1)
                         predicted = np.argmax(pred_values[valid], axis=1)
+                        target_counts = np.bincount(labels, minlength=len(positions))
+                        predicted_counts = np.bincount(predicted, minlength=len(positions))
+                        confusion = np.zeros((len(positions), len(positions)), dtype=np.int64)
+                        for target_label, predicted_label in zip(labels, predicted):
+                            confusion[int(target_label), int(predicted_label)] += 1
+                        target_all_classes_present = bool(np.all(target_counts > 0))
+                        argmax_reasons = [
+                            "argmax is a decision diagnostic over regression scores, not a classification/logit metric",
+                        ]
+                        if not target_all_classes_present:
+                            argmax_reasons.append(
+                                "balanced accuracy is N/A because not all configured target action classes are present"
+                            )
+                        if np.count_nonzero(predicted_counts) == 1:
+                            argmax_reasons.append(
+                                "predicted argmax collapses to one configured action class"
+                            )
+                        majority_accuracy = float(np.max(target_counts) / max(len(labels), 1))
+                        accuracy = float(np.mean(labels == predicted))
+                        if accuracy < majority_accuracy:
+                            argmax_reasons.append(
+                                "argmax accuracy is below the majority-class baseline; treat ranking as a collapse/poor-separation gate"
+                            )
+                        if clipped_count:
+                            argmax_reasons.append(
+                                f"excluded {clipped_count} rows at predictive-state clip boundary"
+                            )
                         records.append(
                             {
                                 **common,
@@ -1191,14 +1316,28 @@ def diagnose_saved_artifact(
                                 "n_valid": int(np.sum(valid)),
                                 "positions": positions,
                                 "metrics": {
-                                    "accuracy": _metric_or_none(np.mean(labels == predicted)),
+                                    "accuracy": _metric_or_none(accuracy),
+                                    "majority_class_accuracy": _metric_or_none(majority_accuracy),
+                                    "balanced_accuracy": _metric_or_none(
+                                        balanced_accuracy_score(labels, predicted)
+                                        if target_all_classes_present
+                                        else None
+                                    ),
                                 },
-                                "reason": "; ".join(
-                                    [
-                                        "argmax is a decision diagnostic over regression scores, not a classification/logit metric",
-                                        *([f"excluded {clipped_count} rows at predictive-state clip boundary"] if clipped_count else []),
-                                    ]
-                                ),
+                                "position_name_alignment": "exact_order_match",
+                                "class_summary": {
+                                    "target_distribution": {
+                                        f"{position:g}": int(count)
+                                        for position, count in zip(positions, target_counts)
+                                    },
+                                    "predicted_distribution": {
+                                        f"{position:g}": int(count)
+                                        for position, count in zip(positions, predicted_counts)
+                                    },
+                                    "target_all_classes_present": target_all_classes_present,
+                                    "confusion_matrix": confusion.tolist(),
+                                },
+                                "reason": "; ".join(argmax_reasons),
                             }
                         )
                 handled.update(utility_names)
@@ -1304,7 +1443,14 @@ def diagnose_saved_artifact(
                 )
             handled.add(name)
 
-        regime = np.asarray(data["regime"], dtype=np.float64) if "regime" in data.files else None
+        regime_reason = None
+        regime = None
+        if "regime" in data.files:
+            raw_regime = np.asarray(data["regime"], dtype=np.float64)
+            if len(raw_regime) != sample_original_len:
+                regime_reason = "regime probabilities are not aligned to saved sample rows"
+            else:
+                regime = raw_regime[sample_keep]
         regime_target_key = next(
             (key for key in ("regime_target", "regime_labels", "regime_label") if key in data.files),
             None,
@@ -1316,17 +1462,21 @@ def diagnose_saved_artifact(
             "fold": int(fold),
             "head": "regime",
             "artifact_path": str(sample_path),
+            "sample_test_start": sample_start,
+            "sample_test_end_exclusive": sample_end,
         }
         if regime is None or regime_target_key is None:
             records.append(
                 {
                     **common,
                     "status": "N/A",
-                    "reason": "saved artifact has regime probabilities but no regime target labels",
+                    "reason": regime_reason or "saved artifact has regime probabilities but no regime target labels",
                 }
             )
         else:
             labels_raw = np.asarray(data[regime_target_key])
+            if len(labels_raw) == sample_original_len:
+                labels_raw = labels_raw[sample_keep]
             labels = np.argmax(labels_raw, axis=1) if labels_raw.ndim > 1 else labels_raw.reshape(-1)
             probabilities = regime
             valid = len(labels) == len(probabilities) and np.isfinite(probabilities).all()
@@ -1448,11 +1598,40 @@ def build_report_markdown(payload: Mapping[str, Any]) -> str:
             lines.append(f"| {year} | {coverage.get('rows', 0)} | " + " | ".join(values) + " |")
     lines.extend(["", "## Predictive-head diagnostics", "", "| fold | head | status | n | metrics / reason |", "|---:|---|---|---:|---|"])
     for row in payload.get("diagnostics", []):
-        detail = json.dumps(row.get("metrics"), sort_keys=True) if row.get("metrics") is not None else str(row.get("reason", ""))
+        detail_payload: Any = row.get("metrics")
+        if row.get("class_summary") is not None:
+            detail_payload = {
+                "metrics": row.get("metrics"),
+                "class_summary": row.get("class_summary"),
+            }
+        detail = json.dumps(detail_payload, sort_keys=True) if detail_payload is not None else str(row.get("reason", ""))
         lines.append(
             f"| {row.get('fold', '')} | {row.get('head', '')} | {row.get('status', '')} | "
             f"{row.get('n_valid', '')} | `{detail}` |"
         )
+    argmax_rows = [
+        row for row in payload.get("diagnostics", []) if row.get("head") == "position_utility_argmax"
+    ]
+    if argmax_rows:
+        lines.extend([
+            "",
+            "### Position-utility argmax audit",
+            "",
+            "The target and predicted distributions use the configured action-position order; confusion rows are target classes and columns are predicted classes.",
+            "",
+            "| fold | target distribution | predicted distribution | majority baseline | balanced accuracy | confusion matrix |",
+            "|---:|---|---|---:|---:|---|",
+        ])
+        for row in argmax_rows:
+            metrics = row.get("metrics") or {}
+            summary = row.get("class_summary") or {}
+            lines.append(
+                f"| {row.get('fold', '')} | `{json.dumps(summary.get('target_distribution', {}), sort_keys=True)}` | "
+                f"`{json.dumps(summary.get('predicted_distribution', {}), sort_keys=True)}` | "
+                f"{metrics.get('majority_class_accuracy', 'N/A')} | "
+                f"{metrics.get('balanced_accuracy', 'N/A')} | "
+                f"`{json.dumps(summary.get('confusion_matrix', []), separators=(',', ':'))}` |"
+            )
     lines.extend([
         "",
         "## Metric and leakage contract",
