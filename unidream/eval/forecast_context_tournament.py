@@ -1524,7 +1524,8 @@ def replay_wave3a_corrected(
         row
         for row in source.get("rows", [])
         if row.get("feature_set") == "ohlcv13"
-        and row.get("candidate") in {"ridge_direct_forecast", "histgb_direct_forecast"}
+        and row.get("candidate")
+        in {"causal_trend_vol_rule", "ridge_direct_forecast", "histgb_direct_forecast"}
         and int(row.get("fold", -1)) in WAVE_FOLDS
     ]
     splits_by_fold = {int(split.fold_idx): split for split in data.splits}
@@ -2229,7 +2230,7 @@ def build_wave3a_errata_markdown(payload: Mapping[str, Any]) -> str:
         f"Corrected replay median constant AlphaEx: `{_report_number(summary.get('median_constant_alpha_excess_pt'), suffix='pt')}`",
         f"Corrected replay median timing increment: `{_report_number(summary.get('median_timing_increment_alpha_excess_pt'), suffix='pt')}`",
         "",
-        "The corrected replay is report-only and is not used to select a Wave3C candidate, threshold, horizon, or next-wave promotion.",
+        "The corrected replay covers the frozen causal trend+vol rule and Ridge/HistGB rows. It is report-only and is not used to select a Wave3C candidate, threshold, horizon, or next-wave promotion.",
     ]
     if replay.get("failures"):
         lines.extend(["", "Replay failures:"])
@@ -2414,7 +2415,7 @@ def build_report_markdown(payload: Mapping[str, Any]) -> str:
             "",
             "## Frozen Wave3A comparison",
             "",
-            "Wave3A output is not overwritten. Its Ridge/HistGB OHLCV13 rows are replayed here under the Wave3C validation-selected-constant comparator and common right-side delay alignment. This replay is report-only and excluded from every Wave3C choice.",
+            "Wave3A output is not overwritten. Its causal trend+vol rule and Ridge/HistGB OHLCV13 rows are replayed here under the Wave3C validation-selected-constant comparator and common right-side delay alignment. This replay is report-only and excluded from every Wave3C choice.",
             "",
             "| source | status | rows | median dynamic AlphaEx | median constant AlphaEx | median timing increment |",
             "|---|---|---:|---:|---:|---:|",
