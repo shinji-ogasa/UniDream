@@ -321,6 +321,12 @@ def load_training_features(
                 cached_parameters = v4_metadata.get("parameters")
                 if cached_parameters is not None and cached_parameters != parameters:
                     raise ValueError("cache v4 parameters do not match the requested config")
+                if include_funding or include_mark:
+                    raise ValueError(
+                        "full17 v4 training promotion blocked: "
+                        "load_training_features cannot propagate availability sidecar into "
+                        "SequenceDataset/WFODataset; use an availability-aware training path"
+                    )
             except (CacheV4Error, ValueError) as exc:
                 raise ValueError(f"cache {cache_tag} failed v4 validation: {exc}") from exc
             print(

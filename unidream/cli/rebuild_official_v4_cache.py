@@ -239,6 +239,10 @@ def main(argv: list[str] | None = None) -> int:
                 "start": start,
                 "end": end,
                 "zscore_window_days": zscore_window_days,
+                "extra_series_mode": str(data_cfg.get("extra_series_mode", "derived")),
+                "extra_series_include": sorted(
+                    str(name) for name in (data_cfg.get("extra_series_include") or [])
+                ),
                 "include_funding": True,
                 "include_oi": False,
                 "include_mark": True,

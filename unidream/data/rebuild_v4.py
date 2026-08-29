@@ -617,6 +617,12 @@ def rebuild_official_v4_frames(
         "funding_archive_records": funding_records,
         "external_source_start": str(EXTERNAL_ARCHIVE_START),
         "pre_external_start_policy": "availability_false; feature_value_zero_only_when_unavailable",
+        "availability_semantics": {
+            "spot_bar_observed": "exact Spot bar at row timestamp t",
+            "funding_rate_available": "funding observation as-of decision timestamp t-interval, age <= 8h",
+            "mark_close_available": "exact mark candle at causal decision timestamp t-interval",
+            "basis_history_requirement": "basis_mom and basis_abs also depend on prior causal mark rows; full17 training must validate that history per sequence",
+        },
         "spot_gap_policy": "unresolved_bars_false; exclude_sequence_windows; no_interpolation",
         "spot_gap_summary": {
             "gap_count": len(gap_records),

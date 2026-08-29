@@ -14,6 +14,28 @@ from .train_reporting import (
 from .wfo_runtime import build_wfo_splits, select_configured_wfo_splits
 
 
+def resolve_training_cache_selection(
+    *,
+    symbol: str,
+    interval: str,
+    start: str,
+    end: str,
+    zscore_window: int,
+    data_cfg: dict,
+) -> tuple[str, bool]:
+    """Resolve an explicit v3/v4 cache selection for the training entrypoint."""
+    cache_schema = str(data_cfg.get("cache_schema", "v3")).lower()
+    if cache_schema not in {"v3", "v4"}:
+        raise ValueError(f"unsupported data.cache_schema: {cache_schema!r}; expected 'v3' or 'v4'")
+    configured_cache_tag = data_cfg.get("cache_tag")
+    if configured_cache_tag:
+        cache_tag = str(configured_cache_tag)
+    else:
+        cache_suffix = "v4_official" if cache_schema == "v4" else "v3"
+        cache_tag = f"{symbol}_{interval}_{start}_{end}_z{zscore_window}_{cache_suffix}"
+    return cache_tag, cache_schema == "v4"
+
+
 def run_training_app(
     *,
     config_path: str,
@@ -47,8 +69,15 @@ def run_training_app(
 
     cache_dir = str(run_cfg.cache_dir)
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
-    cache_tag = f"{symbol}_{interval}_{run_cfg.start}_{run_cfg.end}_z{zscore_window}_v3"
     data_cfg = cfg.get("data", {})
+    cache_tag, require_v4_cache = resolve_training_cache_selection(
+        symbol=symbol,
+        interval=interval,
+        start=run_cfg.start,
+        end=run_cfg.end,
+        zscore_window=zscore_window,
+        data_cfg=data_cfg,
+    )
     features_df, raw_returns = load_training_features(
         symbol=symbol,
         interval=interval,
@@ -62,6 +91,7 @@ def run_training_app(
         include_funding=bool(data_cfg.get("include_funding", True)),
         include_oi=bool(data_cfg.get("include_oi", True)),
         include_mark=bool(data_cfg.get("include_mark", True)),
+        require_v4_cache=require_v4_cache,
     )
 
     feature_extras_cfg = cfg.get("feature_extras", {})

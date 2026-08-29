@@ -10,6 +10,7 @@ import pandas as pd
 
 from unidream.data.cache_v4 import MODEL_FEATURE_COLUMNS, cache_v4_paths, write_cache_v4
 from unidream.experiments.runtime import cache_quality_status, load_training_features
+from unidream.experiments.train_app import resolve_training_cache_selection
 
 
 def _v4_fixture(root: Path, tag: str = "runtime-v4") -> tuple[dict, pd.DataFrame, pd.DataFrame]:
@@ -57,25 +58,45 @@ def _v4_fixture(root: Path, tag: str = "runtime-v4") -> tuple[dict, pd.DataFrame
 
 
 class RuntimeV4Test(unittest.TestCase):
+    def test_training_entrypoint_selects_v4_explicitly_and_requires_it(self) -> None:
+        tag, require_v4 = resolve_training_cache_selection(
+            symbol="BTCUSDT",
+            interval="15m",
+            start="2018-01-01",
+            end="2024-01-01",
+            zscore_window=60,
+            data_cfg={"cache_schema": "v4"},
+        )
+        self.assertEqual(tag, "BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official")
+        self.assertTrue(require_v4)
+        with self.assertRaisesRegex(ValueError, "unsupported data.cache_schema"):
+            resolve_training_cache_selection(
+                symbol="BTCUSDT",
+                interval="15m",
+                start="2018-01-01",
+                end="2024-01-01",
+                zscore_window=60,
+                data_cfg={"cache_schema": "v2"},
+            )
+
     def test_v4_cache_hit_is_validated_and_reports_verified(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             _v4_fixture(root)
             self.assertEqual(cache_quality_status(temp_dir, "runtime-v4"), "v4_verified")
-            loaded_features, loaded_returns = load_training_features(
-                symbol="BTCUSDT",
-                interval="15m",
-                start="2024-01-01",
-                end="2024-01-02",
-                zscore_window=60,
-                cache_dir=temp_dir,
-                cache_tag="runtime-v4",
-                include_funding=True,
-                include_oi=False,
-                include_mark=True,
-            )
-            self.assertEqual(loaded_features.shape, (5, 17))
-            self.assertEqual(len(loaded_returns), 5)
+            with self.assertRaisesRegex(ValueError, "full17 v4 training promotion blocked"):
+                load_training_features(
+                    symbol="BTCUSDT",
+                    interval="15m",
+                    start="2024-01-01",
+                    end="2024-01-02",
+                    zscore_window=60,
+                    cache_dir=temp_dir,
+                    cache_tag="runtime-v4",
+                    include_funding=True,
+                    include_oi=False,
+                    include_mark=True,
+                )
 
     def test_invalid_v4_hit_does_not_fall_back_to_raw_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
