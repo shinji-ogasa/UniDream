@@ -136,6 +136,24 @@ class CacheV4Test(unittest.TestCase):
         with self.assertRaisesRegex(CacheV4Error, "provenance digest mismatch"):
             validate_cache_v4(features, returns, availability, broken_provenance)
 
+    def test_same_shape_body_or_sidecar_tampering_is_detected_by_content_digest(self) -> None:
+        features, returns, availability = _frames()
+        metadata = build_v4_metadata(
+            features,
+            returns,
+            availability,
+            source_provenance={"source": "synthetic"},
+        )
+        changed_features = features.copy()
+        changed_features.iloc[0, 0] += 1.0
+        with self.assertRaisesRegex(CacheV4Error, "features content digest mismatch"):
+            validate_cache_v4(changed_features, returns, availability, metadata)
+
+        changed_availability = availability.copy()
+        changed_availability.iloc[1, 1] = not changed_availability.iloc[1, 1]
+        with self.assertRaisesRegex(CacheV4Error, "availability content digest mismatch"):
+            validate_cache_v4(features, returns, changed_availability, metadata)
+
     def test_v3_or_incomplete_cache_never_passes_as_v4(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

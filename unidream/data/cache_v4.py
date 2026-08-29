@@ -75,6 +75,41 @@ def _canonical_sha256(value: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _frame_content_digest(frame: pd.DataFrame) -> str:
+    """Hash index, labels, dtypes, and values of one materialized frame."""
+    if isinstance(frame, pd.Series):
+        frame = frame.to_frame()
+    if not isinstance(frame, pd.DataFrame):
+        raise CacheV4Error("content digest input must be a DataFrame")
+    descriptor = {
+        "shape": [int(frame.shape[0]), int(frame.shape[1])],
+        "index_name": frame.index.name,
+        "index_dtype": str(frame.index.dtype),
+        "columns": [str(column) for column in frame.columns],
+        "column_dtypes": [str(dtype) for dtype in frame.dtypes],
+    }
+    try:
+        row_hashes = pd.util.hash_pandas_object(
+            frame,
+            index=True,
+            categorize=True,
+        ).to_numpy(dtype=np.uint64, copy=False)
+    except (TypeError, ValueError) as exc:
+        raise CacheV4Error(f"could not hash frame content: {exc}") from exc
+    digest = hashlib.sha256()
+    digest.update(
+        json.dumps(
+            descriptor,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+    )
+    digest.update(row_hashes.tobytes(order="C"))
+    return digest.hexdigest()
+
+
 def _interval_delta(interval: str) -> pd.Timedelta:
     values = {
         "1m": pd.Timedelta(minutes=1),
@@ -429,6 +464,27 @@ def _validate_frames(
         if not np.isfinite(returns_values).all():
             issues.append("returns contain NaN or infinite values")
 
+    content_digests = metadata.get("content_digests")
+    if not isinstance(content_digests, Mapping):
+        issues.append("metadata content_digests must contain features, returns, and availability")
+    else:
+        for name, frame in (
+            ("features", features),
+            ("returns", returns_frame),
+            ("availability", availability),
+        ):
+            try:
+                actual_digest = _frame_content_digest(frame)
+            except CacheV4Error as exc:
+                issues.extend(exc.issues)
+                continue
+            expected_digest = content_digests.get(name)
+            if expected_digest != actual_digest:
+                issues.append(
+                    f"{name} content digest mismatch: "
+                    f"metadata={expected_digest!r}, actual={actual_digest}"
+                )
+
     if metadata.get("rows") != len(features):
         issues.append(f"metadata rows mismatch: metadata={metadata.get('rows')!r}, actual={len(features)}")
     if metadata.get("sidecar_rows") != len(availability):
@@ -520,6 +576,7 @@ def build_v4_metadata(
     """Build canonical v4 metadata after validating the frame contract."""
     if not isinstance(source_provenance, Mapping):
         raise CacheV4Error("source_provenance must be a mapping")
+    returns_frame = _as_returns_frame(returns)
     columns = list(feature_columns)
     sidecar_columns = list(availability_columns or availability.columns)
     normalized_policy = _normalise_gap_policy(gap_policy)
@@ -563,6 +620,11 @@ def build_v4_metadata(
         "source_provenance_digest": _canonical_sha256(source_provenance),
         "gap_list": gaps_list,
         "gap_policy": normalized_policy,
+        "content_digests": {
+            "features": _frame_content_digest(features),
+            "returns": _frame_content_digest(returns_frame),
+            "availability": _frame_content_digest(availability),
+        },
     }
     metadata["schema_digest"] = _schema_digest(
         feature_columns=columns,
