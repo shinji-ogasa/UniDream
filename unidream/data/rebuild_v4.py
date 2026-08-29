@@ -739,8 +739,11 @@ def rebuild_official_v4_frames(
             "true_fraction": float(true_count / len(availability)) if len(availability) else 0.0,
         }
     feature_all_three = int(availability.loc[features.index, availability_names].all(axis=1).sum())
+    post_rest_gap_runs = _missing_runs(expected, spot.index, interval=interval)
     feature_rows_by_quality = {
         "feature_rows": int(len(features)),
+        "observed_spot_rows": int(availability["spot_bar_observed"].sum()),
+        "observed_spot_minus_feature_rows": int(availability["spot_bar_observed"].sum() - len(features)),
         "all_three_available_rows": feature_all_three,
         "not_all_three_available_rows": int(len(features) - feature_all_three),
         "body_policy": "compute causal features on observed contiguous Spot segments; do not filter body by external masks",
@@ -786,6 +789,7 @@ def rebuild_official_v4_frames(
             "expected_missing_bars_before_rest": int(sum(g["expected_missing_count"] for g in gap_records)),
             "official_rest_recovered_bars": recovered,
             "unresolved_spot_bars_after_rest": unresolved,
+            "gap_count_after_rest": len(post_rest_gap_runs),
             "gap_records": gap_records,
         },
         "availability_columns": [

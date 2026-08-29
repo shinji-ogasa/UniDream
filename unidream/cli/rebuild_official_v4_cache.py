@@ -147,6 +147,7 @@ def _render_report(
     quarantined_spot = summary.get("quarantined_off_grid_spot_bars", 0)
     coverage = summary.get("availability_coverage", {})
     feature_quality = summary.get("feature_rows_by_quality", {})
+    gap_summary = rebuild.get("provenance", {}).get("spot_gap_summary", {})
 
     def _coverage_line(name: str, label: str) -> str:
         value = coverage.get(name, {})
@@ -164,6 +165,8 @@ def _render_report(
             f"- REST-recovered Spot bars: `{summary.get('rest_recovered_bars')}`",
             f"- Unresolved Spot bars: `{summary.get('spot_unresolved_bars')}`",
             f"- Quarantined off-grid Spot bars: `{summary.get('quarantined_off_grid_spot_bars', 0)}`",
+            f"- Spot gap runs before REST recovery: `{gap_summary.get('gap_count', 0)}`",
+            f"- Spot gap runs after REST recovery/quarantine: `{gap_summary.get('gap_count_after_rest', 0)}`",
             f"- Computed feature rows: `{summary.get('feature_rows')}`",
             f"- Metadata schema: `{metadata.get('schema_version') if metadata else None}`",
             f"- Schema digest: `{metadata.get('schema_digest') if metadata else None}`",
@@ -180,6 +183,7 @@ def _render_report(
             _coverage_line("all_three_available", "Spot, funding, and mark all available"),
             f"- Feature body rows with all three flags true: `{feature_quality.get('all_three_available_rows', 0)}/{feature_quality.get('feature_rows', 0)}`",
             f"- Feature body rows without all three flags: `{feature_quality.get('not_all_three_available_rows', 0)}`",
+            f"- Observed Spot rows minus feature rows: `{feature_quality.get('observed_spot_minus_feature_rows', 0)}`",
             f"- Feature row policy: {feature_quality.get('body_policy', 'not recorded')}",
             f"- Feature row reduction: {feature_quality.get('reduction_reason', 'not recorded')}",
             "",
