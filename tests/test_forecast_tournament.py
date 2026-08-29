@@ -74,7 +74,8 @@ class ForecastTournamentContractTest(unittest.TestCase):
             benchmark_positions=np.ones(len(returns)),
             execution_delay_bars=1,
         ).run()
-        self.assertAlmostEqual(float(result.pnl_series[1]), 1.12e-8, places=16)
+        self.assertEqual(len(result.pnl_series), 3)
+        self.assertAlmostEqual(float(result.pnl_series[0]), 1.12e-8, places=16)
 
     def test_policy_is_causal_and_respects_bounds(self) -> None:
         params = PolicyParams(threshold=0.5, overlay_magnitude=0.12, hysteresis=0.25, min_hold=2, execution_delay=0)

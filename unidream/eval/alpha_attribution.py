@@ -390,8 +390,13 @@ def backtest_metrics(
     *,
     benchmark: float = 1.0,
     execution_delay_bars: int = 0,
+    initial_position: float | None = None,
 ) -> dict[str, float | int]:
     """Compute the shared research metrics for one strategy path.
+
+    ``initial_position`` is the effective position immediately before the
+    evaluated window. When supplied, it carries the preceding transition into
+    the first scored bar and avoids charging a synthetic flat-to-first entry.
 
     ``turnover`` is the compatibility/action-statistics measure: it sums
     changes between consecutive effective positions and intentionally omits
@@ -422,9 +427,20 @@ def backtest_metrics(
         interval=str(cfg.get("data", {}).get("interval", "15m")),
         benchmark_positions=benchmark_arr,
         execution_delay_bars=delay,
+        initial_position=initial_position,
+        benchmark_initial_position=(
+            None if initial_position is None else float(benchmark)
+        ),
     ).run()
     stats = action_stats(effective_positions, benchmark_position=float(benchmark))
-    cost_turnover = float(np.abs(np.diff(effective_positions, prepend=0.0)).sum())
+    cost_turnover = float(
+        np.abs(
+            np.diff(
+                effective_positions,
+                prepend=0.0 if initial_position is None else float(initial_position),
+            )
+        ).sum()
+    )
     return {
         "alpha_excess_pt": 100.0 * float(result.alpha_excess or 0.0),
         "maxdd_delta_pt": 100.0 * float(result.maxdd_delta or 0.0),
@@ -437,6 +453,9 @@ def backtest_metrics(
         "benchmark_max_drawdown_pt": 100.0 * abs(float(result.benchmark_max_drawdown or 0.0)),
         "n_trades": int(result.n_trades),
         "execution_delay_bars": delay,
+        "evaluation_initial_position": (
+            None if initial_position is None else float(initial_position)
+        ),
     }
 
 

@@ -144,6 +144,8 @@ def compute_costs(
     spread_bps: float = 5.0,
     fee_rate: float = 0.0004,
     slippage_bps: float = 2.0,
+    *,
+    initial_position: float | None = None,
 ) -> np.ndarray:
     """各ステップのトランザクションコストを計算する.
 
@@ -152,11 +154,16 @@ def compute_costs(
         spread_bps: スプレッド (basis points)
         fee_rate: 手数料率
         slippage_bps: スリッページ (basis points)
+        initial_position: 評価窓直前の実効ポジション。指定時は最初の
+            scored bar の遷移元として使い、人工的な flat-to-first entry を避ける。
 
     Returns:
         コスト列 (T,)
     """
-    delta_pos = np.abs(np.diff(positions, prepend=0.0))
+    if initial_position is not None and not np.isfinite(float(initial_position)):
+        raise ValueError("initial_position must be finite when provided")
+    prepend = 0.0 if initial_position is None else float(initial_position)
+    delta_pos = np.abs(np.diff(positions, prepend=prepend))
     spread_cost = (spread_bps / 10000) / 2 * delta_pos
     fee_cost = fee_rate * delta_pos
     slippage_cost = (slippage_bps / 10000) * delta_pos
@@ -169,6 +176,8 @@ def compute_pnl(
     spread_bps: float = 5.0,
     fee_rate: float = 0.0004,
     slippage_bps: float = 2.0,
+    *,
+    initial_position: float | None = None,
 ) -> np.ndarray:
     """コスト控除後の PnL 系列を計算する.
 
@@ -180,7 +189,13 @@ def compute_pnl(
         コスト控除後の PnL 列 (T,)
     """
     gross_pnl = positions * returns
-    costs = compute_costs(positions, spread_bps, fee_rate, slippage_bps)
+    costs = compute_costs(
+        positions,
+        spread_bps,
+        fee_rate,
+        slippage_bps,
+        initial_position=initial_position,
+    )
     return gross_pnl - costs
 
 
@@ -275,6 +290,9 @@ class Backtest:
         execution_delay_bars: 決定から執行までの遅延バー数（感度分析用、デフォルト 0）。
             d > 0 では positions[:-d] と returns[d:] を右整列し、未予測の
             先頭リターンと期間外の末尾決定を評価しない。benchmark も同じ期間に切り詰める。
+        initial_position: 最初の評価バー直前の実効ポジション。指定時は
+            cost/PnL/trade count の境界遷移をこの値から始める。
+        benchmark_initial_position: benchmark の評価窓直前ポジション。
     """
 
     def __init__(
@@ -287,6 +305,8 @@ class Backtest:
         interval: str = "15m",
         benchmark_positions: np.ndarray | None = None,
         execution_delay_bars: int = 0,
+        initial_position: float | None = None,
+        benchmark_initial_position: float | None = None,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -296,6 +316,20 @@ class Backtest:
         self.slippage_bps = slippage_bps
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
         self.execution_delay_bars = validate_execution_delay(execution_delay_bars)
+        if initial_position is not None and not np.isfinite(float(initial_position)):
+            raise ValueError("initial_position must be finite when provided")
+        self.initial_position = (
+            None if initial_position is None else float(initial_position)
+        )
+        if benchmark_initial_position is not None and not np.isfinite(
+            float(benchmark_initial_position)
+        ):
+            raise ValueError("benchmark_initial_position must be finite when provided")
+        self.benchmark_initial_position = (
+            None
+            if benchmark_initial_position is None
+            else float(benchmark_initial_position)
+        )
         self.benchmark_positions = (
             np.asarray(benchmark_positions, dtype=np.float64)
             if benchmark_positions is not None else None
@@ -317,7 +351,14 @@ class Backtest:
             self.benchmark_positions,
             self.execution_delay_bars,
         )
-        pnl = compute_pnl(returns, positions, self.spread_bps, self.fee_rate, self.slippage_bps)
+        pnl = compute_pnl(
+            returns,
+            positions,
+            self.spread_bps,
+            self.fee_rate,
+            self.slippage_bps,
+            initial_position=self.initial_position,
+        )
         # position * log_return ≈ log(1 + position * simple_return) for small returns
         # 15分足では十分な近似。厳密な対数リターンは position=1.0 の場合のみ。
         equity = np.exp(np.cumsum(pnl))  # 累積 PnL → equity curve
@@ -333,7 +374,10 @@ class Backtest:
         calmar = compute_calmar(total_return, max_dd, period_years)
 
         # トレード数・平均保有期間
-        pos_changes = np.diff(positions, prepend=0.0) != 0
+        pos_changes = np.diff(
+            positions,
+            prepend=0.0 if self.initial_position is None else self.initial_position,
+        ) != 0
         n_trades = int(pos_changes.sum())
 
         # 連続して同じポジションを保持した期間の平均
@@ -369,6 +413,7 @@ class Backtest:
                 self.spread_bps,
                 self.fee_rate,
                 self.slippage_bps,
+                initial_position=self.benchmark_initial_position,
             )
             bench_equity = np.exp(np.cumsum(bench_pnl))
             benchmark_total_return = float(bench_equity[-1] - 1.0)
