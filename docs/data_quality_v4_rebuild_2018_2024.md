@@ -32,7 +32,7 @@ UM mark/funding archives before `2020-01-01` are treated as unavailable and thei
 - Computed feature rows: `173111`
 - Metadata schema: `4`
 - Schema digest: `1c1c41a9aca3e8af22b357a8483ea6419745ee4b24c10c09c47289df3744c616`
-- Source/provenance digest: `bf78b7daeb3b01499fee3692825a0cf4b6cf73f50e96af844e33853503767545`
+- Source/provenance digest: `aa320222dca0a46b2a0730f17bb1665f31a70074aa3bafcc6bff58ca21618fad`
 - Feature content digest: `8a7aad5809c7a21e614da7d836629309cda9c2de74553bf1fbc6934f7b07f5e2`
 - Returns content digest: `c33a00cac4cf169f01e3ba5823a3f6d9bae17da5add5f8d5a3538d4142a0fabb`
 - Availability content digest: `630de125ae9bc04cd0376404c7cff07f8e7d06c3bec2eece1b546e05959e292f`
