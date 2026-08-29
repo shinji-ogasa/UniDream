@@ -9,10 +9,12 @@ import pandas as pd
 from unidream.data.official_v4_sources import OFFICIAL_SPOT_REST_BASE
 from unidream.data.rebuild_v4 import (
     OfficialSourceError,
+    _quarantine_off_grid_spot,
     build_full_grid_availability,
     compute_v4_frames,
     recover_spot_gaps,
 )
+from unidream.cli.rebuild_official_v4_cache import build_parser
 
 
 def _spot_row(timestamp: int) -> list:
@@ -54,6 +56,12 @@ class _Session:
 
 
 class RebuildV4Test(unittest.TestCase):
+    def test_off_grid_quarantine_requires_explicit_cli_flag(self) -> None:
+        self.assertFalse(build_parser().parse_args([]).allow_off_grid_quarantine)
+        self.assertTrue(
+            build_parser().parse_args(["--allow-off-grid-quarantine"]).allow_off_grid_quarantine
+        )
+
     def test_availability_uses_asof_external_data_and_keeps_spot_gap_false(self) -> None:
         expected = pd.date_range("2020-01-01", periods=4, freq="15min")
         availability = build_full_grid_availability(
@@ -161,6 +169,53 @@ class RebuildV4Test(unittest.TestCase):
         self.assertTrue(merged.index.equals(expected))
         self.assertEqual(records[0]["outside_expected_count"], 1)
         self.assertEqual(records[0]["outside_expected_allowed_timestamps"], [str(expected[-1] + pd.Timedelta(minutes=15))])
+
+    def test_off_grid_quarantine_lists_each_row_without_timestamp_remap(self) -> None:
+        expected = pd.date_range("2018-02-09", periods=4, freq="15min")
+        off_grid_a = expected[1] + pd.Timedelta(minutes=1)
+        off_grid_b = expected[2] + pd.Timedelta(minutes=2)
+        index = pd.DatetimeIndex([expected[0], off_grid_a, off_grid_b, expected[3]])
+        spot = pd.DataFrame(
+            {
+                "open": [1.0, 2.0, 3.0, 4.0],
+                "high": [1.1, 2.1, 3.1, 4.1],
+                "low": [0.9, 1.9, 2.9, 3.9],
+                "close": [1.05, 2.05, 3.05, 4.05],
+                "volume": [10.0, 20.0, 30.0, 40.0],
+            },
+            index=index,
+        )
+        records = [
+            {
+                "month": "2018-02",
+                "parsed_first_timestamp": str(index[0]),
+                "parsed_last_timestamp": str(index[-1]),
+            }
+        ]
+        with self.assertRaisesRegex(OfficialSourceError, "off-grid timestamp"):
+            _quarantine_off_grid_spot(
+                spot,
+                expected=expected,
+                source_records=records,
+                interval="15m",
+                scope_start=expected[0],
+                scope_end=expected[-1] + pd.Timedelta(minutes=15),
+            )
+        quarantined, entries = _quarantine_off_grid_spot(
+            spot,
+            expected=expected,
+            source_records=records,
+            interval="15m",
+            scope_start=expected[0],
+            scope_end=expected[-1] + pd.Timedelta(minutes=15),
+            allow_off_grid_quarantine=True,
+        )
+        self.assertEqual(quarantined.index.tolist(), [expected[0], expected[3]])
+        self.assertEqual(entries[0]["quarantined_count"], 2)
+        self.assertEqual([row["timestamp"] for row in entries[0]["rows"]], [str(off_grid_a), str(off_grid_b)])
+        self.assertEqual(len(entries[0]["row_sha256"]), 2)
+        self.assertIn("delta_from_previous", entries[0]["rows"][0])
+        self.assertIn("delta_to_next", entries[0]["rows"][1])
 
     def test_feature_rebuild_keeps_causal_17_column_contract(self) -> None:
         index = pd.date_range("2020-01-01", periods=240, freq="15min")

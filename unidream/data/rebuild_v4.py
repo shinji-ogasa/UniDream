@@ -9,6 +9,7 @@ in the sidecar; no interpolation is performed.
 """
 from __future__ import annotations
 
+import hashlib
 from typing import Any, Iterable, Mapping
 
 import numpy as np
@@ -161,6 +162,116 @@ def _spot_timestamp_diagnostic(
     parts.append(f"interval={interval}")
     parts.append(f"grid_remainder={remainder}")
     return "; ".join(parts)
+
+
+def _row_sha256(frame: pd.DataFrame, timestamp: pd.Timestamp) -> str:
+    """Hash one parsed raw row without changing its values or timestamp."""
+    row_hash = pd.util.hash_pandas_object(frame.loc[[timestamp]], index=True).to_numpy()
+    return hashlib.sha256(row_hash.tobytes()).hexdigest()
+
+
+def _quarantine_off_grid_spot(
+    spot: pd.DataFrame,
+    *,
+    expected: pd.DatetimeIndex,
+    source_records: list[dict[str, Any]],
+    interval: str,
+    scope_start: pd.Timestamp,
+    scope_end: pd.Timestamp,
+    allow_off_grid_quarantine: bool = False,
+) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
+    """Validate or quarantine invalid Spot rows with auditable records."""
+    off_grid = spot.index[
+        (spot.index >= scope_start)
+        & (spot.index < scope_end)
+        & ~spot.index.isin(expected)
+    ]
+    if len(off_grid) == 0:
+        return spot, []
+    if not allow_off_grid_quarantine:
+        raise OfficialSourceError(
+            "official Spot source returned an off-grid timestamp: "
+            + _spot_timestamp_diagnostic(
+                spot.index,
+                off_grid[0],
+                source_records=source_records,
+                source="spot_klines_archive",
+                interval=interval,
+                scope_start=scope_start,
+                scope_end=scope_end,
+            )
+        )
+
+    grouped: dict[str, list[pd.Timestamp]] = {}
+    for timestamp in off_grid:
+        month = _source_month_for_timestamp(timestamp, source_records)
+        if month is None:
+            raise OfficialSourceError(
+                "cannot quarantine off-grid Spot row without archive source month: "
+                + _spot_timestamp_diagnostic(
+                    spot.index,
+                    timestamp,
+                    source_records=source_records,
+                    source="spot_klines_archive",
+                    interval=interval,
+                    scope_start=scope_start,
+                    scope_end=scope_end,
+                )
+            )
+        grouped.setdefault(month, []).append(timestamp)
+
+    quarantines: list[dict[str, Any]] = []
+    for month, timestamps in grouped.items():
+        first = timestamps[0]
+        row_records: list[dict[str, Any]] = []
+        for timestamp in timestamps:
+            position = spot.index.get_loc(timestamp)
+            previous = spot.index[position - 1] if position > 0 else None
+            following = spot.index[position + 1] if position + 1 < len(spot.index) else None
+            row: dict[str, Any] = {
+                "timestamp": str(timestamp),
+                "row_sha256": _row_sha256(spot, timestamp),
+                "grid_remainder": str((timestamp - scope_start) % _interval_delta(interval)),
+            }
+            if previous is not None:
+                row["previous_timestamp"] = str(previous)
+                row["delta_from_previous"] = str(timestamp - previous)
+            if following is not None:
+                row["next_timestamp"] = str(following)
+                row["delta_to_next"] = str(following - timestamp)
+            row_records.append(row)
+        first_row = row_records[0]
+        entry: dict[str, Any] = {
+            "source": "spot_klines_archive",
+            "source_month": month,
+            "quarantined_count": len(timestamps),
+            "timestamps": [str(value) for value in timestamps],
+            "row_sha256": [row["row_sha256"] for row in row_records],
+            "rows": row_records,
+            "first_timestamp": str(first),
+            "last_timestamp": str(timestamps[-1]),
+            "grid_remainder": first_row["grid_remainder"],
+            "policy": "explicit_off_grid_quarantine; no_timestamp_remap; no_interpolation",
+        }
+        for key in (
+            "previous_timestamp",
+            "delta_from_previous",
+            "next_timestamp",
+            "delta_to_next",
+        ):
+            if key in first_row:
+                entry[key] = first_row[key]
+        quarantines.append(entry)
+
+        for record in source_records:
+            if record.get("month") == month:
+                record["off_grid_quarantine_count"] = len(timestamps)
+                record["off_grid_quarantine_first_timestamp"] = str(first)
+                record["off_grid_quarantine_row_sha256"] = entry["row_sha256"]
+                record["off_grid_quarantine_policy"] = entry["policy"]
+                break
+
+    return spot.drop(index=off_grid), quarantines
 
 
 def _fetch_archive_series(
@@ -456,6 +567,7 @@ def rebuild_official_v4_frames(
     zscore_window_days: int = 60,
     source_probe: Mapping[str, Any] | None = None,
     timeout: float = 30.0,
+    allow_off_grid_quarantine: bool = False,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
     """Fetch official raw sources and return frames plus provenance evidence."""
@@ -513,6 +625,18 @@ def rebuild_official_v4_frames(
                         "validated exact end-exclusive boundary row; excluded from rebuild"
                     )
         spot = spot.loc[(spot.index >= start_value) & (spot.index < end_value)]
+        off_grid = spot.index[~spot.index.isin(expected)]
+        spot_off_grid_quarantine: list[dict[str, Any]] = []
+        if len(off_grid):
+            spot, spot_off_grid_quarantine = _quarantine_off_grid_spot(
+                spot,
+                expected=expected,
+                source_records=spot_records,
+                interval=interval,
+                scope_start=start_value,
+                scope_end=end_value,
+                allow_off_grid_quarantine=allow_off_grid_quarantine,
+            )
         spot, gap_records, rest_records = recover_spot_gaps(
             spot,
             expected=expected,
@@ -624,6 +748,7 @@ def rebuild_official_v4_frames(
             "basis_history_requirement": "basis_mom and basis_abs also depend on prior causal mark rows; full17 training must validate that history per sequence",
         },
         "spot_gap_policy": "unresolved_bars_false; exclude_sequence_windows; no_interpolation",
+        "spot_off_grid_quarantine": spot_off_grid_quarantine,
         "spot_gap_summary": {
             "gap_count": len(gap_records),
             "expected_missing_bars_before_rest": int(sum(g["expected_missing_count"] for g in gap_records)),
@@ -647,6 +772,9 @@ def rebuild_official_v4_frames(
             "spot_observed_bars": int(availability["spot_bar_observed"].sum()),
             "spot_unresolved_bars": unresolved,
             "rest_recovered_bars": recovered,
+            "quarantined_off_grid_spot_bars": int(
+                sum(item["quarantined_count"] for item in spot_off_grid_quarantine)
+            ),
             "feature_rows": len(features),
             "external_source_start": str(EXTERNAL_ARCHIVE_START),
             "external_pre_start_false": True,

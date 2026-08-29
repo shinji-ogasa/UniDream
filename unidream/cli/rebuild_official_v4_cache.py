@@ -82,6 +82,13 @@ def _write_ledger(
                     "payload": gap,
                 }
             )
+        for quarantine in provenance.get("spot_off_grid_quarantine", []):
+            records.append(
+                {
+                    "record_type": "official_v4_rebuild_off_grid_quarantine",
+                    "payload": quarantine,
+                }
+            )
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
@@ -146,6 +153,7 @@ def _render_report(
             f"- Observed Spot bars: `{summary.get('spot_observed_bars')}`",
             f"- REST-recovered Spot bars: `{summary.get('rest_recovered_bars')}`",
             f"- Unresolved Spot bars: `{summary.get('spot_unresolved_bars')}`",
+            f"- Quarantined off-grid Spot bars: `{summary.get('quarantined_off_grid_spot_bars', 0)}`",
             f"- Computed feature rows: `{summary.get('feature_rows')}`",
             f"- Metadata schema: `{metadata.get('schema_version') if metadata else None}`",
             f"- Schema digest: `{metadata.get('schema_digest') if metadata else None}`",
@@ -186,6 +194,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="return success after writing an explicit sidecar for unresolved Spot gaps",
     )
+    parser.add_argument(
+        "--allow-off-grid-quarantine",
+        action="store_true",
+        help="quarantine official Spot rows outside the configured grid with full provenance; never remap them",
+    )
     return parser
 
 
@@ -221,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
             zscore_window_days=zscore_window_days,
             source_probe=probe,
             timeout=args.timeout,
+            allow_off_grid_quarantine=args.allow_off_grid_quarantine,
         )
         metadata = write_cache_v4(
             rebuild["features"],
