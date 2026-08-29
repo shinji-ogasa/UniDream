@@ -106,6 +106,7 @@ class OfficialV4SourcesTest(unittest.TestCase):
             ),
         )
         self.assertEqual(len(mark_frame), 1)
+        self.assertEqual(mark_frame.columns.tolist(), ["mark_close"])
         self.assertTrue(mark_record["schema"]["header_present"])
 
         funding_rows = [list(FUNDING_COLUMNS), ["0", "8", "0.001"]]

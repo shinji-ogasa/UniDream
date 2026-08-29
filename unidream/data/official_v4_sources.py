@@ -170,7 +170,13 @@ def _parse_kline_csv(raw_csv: bytes, *, source: str) -> tuple[pd.DataFrame, dict
     frame = frame.set_index("open_time")
     if not frame.index.is_unique or not frame.index.is_monotonic_increasing:
         raise OfficialSourceError(f"{source} archive timestamps are not sorted and unique")
-    selected = frame[["open", "high", "low", "close", "volume"]].astype(float)
+    if source == "um_mark_price_klines":
+        # compute_basis_features consumes the mark close under its explicit
+        # external-series name; do not expose the spot-kline ``close`` name
+        # and let the failure appear later in feature construction.
+        selected = frame[["close"]].rename(columns={"close": "mark_close"}).astype(float)
+    else:
+        selected = frame[["open", "high", "low", "close", "volume"]].astype(float)
     return selected, {
         "schema": {
             "kind": "kline",
