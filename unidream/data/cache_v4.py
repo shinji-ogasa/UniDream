@@ -322,6 +322,8 @@ def _validate_frames(
     returns: pd.Series | pd.DataFrame,
     availability: pd.DataFrame,
     metadata: Mapping[str, Any],
+    *,
+    expected_cache_tag: str | None = None,
 ) -> None:
     issues: list[str] = []
     if not isinstance(features, pd.DataFrame):
@@ -521,6 +523,11 @@ def _validate_frames(
         issues.append(
             f"metadata schema_version={metadata.get('schema_version')!r} is not v4; legacy v3 is not accepted"
         )
+    if expected_cache_tag is not None and metadata.get("cache_tag") != expected_cache_tag:
+        issues.append(
+            "metadata cache_tag mismatch: "
+            f"metadata={metadata.get('cache_tag')!r}, expected={expected_cache_tag!r}"
+        )
     if isinstance(metadata.get("source_provenance"), Mapping):
         expected = _canonical_sha256(metadata["source_provenance"])
         if metadata.get("source_provenance_digest") != expected:
@@ -640,11 +647,19 @@ def validate_cache_v4(
     returns: pd.Series | pd.DataFrame,
     availability: pd.DataFrame,
     metadata: Mapping[str, Any],
+    *,
+    expected_cache_tag: str | None = None,
 ) -> dict[str, Any]:
     """Validate a v4 cache and return a small verified status record."""
     if not isinstance(metadata, Mapping):
         raise CacheV4Error("metadata must be a mapping")
-    _validate_frames(features, returns, availability, metadata)
+    _validate_frames(
+        features,
+        returns,
+        availability,
+        metadata,
+        expected_cache_tag=expected_cache_tag,
+    )
     return {
         "status": "v4_verified",
         "schema_version": CACHE_V4_SCHEMA_VERSION,
@@ -727,7 +742,13 @@ def write_cache_v4(
     )
     # If caller supplied gaps, validation still derives the sidecar gap list
     # and compares it before any file is touched.
-    validate_cache_v4(features, returns_frame, availability, metadata)
+    validate_cache_v4(
+        features,
+        returns_frame,
+        availability,
+        metadata,
+        expected_cache_tag=cache_tag,
+    )
     _atomic_parquet_write(features, paths["features"])
     _atomic_parquet_write(returns_frame.rename(columns={returns_frame.columns[0]: "returns"}), paths["returns"])
     _atomic_parquet_write(availability, paths["availability"])
@@ -765,7 +786,13 @@ def load_cache_v4(
         raise CacheV4Error(f"could not read v4 cache: {type(exc).__name__}: {exc}") from exc
     if not isinstance(metadata, dict):
         raise CacheV4Error("metadata must be a JSON object")
-    validate_cache_v4(features, returns_frame, availability, metadata)
+    validate_cache_v4(
+        features,
+        returns_frame,
+        availability,
+        metadata,
+        expected_cache_tag=cache_tag,
+    )
     returns = returns_frame.iloc[:, 0].rename("returns")
     return features, returns, availability, metadata
 
