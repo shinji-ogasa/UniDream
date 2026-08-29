@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import unittest
+import json
+import tempfile
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
 from unidream.eval.data_quality import (
     EXTERNAL_FEATURES,
@@ -17,6 +21,7 @@ from unidream.eval.data_quality import (
     same_row_fairness,
     validate_feature_contract,
 )
+from unidream.cli.verify_data_quality import main as verify_data_quality
 
 
 def _metadata(columns: list[str] | None = None) -> dict:
@@ -143,6 +148,48 @@ class DataQualityContractTest(unittest.TestCase):
             },
         )
         self.assertTrue(all(check["status"] == "pass" for check in result["checks"].values()))
+
+    def test_cli_writes_ledger_and_report_while_preserving_failed_mask_gate(self) -> None:
+        features, returns = _full17()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            cache_dir = root / "cache"
+            cache_dir.mkdir()
+            tag = "synthetic-development-v3"
+            features.to_parquet(cache_dir / f"{tag}_features.parquet")
+            returns.to_frame().to_parquet(cache_dir / f"{tag}_returns.parquet")
+            (cache_dir / f"{tag}_metadata.json").write_text(
+                json.dumps(_metadata()), encoding="utf-8"
+            )
+            config = {
+                "run": {
+                    "start": "2018-01-01",
+                    "end": "2024-01-01",
+                    "folds": [0],
+                },
+                "data": {"symbol": "BTCUSDT", "interval": "15m"},
+                "normalization": {"zscore_window_days": 60},
+                "logging": {"cache_dir": str(cache_dir)},
+            }
+            config_path = root / "config.yaml"
+            config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+            ledger = root / "quality.jsonl"
+            report = root / "quality.md"
+            exit_code = verify_data_quality(
+                [
+                    "--config", str(config_path),
+                    "--features", str(cache_dir / f"{tag}_features.parquet"),
+                    "--returns", str(cache_dir / f"{tag}_returns.parquet"),
+                    "--metadata", str(cache_dir / f"{tag}_metadata.json"),
+                    "--ledger", str(ledger),
+                    "--report", str(report),
+                    "--allow-quality-gate-fail",
+                ]
+            )
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(report.exists())
+            self.assertEqual(len(ledger.read_text(encoding="utf-8").splitlines()), 11)
+            self.assertIn("external availability mask | fail", report.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
