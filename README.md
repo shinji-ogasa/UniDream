@@ -312,6 +312,22 @@ uv run python -m unidream.cli.plot_plan011_fold_trades \
   --output-dir docs/figures/plan011_v31_folds0_12
 ```
 
+### 開発 cache のデータ品質 gate
+
+モデル結果を読まずに、開発期間だけ（`[2018-01-01, 2024-01-01)`）の
+feature/returns cache、17 列の metadata 契約、15 分足の連続性、非有限値、
+因果性、WFO train/val/test 別の external4 coverage、OHLCV13/full17 の同一行規則を
+監査する。結果は JSONL ledger と Markdown report に保存される。
+
+```bash
+uv run python -m unidream.cli.verify_data_quality
+```
+
+構造または availability の gate が fail した場合、CLI は exit 1 で停止する。
+`--allow-quality-gate-fail` は失敗状態を保持したまま証跡を書き出すためだけの
+オプションであり、gate 合格を意味しない。既定の出力先は
+`docs/data_quality_gate_2018_2024.jsonl` と `docs/data_quality_gate_2018_2024.md`。
+
 ## 生成物
 
 実行時に以下が生成される。
