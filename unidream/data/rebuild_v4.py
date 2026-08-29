@@ -110,6 +110,59 @@ def _concat_source_frames(
     return combined
 
 
+def _source_month_for_timestamp(
+    timestamp: pd.Timestamp,
+    records: Iterable[Mapping[str, Any]],
+) -> str | None:
+    """Return the archive month whose parsed range contains ``timestamp``."""
+    for record in records:
+        first = record.get("parsed_first_timestamp")
+        last = record.get("parsed_last_timestamp")
+        if not first or not last:
+            continue
+        if _normalise_timestamp(first) <= timestamp <= _normalise_timestamp(last):
+            # Monthly archive records carry an explicit month. REST records
+            # deliberately do not: their calendar month is derived in the
+            # human-readable diagnostic, but must not be mistaken for an
+            # archive source when choosing the provenance branch.
+            month = record.get("month")
+            return str(month) if month else None
+    return None
+
+
+def _spot_timestamp_diagnostic(
+    index: pd.DatetimeIndex,
+    timestamp: pd.Timestamp,
+    *,
+    source_records: Iterable[Mapping[str, Any]],
+    source: str,
+    interval: str,
+    scope_start: pd.Timestamp,
+    scope_end: pd.Timestamp,
+) -> str:
+    """Describe a rejected Spot timestamp for the rebuild ledger/error."""
+    position = index.get_loc(timestamp)
+    previous = index[position - 1] if position > 0 else None
+    following = index[position + 1] if position + 1 < len(index) else None
+    source_month = _source_month_for_timestamp(timestamp, source_records)
+    remainder = (timestamp - scope_start) % _interval_delta(interval)
+    parts = [
+        f"first={timestamp}",
+        f"source={source}",
+        f"source_month={source_month or timestamp.strftime('%Y-%m')}",
+        f"range=[{scope_start}, {scope_end})",
+    ]
+    if previous is not None:
+        parts.append(f"previous={previous}")
+        parts.append(f"delta_from_previous={timestamp - previous}")
+    if following is not None:
+        parts.append(f"next={following}")
+        parts.append(f"delta_to_next={following - timestamp}")
+    parts.append(f"interval={interval}")
+    parts.append(f"grid_remainder={remainder}")
+    return "; ".join(parts)
+
+
 def _fetch_archive_series(
     source: str,
     *,
@@ -246,7 +299,37 @@ def recover_spot_gaps(
         expected_timestamps = pd.DatetimeIndex(
             [_normalise_timestamp(value) for value in gap["expected_missing_timestamps"]]
         )
-        recovered = fetched.index.intersection(expected_timestamps)
+        out_of_scope = fetched.index[~fetched.index.isin(expected)]
+        record["outside_expected_count"] = int(len(out_of_scope))
+        record["outside_expected_timestamps"] = [str(value) for value in out_of_scope[:5]]
+        # A recovery request may include the end-exclusive boundary because
+        # Binance REST treats endTime as inclusive.  That one timestamp is
+        # explicitly audited and may be discarded; every other unexpected or
+        # off-grid response fails closed instead of being hidden by filtering.
+        allowed_boundary = pd.DatetimeIndex([expected[-1] + delta])
+        unexpected = out_of_scope[~out_of_scope.isin(allowed_boundary)]
+        if len(unexpected):
+            diagnostic = _spot_timestamp_diagnostic(
+                fetched.index,
+                unexpected[0],
+                source_records=[record],
+                source="spot_klines_rest",
+                interval=interval,
+                scope_start=expected[0],
+                scope_end=expected[-1] + delta,
+            )
+            raise OfficialSourceError(
+                "official Spot REST returned an unexpected timestamp: " + diagnostic
+            )
+        record["outside_expected_allowed_timestamps"] = [str(value) for value in out_of_scope]
+        record["outside_expected_policy"] = (
+            "only exact end-exclusive boundary is allowed and excluded; all other rows fail closed"
+        )
+        # The REST window intentionally includes one observed boundary bar on
+        # either side.  Record and discard those boundary rows before merging;
+        # never let a recovery request expand the declared cache scope.
+        fetched_in_scope = fetched.loc[fetched.index.isin(expected)]
+        recovered = fetched_in_scope.index.intersection(expected_timestamps)
         gap["official_rest_covered_count"] = int(len(recovered))
         gap["official_rest_covered_timestamps"] = [str(value) for value in recovered]
         gap["official_rest_missing_count"] = int(len(expected_timestamps) - len(recovered))
@@ -258,7 +341,7 @@ def recover_spot_gaps(
         record["covered_count"] = int(len(recovered))
         rest_records.append(record)
         if len(recovered):
-            spot = _merge_rest_rows(spot, fetched.loc[recovered], source="spot")
+            spot = _merge_rest_rows(spot, fetched_in_scope.loc[recovered], source="spot")
     return spot, gaps, rest_records
 
 
@@ -308,12 +391,12 @@ def build_full_grid_availability(
         decision_delta=delta,
         max_age=pd.Timedelta(hours=8),
     )
-    availability["mark_close_available"] = _asof_available(
-        expected,
-        mark_index,
-        decision_delta=delta,
-        max_age=delta,
-    )
+    # Mark is a candle-level diagnostic input at the same causal timestamp as
+    # the shifted feature row: target t uses the exact mark observation at
+    # decision time t-interval. A prior mark candle is not an exact
+    # observation for this target, even though compute_basis may safely carry
+    # its value forward for model feature calculation.
+    availability["mark_close_available"] = (expected - delta).isin(mark_index)
     return availability.astype(bool)
 
 
@@ -393,6 +476,42 @@ def rebuild_official_v4_frames(
             timeout=timeout,
             session=active,
         )
+        # Monthly archives are requested by calendar month, but validate the
+        # exclusive rebuild boundary before applying it. Binance archives may
+        # expose the first bar of the following month in a month-end payload;
+        # only that exact boundary row is an accepted, recorded drop.
+        out_of_scope = spot.index[(spot.index < start_value) | (spot.index >= end_value)]
+        if len(out_of_scope):
+            non_boundary = out_of_scope[out_of_scope != end_value]
+            if len(non_boundary):
+                diagnostic = _spot_timestamp_diagnostic(
+                    spot.index,
+                    non_boundary[0],
+                    source_records=spot_records,
+                    source="spot_klines_archive",
+                    interval=interval,
+                    scope_start=start_value,
+                    scope_end=end_value,
+                )
+                raise OfficialSourceError(
+                    "official Spot archive returned an unexpected out-of-scope timestamp: "
+                    + diagnostic
+                )
+            for record in spot_records:
+                boundary_count = sum(
+                    1
+                    for value in out_of_scope
+                    if value == end_value
+                    and record.get("parsed_first_timestamp")
+                    and _normalise_timestamp(record["parsed_first_timestamp"])
+                    <= value
+                    <= _normalise_timestamp(record.get("parsed_last_timestamp"))
+                )
+                if boundary_count:
+                    record["scope_boundary_rows_dropped"] = boundary_count
+                    record["scope_boundary_policy"] = (
+                        "validated exact end-exclusive boundary row; excluded from rebuild"
+                    )
         spot = spot.loc[(spot.index >= start_value) & (spot.index < end_value)]
         spot, gap_records, rest_records = recover_spot_gaps(
             spot,
@@ -424,8 +543,37 @@ def rebuild_official_v4_frames(
         if owns_session:
             active.close()
 
-    if not spot.index.isin(expected).all():
-        raise OfficialSourceError("official Spot source returned bars outside rebuild scope")
+    out_of_range = spot.index[(spot.index < start_value) | (spot.index >= end_value)]
+    off_grid = spot.index[~spot.index.isin(expected)]
+    if len(out_of_range):
+        diagnostic = _spot_timestamp_diagnostic(
+            spot.index,
+            out_of_range[0],
+            source_records=rest_records,
+            source="spot_klines_rest",
+            interval=interval,
+            scope_start=start_value,
+            scope_end=end_value,
+        )
+        raise OfficialSourceError(
+            "official Spot REST returned a bar outside rebuild scope: " + diagnostic
+        )
+    if len(off_grid):
+        first = off_grid[0]
+        rest_month = _source_month_for_timestamp(first, rest_records)
+        source = "spot_klines_rest" if rest_month is not None else "spot_klines_archive"
+        diagnostic = _spot_timestamp_diagnostic(
+            spot.index,
+            first,
+            source_records=rest_records if rest_month is not None else spot_records,
+            source=source,
+            interval=interval,
+            scope_start=start_value,
+            scope_end=end_value,
+        )
+        raise OfficialSourceError(
+            "official Spot source returned an off-grid timestamp: " + diagnostic
+        )
     mark = mark.loc[(mark.index >= start_value) & (mark.index < end_value)]
     funding = funding.loc[(funding.index >= start_value) & (funding.index < end_value)]
     features, returns = compute_v4_frames(

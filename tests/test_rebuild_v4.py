@@ -68,6 +68,46 @@ class RebuildV4Test(unittest.TestCase):
         self.assertEqual(availability["funding_rate_available"].tolist(), [False, False, True, True])
         self.assertTrue(all(dtype == bool for dtype in availability.dtypes))
 
+    def test_mark_availability_requires_exact_causal_decision_timestamp(self) -> None:
+        expected = pd.date_range("2020-01-01", periods=4, freq="15min")
+        base = dict(
+            expected=expected,
+            spot_index=expected,
+            funding_index=pd.DatetimeIndex([]),
+            interval="15m",
+        )
+        mark_at_previous = build_full_grid_availability(
+            **base,
+            mark_index=pd.DatetimeIndex([expected[1]]),
+        )
+        mark_at_target = build_full_grid_availability(
+            **base,
+            mark_index=pd.DatetimeIndex([expected[2]]),
+        )
+        # Row t=00:30 consumes the exact mark observation at decision time
+        # t-15m=00:15; a mark stamped at t itself is not causal evidence.
+        self.assertTrue(mark_at_previous.loc[expected[2], "mark_close_available"])
+        self.assertFalse(mark_at_target.loc[expected[2], "mark_close_available"])
+
+    def test_funding_availability_accepts_exact_eight_hour_asof_boundary(self) -> None:
+        expected = pd.DatetimeIndex(
+            [
+                "2020-01-01 00:00:00",
+                "2020-01-01 08:15:00",
+                "2020-01-01 08:30:00",
+            ]
+        )
+        availability = build_full_grid_availability(
+            expected,
+            spot_index=expected,
+            mark_index=expected - pd.Timedelta(minutes=15),
+            funding_index=pd.DatetimeIndex(["2020-01-01 00:00:00"]),
+            interval="15m",
+        )
+        # t=08:15 has decision time 08:00, exactly 8h after publication;
+        # 08:30 is 8h15m old and must be unavailable.
+        self.assertEqual(availability["funding_rate_available"].tolist(), [False, True, False])
+
     def test_rest_recovers_only_expected_gap_rows_without_interpolation(self) -> None:
         expected = pd.date_range("2018-01-01", periods=4, freq="15min")
         spot = pd.DataFrame(
@@ -95,6 +135,32 @@ class RebuildV4Test(unittest.TestCase):
         self.assertEqual(gaps[0]["official_rest_missing_count"], 0)
         self.assertEqual(records[0]["source"], "spot_klines_rest")
         self.assertEqual(session.calls[0][0], OFFICIAL_SPOT_REST_BASE + "/api/v3/klines")
+
+    def test_rest_end_boundary_is_recorded_and_excluded(self) -> None:
+        expected = pd.date_range("2018-01-01", periods=4, freq="15min")
+        spot = pd.DataFrame(
+            {
+                "open": [1.0, 1.0, 1.0],
+                "high": [1.1, 1.1, 1.1],
+                "low": [0.9, 0.9, 0.9],
+                "close": [1.05, 1.05, 1.05],
+                "volume": [10.0, 10.0, 10.0],
+            },
+            index=expected.delete(2),
+        )
+        payload = [_spot_row(int(value.timestamp() * 1000)) for value in expected]
+        payload.append(_spot_row(int((expected[-1] + pd.Timedelta(minutes=15)).timestamp() * 1000)))
+        merged, _gaps, records = recover_spot_gaps(
+            spot,
+            expected=expected,
+            symbol="BTCUSDT",
+            interval="15m",
+            timeout=2.0,
+            session=_Session(payload),
+        )
+        self.assertTrue(merged.index.equals(expected))
+        self.assertEqual(records[0]["outside_expected_count"], 1)
+        self.assertEqual(records[0]["outside_expected_allowed_timestamps"], [str(expected[-1] + pd.Timedelta(minutes=15))])
 
     def test_feature_rebuild_keeps_causal_17_column_contract(self) -> None:
         index = pd.date_range("2020-01-01", periods=240, freq="15min")
