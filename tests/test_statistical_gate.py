@@ -29,6 +29,7 @@ def _config(**overrides: object) -> StatisticalGateConfig:
         "block_length_sensitivity": (4, 8),
         "min_observations": 32,
         "seed": 17,
+        "n_trials": 2,
     }
     values.update(overrides)
     return StatisticalGateConfig(**values)
@@ -156,6 +157,20 @@ class StatisticalGateContractTest(unittest.TestCase):
         )
         self.assertEqual(base["annualization_bars_per_year"], 365 * 96)
 
+    def test_omitted_trial_count_is_diagnostic_only_and_cannot_promote(self) -> None:
+        candidates, stress = _strong_candidates()
+        result = evaluate_statistical_gate(
+            candidates,
+            selected_candidate="strong",
+            stress_cases=stress,
+            config=_config(n_trials=None),
+        )
+        self.assertFalse(result["gate"]["passed"])
+        self.assertFalse(result["gate"]["components"]["explicit_n_trials"])
+        self.assertIn("explicit_n_trials", result["gate"]["failed_components"])
+        self.assertFalse(result["deflated_sharpe"]["promotion_eligible"])
+        self.assertIn("full number of tried candidates", result["deflated_sharpe"]["trial_count_warning"])
+
     def test_stress_gate_requires_cost_and_regime_inputs(self) -> None:
         result = evaluate_stress([StressCase("cost", "cost", 1.0, 1.0)], _config())
         self.assertEqual(result["status"], "N/A")
@@ -172,6 +187,7 @@ class StatisticalGateContractTest(unittest.TestCase):
                 "block_length_sensitivity": [8],
                 "min_observations": 32,
                 "seed": 17,
+                "n_trials": 2,
             },
             "candidates": [
                 {

@@ -499,16 +499,25 @@ def compute_deflated_sharpe(
         raise ValueError(f"selected candidate {selected_candidate!r} is unknown")
     paths = {candidate.name: _candidate_strategy_returns(candidate) for candidate in candidate_list}
     missing = sorted(name for name, path in paths.items() if path is None)
-    trial_count = int(cfg.n_trials if cfg.n_trials is not None else len(candidate_list))
+    trial_count_explicit = cfg.n_trials is not None
+    trial_count = int(cfg.n_trials if trial_count_explicit else len(candidate_list))
     if trial_count < len(candidate_list):
         raise ValueError("n_trials cannot be smaller than the number of supplied candidates")
+    trial_count_warning = None
+    if not trial_count_explicit:
+        trial_count_warning = (
+            "n_trials was omitted; candidate count is only a diagnostic lower bound. "
+            "Supply the full number of tried candidates before treating DSR as promotion evidence."
+        )
     if missing:
         return {
             "status": "N/A",
             "passed": False,
+            "promotion_eligible": False,
             "reason": f"strategy_returns missing for candidate(s): {missing}",
             "n_trials": trial_count,
-            "trial_count_source": "config" if cfg.n_trials is not None else "candidate_count",
+            "trial_count_source": "config" if trial_count_explicit else "candidate_count",
+            "trial_count_warning": trial_count_warning,
         }
     selected_path = paths[selected_candidate]
     assert selected_path is not None
@@ -516,12 +525,15 @@ def compute_deflated_sharpe(
         return {
             "status": "N/A",
             "passed": False,
+            "promotion_eligible": False,
             "reason": (
                 f"selected candidate has {len(selected_path)} observations; "
                 f"need at least {cfg.min_observations}"
             ),
             "selected_candidate": selected_candidate,
             "n_trials": trial_count,
+            "trial_count_source": "config" if trial_count_explicit else "candidate_count",
+            "trial_count_warning": trial_count_warning,
         }
     trial_sharpes = {
         name: _sample_sharpe(path) for name, path in paths.items() if path is not None
@@ -549,10 +561,14 @@ def compute_deflated_sharpe(
     threshold = 1.0 - cfg.alpha
     return {
         "status": "ok",
-        "passed": bool(observed > 0.0 and probability >= threshold),
+        "passed": bool(
+            trial_count_explicit and observed > 0.0 and probability >= threshold
+        ),
+        "promotion_eligible": trial_count_explicit,
         "selected_candidate": selected_candidate,
         "n_trials": trial_count,
-        "trial_count_source": "config" if cfg.n_trials is not None else "candidate_count",
+        "trial_count_source": "config" if trial_count_explicit else "candidate_count",
+        "trial_count_warning": trial_count_warning,
         "n_observations": int(len(selected_path)),
         "annualization_bars_per_year": float(cfg.annualization_bars_per_year),
         "observed_sharpe_per_bar": observed,
@@ -820,6 +836,7 @@ def evaluate_statistical_gate(
         "alpha_fold_sign_test": bool(alpha_sign.get("passed", False)),
         "timing_fold_sign_test": bool(timing_sign.get("passed", False)),
         "deflated_sharpe": bool(dsr.get("passed", False)),
+        "explicit_n_trials": bool(cfg.n_trials is not None),
         "cscv_pbo": bool(pbo.get("passed", False)),
         "cost_regime_stress": bool(stress.get("passed", False)),
     }
@@ -847,6 +864,8 @@ def evaluate_statistical_gate(
             "annualization_bars_per_year": float(cfg.annualization_bars_per_year),
             "alpha": float(cfg.alpha),
             "n_trials": int(cfg.n_trials if cfg.n_trials is not None else len(candidate_list)),
+            "n_trials_explicit": bool(cfg.n_trials is not None),
+            "n_trials_required_for_promotion": True,
             "bootstrap_method": cfg.bootstrap_method,
             "block_length": int(cfg.block_length),
             "block_length_sensitivity": [int(value) for value in cfg.block_length_sensitivity],
