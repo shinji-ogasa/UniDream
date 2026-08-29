@@ -128,6 +128,11 @@ class ConstantExposureDiagnosticContractTest(unittest.TestCase):
             self.assertEqual(result["folds"], list(range(12)))
             self.assertFalse(result["fold12_or_later_evaluated"])
             self.assertEqual(result["gate"]["promotion_eligible"], False)
+            self.assertIn("selected_fold_sign_test", result["gate"]["criteria"])
+            self.assertEqual(
+                result["per_fold_initial_position"],
+                "flat (None); each development test window is independently costed",
+            )
             diagnostics = result["statistical_diagnostics"]
             self.assertEqual(diagnostics["deflated_sharpe"]["selected_candidate"], "selected_constant")
             self.assertEqual(diagnostics["deflated_sharpe"]["n_trials"], 7)

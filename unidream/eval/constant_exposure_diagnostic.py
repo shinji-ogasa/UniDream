@@ -664,6 +664,9 @@ def _evaluate_gate(
         "selected_bootstrap_sensitivity_lower_positive": bool(sensitivity_cis)
         and all(value is not None and float(value) > 0.0 for value in sensitivity_cis),
         "selected_median_maxdd_delta_nonpositive": float(selected.get("median_maxdd_delta_pt", 0.0)) <= 0.0,
+        "selected_fold_sign_test": bool(
+            diagnostics.get("selected_alpha_sign_test", {}).get("passed", False)
+        ),
         "selection_mode_fraction_at_least_0.5": float(stability.get("mode_fraction", 0.0)) >= MIN_SELECTION_MODE_FRACTION,
         "selection_distinct_at_most_3": int(stability.get("distinct_exposures", 0)) <= MAX_SELECTION_DISTINCT,
         "selected_median_superior_to_previous": selected_vs_previous.get("status") == "ok"
@@ -830,6 +833,7 @@ def _base_provenance(
         "execution_delay_bars": execution_delay,
         "cost_contract": _cost_kwargs(cfg),
         "holdout_policy": "fold 12+ and folds 15+ are excluded; no holdout data informs selection",
+        "per_fold_initial_position": "flat (None); each development test window is independently costed",
     }
 
 
@@ -966,6 +970,7 @@ def _render_report(result: Mapping[str, Any]) -> str:
         f"- Selection: fixed grid `{result['candidate_grid']}` on validation only; test is report-only.",
         f"- Benchmark: constant B&H position `{result['benchmark_position']}`.",
         f"- Execution delay: fixed `{result['execution_delay_bars']}` bar; no delay tuning.",
+        "- Each fold test window is independently costed from a flat initial position (`initial_position=None`), matching the shared per-fold backtest convention; state is not carried across folds.",
         f"- Costs: `{result['cost_contract']}`.",
         f"- Returns cache rows `{result['data_contract']['source_rows']}`; evaluated rows `{result['data_contract']['evaluated_rows']}`; excluded at cutoff `{result['data_contract']['excluded_future_rows']}`.",
         f"- Exclusive evaluation cutoff: `{result['data_contract']['evaluation_cutoff_exclusive']}`.",
