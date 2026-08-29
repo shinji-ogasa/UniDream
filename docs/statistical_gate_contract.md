@@ -98,8 +98,12 @@ each fold. The module never fetches data or discovers paths from filenames.
    ```
 
    `N` is `config.n_trials` when supplied (and must be at least the number of
-   candidate paths), otherwise it is the candidate count. Missing or too-short
-   strategy paths are N/A and cannot pass.
+   candidate paths). Omitting `n_trials` falls back to the candidate count only
+   for a diagnostic calculation; it emits a warning, marks DSR as not
+   promotion-eligible, and makes the overall gate reject. Formal use must
+   record the full number of tried candidates, including candidates or
+   parameterizations not retained in the input. Missing or too-short strategy
+   paths are N/A and cannot pass.
 
 3. **CSCV/PBO.** Each supplied development fold is one subperiod. For every
    half-subperiod combination, the candidate with the highest in-sample sum
@@ -107,7 +111,9 @@ each fold. The module never fetches data or discovers paths from filenames.
    of combinations whose selected candidate is below the out-of-sample median
    rank. At least two candidates and four even-numbered subperiods are
    required; otherwise the result is machine-readable `status: "N/A"` with a
-   reason and the overall gate rejects.
+   reason and the overall gate rejects. For example, a 13-fold development
+   input is intentionally N/A; preregister an even subperiod count such as 12
+   (and supply exactly those folds) before treating CSCV/PBO as evidence.
 
 4. **Fold sign/binomial test.** Zero fold totals are omitted. The exact
    one-sided binomial test tests `P(positive)=0.5`; at least `min_folds`
@@ -134,9 +140,12 @@ uv run python -m unidream.cli.statistical_gate \
 ```
 
 The repository currently ships no candidate result input and applies this gate
-to no existing experiment. Use synthetic fixtures/tests first. The default
-15-minute crypto annualization is `365 * 96 = 35040` bars/year; callers must
-record any different convention in the JSON config.
+to no existing experiment. Use synthetic fixtures/tests first. A passing
+synthetic fixture is only an API/contract smoke test; it is not a candidate
+result, a winner, or evidence for promotion. The default 15-minute crypto
+annualization is `365 * 96 = 35040` bars/year; callers must record any
+different convention in the JSON config. Formal evaluations must set
+`config.n_trials` explicitly to the complete search-trial count.
 
 ## Primary references
 
