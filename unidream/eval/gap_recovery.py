@@ -397,6 +397,75 @@ def write_gap_recovery_jsonl(report: Mapping[str, Any], path: str | Path) -> int
     return len(records)
 
 
+def render_gap_recovery_markdown(
+    report: Mapping[str, Any],
+    *,
+    ledger_path: str | Path | None = None,
+) -> str:
+    """Render official-source coverage evidence without model results."""
+    scope = report.get("scope", {})
+    policy = report.get("source_policy", {})
+    cache = report.get("cache", {})
+    summary = report.get("summary", {})
+    provenance = report.get("provenance", {})
+    lines = [
+        "# Official Binance gap-recovery audit",
+        "",
+        "This report probes only Binance-owned Spot market-data sources around the development cache. It does not read model results and never interpolates or writes cache rows.",
+        "",
+        f"- Scope: `[{scope.get('start')}, {scope.get('end_exclusive')})`",
+        f"- Symbol / interval: `{scope.get('symbol')}` / `{scope.get('interval')}`",
+        f"- Allowed hosts: `{', '.join(policy.get('allowed_hosts', []))}`",
+        f"- REST base: `{policy.get('rest_base_url')}`",
+        f"- Archive base: `{policy.get('archive_base_url')}`",
+        f"- Non-official provider used: `{policy.get('non_official_provider_used')}`",
+        f"- Interpolation used: `{policy.get('interpolation_used')}`",
+        f"- Cache feature rows / index digest: `{cache.get('feature_rows')}` / `{cache.get('feature_index_sha256')}`",
+        f"- Returns rows / index digest: `{cache.get('returns_rows')}` / `{cache.get('returns_index_sha256')}`",
+        f"- Ledger: `{ledger_path}`" if ledger_path is not None else "",
+        f"- Probe git commit: `{provenance.get('git_commit')}`" if provenance else "",
+        "",
+        "## Summary",
+        "",
+        f"- Status: **{str(summary.get('status', 'unknown')).upper()}**",
+        f"- Gaps: `{summary.get('gap_count')}`",
+        f"- Expected missing bars: `{summary.get('expected_missing_bars')}`",
+        f"- Officially covered bars: `{summary.get('official_covered_bars')}`",
+        f"- Unresolved after official probes: `{summary.get('official_missing_after_probe')}`",
+        "",
+        "An unresolved bar is retained as a data-quality gap. The next cache generation may include an observed-bar availability sidecar, but it must not synthesize the missing OHLCV row.",
+        "",
+        "## Per-gap coverage",
+        "",
+        "| Gap | Left | Right | Expected | Covered | Unresolved | Coverage |",
+        "| ---: | --- | --- | ---: | ---: | ---: | ---: |",
+    ]
+    for gap in report.get("gaps", []):
+        lines.append(
+            "| {gap_id} | {left} | {right} | {expected_missing_count} | {official_covered_count} | {official_missing_after_probe_count} | {coverage_rate:.3f} |".format(
+                gap_id=gap.get("gap_id"),
+                left=gap.get("left"),
+                right=gap.get("right"),
+                expected_missing_count=gap.get("expected_missing_count"),
+                official_covered_count=gap.get("official_covered_count"),
+                official_missing_after_probe_count=gap.get("official_missing_after_probe_count"),
+                coverage_rate=float(gap.get("coverage_rate", 0.0)),
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "## Future v4 remediation policy",
+            "",
+            "- Keep the feature body at the exact 17 model columns; store `spot_bar_observed` and external-source availability in a separate sidecar.",
+            "- Preserve official source/provenance hashes and the explicit gap list in v4 metadata.",
+            "- Exclude sequence windows crossing unresolved gaps; do not sort, drop, fill, or interpolate rows during cache validation.",
+            "- If official recovery remains incomplete, execution/evaluation must either segment metrics at the gap or explicitly attribute a return spanning the gap to the position held immediately before the gap. That attribution is a separate contract and must not silently become a post-gap position.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 __all__ = [
     "OFFICIAL_SPOT_REST_BASE",
     "OFFICIAL_ARCHIVE_BASE",
@@ -404,5 +473,6 @@ __all__ = [
     "detect_gaps",
     "index_digest",
     "probe_official_gap_recovery",
+    "render_gap_recovery_markdown",
     "write_gap_recovery_jsonl",
 ]

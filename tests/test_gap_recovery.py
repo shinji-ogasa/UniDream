@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -87,6 +88,30 @@ class GapRecoveryTest(unittest.TestCase):
                 rest_base_url="https://example.invalid",
                 use_archive_fallback=False,
             )
+
+    def test_archive_source_record_is_unique_per_month(self) -> None:
+        index = pd.date_range("2018-01-01", periods=5, freq="15min").delete([2, 3])
+        features = pd.DataFrame({"close_ret": range(len(index))}, index=index)
+        archive_record = {
+            "source": "official_spot_monthly_archive",
+            "month": "2018-01",
+            "http_status": 200,
+        }
+        with patch(
+            "unidream.eval.gap_recovery._request_archive_month",
+            return_value=(archive_record, []),
+        ) as archive_probe:
+            result = probe_official_gap_recovery(
+                features,
+                session=_Session([]),
+                use_archive_fallback=True,
+            )
+        self.assertEqual(archive_probe.call_count, 1)
+        self.assertEqual(len(result["gaps"][0]["source_records"]), 2)
+        self.assertEqual(
+            [record["source"] for record in result["gaps"][0]["source_records"]],
+            ["official_spot_rest", "official_spot_monthly_archive"],
+        )
 
 
 if __name__ == "__main__":

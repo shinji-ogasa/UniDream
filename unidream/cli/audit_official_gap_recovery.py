@@ -13,6 +13,7 @@ from unidream.eval.gap_recovery import (
     DEVELOPMENT_START,
     OFFICIAL_SPOT_REST_BASE,
     probe_official_gap_recovery,
+    render_gap_recovery_markdown,
     write_gap_recovery_jsonl,
 )
 from unidream.experiments.runtime import load_config
@@ -94,6 +95,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="docs/data_quality_gap_recovery_2018_2024.jsonl",
     )
     parser.add_argument(
+        "--report",
+        default="docs/data_quality_gap_recovery_2018_2024.md",
+        help="Markdown summary path written alongside the JSONL evidence ledger",
+    )
+    parser.add_argument(
         "--allow-unresolved",
         action="store_true",
         help="write evidence and return success even when an official source leaves bars unresolved",
@@ -136,6 +142,11 @@ def main(argv: list[str] | None = None) -> int:
             config_path=config_path,
         )
         record_count = write_gap_recovery_jsonl(report, args.ledger)
+        Path(args.report).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.report).write_text(
+            render_gap_recovery_markdown(report, ledger_path=args.ledger),
+            encoding="utf-8",
+        )
     except (OSError, KeyError, TypeError, ValueError) as exc:
         print(f"[gap-recovery] ERROR: {exc}")
         return 2
@@ -147,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[gap-recovery] official covered bars: {summary['official_covered_bars']}")
     print(f"[gap-recovery] unresolved after official probes: {summary['official_missing_after_probe']}")
     print(f"[gap-recovery] ledger records: {record_count} -> {args.ledger}")
+    print(f"[gap-recovery] report: {args.report}")
     if summary["status"] != "pass" and not args.allow_unresolved:
         print("[gap-recovery] unresolved official bars; no interpolation or cache write was performed")
         return 1
