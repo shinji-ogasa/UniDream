@@ -3986,7 +3986,9 @@
       ],
       "archive_only_for_monthly_raw": true,
       "interpolation_used": false,
-      "non_official_provider_used": false
+      "non_official_provider_used": false,
+      "off_grid_default_policy": "reject; explicit quarantine never remaps timestamps",
+      "off_grid_quarantine_enabled": true
     },
     "source_probe": {
       "schema_version": 1,
@@ -4177,8 +4179,8 @@
               "month": "2018-01",
               "request_params": {},
               "requested_url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2018-01.zip",
-              "response_bytes": 346,
-              "response_sha256": "991a37af956145075854b85b52c7fb8692277270d38f13a37cd28456b662ece2",
+              "response_bytes": 366,
+              "response_sha256": "e4125888f19cc98fac735472c65faa3175aae425cbc9145b1a330f85ac72532e",
               "source": "um_funding_rate"
             },
             {
@@ -4190,7 +4192,7 @@
               "request_params": {},
               "requested_url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2018-02.zip",
               "response_bytes": 366,
-              "response_sha256": "66a03b13df4f8fa543fa4eaa0f40ca98c1a395bd5d21542cc3234d37e34260fd",
+              "response_sha256": "4f780dcc0786cd84e8256a069a5af05ef82cc91c3b8faaaafd425ffbfd2b9b89",
               "source": "um_funding_rate"
             },
             {
@@ -4202,7 +4204,7 @@
               "request_params": {},
               "requested_url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2019-12.zip",
               "response_bytes": 346,
-              "response_sha256": "31946b20f9a6ee2543857e312f69cefa7c25f8bbb4f9373d746ab68af3d58e76",
+              "response_sha256": "eb3afd2a3e82671d2377f119e7b393e63b45f80818c6fb4cb2e09cba80548d6f",
               "source": "um_funding_rate"
             },
             {
@@ -4248,7 +4250,7 @@
               "request_params": {},
               "requested_url": "https://data.binance.vision/data/futures/um/monthly/markPriceKlines/BTCUSDT/15m/BTCUSDT-15m-2018-01.zip",
               "response_bytes": 366,
-              "response_sha256": "66f959202dcbc6c190a7b214e72368a833b58932fbffe29534ca5113e9cd997d",
+              "response_sha256": "b96f7aa06b06b11d4837306c01c75c937b1e3ede89892984a0c7d110949fc7cc",
               "source": "um_mark_price_klines"
             },
             {
@@ -4260,7 +4262,7 @@
               "request_params": {},
               "requested_url": "https://data.binance.vision/data/futures/um/monthly/markPriceKlines/BTCUSDT/15m/BTCUSDT-15m-2018-02.zip",
               "response_bytes": 366,
-              "response_sha256": "3a62bc4390eb8b90e89e4443314d95008b3e8ea8dd1bf8c063f920bb326fb9ac",
+              "response_sha256": "75a3e198abc768d5c60a18aa9c56b52d53353c84e0cc4f7da645a060afb496ff",
               "source": "um_mark_price_klines"
             },
             {
@@ -4271,8 +4273,8 @@
               "month": "2019-12",
               "request_params": {},
               "requested_url": "https://data.binance.vision/data/futures/um/monthly/markPriceKlines/BTCUSDT/15m/BTCUSDT-15m-2019-12.zip",
-              "response_bytes": 346,
-              "response_sha256": "09692bea57fed4e6635ebc9f041fe12b9ec7784d179e0fa29c709ef5cce94405",
+              "response_bytes": 366,
+              "response_sha256": "fc24317ac84fea4dd6153556281870e72fad3d4fa0db189e4be4a43180f1ecd3",
               "source": "um_mark_price_klines"
             },
             {
@@ -11031,7 +11033,7 @@
       }
     ]
   },
-  "source_provenance_digest": "ea1f0fba7889d6ef3737b91aada30361d2f8c6242ce6ac2fbb96fd9523ebe677",
+  "source_provenance_digest": "bf78b7daeb3b01499fee3692825a0cf4b6cf73f50e96af844e33853503767545",
   "start": "2018-01-01",
   "symbol": "BTCUSDT"
 }
