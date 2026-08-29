@@ -116,6 +116,7 @@ def _request_json(
 ) -> tuple[dict[str, Any], list[pd.Timestamp]]:
     _assert_official_url(url)
     response = session.get(url, params=dict(params), timeout=timeout)
+    _assert_official_url(response.url)
     response_hash = _sha256_bytes(response.content)
     record: dict[str, Any] = {
         "url": response.url,
@@ -171,6 +172,7 @@ def _request_archive_month(
     url = _archive_url(symbol, interval, month)
     _assert_official_url(url)
     response = session.get(url, timeout=timeout)
+    _assert_official_url(response.url)
     response_hash = _sha256_bytes(response.content)
     record: dict[str, Any] = {
         "url": response.url,

@@ -89,6 +89,21 @@ class GapRecoveryTest(unittest.TestCase):
                 use_archive_fallback=False,
             )
 
+    def test_non_official_redirect_is_rejected(self) -> None:
+        index = pd.date_range("2018-01-01", periods=3, freq="15min").delete(1)
+        features = pd.DataFrame({"close_ret": range(len(index))}, index=index)
+        session = _Session([])
+        session.redirect_url = "https://example.invalid/api/v3/klines"
+
+        def redirected_get(url: str, params: dict | None = None, timeout: float = 0.0) -> _Response:
+            response = _Response([], url=session.redirect_url)
+            response._payload = []
+            return response
+
+        session.get = redirected_get  # type: ignore[method-assign]
+        with self.assertRaisesRegex(ValueError, "non-official"):
+            probe_official_gap_recovery(features, session=session, use_archive_fallback=False)
+
     def test_archive_source_record_is_unique_per_month(self) -> None:
         index = pd.date_range("2018-01-01", periods=5, freq="15min").delete([2, 3])
         features = pd.DataFrame({"close_ret": range(len(index))}, index=index)
