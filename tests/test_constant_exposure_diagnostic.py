@@ -36,7 +36,7 @@ def _synthetic_data() -> ConstantExposureData:
         val_start = train_end
         val_end = val_start + pd.Timedelta(minutes=30)
         test_start = val_end
-        test_end = test_start + pd.Timedelta(minutes=30)
+        test_end = test_start + pd.Timedelta(minutes=60)
         splits.append(
             WFOSplit(
                 fold_idx=fold,
@@ -48,8 +48,17 @@ def _synthetic_data() -> ConstantExposureData:
                 test_end=test_end,
             )
         )
-        timestamps.extend([val_start, val_start + pd.Timedelta(minutes=15), test_start, test_start + pd.Timedelta(minutes=15)])
-        values.extend([0.001, -0.0002, 0.0005, -0.0001])
+        timestamps.extend(
+            [
+                val_start,
+                val_start + pd.Timedelta(minutes=15),
+                test_start,
+                test_start + pd.Timedelta(minutes=15),
+                test_start + pd.Timedelta(minutes=30),
+                test_start + pd.Timedelta(minutes=45),
+            ]
+        )
+        values.extend([0.001, -0.0002, 0.0005, -0.0001, 0.0004, -0.0001])
         cursor = test_end + pd.Timedelta(minutes=15)
     series = pd.Series(values, index=pd.DatetimeIndex(timestamps), name="returns")
     return ConstantExposureData(
@@ -119,6 +128,17 @@ class ConstantExposureDiagnosticContractTest(unittest.TestCase):
             self.assertEqual(result["folds"], list(range(12)))
             self.assertFalse(result["fold12_or_later_evaluated"])
             self.assertEqual(result["gate"]["promotion_eligible"], False)
+            diagnostics = result["statistical_diagnostics"]
+            self.assertEqual(diagnostics["deflated_sharpe"]["selected_candidate"], "selected_constant")
+            self.assertEqual(diagnostics["deflated_sharpe"]["n_trials"], 7)
+            self.assertEqual(diagnostics["cscv_pbo"]["n_candidates"], 6)
+            self.assertEqual(diagnostics["cscv_pbo"]["n_subperiods"], 12)
+            self.assertEqual(
+                {item["name"] for item in diagnostics["stress"]["records"]["cost"]},
+                {"cost_1x", "cost_1.5x", "cost_2x"},
+            )
+            self.assertEqual(result["selected_vs_previous"]["folds"], list(range(1, 12)))
+            self.assertEqual(result["next_wave_candidates"], [])
             self.assertEqual(result["path_artifacts"]["entries"], 107)
             self.assertTrue(Path(result["path_artifacts"]["npz_path"]).exists())
             self.assertTrue(Path(result["ledger_path"]).exists())
@@ -127,6 +147,18 @@ class ConstantExposureDiagnosticContractTest(unittest.TestCase):
             self.assertTrue(rows)
             self.assertTrue(all(row["folds"] == list(range(12)) for row in rows))
             self.assertNotIn(12, [row.get("fold") for row in rows if row.get("fold") is not None])
+            def assert_finite(value):
+                if isinstance(value, dict):
+                    for item in value.values():
+                        assert_finite(item)
+                elif isinstance(value, list):
+                    for item in value:
+                        assert_finite(item)
+                elif isinstance(value, float):
+                    self.assertTrue(np.isfinite(value))
+            assert_finite(result)
+            for row in rows:
+                assert_finite(row)
             report = Path(result["report_path"]).read_text()
             self.assertIn("low-frequency constant-exposure baseline", report)
             self.assertIn("not a forecast-accuracy result", report)
