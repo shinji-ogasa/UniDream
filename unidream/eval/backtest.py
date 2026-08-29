@@ -36,6 +36,18 @@ ANNUALIZATION_EQUITY = {
 ANNUALIZATION = ANNUALIZATION_CRYPTO
 
 
+def validate_execution_delay(execution_delay_bars: int) -> int:
+    """Validate and normalize a bar delay without silently truncating it."""
+    if isinstance(execution_delay_bars, (bool, np.bool_)) or not isinstance(
+        execution_delay_bars, (int, np.integer)
+    ):
+        raise ValueError("execution_delay_bars must be an integer")
+    delay = int(execution_delay_bars)
+    if delay < 0:
+        raise ValueError("execution_delay_bars must be non-negative")
+    return delay
+
+
 def align_execution_path(
     returns: np.ndarray,
     positions: np.ndarray,
@@ -61,9 +73,7 @@ def align_execution_path(
         if len(benchmark_arr) != len(returns_arr):
             raise ValueError("benchmark_positions and returns must have equal lengths")
 
-    delay = int(execution_delay_bars)
-    if delay < 0:
-        raise ValueError("execution_delay_bars must be non-negative")
+    delay = validate_execution_delay(execution_delay_bars)
     if delay >= len(returns_arr):
         raise ValueError(
             "execution_delay_bars must be smaller than the number of return bars"
@@ -285,7 +295,7 @@ class Backtest:
         self.fee_rate = fee_rate
         self.slippage_bps = slippage_bps
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
-        self.execution_delay_bars = int(execution_delay_bars)
+        self.execution_delay_bars = validate_execution_delay(execution_delay_bars)
         self.benchmark_positions = (
             np.asarray(benchmark_positions, dtype=np.float64)
             if benchmark_positions is not None else None
@@ -294,8 +304,6 @@ class Backtest:
             assert len(self.benchmark_positions) == len(self.positions), (
                 "benchmark_positions と positions の長さが一致しない"
             )
-        if self.execution_delay_bars < 0:
-            raise ValueError("execution_delay_bars must be non-negative")
         if self.execution_delay_bars >= len(self.returns):
             raise ValueError(
                 "execution_delay_bars must be smaller than the number of return bars"

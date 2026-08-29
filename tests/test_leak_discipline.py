@@ -165,7 +165,7 @@ class MetricDefinitionTest(unittest.TestCase):
     def test_execution_delay_rejects_negative_and_out_of_window(self) -> None:
         returns = np.asarray([0.01, 0.02, -0.01], dtype=np.float64)
         positions = np.ones_like(returns)
-        for delay in (-1, len(returns), len(returns) + 1):
+        for delay in (-1, len(returns), len(returns) + 1, 1.5, True):
             with self.assertRaisesRegex(ValueError, "execution_delay_bars"):
                 Backtest(
                     returns,
@@ -175,6 +175,17 @@ class MetricDefinitionTest(unittest.TestCase):
                     slippage_bps=0.0,
                     execution_delay_bars=delay,
                 )
+        self.assertEqual(
+            Backtest(
+                returns,
+                positions,
+                spread_bps=0.0,
+                fee_rate=0.0,
+                slippage_bps=0.0,
+                execution_delay_bars=np.int64(1),
+            ).execution_delay_bars,
+            1,
+        )
 
 
 if __name__ == "__main__":
