@@ -128,6 +128,11 @@ class DataQualityContractTest(unittest.TestCase):
         self.assertEqual(result["availability_gate"]["status"], "fail")
         self.assertIn("indistinguishable", result["availability_gate"]["reason"])
 
+        features["funding_rate_available"] = True
+        partial = external_coverage(features)
+        self.assertFalse(partial["availability_gate"]["availability_mask_present"])
+        self.assertIn("basis", partial["availability_gate"]["missing_mask_columns"])
+
     def test_same_row_fairness_uses_full17_intersection(self) -> None:
         features, _ = _full17()
         fair = same_row_fairness(features)

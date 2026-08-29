@@ -600,15 +600,20 @@ def external_coverage(
             "status": "pass" if finite.all() else "fail_nonfinite",
         }
 
-    mask_present = bool(masks)
+    missing_masks = [name for name in external_names if name not in masks]
+    mask_present = not missing_masks
     gate = {
         "status": "pass" if mask_present else "fail",
         "availability_mask_present": mask_present,
         "availability_mask_columns": masks,
+        "missing_mask_columns": missing_masks,
         "reason": (
             "availability mask is present"
             if mask_present
-            else "cache has no availability mask; zero and missing/imputed values are indistinguishable"
+            else (
+                "availability mask is missing for "
+                f"{missing_masks}; zero and missing/imputed values are indistinguishable"
+            )
         ),
     }
     status = "pass"
@@ -1130,6 +1135,7 @@ def render_markdown_report(report: Mapping[str, Any], *, ledger_path: str | Path
         f"- Features/returns exact index alignment: `{contract.get('alignment', {}).get('same_index')}`",
         f"- Feature timestamp diagnostics: `{contract.get('features', {}).get('index', {}).get('status')}`",
         f"- Returns timestamp diagnostics: `{contract.get('returns', {}).get('index', {}).get('status')}`",
+        f"- Non-{report.get('scope', {}).get('interval')} steps: features `{contract.get('features', {}).get('index', {}).get('non_15m_step_count')}`, returns `{contract.get('returns', {}).get('index', {}).get('non_15m_step_count')}`; missing-bar estimate `{contract.get('features', {}).get('index', {}).get('missing_bar_count')}`",
         f"- Non-finite values: features `{contract.get('features', {}).get('numeric', {}).get('nonfinite_count')}`, returns `{contract.get('returns', {}).get('numeric', {}).get('nonfinite_count')}`",
         "",
         "## Causality probes",
