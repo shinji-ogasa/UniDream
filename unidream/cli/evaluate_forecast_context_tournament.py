@@ -8,9 +8,9 @@ from unidream.eval.forecast_context_tournament import (
     HORIZON_GRID,
     WAVE_FOLDS,
     WAVE_SEED,
-    load_development_data,
     run_context_tournament,
 )
+from unidream.eval.forecast_tournament import load_development_data
 from unidream.experiments.runtime import load_config, resolve_costs
 
 
