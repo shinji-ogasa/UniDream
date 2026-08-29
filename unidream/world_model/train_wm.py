@@ -23,6 +23,52 @@ from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.world_model.ensemble import EnsembleWorldModel
 
 
+_ACTIONLESS_CONTEXTS = frozenset(
+    {
+        "actionless",
+        "benchmark",
+        "benchmark_equivalent",
+        "deployable",
+        "deployment",
+        "none",
+    }
+)
+_ORACLE_CONTEXTS = frozenset({"dataset", "observed", "oracle"})
+
+
+def world_model_action_context(cfg: Optional[dict] = None) -> str:
+    """Resolve whether WM action inputs come from a dataset or stay actionless.
+
+    ``action_context`` is deliberately explicit for deployable configurations:
+    an actionless WM uses the same benchmark-equivalent fallback as
+    :meth:`WorldModelTrainer.encode_sequence(actions=None)`.  The historical
+    Oracle/dataset behavior remains available when callers opt into
+    ``action_context: oracle`` (or one of its aliases).
+    """
+    wm_cfg = (cfg or {}).get("world_model", {})
+    raw_context = wm_cfg.get("action_context")
+    if raw_context is None and "use_oracle_actions" in wm_cfg:
+        raw_context = "oracle" if bool(wm_cfg["use_oracle_actions"]) else "actionless"
+    if raw_context is None:
+        # Keep callers that predate the explicit setting compatible.  Plan011
+        # sets action_context explicitly to actionless in its YAML configs.
+        raw_context = "oracle"
+    if isinstance(raw_context, bool):
+        raw_context = "oracle" if raw_context else "actionless"
+    context = str(raw_context).strip().lower().replace("-", "_").replace(" ", "_")
+    if context in _ACTIONLESS_CONTEXTS:
+        return "actionless"
+    if context in _ORACLE_CONTEXTS:
+        return "oracle"
+    valid = ", ".join(sorted(_ACTIONLESS_CONTEXTS | _ORACLE_CONTEXTS))
+    raise ValueError(f"Unsupported world_model.action_context={raw_context!r}; expected one of: {valid}")
+
+
+def world_model_uses_dataset_actions(cfg: Optional[dict] = None) -> bool:
+    """Return whether WM training/encoding may consume dataset actions."""
+    return world_model_action_context(cfg) == "oracle"
+
+
 class IDMHead(nn.Module):
     """Inverse Dynamics Model: (z_t, z_{t+1}) → action logits.
 
@@ -145,6 +191,8 @@ class WorldModelTrainer:
         self.ensemble.to(self.device)
         cfg = cfg or {}
         wm_cfg = cfg.get("world_model", {})
+        self.action_context = world_model_action_context(cfg)
+        self.use_dataset_actions = self.action_context == "oracle"
 
         self.lr = wm_cfg.get("lr", 1e-4)
         self.batch_size = wm_cfg.get("batch_size", 32)
@@ -723,9 +771,13 @@ class WorldModelTrainer:
                 obs = batch["obs"].to(self.device)            # (B, T, obs_dim)
                 obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)
 
-                # actions がない場合はゼロ埋め（WM 事前学習時はランダムポリシーで収集した軌跡を想定）
-                if "actions" in batch:
-                    actions = batch["actions"].to(self.device)  # (B, T, 1) or (B, T)
+                # actionless/deployable mode intentionally ignores any action
+                # column accidentally attached to the dataset.  This keeps
+                # training on the same benchmark-equivalent context as
+                # encode_sequence(actions=None).
+                batch_actions = batch.get("actions") if self.use_dataset_actions else None
+                if batch_actions is not None:
+                    actions = batch_actions.to(self.device)  # (B, T, 1) or (B, T)
                 else:
                     actions = torch.full(
                         (*obs.shape[:2], 1),
@@ -792,11 +844,11 @@ class WorldModelTrainer:
                 if self.idm_head is not None or has_predictive_head:
                     z, _ = self.ensemble.encode(obs)  # (B, T, z_dim)
 
-                    if self.idm_head is not None and "actions" in batch and not torch.is_floating_point(batch["actions"]):
+                    if self.idm_head is not None and batch_actions is not None and not torch.is_floating_point(batch_actions):
                         z_t = z[:, :-1, :]   # (B, T-1, z_dim)
                         z_t1 = z[:, 1:, :]   # (B, T-1, z_dim)
                         idm_logits = self.idm_head(z_t, z_t1)  # (B, T-1, n_actions)
-                        oracle_acts = batch["actions"].to(self.device)[:, :-1]  # (B, T-1)
+                        oracle_acts = batch_actions.to(self.device)[:, :-1]  # (B, T-1)
                         B_, T_, A_ = idm_logits.shape
                         idm_loss = F.cross_entropy(
                             idm_logits.reshape(B_ * T_, A_),
@@ -1186,7 +1238,7 @@ class WorldModelTrainer:
             ).unsqueeze(0)
             obs_t = torch.nan_to_num(obs_t, nan=0.0, posinf=0.0, neginf=0.0)
 
-            if actions is not None:
+            if actions is not None and self.use_dataset_actions:
                 act_t = torch.tensor(
                     actions[ctx_start:end], dtype=torch.float32, device=self.device
                 ).unsqueeze(0)

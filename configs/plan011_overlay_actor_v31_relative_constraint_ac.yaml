@@ -337,6 +337,7 @@ targets:
   stretch_alpha_excess_pt: 10.0
   stretch_maxdd_delta_pt: -5.0
 world_model:
+  action_context: actionless
   aux_use_raw_features: true
   batch_size: 64
   bin_range:

@@ -3,7 +3,11 @@ from __future__ import annotations
 from copy import deepcopy
 
 from unidream.data.dataset import SequenceDataset
-from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
+from unidream.world_model.train_wm import (
+    WorldModelTrainer,
+    build_ensemble,
+    world_model_uses_dataset_actions,
+)
 
 
 def prepare_world_model_stage(
@@ -29,17 +33,28 @@ def prepare_world_model_stage(
     wm_trainer.checkpoint_metadata = dict(checkpoint_metadata or {})
 
     print(f"\n[{log_ts()}] [Step 2] World Model Training...")
+    use_dataset_actions = world_model_uses_dataset_actions(cfg_local)
+    train_actions = (
+        oracle_positions[: len(wfo_dataset.train_features)]
+        if use_dataset_actions and oracle_positions is not None
+        else None
+    )
+    val_actions = (
+        val_oracle_positions[: len(wfo_dataset.val_features)]
+        if use_dataset_actions and val_oracle_positions is not None
+        else None
+    )
     train_ds_with_actions = SequenceDataset(
         wfo_dataset.train_features,
         seq_len=cfg.get("data", {}).get("seq_len", 64),
-        actions=oracle_positions[: len(wfo_dataset.train_features)],
+        actions=train_actions,
         returns=train_returns,
         regime_probs=train_regime_probs[: len(wfo_dataset.train_features)] if train_regime_probs is not None else None,
     )
     val_ds = SequenceDataset(
         wfo_dataset.val_features,
         seq_len=cfg.get("data", {}).get("seq_len", 64),
-        actions=val_oracle_positions[: len(wfo_dataset.val_features)],
+        actions=val_actions,
         returns=wfo_dataset.val_returns,
         regime_probs=val_regime_probs[: len(wfo_dataset.val_features)] if val_regime_probs is not None else None,
     )
