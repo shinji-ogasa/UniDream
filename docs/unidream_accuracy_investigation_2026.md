@@ -1,6 +1,8 @@
 # UniDream accuracy investigation (2026)
 
-**Report state:** Stage 1 — skeleton and confirmed evidence. This is a
+**Report state:** Stage 2 — complete report (evidence, hypotheses, checklist,
+literature, and agent plan). The evidence-only skeleton was first pushed as
+`66d6298`; this final report is a
 report-only artifact; it does not retrain a model, apply a Supabase migration,
 deploy a Space, or write production data.
 
@@ -9,13 +11,15 @@ separate repositories. The snapshots inspected for this report were:
 
 | repository | inspected revision | role |
 | --- | --- | --- |
-| `UniDream` | `a871439` | Research training/evaluation and contract tests |
+| `UniDream` | `157e408` (baseline evidence begins at `a871439`) | Research training/evaluation, official-source readers, and contract tests |
 | `unidream-space` | `60052bc` | Plan011 v31 inference service and feature parity |
 | `unidream-demo-web` | `271baf7` | Edge data fetch, paper trading, Supabase writes, dashboard |
 
-The Research working tree also contains concurrent, uncommitted forecast and
-backtest edits. They were read only and are intentionally not part of this
-report commit.
+The Research working tree also contains concurrent, uncommitted forecast,
+backtest, and source-rebuild edits. They were read only and are intentionally
+not part of this report commit. Revision `157e408` adds official-source reader
+and probe code; it does not constitute a generated v4 cache or a new model
+result.
 
 ## Reading contract
 
@@ -48,16 +52,23 @@ generalization investigation, not a single identified model defect.
    has no availability mask, so a zero derivative value cannot be
    distinguished from missing or imputed data. Causal probes pass, but this
    does not make the cache v4-compliant.
-2. **The model result is modest and not drawdown-improving in the retained
-   snapshot.** Development folds 0–12 have mean AlphaEx `+0.41pt`, median
-   `+0.16pt`, and MaxDDDelta `+0.20pt`; the 2024–2026 holdout folds 15–23 have
-   mean AlphaEx `+0.11pt`, median `-0.04pt`, and MaxDDDelta `+0.20pt`. Negative
-   MaxDDDelta is the improvement direction. These are historical evidence
-   snapshots, not a new v4 rerun.
-3. **The Wave3A forecast screen found no winner.** Its six feature-set ×
-   candidate combinations all failed their preregistered gate. This is a
-   development screen, not Wave3C, and it does not prove that derivative
-   features or a particular architecture caused the decline.
+2. **The retained model result is modest and not drawdown-improving, but is
+   stale for the corrected Plan011 contract.** Development folds 0–12 have
+   mean AlphaEx `+0.41pt`, median `+0.16pt`, and MaxDDDelta `+0.20pt`; the
+   2024–2026 holdout folds 15–23 have mean AlphaEx `+0.11pt`, median `-0.04pt`,
+   and MaxDDDelta `+0.20pt`. Negative MaxDDDelta is the improvement direction.
+   These are historical v3 snapshots produced before commit `c8f6914` fixed
+   the Plan011 World Model future-action context. They are retained for
+   provenance only and are **not valid accuracy estimates for the corrected
+   Plan011 implementation**; retraining is required before comparing corrected
+   accuracy.
+3. **The Wave3A forecast screen found no usable winner, and is itself
+   superseded for corrected timing claims.** Its six feature-set × candidate
+   combinations all failed the frozen screen, but that screen predates the
+   baseline-exposure, leading-padding, and turnover audit. It is a historical
+   diagnostic only; Wave3C errata are expected to supersede it. It does not
+   prove that derivative features or a particular architecture caused the
+   decline.
 4. **The live contracts are stricter than the old research cache.** Space
    requires all 17 Plan011 inputs and rejects missing/non-finite funding or
    mark data. Web excludes partial candles, joins funding as-of and mark by
@@ -146,6 +157,13 @@ development and folds 15–23 for the untouched 2024–2026 holdout, with train
 selects; test is report-only. The default one-way full position-change cost is
 5.50 bps (`fee 0.0003`, full spread 3 bps, slippage 1 bps).
 
+**Important validity boundary:** the retained development and holdout
+snapshots were produced before `c8f6914` corrected Plan011's World Model
+action-context handling. Therefore they are historical pre-correction
+artifacts, not evidence for the current corrected pipeline. They also use the
+v3 cache contract described above. A new corrected run on the repaired v4
+cache is required; this report deliberately does not invent its values.
+
 The retained aggregate values are:
 
 | scope | AlphaEx mean | AlphaEx median | AlphaEx positive | MaxDDDelta mean | goal `+3/-3` |
@@ -166,7 +184,7 @@ test reporting and must not silently use an unselected test mean.
 
 ### Wave3A and Wave3C status
 
-**CONFIRMED — Wave3A development screen.**
+**CONFIRMED — Wave3A frozen development screen, with an erratum boundary.**
 `docs/forecast_tournament_plan011_dev/report.md` covers development folds
 0, 2, and 8, horizons 4/16/64, fixed operational delay 1 bar, and sensitivity
 lags 1/16. The screen tested full17 and OHLCV13 with a causal trend/vol rule,
@@ -176,7 +194,10 @@ the retained aggregate table are full17 causal `IC -0.0329`, AlphaEx
 `IC +0.0187`, AlphaEx `+0.8335pt`, which still failed the complete gate.
 
 These numbers are Wave3A only. They are not Wave3C results and cannot fill
-the placeholders below.
+the placeholders below. The frozen screen also predates the baseline exposure
+matching, leading-padding removal, and turnover semantics audit. Consequently
+it cannot be used as corrected timing superiority evidence; Wave3C errata and
+the corrected shared execution path supersede that interpretation.
 
 **IN PROGRESS / GATE STOPPED — Wave3C result freeze.** The exact Wave3C
 selection, timing, cost, and statistical values are not confirmed in the
@@ -276,8 +297,8 @@ significance claim for Plan011.
 | Research causal feature probes | **complete/pass** | four perturbation/prefix/as-of probes pass with max diff 0 | availability and gap-complete data |
 | Research v3 data quality | **GATE STOPPED/fail** | audit records gaps and zero/missing ambiguity | official v4 regeneration and window exclusion |
 | v4 cache contract | **complete contract / no dataset** | writer, loader, sidecar, digest, gap policy | generate and audit the actual v4 cache |
-| Plan011 historical evidence | **complete snapshot** | dev/holdout aggregates and report-only semantics | re-run only after data contract is repaired |
-| Wave3A forecast tournament | **complete screen/fail** | all six tested combinations failed | Wave3C artifact and any revised screen |
+| Plan011 historical evidence | **complete pre-correction snapshot / not current-accuracy evidence** | dev/holdout aggregates and report-only semantics before `c8f6914`, on v3 | corrected retraining on v4; do not compare as current Plan011 |
+| Wave3A forecast tournament | **frozen pre-errata diagnostic / superseded** | all six tested combinations failed before baseline/padding/turnover audit | Wave3C errata and corrected screen |
 | Wave3C | **IN PROGRESS / stopped** | placeholders only | signed exact numerical result |
 | Space 17-feature parity | **complete code/tests** | derivative inputs required; causal closed path | deployed provider/runtime observation |
 | Web closed-candle/atomic/cost | **complete code/tests** | closed data, derivative join, one RPC, cost contract | local SQL and production runtime verification |
@@ -287,10 +308,10 @@ significance claim for Plan011.
 
 It does not prove that funding/mark features improve or harm accuracy, that a
 Transformer is inferior to a simpler model on BTCUSDT, that AC caused the
-holdout shortfall, or that any Wave3C candidate passes. It does not prove live
+pre-correction holdout shortfall, or that any Wave3C candidate passes. It does not prove live
 profitability, execution capacity, actual exchange fills, Supabase atomicity
 under concurrent production requests, or statistical significance. Those are
-questions for the controlled checklist in the next stage of this report.
+questions for the controlled checklist below.
 
 ## Source index for the confirmed evidence
 
@@ -313,8 +334,306 @@ questions for the controlled checklist in the next stage of this report.
   `supabase/migrations/0003_atomic_inference.sql` at the revisions listed at
   the top of this report.
 
----
+## Accuracy-decline hypotheses
 
-The hypotheses, primary-literature map, executable experiment checklist,
-agent organization plan, and promotion/rollback decision tree are added in
-Stage 2 after this evidence-only commit is pushed.
+The following are ranked working hypotheses. A ranking is a decision aid, not
+a measured attribution. The only numerical values treated as evidence are the
+committed snapshots in the preceding sections; Wave3C remains unconfirmed.
+
+### P0 — data and contract validity
+
+**H1: gaps and derivative zero/missing ambiguity contaminate comparability.**
+The v3 gate failure, 542 estimated missing bars, 524 unresolved gaps, and lack
+of availability flags are confirmed. It is an **INFERENCE**, not proof that
+this caused the historical AlphaEx decline: the committed results were
+computed on that cache, but no paired v3-versus-regenerated-v4 experiment
+exists. Repairing this first is mandatory because every later model comparison
+could otherwise measure a data-generation change.
+
+**H2: target, feature, and execution timing may be misaligned.** The Research
+feature contract says row `t` is known through the start of bar `t`, while
+`returns[t]` is realized at bar `t`. A target written as `t+1..t+h`, a policy
+delay, and the backtest position path must be right-aligned exactly once. A
+positive delay must trim `positions[:-d]` against `returns[d:]`; padding with
+`p0` is not causal. The Web/Space closed-candle contracts are confirmed in
+code/tests, but cross-repository end-to-end alignment for every research
+experiment is **UNVERIFIED**. This is a P0 audit item rather than a claimed
+cause.
+
+**H3: live/demo and research inputs can drift despite a shared 17-column
+name/order.** Space now requires raw derivative sources and Web supplies them,
+but research v3 has ambiguous external availability and a historical snapshot
+with a different data contract. A schema match is necessary, not sufficient:
+source, as-of time, cutoff, normalization, row eligibility, and model/bundle
+hashes must all match. The drift risk is **INFERENCE** until a same-candle
+parity replay produces a signed digest.
+
+### P1 — signal, exposure, and objective
+
+**H4: the apparent benefit is exposure, not timing.** The retained attribution
+report defines constant exposure as the actor-mean constant path and timing as
+the actor sequence minus that constant under the same costs. Earlier audit
+notes observed a dynamic path centered near `1.0` while the validation-selected
+constant comparator spans roughly `0.5..1.12`; mean-exposure and timing can
+therefore be confounded. This is a **working INFERENCE**. The required test is
+mean-matched dynamic-versus-constant comparison on a common evaluation window,
+with paired block intervals and cost turnover reported separately.
+
+**H5: the training objective and promotion objective are not identical.** The
+Plan011 config uses B&H-relative rewards, relative drawdown and turnover
+penalties, predictive-state heads, and an AC horizon of 8, while the declared
+promotion target is final-value AlphaEx `>= +3pt` together with MaxDDDelta
+`<= -3pt`. That configuration mismatch is **CONFIRMED**; its causal effect is
+**UNVERIFIED**. A fixed reward/selector ablation must measure the final metrics
+under the same cost and timing contract.
+
+**H6: offline RL extrapolation or world-model error may erase the BC signal.**
+The current pipeline uses WM → BC → imagination AC, with one ensemble member in
+the inspected Plan011 config and no CQL/IQL conservative objective. Offline
+distribution shift is a known mechanism in the literature, but there is no
+local OPE proof that it is the cause. This is an **INFERENCE** to test with
+action-support diagnostics, shuffled-latent/no-WM ablations, and conservative
+baselines; the untouched test/holdout must remain report-only.
+
+**H7: forecast signal is weak or regime-specific.** Wave3A's all-six-fail
+development screen is confirmed as a frozen pre-errata diagnostic, not current
+corrected evidence: its baseline exposure, leading-padding, and turnover
+semantics were later audited. The screen does not identify whether weak IC,
+policy translation, costs, or regime change is dominant. Long BTCUSDT history
+crosses materially different regimes, so non-stationarity is a plausible
+**INFERENCE**, not evidence of model failure. Regime-stratified
+development-only paths and fixed cost stress are required.
+
+**H8: derivative features may add variance without incremental signal.** The
+Wave3A full17 and OHLCV13 rows both failed their complete gates; the result is
+not a causal derivative ablation because the data-quality contract itself was
+not v4-clean and all candidates failed. The only safe statement is that
+derivative usefulness is **UNVERIFIED**. Regenerate v4, preserve paired rows,
+and test full17 versus 13 with explicit zero/missing flags.
+
+### P2 — architecture and economic measurement
+
+**H9: transformer inductive bias/capacity is not optimal for this horizon.**
+The current model is a Transformer WM plus downstream actors. Simpler linear,
+patch, inverted-variate, non-stationary, and multiscale models are credible
+baselines, but architecture superiority is **UNVERIFIED** until the same folds,
+targets, costs, and selection rules are used.
+
+**H10: costs and initial-entry conventions can hide a small edge.** Research
+and demo now document fee `0.0003`, full spread `3 bps` (half spread `1.5 bps`),
+and slippage `1 bps` on absolute position delta. The Web implementation keeps
+the B&H entry cost as fixed cash and explicitly documents that window return
+excludes initial cost. Research turnover historically excludes synthetic
+initial entry for compatibility, while a separate cost-turnover path is
+required for cost calculations. These semantics are **CONFIRMED as current
+contracts**, but historical cross-repo parity is **UNVERIFIED**. A numerical
+fixture must assert both strategy and B&H initial-entry convention before any
+small AlphaEx is interpreted.
+
+## Canonical metric and timing contract for new experiments
+
+All rows in the checklist below must state these quantities in machine-readable
+metadata. If a caller cannot satisfy one, it records `N/A` and stops promotion.
+
+| item | fixed contract |
+| --- | --- |
+| bar | BTCUSDT, 15m, right-exclusive intervals |
+| feature timing | row `t` uses only information available by bar-`t` start; shifted indicators retain the `shift(1)` semantics |
+| target | for horizon `h`, strictly future `t+1..t+h`; no target element may cross a split boundary |
+| execution | fixed non-negative integer delay `d`; for `d>0`, evaluate `positions[:-d]` against `returns[d:]`; reject negative, non-integer, boolean, or `d >= len` |
+| benchmark | B&H position `1.0`, trimmed to the same effective bars as the strategy |
+| cost | fee `0.0003` + half-spread `0.00015` + slippage `0.0001`, multiplied by `abs(position_delta)` and quote price/notional according to the shared implementation |
+| turnover | preserve legacy turnover for compatibility when it excludes synthetic entry; expose `cost_turnover = sum(abs(diff(concat([0], positions))))` separately and never use the names interchangeably |
+| AlphaEx | strategy final total return minus B&H final total return, in percentage points; not annualized |
+| MaxDDDelta | `abs(strategy MaxDD) - abs(B&H MaxDD)`; negative improves drawdown |
+| return window | any “window return” must identify whether the initial entry cost is excluded; the Web contract excludes it from return while retaining it in cash/equity |
+| selection | fit on train only; choose checkpoint/hyperparameters/policy/threshold on validation only; development test is report-only; folds 15+ are never consumed by development selection |
+| statistical gate | development paths only; explicit full `n_trials`; block bootstrap and paired tests; odd/too-short CSCV inputs are N/A, never pass |
+
+### Synthetic numerical assertions required before a candidate run
+
+These are not candidate results. They are small contract fixtures that every
+implementation may reproduce independently:
+
+1. With initial capital `10000`, first price `100`, target moving from flat to
+   `1.0`, one-way cost is `5.50` quote units under the fixed profile. At price
+   `110`, the B&H equity is `10994.50` when the same flat-to-1.0 entry cost is
+   applied as fixed cash: `10000 * 110/100 - 5.50`. The alternative
+   `(10000-5.50) * 110/100` is a different contract and must not be mixed in.
+2. A three-return path and delay `1` use decisions `positions[:-1]` with
+   `returns[1:]`; no synthetic leading position is added. Delay `0` preserves
+   all rows. Negative, boolean, fractional, and too-large delays reject.
+3. Funding at publication times `t-1` and `t+1` must align to candle `t` with
+   the `t-1` value only. A mark row at an exact candle timestamp is accepted;
+   a later timestamp or missing exact row rejects.
+4. A null or zero external value is not silently converted into an observed
+   derivative. v4 sidecar flags must distinguish it, and an unresolved row
+   makes a crossing sequence ineligible.
+
+## Experiment checklist
+
+The checklist is intentionally gate-oriented. “Pass” means the stated
+criterion is met for the named artifact; it never means a positive trading
+result is guaranteed. Every experiment must retain the input/config/source
+hashes and a reason for every `N/A`.
+
+| ID / owner | status now | input | metric and pass criterion | stop condition | artifact | dependency |
+| --- | --- | --- | --- | --- | --- | --- |
+| **C0 Data QA / Research** | **GATE STOPPED** | official Spot + USDⓈ-M mark/funding, v3 audit, v4 writer/reader | exact 17 columns, complete sidecar, finite values, no unresolved window crossing; pass only after official v4 regeneration and audit | non-official source, redirect, interpolation, bfill, unresolved required input, mixed digest | v4 parquet trio + metadata, gap ledger, source response hashes | official Binance archives/REST; source reader at `157e408` |
+| **C1 Closed-candle / Space + Edge** | **complete code/tests; runtime unverified** | injected `now`, deterministic Spot/mark/funding fixtures, `TARGET_BARS` | all bars close at or before cutoff; exact count; mark timestamp equality; funding publication `<=` candle; no current partial bar; pass unit suite | latest partial included, future funding, mark fill, pagination duplicate/gap, missing derivative | fixture test output and input digest; `/health`/parity evidence | C0 source semantics; official Binance docs |
+| **C2 Research timing / Eval** | **complete helper contract; Wave3C integration pending** | positions, returns, benchmark paths, integer delay | d>0 uses `positions[:-d]` vs `returns[d:]` and same benchmark period; all metric arrays trimmed; strict type validation; pass synthetic boundary tests | p0 padding, negative/fractional/bool delay, cross-split target, `d>=len` | alignment JSON + numerical fixture report | C0; shared backtest/action_stats implementation |
+| **C3 Web atomicity / Supabase** | **code/static tests complete; SQL/runtime unverified** | migration `0003`, RPC payloads, duplicate/stale/partial-failure fixtures | one RPC; row lock + CAS; unique `(run_id, latest_timestamp)` and trade key; duplicate idempotent; any error leaves no partial four-table write; pass local Postgres or explicit N/A | service secret exposure, public write grant, NaN/Inf accepted, partial row, duplicate trade | migration review, local SQL transcript or blocked report, Edge logs | Supabase CLI/Docker/local Postgres; no production writes |
+| **C4 Cost/equity / Web + Research** | **contract/tests complete; historical parity unverified** | shared costs, flat/1.0/changed-position fixtures, B&H path | fee .0003, spread half 1.5bps, slippage 1bp times `abs(delta)`; strategy/B&H initial-entry symmetry; fixed-cash equity fixture; pass exact expected values | all-in cost labeled fee-only; initial cost double-counted/omitted; benchmark different window/unit | cost fixture JSON + metric contract report | C2; shared `paper_trading` and dashboard metrics |
+| **C5 Target/forecast / Research** | **Wave3A frozen pre-errata diagnostic/superseded; Wave3C pending** | regenerated v4 dev folds, horizons 4/16/64, train/val/test timestamps | targets exactly `t+1..t+h`; no split crossing; validation selects model/policy; test only reports; pass structural audit before score | any future leakage, target overlap, fold15+ read, execution delay selected on test, baseline/padding/turnover mismatch | forecast ledger with target masks, config/data hashes, errata record | C0, C2; corrected forecast implementation |
+| **C6 Feature ablation / Research Data + Model** | **planned; blocked by C0** | paired v4 rows, full17, OHLCV13, explicit availability flags | compare AlphaEx, MaxDDDelta, IC/MAE, sign and turnover under same folds/cost/delay; pass only preregistered superiority with no missingness confound | unpaired rows, zero/missing ambiguity, different selector, holdout selection | ablation ledger + per-fold paths + mask report | C0, C5 |
+| **C7 Exposure/timing / Research Eval** | **IN PROGRESS** | validation-selected constant, dynamic path, lag/shift nulls, common evaluation start | mean exposure, AlphaEx, timing increment, cost turnover, paired block CI; pass if mean-matched dynamic timing beats constant and nulls under preregistered margin | exposure difference explains result, period mismatch, delay mixed into selection, null beats dynamic | attribution ledger + common-window report | C2, C4, C5; Wave3C paths (currently placeholder) |
+| **C8 Architecture / Research Model** | **planned** | same v4 folds/targets and training budget for DLinear, PatchTST, iTransformer, Nonstationary Transformer, TimeMixer, current WM | forecast IC/MAE plus downstream net AlphaEx/MaxDDDelta and compute; pass only if split/cost parity and validation selection are identical | architecture gets extra tuning/data, test-driven selection, no deployment parity | architecture comparison table, checkpoints, config hashes | C0, C5; primary literature below |
+| **C9 Offline-RL / Research RL** | **planned** | same behavior data/WM and action support; current BC/AC, CQL, IQL candidates | conservative OPE diagnostics, action-support/extrapolation, net development paths, turnover; pass only if no unsupported-action optimism and fixed gate passes | unseen action mass, world-model disagreement unreported, holdout feedback, policy instability | OPE/ablation ledger + action histogram | C0, C2, C5; architecture results optional |
+| **C10 Stress / Research Stats** | **statistical API complete; candidate application blocked** | development fold paths only, cost and regime cases | moving/stationary block CI with fixed/sensitivity blocks; sign/binomial; all required cost/regime stress pass; N/A rejects | missing path, future fold, omitted stress group, CI sensitivity fails, N/A treated as pass | machine-readable statistical gate output | C0, C4, C5, C7; explicit `n_trials` |
+| **C11 DSR/PBO / Research Stats** | **contract complete; no result** | all tried candidate paths/count, even pre-registered subperiods | DSR with per-bar/annualized distinction and complete `n_trials`; CSCV/PBO with >=2 candidates and even >=4 subperiods; pass only if preregistered | `n_trials` inferred from retained candidates, 13-fold odd CSCV, test/holdout consumed | gate JSON + trial registry + PBO reason | C10; candidate search registry |
+| **C12 Cross-repo parity / Space + Web + Research** | **code fixtures complete; live unverified** | same candle bundle, 17 features, model/schema/source hashes | max feature/position discrepancy within declared tolerance; same latest closed timestamp and cost metadata; pass signed replay | schema/order/hash/timestamp mismatch, partial candle, dashboard status overclaims health | parity bundle/report and status payload | C0, C1, C4; deployed revisions |
+| **C13 Shadow/replay / Web Ops** | **planned; no production run** | immutable provider responses, model hash, Edge logs, RPC rows | no missing/duplicate bar; latency, error class, fills, equity/B&H, and cost audit; pass only after operator sign-off | live partial bar, 409 storm, RPC partiality, unmodeled fill/slippage, secret/log leak | redacted replay + observability dashboard | C1, C3, C12 |
+| **C14 Wave3C freeze / Research lead + independent auditor** | **GATE STOPPED** | signed config/data/source hashes and dev-only fold paths | replace placeholders only from a reproducible artifact; statistical and timing gate status explicit; pass requires no unverified claim | any invented number, fold15+ selection, missing provenance, test result changes selector | signed Wave3C report/ledger; current values remain placeholders | C0–C11; independent review |
+
+### Checklist status interpretation
+
+* **Complete/pass** means a contract or synthetic test passed; it is not a
+  profitability claim.
+* **Complete/fail** means the experiment ran and did not meet its preregistered
+  gate (Wave3A is the current example); it must not be silently retried with
+  changed thresholds until the change is documented as a new candidate.
+* **Gate stopped** means downstream numerical comparison is not promoted until
+  the blocking contract is repaired.
+* **N/A** is a valid result with a reason, never a zero and never a pass.
+
+## Primary-literature map and testable implications
+
+The papers below provide hypotheses and statistical safeguards. None is
+evidence that its method will improve BTCUSDT or UniDream. Each proposed model
+must use the same repaired v4 data, WFO splits, target masks, execution delay,
+costs, and validation-only selection.
+
+| literature | primary source | implication for UniDream | what would count as evidence |
+| --- | --- | --- | --- |
+| DLinear / LTSF-Linear | [Zeng et al., *Are Transformers Effective for Time Series Forecasting?*](https://arxiv.org/abs/2205.13504) | a very simple linear baseline can beat complex Transformer forecasters on some benchmark datasets; test whether current capacity is unnecessary | same fold/horizon/feature contract; improvement in net dev IC and downstream AlphaEx without extra tuning; no claim from paper alone |
+| PatchTST | [Nie et al., *A Time Series is Worth 64 Words*](https://arxiv.org/abs/2211.14730) | patching and channel-independent tokens may improve local semantics and attention efficiency for a 64-bar context | predeclare patch length/stride; compare compute and net metrics against current WM under identical data and selection |
+| iTransformer | [Liu et al., *iTransformer: Inverted Transformers Are Effective for Time Series Forecasting*](https://arxiv.org/abs/2310.06625) | variate tokens may model cross-feature dependencies differently from time tokens, relevant to OHLCV + derivatives | same 17 columns, normalization, target mask, and training budget; measure whether cross-variate gains survive costs |
+| Non-stationary Transformer | [Liu et al., *Non-stationary Transformers*](https://arxiv.org/abs/2205.14415) | reversible stationarization/de-stationary attention is a hypothesis for regime/level shifts; current rolling z-score may remove or retain different information | regime-stratified dev ablation with no future statistics; compare stability, not only best fold |
+| TimeMixer | [Wang et al., *TimeMixer* (ICLR 2024)](https://arxiv.org/abs/2405.14616) | decomposable multiscale mixing may match 15m horizons spanning 4/16/64 bars | same multiscale target set and fixed compute; predeclare whether long-horizon improvements translate to net policy paths |
+| CQL | [Kumar et al., *Conservative Q-Learning*](https://arxiv.org/abs/2006.04779) | conservative Q regularization is a candidate response to offline action-distribution shift and overestimated unseen actions | action-support and conservative OPE diagnostics plus development gate; no holdout tuning |
+| IQL | [Kostrikov, Nair, and Levine, *Offline Reinforcement Learning with Implicit Q-Learning*](https://arxiv.org/abs/2110.06169) | expectile value learning and advantage-weighted behavior cloning avoid direct maximization over unseen actions | compare to BC/AC with identical behavior data and cost; report unsupported-action rate and stability |
+| Deflated Sharpe Ratio | [Bailey and López de Prado, *The Deflated Sharpe Ratio* (author PDF)](https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf) and [SSRN version](https://doi.org/10.3905/jpm.2014.40.5.094) | multiple trials, non-normality, and sample length must deflate apparent Sharpe; annualization is display-only | explicit full trial registry, per-bar returns, deterministic DSR output; omitted trial count is non-promotion |
+| Probability of Backtest Overfitting | [Bailey et al., *The Probability of Backtest Overfitting* (author PDF)](https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf) | CSCV/PBO is a guard against selecting a lucky in-sample combination; odd/insufficient subperiods are N/A | at least two candidates and a preregistered even subperiod count (for example 12); no 13-fold shortcut or holdout use |
+
+## Agent organization and hand-off plan
+
+The plan assigns one owner per file family and an independent audit role. The
+parent/lead arbitrates contracts and claims; no agent may broaden its scope by
+editing another owner’s files or by deploying production state.
+
+| role | owned surface | deliverable and acceptance |
+| --- | --- | --- |
+| **Lead / contract arbiter (parent)** | cross-repo decisions, release claims, gate ledger | approves fixed metric/timing/schema contract; records status and prevents unverified or Wave3C numbers from promotion |
+| **Research Data QA** | `UniDream/unidream/data`, v4 tests, data-quality docs | official-only source reconstruction, sidecar/gap ledger, exact digests, no v3 overwrite; C0 pass artifact |
+| **Research Evaluation/Stats** | `unidream/eval/backtest.py`, attribution, statistical gate and dedicated tests | shared delay/cost alignment, timing/common-window report, DSR/PBO/block bootstrap with full trial registry; no holdout reads |
+| **Research Forecast/Architecture** | forecast tournament/context files and architecture experiments | target mask/split proof, DLinear/PatchTST/iTransformer/Nonstationary/TimeMixer candidates; validation-only selection; report-only development test |
+| **Research RL** | WM/BC/AC experiment configs and RL-specific tests | current baseline versus CQL/IQL or conservative diagnostics; action support and model disagreement evidence |
+| **Space owner** | `unidream-space/backend`, bundle verification and tests | 17-feature raw contract, closed candle, derivative as-of join, parity digest; runtime/deployment observation separately labeled |
+| **Web Edge/Supabase owner** | `unidream-demo-web/supabase/functions`, migration, backfill tests | Binance closed/derivative fetch, one RPC/CAS, exact costs, no public write privilege; local SQL evidence or explicit boundary |
+| **Dashboard/metrics owner** | Web `src/lib/metrics.ts`, contract/UI tests | truthful AlphaEx/MaxDD/B&H/return windows, cost units, timestamps, model/schema/parity/cutoff/atomic status; no source-configured badge presented as live health |
+| **Independent auditor** | read-only review across all three repositories | verifies fold scope, target offsets, timing, parity, hashes, and claim wording; must not edit a concurrently owned file |
+| **Ops/replay owner** | redacted provider/RPC logs, shadow replay only | validates latency/error/fill observability after code gates; never accesses production secrets in Research experiments |
+
+### Sequencing and branch discipline
+
+```text
+C0 v4/data gate
+  -> C1/C2 closed + timing fixtures
+  -> C3/C4 atomic + cost/equity verification
+  -> C5 target/forecast structural audit
+  -> C6/C7 ablation and mean-matched timing
+  -> C8/C9 architecture and offline-RL candidates
+  -> C10/C11 independent statistical gate
+  -> C12 same-candle parity
+  -> C13 shadow replay
+  -> lead sign-off / optional deployment
+```
+
+Each hand-off must include: commit hash, config hash, data/source/bundle
+digests, fold and timestamp range, target/delay/cost contract, per-fold paths,
+tests and counts, gate output, `N/A` reasons, and unverified boundaries. Use
+small commits with exact-file staging; never force-push, rewrite a concurrent
+branch, or stage another owner’s untracked work. A failed gate produces a
+diagnostic artifact and stops downstream promotion.
+
+## Promotion, rollback, and reporting decision tree
+
+1. **Data:** if C0 fails, stop all accuracy comparisons and report the gap and
+   source failure. Do not interpolate, backfill from future data, or call a
+   v3 cache v4.
+2. **Causality:** if C1/C2/C5 fails, stop model selection. Fix the timestamp,
+   target, or execution contract and regenerate the affected artifact.
+3. **Economics/state:** if C3/C4 fails, stop dashboard or paper-trading
+   promotion. Keep production untouched; use a local SQL/synthetic fixture and
+   record whether DB execution remains unavailable.
+4. **Model:** if a candidate fails its predeclared development gate, retain it
+   as a failed candidate. Do not change the gate after reading its test or
+   holdout result.
+5. **Statistics:** if DSR/PBO, block CI, sign, or stress is N/A/failed, the
+   result may be described as exploratory only. A synthetic fixture passing the
+   API is not candidate evidence.
+6. **Runtime:** only after all data/model gates pass may a redacted shadow
+   replay be considered. Any schema/hash/cutoff/RPC mismatch pauses Cron and
+   returns to the last compatible Edge revision; never drop the migration or
+   uniqueness keys while a revision may still run.
+7. **Claims:** report development, untouched holdout, live shadow, and
+   production observations in separate sections. Replace Wave3C placeholders
+   only from a signed artifact with complete provenance.
+
+## Known limitations and open questions
+
+* The v4 source readers and contract tests do not by themselves generate or
+  validate a complete historical v4 feature cache. Provider availability,
+  archive semantics, and all 2018–2024 rows still require a controlled run.
+* Space and Edge tests are local code-level evidence. This report did not
+  invoke a deployed HF Space, Binance from the production region, Supabase
+  Cron, or a production Postgres transaction.
+* Research historical result snapshots use the prior v3 data contract. Their
+  exact numbers are retained for honesty but are not a clean estimate under
+  the future v4 contract.
+* CSCV/PBO over the current 13 development folds is intentionally N/A because
+  subperiods must be even. A future formal gate should preregister an even
+  count (for example 12), preserve all trial candidates, and record the full
+  search count for DSR.
+* Wave3C exact values, candidate identity, and statistical verdict remain
+  `[WAVE3C_UNCONFIRMED_*]` placeholders. No current section upgrades them.
+
+## Current report completion state
+
+| stage | status | evidence |
+| --- | --- | --- |
+| Stage 1 skeleton + confirmed evidence | **complete/pushed** | commit `66d6298`, now an ancestor of `157e408` on `origin/main` |
+| Stage 2 hypotheses + checklist + literature + agent plan | **complete in this commit** | this file; docs-only change and diff-checked |
+| Wave3C numerical outcome | **GATE STOPPED / unconfirmed** | placeholders only; no invented values |
+| Candidate statistical promotion | **not started** | statistical API/tests exist, but no candidate input is supplied |
+
+## Official and primary references consulted
+
+Operational contracts were checked against the current official pages below.
+The Supabase changelog was fetched on 2026-08-30; its recent logs API breaking
+change is relevant to operators using the Management API, but no production
+Supabase operation was performed for this report.
+
+* [Binance Spot Kline/Candlestick data](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/market-data-endpoints)
+* [Binance USDⓈ-M Kline/Candlestick data](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data)
+* [Binance USDⓈ-M Mark Price Kline/Candlestick data](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Mark-Price-Kline-Candlestick-Data)
+* [Binance USDⓈ-M Funding Rate History](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Rate-History)
+* [Binance USDⓈ-M general information and limits](https://developers.binance.com/docs/derivatives/usds-margined-futures/general-info)
+* [Supabase changelog](https://supabase.com/changelog.md)
+* [Supabase Edge Functions](https://supabase.com/docs/guides/functions)
+* [Supabase JavaScript RPC](https://supabase.com/docs/reference/javascript/rpc)
+* [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
+
+The primary model/statistical references are listed in the literature table
+above. Links are included to author-hosted PDFs or the paper landing pages so
+that the claims can be checked without relying on model memory.
