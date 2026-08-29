@@ -25,6 +25,7 @@ This report audits only the materialized development cache. No model, forecast, 
 - Features/returns exact index alignment: `True`
 - Feature timestamp diagnostics: `fail`
 - Returns timestamp diagnostics: `fail`
+- Non-15m steps: features `29`, returns `29`; missing-bar estimate `542`
 - Non-finite values: features `0`, returns `0`
 
 ## Causality probes
