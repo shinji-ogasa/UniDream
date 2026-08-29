@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from unidream.actor_critic.actor import Actor
+from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.device import resolve_device
 from unidream.data.oracle import smooth_aim_positions
 
@@ -353,6 +354,7 @@ class BCPretrainer:
             params = list(self._actor_trainable_parameters())
 
         self.optimizer = torch.optim.Adam(params, lr=lr)
+        self.checkpoint_metadata: dict[str, object] = {}
 
     def _configure_actor_trainability(self) -> None:
         if not self.trainable_actor_prefixes:
@@ -1574,10 +1576,13 @@ class BCPretrainer:
         return logs
 
     def save(self, path: str) -> None:
-        payload = {"actor": self.actor.state_dict()}
+        payload = {
+            "actor": self.actor.state_dict(),
+            "checkpoint_metadata": self.checkpoint_metadata,
+        }
         if self.use_sirl:
             payload["weight_net"] = self.weight_net.state_dict()
-        torch.save(payload, path)
+        atomic_torch_save(payload, path)
 
     def load(self, path: str) -> None:
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
@@ -1615,3 +1620,4 @@ class BCPretrainer:
             )
         if self.use_sirl and "weight_net" in ckpt:
             self.weight_net.load_state_dict(ckpt["weight_net"])
+        self.checkpoint_metadata = dict(ckpt.get("checkpoint_metadata") or {})

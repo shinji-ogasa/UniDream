@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,11 @@ from unidream.experiments.bc_stage import build_bc_trainer
 from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.logging import log_timestamp
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
-from unidream.experiments.run_config import checkpoint_semantic_fingerprint
+from unidream.experiments.checkpointing import (
+    apply_actor_inference_settings,
+    validate_checkpoint_metadata,
+)
+from unidream.experiments.run_config import checkpoint_semantic_fingerprint, config_fingerprint
 from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 
 
@@ -26,6 +31,30 @@ class CheckpointRunSpec:
     checkpoint_dir: str
     use_ac: bool
     ac_filename: str = "ac.pt"
+
+
+def _load_completed_run_manifest(checkpoint_dir: Path, cfg: dict[str, Any]) -> dict[str, Any]:
+    manifest_path = checkpoint_dir / "run_manifest.json"
+    if not manifest_path.exists():
+        raise RuntimeError(
+            f"missing run manifest under {checkpoint_dir}; refusing to replay an "
+            "unproven checkpoint"
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") != 2:
+        raise RuntimeError(f"unsupported run manifest schema: {manifest.get('schema_version')!r}")
+    if manifest.get("status") != "completed" or not manifest.get("completed"):
+        raise RuntimeError(f"run manifest is not completed: {manifest_path}")
+    resolved_config = manifest.get("resolved_config")
+    config_sha256 = manifest.get("config_sha256")
+    if not isinstance(resolved_config, dict) or config_sha256 != config_fingerprint(resolved_config):
+        raise RuntimeError(f"run manifest config snapshot is invalid: {manifest_path}")
+    if config_fingerprint(cfg) != config_sha256:
+        raise RuntimeError(
+            f"replay config does not match the training manifest: {manifest_path}; "
+            "use the exact resolved config recorded by that run"
+        )
+    return manifest
 
 
 def parse_checkpoint_run_spec(spec: str) -> CheckpointRunSpec:
@@ -58,6 +87,7 @@ def load_fold_model_context(
     benchmark_position: float,
 ) -> dict[str, Any]:
     """Load WM/BC artifacts and encoded fold state for evaluation CLIs."""
+    manifest = _load_completed_run_manifest(checkpoint_dir, cfg)
     ac_cfg = copy.deepcopy(cfg["ac"])
     bc_cfg = cfg["bc"]
     reward_cfg = cfg["reward"]
@@ -85,6 +115,19 @@ def load_fold_model_context(
     bc_path = fold_dir / "bc_actor.pt"
     if not wm_path.exists() or not bc_path.exists():
         raise FileNotFoundError(f"missing fold checkpoint under {fold_dir}")
+    for path, stage in ((wm_path, "world_model"), (bc_path, "bc_actor")):
+        payload = torch.load(path, map_location="cpu", weights_only=False)
+        validate_checkpoint_metadata(
+            payload.get("checkpoint_metadata"),
+            manifest=manifest,
+            fold_idx=fold_idx,
+            stage=stage,
+            path=path,
+            require_inference_settings=(
+                stage == "bc_actor"
+                and "ac.pt" not in tuple(manifest.get("required_stage_files") or ())
+            ),
+        )
     wm_trainer.load(str(wm_path))
     seq_len = int(cfg["data"]["seq_len"])
     encoded_train = wm_trainer.encode_sequence(dataset.train_features, actions=None, seq_len=seq_len)
@@ -131,6 +174,8 @@ def load_fold_model_context(
         device=device,
     )
     bc_trainer.load(str(bc_path))
+    bc_checkpoint_metadata = dict(bc_trainer.checkpoint_metadata)
+    apply_actor_inference_settings(actor, bc_checkpoint_metadata.get("inference_settings"))
     actor.eval()
     return {
         "fold_inputs": fold_inputs,
@@ -145,10 +190,12 @@ def load_fold_model_context(
         "test_advantage": test_advantage,
         "wm_hash": checkpoint_semantic_fingerprint(wm_path),
         "bc_hash": checkpoint_semantic_fingerprint(bc_path),
+        "bc_checkpoint_metadata": bc_checkpoint_metadata,
+        "run_manifest": manifest,
     }
 
 
-def load_actor_state_checkpoint(actor: Any, path: Path, device: str) -> None:
+def load_actor_state_checkpoint(actor: Any, path: Path, device: str) -> dict[str, Any]:
     """Load a BC/AC actor state while allowing known optional legacy heads."""
     ckpt = torch.load(path, map_location=torch.device(device), weights_only=False)
     state = ckpt.get("actor", ckpt)
@@ -185,6 +232,9 @@ def load_actor_state_checkpoint(actor: Any, path: Path, device: str) -> None:
     unexpected = list(incompatible.unexpected_keys)
     if missing or unexpected:
         raise RuntimeError(f"Actor checkpoint incompatibility while loading {path}: missing={missing}, unexpected={unexpected}")
+    metadata = dict(ckpt.get("checkpoint_metadata") or {})
+    apply_actor_inference_settings(actor, metadata.get("inference_settings"))
+    return metadata
 
 
 def load_inference_run_context(
@@ -204,13 +254,31 @@ def load_inference_run_context(
         device=device,
         benchmark_position=benchmark_position,
     )
+    ac_metadata: dict[str, Any] = dict(context.get("bc_checkpoint_metadata") or {})
     if run.use_ac:
         ac_path = Path(run.checkpoint_dir) / f"fold_{int(split.fold_idx)}" / run.ac_filename
         if not ac_path.exists():
             raise FileNotFoundError(f"{run.label}: requested AC actor but missing {ac_path}")
-        load_actor_state_checkpoint(context["actor"], ac_path, device)
-    adjust_grid = cfg.get("ac", {}).get("val_adjust_rate_scale_grid") or [1.0]
-    context["actor"].infer_adjust_rate_scale = float(adjust_grid[0])
-    context["actor"].infer_advantage_level = float(cfg.get("ac", {}).get("infer_advantage_level", 0.0))
+        ac_metadata = load_actor_state_checkpoint(context["actor"], ac_path, device)
+        validate_checkpoint_metadata(
+            ac_metadata,
+            manifest=context["run_manifest"],
+            fold_idx=int(split.fold_idx),
+            stage="ac",
+            path=ac_path,
+            require_inference_settings=True,
+        )
+    selection = ac_metadata.get("inference_selection") or {}
+    if selection.get("adjust_rate_scale") is not None:
+        context["actor"].infer_adjust_rate_scale = float(selection["adjust_rate_scale"])
+    else:
+        adjust_grid = cfg.get("ac", {}).get("val_adjust_rate_scale_grid") or [1.0]
+        context["actor"].infer_adjust_rate_scale = float(adjust_grid[0])
+    if selection.get("advantage_level") is not None:
+        context["actor"].infer_advantage_level = float(selection["advantage_level"])
+    else:
+        context["actor"].infer_advantage_level = float(cfg.get("ac", {}).get("infer_advantage_level", 0.0))
+    context["ac_checkpoint_metadata"] = ac_metadata
+    context["policy_checkpoint_metadata"] = ac_metadata
     context["actor"].eval()
     return context

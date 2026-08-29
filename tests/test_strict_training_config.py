@@ -4,10 +4,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import yaml
 
 from unidream.cli.train import build_parser
-from unidream.experiments.run_config import load_training_run_config, prepare_run_directory
+from unidream.experiments.run_config import (
+    finalize_run_manifest,
+    load_training_run_config,
+    prepare_run_directory,
+    write_run_manifest,
+)
 
 
 def _config(root: Path) -> dict:
@@ -34,6 +41,10 @@ def _config(root: Path) -> dict:
 class StrictTrainingConfigTest(unittest.TestCase):
     def test_parser_exposes_only_reproducible_entrypoint_arguments(self) -> None:
         parser = build_parser()
+        defaults = parser.parse_args([])
+        self.assertEqual(defaults.config, "configs/trading.yaml")
+        self.assertEqual(defaults.seed, 7)
+        self.assertEqual(defaults.device, "auto")
         args = parser.parse_args([
             "--config",
             "configs/trading.yaml",
@@ -86,6 +97,34 @@ class StrictTrainingConfigTest(unittest.TestCase):
             self.assertFalse(stale.exists())
             resolved = yaml.safe_load((run.checkpoint_dir / "resolved_config.yaml").read_text())
             self.assertEqual(resolved["run"]["folds"], [0, 2])
+
+    def test_finalize_marks_a_run_incomplete_when_required_artifacts_are_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            cfg = _config(root)
+            run = load_training_run_config(cfg)
+            prepare_run_directory(run, cfg)
+            index = pd.date_range("2024-01-01", periods=2, freq="15min")
+            features = pd.DataFrame({"close_ret": [0.1, 0.2]}, index=index)
+            returns = pd.Series(np.array([0.01, 0.02]), index=index, name="returns")
+            write_run_manifest(
+                run_cfg=run,
+                cfg=cfg,
+                config_path="config.yaml",
+                seed=7,
+                device="cpu",
+                active_cost_profile="default",
+                features_df=features,
+                raw_returns=returns,
+                selected_folds=[0],
+                cache_tag="test-v3",
+                cache_contract_version=1,
+            )
+            with self.assertRaisesRegex(RuntimeError, "required checkpoint artifacts"):
+                finalize_run_manifest(run, {0: {}})
+            manifest = yaml.safe_load((run.checkpoint_dir / "run_manifest.json").read_text())
+            self.assertEqual(manifest["status"], "incomplete")
+            self.assertFalse(manifest["completed"])
 
 
 if __name__ == "__main__":

@@ -474,7 +474,10 @@ def compute_features(
 
     # --- rolling z-score 正規化（バー数で統一）---
     feat_normalized = rolling_zscore_df(feat, window_bars=window_bars)
-    feat_normalized = feat_normalized.dropna()
+    # Zero-volume bars can produce +/-inf in log-volume returns.  Treat them
+    # as invalid rows before caching so a cache hit cannot inject non-finite
+    # observations into training.
+    feat_normalized = feat_normalized.replace([np.inf, -np.inf], np.nan).dropna()
     return feat_normalized
 
 

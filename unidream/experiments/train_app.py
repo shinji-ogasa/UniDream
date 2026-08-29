@@ -4,7 +4,7 @@ from unidream.data.features import augment_with_rebound_features
 from unidream.eval.regime import RegimeDetector, regime_metrics, print_regime_report
 
 from .run_config import finalize_run_manifest, prepare_run_directory, write_run_manifest
-from .runtime import load_training_features
+from .runtime import CACHE_CONTRACT_VERSION, load_training_features
 from .train_pipeline import run_wfo_folds
 from .train_reporting import (
     aggregate_scorecards,
@@ -45,7 +45,6 @@ def run_training_app(
         f"=> one-way Δpos=1 cost={total_cost_bps:.2f}bps"
     )
 
-    prepare_run_directory(run_cfg, cfg)
     cache_dir = str(run_cfg.cache_dir)
     zscore_window = cfg.get("normalization", {}).get("zscore_window_days", 60)
     cache_tag = f"{symbol}_{interval}_{run_cfg.start}_{run_cfg.end}_z{zscore_window}_v3"
@@ -87,6 +86,10 @@ def run_training_app(
     splits, selected_folds = select_configured_wfo_splits(splits, run_cfg.folds)
     print(f"  Running configured folds: {selected_folds}")
 
+    # データ取得・検証に失敗した状態で既存の成果物を先に消さない。
+    # ここまで通過した時点で初めて、設定どおりの clean run directory を作る。
+    prepare_run_directory(run_cfg, cfg)
+
     manifest = write_run_manifest(
         run_cfg=run_cfg,
         cfg=cfg,
@@ -97,6 +100,8 @@ def run_training_app(
         features_df=features_df,
         raw_returns=raw_returns,
         selected_folds=selected_folds,
+        cache_tag=cache_tag,
+        cache_contract_version=CACHE_CONTRACT_VERSION,
     )
     print(f"  Run ID: {manifest['run_id']} | data sha256={manifest['data']['fingerprint_sha256'][:12]}")
 
@@ -110,6 +115,7 @@ def run_training_app(
         checkpoint_dir=str(run_cfg.checkpoint_dir),
         run_fold_fn=run_fold_fn,
         seed=seed,
+        run_manifest=manifest,
     )
     finalize_run_manifest(run_cfg, fold_results)
 

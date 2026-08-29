@@ -13,6 +13,7 @@ import yaml
 
 from unidream.data.dataset import WFODataset
 from unidream.experiments.checkpoint_eval import load_inference_run_context, parse_checkpoint_run_spec
+from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.experiments.fold_inputs import _normalized_feature_stress_signal
 from unidream.experiments.m2 import benchmark_position_value
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
@@ -71,7 +72,7 @@ def main() -> None:
     parser.add_argument("--device", default="cuda")
     parser.add_argument(
         "--run",
-        default="Best=checkpoints/acplan7_sizing_adapter_s007@ac_best.pt:ac",
+        default="Plan011v31=checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007@ac.pt:ac",
         help="label=checkpoint_dir[@ac_file][:ac|:bc]",
     )
     parser.add_argument("--bundle-type", default="unidream_neural_actor")
@@ -96,7 +97,7 @@ def main() -> None:
         start=args.start,
         end=args.end,
         zscore_window=zscore_window,
-        cache_dir="checkpoints/data_cache",
+        cache_dir=str(cfg.get("logging", {}).get("cache_dir", "checkpoints/data_cache")),
         cache_tag=cache_tag,
         extra_series_mode=data_cfg.get("extra_series_mode", "derived"),
         extra_series_include=data_cfg.get("extra_series_include"),
@@ -141,7 +142,7 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
-    torch.save(actor, output_dir / "actor_full.pt")
+    atomic_torch_save(actor, output_dir / "actor_full.pt")
 
     runtime_dir = Path(run.checkpoint_dir) / f"fold_{split.fold_idx}"
     wm_src = runtime_dir / "world_model.pt"
@@ -193,6 +194,9 @@ def main() -> None:
             "status": str(args.status),
             "source": str(args.source),
             "spec": str(args.spec or run.label),
+            "source_run_id": payload["run_manifest"]["run_id"],
+            "source_config_sha256": payload["run_manifest"]["config_sha256"],
+            "source_sha256": payload["run_manifest"]["source_sha256"],
             "no_leak_scope": (
                 "Walk-forward bundle uses only the selected fold train/validation data for model fitting "
                 "and exports the selected fold test split only as a sample verification path."
@@ -221,6 +225,10 @@ def main() -> None:
             "benchmark_position": float(benchmark_position),
             "last_sample_position": float(positions[t - 1]) if t else None,
             "sample_bars": int(t - start_idx),
+            "inference_selection": payload.get(
+                "policy_checkpoint_metadata",
+                payload.get("ac_checkpoint_metadata", {}),
+            ).get("inference_selection"),
         },
         "regime": _stress_stats_for_split(
             wfo_dataset=wfo_dataset,

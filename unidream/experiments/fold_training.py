@@ -6,6 +6,7 @@ modules.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import os
 
 from unidream.actor_critic.imagination_ac import _ac_alerts_ascii as ac_alerts
@@ -23,6 +24,10 @@ from unidream.eval.selector import (
 from unidream.experiments.ac_stage import run_ac_stage
 from unidream.experiments.bc_setup import prepare_bc_setup
 from unidream.experiments.bc_stage import run_bc_stage
+from unidream.experiments.checkpointing import (
+    checkpoint_metadata_for_fold,
+    snapshot_actor_inference_settings,
+)
 from unidream.experiments.fold_inputs import prepare_fold_inputs
 from unidream.experiments.logging import log_timestamp
 from unidream.experiments.m2 import (
@@ -44,6 +49,7 @@ def run_fold(
     cfg: dict,
     device: str,
     checkpoint_dir: str,
+    run_manifest: dict | None = None,
 ) -> dict:
     """Train and evaluate one configured WFO fold from scratch."""
     print(f"\n{'=' * 60}")
@@ -55,31 +61,50 @@ def run_fold(
     )
     print(f"{'=' * 60}")
 
-    ac_cfg = cfg.get("ac", {})
-    bc_cfg = cfg.get("bc", {})
-    wm_cfg = cfg.get("world_model", {})
-    costs_cfg = cfg.get("costs", {})
-    reward_cfg = cfg.get("reward", {})
+    # Predictive-state construction adds fold-local Actor dimensions to the
+    # AC config. Keep derived values out of the immutable run config stored in
+    # the manifest so replay can use the same config hash in this process too.
+    fold_cfg = deepcopy(cfg)
+    ac_cfg = fold_cfg.get("ac", {})
+    bc_cfg = fold_cfg.get("bc", {})
+    wm_cfg = fold_cfg.get("world_model", {})
+    costs_cfg = fold_cfg.get("costs", {})
+    reward_cfg = fold_cfg.get("reward", {})
     obs_dim = wfo_dataset.obs_dim
-    seq_len = cfg.get("data", {}).get("seq_len", 64)
+    seq_len = fold_cfg.get("data", {}).get("seq_len", 64)
 
     fold_ckpt_dir = os.path.join(checkpoint_dir, f"fold_{fold_idx}")
     os.makedirs(fold_ckpt_dir, exist_ok=True)
     wm_path = os.path.join(fold_ckpt_dir, "world_model.pt")
     bc_path = os.path.join(fold_ckpt_dir, "bc_actor.pt")
     ac_path = os.path.join(fold_ckpt_dir, "ac.pt")
+    wm_checkpoint_metadata = checkpoint_metadata_for_fold(
+        run_manifest,
+        fold_idx=fold_idx,
+        stage="world_model",
+    )
+    bc_checkpoint_metadata = checkpoint_metadata_for_fold(
+        run_manifest,
+        fold_idx=fold_idx,
+        stage="bc_actor",
+    )
+    ac_checkpoint_metadata = checkpoint_metadata_for_fold(
+        run_manifest,
+        fold_idx=fold_idx,
+        stage="ac",
+    )
 
     fold_inputs = prepare_fold_inputs(
         fold_idx=fold_idx,
         wfo_dataset=wfo_dataset,
-        cfg=cfg,
+        cfg=fold_cfg,
         costs_cfg=costs_cfg,
         ac_cfg=ac_cfg,
         bc_cfg=bc_cfg,
         reward_cfg=reward_cfg,
         action_stats_fn=action_stats,
         format_action_stats_fn=format_action_stats,
-        benchmark_position=benchmark_position_value(cfg),
+        benchmark_position=benchmark_position_value(fold_cfg),
         forward_window_stats_fn=_forward_window_stats,
         log_ts=log_timestamp,
     )
@@ -99,11 +124,9 @@ def run_fold(
     test_advantage_values = fold_inputs.get("test_advantage_values")
 
     ensemble, wm_trainer = prepare_world_model_stage(
-        fold_idx=fold_idx,
         obs_dim=obs_dim,
-        cfg=cfg,
+        cfg=fold_cfg,
         device=device,
-        has_wm=False,
         wm_path=wm_path,
         wfo_dataset=wfo_dataset,
         oracle_positions=oracle_positions,
@@ -111,6 +134,7 @@ def run_fold(
         train_returns=train_returns,
         train_regime_probs=train_regime_probs,
         val_regime_probs=val_regime_probs,
+        checkpoint_metadata=wm_checkpoint_metadata,
         log_ts=log_timestamp,
     )
 
@@ -156,7 +180,7 @@ def run_fold(
         if train_advantage_values is not None
         else bc_setup["bc_advantage_values"]
     )
-    run_bc_stage(
+    bc_trainer = run_bc_stage(
         actor=actor,
         ensemble=ensemble,
         bc_cfg=bc_cfg,
@@ -176,13 +200,14 @@ def run_fold(
         train_route_labels=fold_inputs.get("train_route_labels"),
         train_route_soft_labels=fold_inputs.get("train_route_soft_labels"),
         train_route_advantage=fold_inputs.get("train_route_advantage"),
+        checkpoint_metadata=bc_checkpoint_metadata,
         log_ts=log_timestamp,
     )
 
-    run_ac_stage(
+    ac_trainer = run_ac_stage(
         actor=actor,
         ensemble=ensemble,
-        cfg=cfg,
+        cfg=fold_cfg,
         ac_cfg=ac_cfg,
         wm_cfg=wm_cfg,
         costs_cfg=costs_cfg,
@@ -206,13 +231,14 @@ def run_fold(
         action_stats_fn=action_stats,
         format_action_stats_fn=format_action_stats,
         ac_alerts_fn=ac_alerts,
-        benchmark_positions_fn=lambda length: benchmark_positions(length, cfg),
-        benchmark_position=benchmark_position_value(cfg),
+        benchmark_positions_fn=lambda length: benchmark_positions(length, fold_cfg),
+        benchmark_position=benchmark_position_value(fold_cfg),
         policy_score_fn=policy_score,
         sequence_dataset_cls=SequenceDataset,
+        checkpoint_metadata=ac_checkpoint_metadata,
     )
 
-    run_val_selector_stage(
+    inference_selection = run_val_selector_stage(
         actor=actor,
         wm_trainer=wm_trainer,
         wfo_dataset=wfo_dataset,
@@ -220,7 +246,7 @@ def run_fold(
         val_regime_probs=val_regime_probs,
         val_advantage_values=val_advantage_values,
         device=device,
-        cfg=cfg,
+        cfg=fold_cfg,
         ac_cfg=ac_cfg,
         costs_cfg=costs_cfg,
         backtest_cls=Backtest,
@@ -229,9 +255,23 @@ def run_fold(
         selector_candidate_fn=selector_candidate,
         select_policy_candidate_fn=select_policy_candidate,
         candidate_to_text_fn=candidate_to_text,
-        benchmark_positions_fn=lambda length: benchmark_positions(length, cfg),
-        benchmark_position=benchmark_position_value(cfg),
+        benchmark_positions_fn=lambda length: benchmark_positions(length, fold_cfg),
+        benchmark_position=benchmark_position_value(fold_cfg),
     )
+
+    # Validation selector は AC（または BC-only）の学習後に実行される。
+    # selector 結果を反映した actor と設定を最終 policy artifact に再保存し、
+    # 学習直後と後日 replay の推論経路を同一にする。
+    final_policy_trainer = ac_trainer or bc_trainer
+    final_policy_path = ac_path if ac_trainer is not None else bc_path
+    if final_policy_trainer is not None and final_policy_path:
+        final_policy_trainer.checkpoint_metadata["inference_selection"] = inference_selection or {
+            "source": "config_default",
+            "adjust_rate_scale": float(getattr(actor, "infer_adjust_rate_scale", 1.0)),
+            "advantage_level": float(getattr(actor, "infer_advantage_level", 0.0)),
+        }
+        final_policy_trainer.checkpoint_metadata["inference_settings"] = snapshot_actor_inference_settings(actor)
+        final_policy_trainer.save(final_policy_path)
 
     test_result = run_test_stage(
         actor=actor,
@@ -241,15 +281,15 @@ def run_fold(
         test_regime_probs=test_regime_probs,
         test_advantage_values=test_advantage_values,
         device=device,
-        cfg=cfg,
+        cfg=fold_cfg,
         costs_cfg=costs_cfg,
         backtest_cls=Backtest,
         pnl_attribution_fn=pnl_attribution,
         action_stats_fn=action_stats,
         format_action_stats_fn=format_action_stats,
         ac_alerts_fn=ac_alerts,
-        benchmark_positions_fn=lambda length: benchmark_positions(length, cfg),
-        benchmark_position=benchmark_position_value(cfg),
+        benchmark_positions_fn=lambda length: benchmark_positions(length, fold_cfg),
+        benchmark_position=benchmark_position_value(fold_cfg),
         m2_scorecard_fn=m2_scorecard,
         format_m2_scorecard_fn=format_m2_scorecard,
         log_ts=log_timestamp,

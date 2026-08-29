@@ -2,6 +2,18 @@
 
 このメモはVC/外部説明向けの検証証跡。LP本文用のコピーではなく、結果・再現性・限界を確認するためのソースとして扱う。
 
+## Record Metadata
+
+| item | value |
+|---|---|
+| record type | historical result snapshot |
+| current data contract | v3 feature / return cache with metadata sidecar |
+| development run directory | `checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007` (generated on rerun; not retained) |
+| holdout run directory | `checkpoints/plan011_overlay_actor_v31_holdout_s007` (generated on rerun; not retained) |
+| checkpoint policy | local WM/BC/AC artifacts are temporary; this document is the retained result record |
+
+この文書の数値は過去の evidence snapshot であり、今回再生成した現行 v3 cache による新規 run の結果ではない。新規 run は別の run ID として記録する。
+
 ## 主成果
 
 Plan011 v31 は、B&H exposure `1.0` を基準にした低回転 overlay actor。現在の正しい評価定義では、主張できる成果は以下に絞る。
@@ -15,7 +27,7 @@ AlphaEx は strategy の最終total return minus B&Hの最終total return。年�
 ## Locked Spec
 
 - Config: `configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml`
-- Checkpoint dir: `checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007`
+- Checkpoint dir: `checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007` (run中のみ)
 - Symbol / interval: `BTCUSDT`, `15m`
 - Development date range: `2018-01-01` to `2024-01-01`
 - Development fold range: `0-12`
@@ -45,7 +57,7 @@ uv run python -m unidream.cli.train \
   --device cuda
 ```
 
-Replay saved fold0-12 checkpoint inference and regenerate charts:
+Completed run がローカルに存在する場合のみ、fold0-12 checkpoint inference と図表を再生成できる:
 
 ```bash
 uv run python -m unidream.cli.plot_plan011_fold_trades \
@@ -57,12 +69,12 @@ uv run python -m unidream.cli.plot_plan011_fold_trades \
   --output-dir docs/figures/plan011_v31_folds0_12
 ```
 
-Replay saved holdout fold15-23 checkpoint inference and regenerate charts:
+holdout を再学習して completed run が生成された場合のみ、fold15-23 checkpoint inference と図表を再生成できる:
 
 ```bash
 uv run python -m unidream.cli.plot_plan011_fold_trades \
   --config configs/plan011_overlay_actor_v31_holdout.yaml \
-  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007 \
+  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_holdout_s007 \
   --folds 15-23 \
   --seed 7 \
   --device cpu \
@@ -153,6 +165,8 @@ Read:
 - Fold0-12 chart index: `docs/figures/plan011_v31_folds0_12/README.md`
 - Holdout chart index: `docs/figures/plan011_v31_holdout_folds15_23/README.md`
 - Policy-family comparison: `docs/policy_family_holdout_comparison.md`
+
+数値の閲覧はこのファイルと [docs/README.md](README.md) を正とする。checkpoint directory は容量削減のため保持しない。
 - Metrics CSVs:
   - `docs/figures/plan011_v31_folds0_12/metrics.csv`
   - `docs/figures/plan011_v31_holdout_folds15_23/metrics.csv`

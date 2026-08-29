@@ -4,6 +4,15 @@
 
 論文: [Reinforcement Learning for Enhancing Bitcoin Risk-Aware Trading with Predictive Signals](https://www.mdpi.com/2079-9292/15/4/793)
 
+## 記録メタデータ
+
+| 項目 | 内容 |
+|---|---|
+| 記録種別 | validation-selected holdout result report |
+| データ | 現行 v3 feature / return cache 契約（metadata sidecar 付き） |
+| artifact policy | 実験用 checkpoint は保持せず、結果・条件・解釈のみを本書に保存 |
+| 再現性 | 同一 config・seed・cache を用いた新規 run は新しい run ID として記録 |
+
 ## 実験契約
 
 - データ: BTCUSDT / 15m、固定済み feature・return cache

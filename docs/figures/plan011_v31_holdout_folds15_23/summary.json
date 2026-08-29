@@ -1,7 +1,10 @@
 {
   "schema_version": 1,
+  "record_type": "historical_result_snapshot",
+  "checkpoint_status": "deleted_after_report",
   "config": "configs/plan011_overlay_actor_v31_holdout.yaml",
   "checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007",
+  "rerun_checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_holdout_s007",
   "actor_checkpoint": "ac.pt",
   "seed": 7,
   "device": "cpu",

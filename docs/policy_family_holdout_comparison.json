@@ -1,8 +1,12 @@
 {
   "schema_version": 1,
+  "record_type": "historical_result_snapshot",
+  "artifact_policy": "local_checkpoints_removed; retain this result document",
+  "data_cache_tag": "BTCUSDT_15m_2018-01-01_2026-04-17_z60_v3",
   "created_at": "2026-06-30T01:46:48.326509+00:00",
   "config": "configs/plan011_overlay_actor_v31_holdout.yaml",
   "checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007",
+  "rerun_checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_holdout_s007",
   "config_sha256": "6c064cec66c335982a38a9e344515f656053a407014f3e8047aea925108a7d05",
   "source_sha256": "77dcee598598017e8d1aeb5b9a53d2c68226bec8f04f43f8a148f219f56f022e",
   "data_sha256": "33cc7728f6ba4945ff12017ff4533bc1302c4dfed22d3a4ffd491266fca17cb2",

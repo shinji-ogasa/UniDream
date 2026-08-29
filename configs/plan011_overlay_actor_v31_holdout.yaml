@@ -362,6 +362,7 @@ world_model:
   lr: 0.0001
   max_seq_len: 128
   max_steps: 700
+  num_workers: 0
   n_bins: 255
   n_categoricals: 32
   n_classes: 32

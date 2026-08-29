@@ -8,11 +8,9 @@ from unidream.world_model.train_wm import WorldModelTrainer, build_ensemble
 
 def prepare_world_model_stage(
     *,
-    fold_idx: int,
     obs_dim: int,
     cfg: dict,
     device: str,
-    has_wm: bool,
     wm_path: str,
     wfo_dataset,
     oracle_positions,
@@ -20,6 +18,7 @@ def prepare_world_model_stage(
     train_returns,
     train_regime_probs=None,
     val_regime_probs=None,
+    checkpoint_metadata: dict | None = None,
     log_ts,
 ) -> tuple:
     cfg_local = deepcopy(cfg)
@@ -27,18 +26,9 @@ def prepare_world_model_stage(
         cfg_local.setdefault("world_model", {})["regime_dim"] = int(train_regime_probs.shape[1])
     ensemble = build_ensemble(obs_dim, cfg_local)
     wm_trainer = WorldModelTrainer(ensemble, cfg_local, device=device)
-
-    if has_wm:
-        print(f"\n[{log_ts()}] [Step 2] World Model - loading checkpoint: {wm_path}")
-        wm_trainer.load(wm_path)
-        return ensemble, wm_trainer
+    wm_trainer.checkpoint_metadata = dict(checkpoint_metadata or {})
 
     print(f"\n[{log_ts()}] [Step 2] World Model Training...")
-    init_checkpoint = cfg.get("world_model", {}).get("init_checkpoint")
-    if init_checkpoint:
-        init_checkpoint = str(init_checkpoint).format(fold=fold_idx, fold_idx=fold_idx)
-        print(f"[{log_ts()}] [WM] Initializing from checkpoint: {init_checkpoint}")
-        wm_trainer.load(init_checkpoint)
     train_ds_with_actions = SequenceDataset(
         wfo_dataset.train_features,
         seq_len=cfg.get("data", {}).get("seq_len", 64),

@@ -19,6 +19,7 @@ from torch.utils.data import DataLoader
 
 from unidream.data.dataset import SequenceDataset
 from unidream.device import resolve_device
+from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.world_model.ensemble import EnsembleWorldModel
 
 
@@ -139,6 +140,7 @@ class WorldModelTrainer:
         device: str = "cpu",
     ):
         self.ensemble = ensemble
+        self.checkpoint_metadata: dict[str, object] = {}
         self.device = torch.device(resolve_device(device))
         self.ensemble.to(self.device)
         cfg = cfg or {}
@@ -148,7 +150,9 @@ class WorldModelTrainer:
         self.batch_size = wm_cfg.get("batch_size", 32)
         self.max_steps = wm_cfg.get("max_steps", 100_000)
         self.grad_clip = wm_cfg.get("grad_clip", 100.0)
-        self.num_workers = int(wm_cfg.get("num_workers", 4))
+        # Keep the default portable across macOS spawn and Linux fork.  A
+        # caller can opt into workers explicitly in a self-contained config.
+        self.num_workers = int(wm_cfg.get("num_workers", 0))
         self.log_interval = cfg.get("logging", {}).get("log_interval", 1000)
 
         # 損失ハイパーパラメータ
@@ -1222,6 +1226,7 @@ class WorldModelTrainer:
             "ensemble": self.ensemble.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "global_step": self.global_step,
+            "checkpoint_metadata": self.checkpoint_metadata,
         }
         if self.idm_head is not None:
             ckpt["idm_head"] = self.idm_head.state_dict()
@@ -1243,7 +1248,7 @@ class WorldModelTrainer:
             ckpt["recovery_head"] = self.recovery_head.state_dict()
         if self.regime_head is not None:
             ckpt["regime_head"] = self.regime_head.state_dict()
-        torch.save(ckpt, path)
+        atomic_torch_save(ckpt, path)
         print(f"[WM] Checkpoint saved: {path}")
 
     def load(self, path: str) -> None:
@@ -1255,6 +1260,7 @@ class WorldModelTrainer:
         except ValueError as exc:
             print(f"[WM] Optimizer state skipped: {exc}")
         self.global_step = ckpt.get("global_step", 0)
+        self.checkpoint_metadata = dict(ckpt.get("checkpoint_metadata") or {})
         if self.idm_head is not None and "idm_head" in ckpt:
             self.idm_head.load_state_dict(ckpt["idm_head"])
         if self.return_head is not None and "return_head" in ckpt:

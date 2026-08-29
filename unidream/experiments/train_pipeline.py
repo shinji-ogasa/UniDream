@@ -16,6 +16,7 @@ def run_wfo_folds(
     checkpoint_dir: str,
     run_fold_fn,
     seed: int | None = None,
+    run_manifest: dict | None = None,
 ) -> dict:
     fold_results = {}
     for split in splits:
@@ -33,6 +34,7 @@ def run_wfo_folds(
             cfg=cfg,
             device=device,
             checkpoint_dir=checkpoint_dir,
+            run_manifest=run_manifest,
         )
         fold_results[split.fold_idx] = result
     return fold_results

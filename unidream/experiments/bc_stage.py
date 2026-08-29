@@ -122,7 +122,7 @@ def build_bc_trainer(
         sample_quality_coef=bc_cfg.get("sample_quality_coef", 0.0),
         sample_quality_clip=bc_cfg.get("sample_quality_clip", 4.0),
         trainable_actor_prefixes=bc_cfg.get("trainable_actor_prefixes"),
-        num_workers=bc_cfg.get("num_workers", 2),
+        num_workers=bc_cfg.get("num_workers", 0),
         device=device,
     )
 
@@ -177,6 +177,7 @@ def run_bc_stage(
     train_route_labels=None,
     train_route_soft_labels=None,
     train_route_advantage=None,
+    checkpoint_metadata: dict | None = None,
     log_ts,
 ):
     bc_trainer = build_bc_trainer(
@@ -188,6 +189,7 @@ def run_bc_stage(
         reward_cfg=reward_cfg,
         device=device,
     )
+    bc_trainer.checkpoint_metadata = dict(checkpoint_metadata or {})
     reinit_prefixes = bc_cfg.get("reinit_actor_prefixes", [])
     if reinit_prefixes:
         _reinitialize_actor_prefixes(actor, reinit_prefixes)

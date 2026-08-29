@@ -22,19 +22,25 @@ def run_val_selector_stage(
     benchmark_positions_fn,
     benchmark_position: float,
 ):
+    default_selection = {
+        "source": "config_default",
+        "adjust_rate_scale": float(getattr(actor, "infer_adjust_rate_scale", 1.0)),
+        "advantage_level": float(getattr(actor, "infer_advantage_level", 0.0)),
+    }
     source = str(ac_cfg.get("test_policy_source", ac_cfg.get("policy_source", "actor"))).lower()
     if source in {"hierarchy_bundle", "external_hierarchy_bundle"}:
         print("  [ValAdj] skipped: external hierarchy policy source")
-        return
+        default_selection["source"] = "external_policy"
+        return default_selection
     adjust_scale_grid = ac_cfg.get("val_adjust_rate_scale_grid", [])
     adv_level_grid = ac_cfg.get("val_advantage_level_grid", [actor.infer_advantage_level])
     if len(adjust_scale_grid) == 0:
-        return
+        return default_selection
 
     val_features_arr = wfo_dataset.val_features
     val_returns_arr = wfo_dataset.val_returns
     if len(val_features_arr) == 0:
-        return
+        return default_selection
 
     enc_val = wm_trainer.encode_sequence(val_features_arr, seq_len=seq_len)
     original_scale = float(getattr(actor, "infer_adjust_rate_scale", 1.0))
@@ -83,3 +89,20 @@ def run_val_selector_stage(
         f"  [ValAdj] selected {candidate_to_text_fn(chosen_candidate)} "
         f"(default=scale={original_scale:.3f} adv={original_adv:.2f}) {chosen['label']}"
     )
+    return {
+        "source": "validation_selector",
+        "adjust_rate_scale": float(chosen_candidate["scale"]),
+        "advantage_level": float(chosen_candidate.get("adv", original_adv)),
+        "score": float(chosen["score"]),
+        "label": str(chosen["label"]),
+        "candidates": [
+            {
+                "adjust_rate_scale": float(record["candidate"]["scale"]),
+                "advantage_level": float(record["candidate"].get("adv", original_adv)),
+                "score": float(record["score"]),
+                "label": str(record["label"]),
+                "reject_reason": record.get("reject_reason"),
+            }
+            for record in selector_candidates
+        ],
+    }

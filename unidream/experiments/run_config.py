@@ -17,6 +17,12 @@ import pandas as pd
 import torch
 import yaml
 
+from unidream.experiments.checkpointing import (
+    CHECKPOINT_SCHEMA_VERSION,
+    atomic_text_write,
+    validate_checkpoint_metadata,
+)
+
 
 _RUN_KEYS = {
     "start",
@@ -115,7 +121,11 @@ def load_training_run_config(cfg: dict) -> TrainingRunConfig:
     cache_dir = Path(_required_text(logging_cfg, "cache_dir", "logging")).expanduser()
     checkpoint_resolved = checkpoint_dir.resolve()
     cache_resolved = cache_dir.resolve()
-    if checkpoint_resolved == cache_resolved or checkpoint_resolved in cache_resolved.parents:
+    if (
+        checkpoint_resolved == cache_resolved
+        or checkpoint_resolved in cache_resolved.parents
+        or cache_resolved in checkpoint_resolved.parents
+    ):
         raise ValueError("logging.cache_dir must be outside logging.checkpoint_dir")
 
     data_cfg = _required_mapping(cfg, "data")
@@ -145,6 +155,10 @@ def configure_determinism(seed: int) -> None:
 
 def prepare_run_directory(run_cfg: TrainingRunConfig, resolved_cfg: dict) -> None:
     checkpoint_dir = run_cfg.checkpoint_dir
+    checkpoint_resolved = checkpoint_dir.resolve()
+    unsafe_targets = {Path("/").resolve(), Path.home().resolve()}
+    if checkpoint_resolved in unsafe_targets or checkpoint_resolved == checkpoint_resolved.parent:
+        raise ValueError(f"refusing to clean unsafe checkpoint directory: {checkpoint_dir}")
     if checkpoint_dir.exists():
         if run_cfg.clean_checkpoint_dir:
             shutil.rmtree(checkpoint_dir)
@@ -155,8 +169,10 @@ def prepare_run_directory(run_cfg: TrainingRunConfig, resolved_cfg: dict) -> Non
             )
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     run_cfg.cache_dir.mkdir(parents=True, exist_ok=True)
-    with open(checkpoint_dir / "resolved_config.yaml", "w", encoding="utf-8", newline="\n") as f:
-        yaml.safe_dump(resolved_cfg, f, sort_keys=True, allow_unicode=True)
+    atomic_text_write(
+        yaml.safe_dump(resolved_cfg, sort_keys=True, allow_unicode=True),
+        checkpoint_dir / "resolved_config.yaml",
+    )
 
 
 def _git_value(*args: str) -> str | None:
@@ -177,6 +193,12 @@ def data_fingerprint(features_df: pd.DataFrame, raw_returns: pd.Series) -> str:
     digest.update(np.ascontiguousarray(raw_returns.to_numpy(dtype=np.float32)).tobytes())
     digest.update("\n".join(str(column) for column in features_df.columns).encode("utf-8"))
     return digest.hexdigest()
+
+
+def config_fingerprint(cfg: dict) -> str:
+    """Hash the resolved config using the same canonical form as the manifest."""
+    config_json = json.dumps(cfg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(config_json.encode("utf-8")).hexdigest()
 
 
 def source_fingerprint() -> str:
@@ -202,11 +224,14 @@ def write_run_manifest(
     features_df: pd.DataFrame,
     raw_returns: pd.Series,
     selected_folds: list[int],
+    cache_tag: str | None = None,
+    cache_contract_version: int | None = None,
 ) -> dict[str, Any]:
     config_json = json.dumps(cfg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    config_sha256 = hashlib.sha256(config_json.encode("utf-8")).hexdigest()
+    config_sha256 = config_fingerprint(cfg)
     fingerprint = data_fingerprint(features_df, raw_returns)
     source_sha256 = source_fingerprint()
+    resolved_config_snapshot = json.loads(config_json)
     git_status = _git_value(
         "status",
         "--short",
@@ -215,14 +240,21 @@ def write_run_manifest(
         ".",
         ":(exclude).DS_Store",
     ) or ""
+    ac_cfg = cfg.get("ac", {})
+    required_stage_files = ["world_model.pt", "bc_actor.pt"]
+    if int(ac_cfg.get("max_steps", 200_000)) > 0 or ac_cfg.get("curriculum"):
+        required_stage_files.append("ac.pt")
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "checkpoint_schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "status": "running",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "run_id": hashlib.sha256(
             f"{config_sha256}:{seed}:{fingerprint}:{source_sha256}".encode()
         ).hexdigest()[:20],
         "config_path": str(Path(config_path).resolve()),
         "config_sha256": config_sha256,
+        "resolved_config": resolved_config_snapshot,
         "source_sha256": source_sha256,
         "git_commit": _git_value("rev-parse", "HEAD"),
         "git_dirty": bool(git_status),
@@ -238,7 +270,10 @@ def write_run_manifest(
             "rows": int(len(features_df)),
             "columns": list(features_df.columns),
             "fingerprint_sha256": fingerprint,
+            "cache_tag": cache_tag,
+            "cache_contract_version": cache_contract_version,
         },
+        "required_stage_files": required_stage_files,
         "folds": selected_folds,
         "environment": {
             "python": sys.version.split()[0],
@@ -248,9 +283,10 @@ def write_run_manifest(
             "pandas": pd.__version__,
         },
     }
-    with open(run_cfg.checkpoint_dir / "run_manifest.json", "w", encoding="utf-8", newline="\n") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    atomic_text_write(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        run_cfg.checkpoint_dir / "run_manifest.json",
+    )
     return manifest
 
 
@@ -296,19 +332,72 @@ def finalize_run_manifest(run_cfg: TrainingRunConfig, fold_results: dict[int, di
     manifest_path = run_cfg.checkpoint_dir / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     artifacts: dict[str, dict[str, str]] = {}
-    for fold_idx in sorted(fold_results):
+    expected_folds = [int(fold_idx) for fold_idx in manifest.get("folds", sorted(fold_results))]
+    required_stage_files = tuple(manifest.get("required_stage_files") or ("world_model.pt", "bc_actor.pt"))
+    missing_required: list[str] = []
+    invalid_artifacts: dict[str, str] = {}
+    stage_by_filename = {
+        "world_model.pt": "world_model",
+        "bc_actor.pt": "bc_actor",
+        "ac.pt": "ac",
+    }
+    for fold_idx in expected_folds:
         fold_dir = run_cfg.checkpoint_dir / f"fold_{fold_idx}"
         fold_artifacts: dict[str, str] = {}
         for filename in ("world_model.pt", "bc_actor.pt", "ac.pt"):
             path = fold_dir / filename
             if path.exists():
-                fold_artifacts[filename] = checkpoint_semantic_fingerprint(path)
+                try:
+                    payload = torch.load(path, map_location="cpu", weights_only=False)
+                    validate_checkpoint_metadata(
+                        payload.get("checkpoint_metadata"),
+                        manifest=manifest,
+                        fold_idx=fold_idx,
+                        stage=stage_by_filename[filename],
+                        path=path,
+                        require_inference_settings=(
+                            filename == "ac.pt"
+                            or (
+                                filename == "bc_actor.pt"
+                                and "ac.pt" not in required_stage_files
+                            )
+                        ),
+                    )
+                    fold_artifacts[filename] = checkpoint_semantic_fingerprint(path)
+                except Exception as exc:
+                    invalid_artifacts[f"fold_{fold_idx}/{filename}"] = str(exc)
+        for filename in required_stage_files:
+            if filename not in fold_artifacts:
+                missing_required.append(f"fold_{fold_idx}/{filename}")
         for path in sorted(fold_dir.glob("ac_stage_*.pt")):
-            fold_artifacts[path.name] = checkpoint_semantic_fingerprint(path)
+            try:
+                payload = torch.load(path, map_location="cpu", weights_only=False)
+                validate_checkpoint_metadata(
+                    payload.get("checkpoint_metadata"),
+                    manifest=manifest,
+                    fold_idx=fold_idx,
+                    stage="ac",
+                    path=path,
+                )
+                fold_artifacts[path.name] = checkpoint_semantic_fingerprint(path)
+            except Exception as exc:
+                invalid_artifacts[f"fold_{fold_idx}/{path.name}"] = str(exc)
         artifacts[str(fold_idx)] = fold_artifacts
     manifest["checkpoint_semantic_sha256"] = artifacts
-    manifest["completed"] = True
-    manifest_path.write_text(
+    manifest["missing_required_artifacts"] = missing_required
+    manifest["invalid_artifacts"] = invalid_artifacts
+    manifest["completed"] = not missing_required and not invalid_artifacts
+    manifest["status"] = "completed" if manifest["completed"] else "incomplete"
+    if manifest["completed"]:
+        manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
+    atomic_text_write(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+        manifest_path,
     )
+    if missing_required or invalid_artifacts:
+        details = list(missing_required)
+        details.extend(f"{path}: {error}" for path, error in invalid_artifacts.items())
+        raise RuntimeError(
+            "Training finished without required checkpoint artifacts: "
+            + ", ".join(details)
+        )

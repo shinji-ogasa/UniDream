@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 
 import torch
@@ -26,6 +27,38 @@ def _rebuild_actor_optimizer(ac_trainer: ImagACTrainer, lr: float) -> None:
     if not actor_params:
         actor_params = list(ac_trainer.actor.parameters())
     ac_trainer.actor_optimizer = torch.optim.Adam(actor_params, lr=lr)
+
+
+def _cleanup_auxiliary_checkpoints(
+    ac_path: str | None,
+    *,
+    step_checkpoint_prefix: str = "ac_step",
+) -> None:
+    """Remove internal selection/step artifacts after final ``ac.pt`` is saved."""
+    if not ac_path:
+        return
+    base, extension = os.path.splitext(ac_path)
+    candidates = [f"{base}_best{extension}", f"{base}_fire_best{extension}"]
+    directory = os.path.dirname(ac_path) or "."
+    prefix = os.path.basename(base)
+    step_prefix = os.path.basename(str(step_checkpoint_prefix))
+    for filename in os.listdir(directory):
+        step_prefixes = {f"{prefix}_step"}
+        if step_prefix:
+            step_prefixes.add(step_prefix)
+        is_step_checkpoint = any(
+            filename.startswith(candidate_prefix)
+            and filename.endswith(extension)
+            and filename[len(candidate_prefix) : -len(extension)].isdigit()
+            for candidate_prefix in step_prefixes
+        )
+        if is_step_checkpoint:
+            candidates.append(os.path.join(directory, filename))
+        if filename.startswith(f"{prefix}_stage_") and filename.endswith(extension):
+            candidates.append(os.path.join(directory, filename))
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            os.remove(candidate)
 
 
 def _apply_curriculum_stage(
@@ -150,6 +183,7 @@ def run_ac_stage(
     benchmark_position: float,
     policy_score_fn,
     sequence_dataset_cls,
+    checkpoint_metadata: dict | None = None,
 ):
     if ac_max_steps_cfg <= 0:
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
@@ -163,6 +197,7 @@ def run_ac_stage(
         wm_cfg=wm_cfg,
         device=device,
     )
+    ac_trainer.checkpoint_metadata = dict(checkpoint_metadata or {})
 
     t_enc = min(len(z_train), len(oracle_positions))
     ac_oracle_positions = oracle_positions[:t_enc]
@@ -323,6 +358,10 @@ def run_ac_stage(
     if ac_cfg.get("critic_only", False) and not ac_cfg.get("curriculum"):
         if ac_path:
             ac_trainer.save(ac_path)
+            _cleanup_auxiliary_checkpoints(
+                ac_path,
+                step_checkpoint_prefix=ac_trainer.step_checkpoint_prefix,
+            )
         print(f"[{log_ts()}] [Step 4] AC critic-only requested; actor update skipped")
         return ac_trainer
 
@@ -487,4 +526,8 @@ def run_ac_stage(
             online_wm_callback=_online_wm_cb if online_wm_steps_val > 0 else None,
         )
     ac_trainer.save(ac_path)
+    _cleanup_auxiliary_checkpoints(
+        ac_path,
+        step_checkpoint_prefix=ac_trainer.step_checkpoint_prefix,
+    )
     return ac_trainer

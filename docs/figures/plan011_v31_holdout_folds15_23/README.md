@@ -1,13 +1,13 @@
 # Plan011 v31 Fold15-23 Trade Charts
 
-保存済み checkpoint から実モデル推論を再実行し、test split の資産推移、B&H、position 変更点を可視化した。
+Historical checkpoint replay の結果として、test split の資産推移、B&H、position 変更点を可視化した。checkpoint 本体は現在削除済み。
 
 ## Reproduction
 
 ```bash
 uv run python -m unidream.cli.plot_plan011_fold_trades \
   --config configs/plan011_overlay_actor_v31_holdout.yaml \
-  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007 \
+  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_holdout_s007 \
   --folds 15-23 \
   --seed 7 \
   --device cpu \

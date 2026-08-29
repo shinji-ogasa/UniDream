@@ -192,15 +192,20 @@ uv run python -m unidream.cli.export_inference_bundle --help
 
 ## 使い方
 
+実験結果と再現性契約の一覧は [`docs/README.md`](docs/README.md) にまとめている。
+
 ### 本トレーニング
 
-WM → BC → AC → Test まで通す本トレーニングはこのコマンドで実行する。CLIで変更できるのはconfig・seed・deviceだけで、期間、fold、cost、checkpoint先はYAMLに固定する。
+WM → BC → AC → Test まで通す本トレーニングは、このコマンド一発で実行する。引数を省略した場合は `configs/trading.yaml`、seed `7`、device `auto` を使う。CLIで変更できるのはconfig・seed・deviceだけで、期間、fold、cost、checkpoint先はYAMLに固定する。
 
 ```bash
-uv run python -m unidream.cli.train \
-  --config configs/trading.yaml \
-  --seed 7 \
-  --device cuda
+uv run python -m unidream.cli.train
+```
+
+NVIDIA GPUで明示する場合:
+
+```bash
+uv run python -m unidream.cli.train --device cuda
 ```
 
 実行条件はYAMLの`run`で管理する:
@@ -223,13 +228,14 @@ logging:
   cache_dir: checkpoints/data_cache
 ```
 
-`run.clean_checkpoint_dir: true`では実行開始時に当該checkpoint directoryを削除して作り直す。既存WM/BC/ACのresume、stage途中開始、warm-startはmainlineから削除済み。
+`run.clean_checkpoint_dir: true`では、データ取得・cache検証を通過した後に当該checkpoint directoryを削除して作り直す。既存WM/BC/ACのresume、stage途中開始、warm-startはmainlineから削除済み。
 
 各runには以下を保存する:
 
 - `resolved_config.yaml`: cost profile解決後の実設定
-- `run_manifest.json`: run ID、Git commit、source/config/data SHA256、seed、device、環境、fold一覧
+- `run_manifest.json`: run ID、resolved config、Git commit、source/config/data SHA256、seed、device、環境、cache契約、必須artifact一覧
 - `checkpoint_semantic_sha256`: PyTorch ZIP metadataに依存しないWM/BC/AC tensor内容hash
+- 各 `*.pt` の `checkpoint_metadata`: stage/fold、run ID、config/source/data hash、cache tag、実行環境。`ac.pt`にはActor全推論runtimeとvalidation selectorの最終推論設定も保存
 
 ### Plan011 v31 の再現
 
@@ -261,12 +267,12 @@ fold23 bundle を再生成して `unidream-space` に反映する:
 
 ```bash
 .venv/bin/python -u -m unidream.cli.export_inference_bundle \
-  --config configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml \
+  --config configs/plan011_overlay_actor_v31_holdout.yaml \
   --start 2018-01-01 --end 2026-04-17 \
   --fold 23 \
   --seed 7 \
   --device cpu \
-  --run Plan011v31=checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007@ac.pt:ac \
+  --run Plan011v31=checkpoints/plan011_overlay_actor_v31_holdout_s007@ac.pt:ac \
   --bundle-type plan011_v31_overlay_actor \
   --status latest_holdout_candidate \
   --source wm_bc_ac_relative_constraint_overlay \
@@ -292,7 +298,7 @@ Space 側へ反映する場合は `unidream-space` repo を更新して Hugging 
 ```bash
 uv run python -m unidream.cli.compare_policy_families \
   --config configs/plan011_overlay_actor_v31_holdout.yaml \
-  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007 \
+  --checkpoint-dir checkpoints/plan011_overlay_actor_v31_holdout_s007 \
   --seed 7 \
   --device cpu \
   --output docs/policy_family_holdout_comparison
@@ -310,15 +316,15 @@ uv run python -m unidream.cli.plot_plan011_fold_trades \
 
 実行時に以下が生成される。
 
-- `<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt}`: 学習 pipeline の checkpoint
+- `<logging.checkpoint_dir>/fold_<i>/{world_model.pt, bc_actor.pt, ac.pt}`: 学習 pipeline の一時 checkpoint（各ファイルに provenance metadata）
 - `<logging.checkpoint_dir>/{resolved_config.yaml, run_manifest.json}`: 再現条件とfingerprint
-- `checkpoints/data_cache/`: feature / returns の parquet キャッシュ
+- `checkpoints/data_cache/`: 現行 v3 feature / returns の parquet と cache metadata
 - `docs/`: Plan011 v31 の投資家向け evidence、holdout、policy-family comparison、fold chart
 - `/Users/sophie/Documents/UniDream/unidream-space/bundles/current`: HF Spaces current bundle
 - `__pycache__/`: Python 実行キャッシュ
 - `.venv/`: `uv sync` が作る仮想環境
 
-`checkpoints/` と `.venv/` は Git 管理対象外。checkpoint は再実行で作り直す前提。
+`checkpoints/` と `.venv/` は Git 管理対象外。研究用 checkpoint は run 中の reload 検証に必要な期間だけ保持し、結果は `docs/` に残す。`unidream-space/bundles/current` は配信用 runtime bundle のため、この方針の削除対象外。
 
 ## 依存
 
@@ -333,6 +339,7 @@ uv run python -m unidream.cli.plot_plan011_fold_trades \
 - `requests`: Binance API 取得
 - `scipy`: 統計評価
 - `pyyaml`: config 読み込み
+- `pyarrow`: feature / return Parquet cache
 
 依存は [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) で固定する。
 

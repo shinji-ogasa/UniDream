@@ -19,7 +19,13 @@ OHLCV / funding / mark
 
 ## Training Contract
 
-学習entrypointは以下だけを受け付ける。
+学習entrypointは以下だけを受け付ける。引数を省略した場合は、現行開発仕様（`configs/trading.yaml`、seed `7`、`device auto`）で実行する。
+
+```bash
+uv run python -m unidream.cli.train
+```
+
+明示指定も可能:
 
 ```bash
 uv run python -m unidream.cli.train \
@@ -32,8 +38,9 @@ uv run python -m unidream.cli.train \
 - pipelineは常にWMからTestまで順番に実行する。
 - `--resume`, `--start-from`, `--stop-after`, `--start`, `--end`, `--folds`は廃止。
 - mainlineのcheckpoint warm-startとPlan004 overrideは廃止。
-- 実行前にconfigured checkpoint directoryをcleanし、古いartifactを参照しない。
-- cacheは完全一致するtagだけを読み、wildcard fallbackは行わない。
+- データ取得・cache検証を通過してからconfigured checkpoint directoryをcleanし、古いartifactを参照しない。
+- cacheは完全一致するtagとsidecar契約だけを読み、wildcard fallbackは行わない。
+- feature cacheは required columns、時系列 index の整合性、有限値、`include_funding/include_oi/include_mark` を検証する。
 
 ## Required YAML
 
@@ -64,16 +71,18 @@ logging:
 - `resolved_config.yaml`: cost profile解決後の完全config
 - `run_manifest.json`
   - deterministic run ID
-  - config/source/data SHA256
+  - resolved config と config/source/data SHA256
   - Git commit / dirty state
   - seed / device / library versions
+  - cache tag / cache contract / required artifacts
   - selected folds
   - WM/BC/AC semantic checkpoint SHA256
-- `fold_<n>/world_model.pt`
-- `fold_<n>/bc_actor.pt`
-- `fold_<n>/ac.pt`
+- `fold_<n>/world_model.pt`: WM state + stage/fold/run/config/source/data provenance
+- `fold_<n>/bc_actor.pt`: BC actor + stage/fold/run/config/source/data provenance
+- `fold_<n>/ac.pt`: AC state + provenance + Actor全推論runtime snapshot + validation selectorの最終推論設定
 
-run IDはconfig、source、data、seedから生成する。PyTorch checkpointはZIP file hashではなくtensor内容のsemantic hashで比較する。
+run IDはconfig、source、data、seedから生成する。PyTorch checkpointはZIP file hashではなくtensor内容のsemantic hashで比較する。replay CLIは、`run_manifest.json` が completed で、各checkpointのmetadataがmanifestと一致する場合にだけロードする。
+読み込み時はmanifest内のresolved config hashとも照合し、別configでの黙ったreplayを拒否する。
 
 ## Leak Discipline
 

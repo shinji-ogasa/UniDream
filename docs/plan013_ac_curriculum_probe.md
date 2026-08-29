@@ -1,5 +1,7 @@
 # Plan013 AC Curriculum Probe
 
+> Historical pre-reproducibility-contract probe. The checkpoint/selector persistence issue recorded below is fixed in the current mainline; this document preserves the original experiment finding only.
+
 ## Question
 
 BC が collapse しない初期方策を作れているなら、現行 reward を変更せず、AC の自由度を段階的に解放することで BC を超えられるか。

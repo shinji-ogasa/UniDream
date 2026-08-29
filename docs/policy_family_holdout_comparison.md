@@ -1,9 +1,12 @@
 # Policy Family Holdout Comparison
 
+この比較表は historical result snapshot。生成に使ったローカル checkpoint は削除済みで、再実行時は `checkpoints/plan011_overlay_actor_v31_holdout_s007` を出力先にする。
+
 - period: `2024-01-16 13:45:00` to `2026-04-16 13:45:00`
 - folds: `15, 16, 17, 18, 19, 20, 21, 22, 23`
 - config: `configs/plan011_overlay_actor_v31_holdout.yaml`
-- checkpoint dir: `checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007`
+- historical checkpoint dir: `checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007` (deleted)
+- rerun checkpoint dir: `checkpoints/plan011_overlay_actor_v31_holdout_s007`
 - seed/device: `7` / `cpu`
 - selection: train fit + validation selection only; test is report-only
 - benchmark: B&H exposure=1.0

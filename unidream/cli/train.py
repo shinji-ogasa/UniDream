@@ -17,9 +17,17 @@ def build_parser() -> argparse.ArgumentParser:
         description="Strict reproducible UniDream WM -> BC -> AC -> Test pipeline",
         allow_abbrev=False,
     )
-    parser.add_argument("--config", required=True, help="Self-contained training YAML")
-    parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--device", required=True, help=DEVICE_HELP)
+    parser.add_argument(
+        "--config",
+        default="configs/trading.yaml",
+        help="Self-contained training YAML (default: configs/trading.yaml)",
+    )
+    parser.add_argument("--seed", type=int, default=7, help="Random seed (default: 7)")
+    parser.add_argument(
+        "--device",
+        default="auto",
+        help=f"{DEVICE_HELP} (default: auto)",
+    )
     return parser
 
 

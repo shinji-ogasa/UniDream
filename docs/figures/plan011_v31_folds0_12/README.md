@@ -1,6 +1,6 @@
 # Plan011 v31 Fold0-12 Trade Charts
 
-保存済み checkpoint から実モデル推論を再実行し、test split の資産推移、B&H、position 変更点を可視化した。
+Historical checkpoint replay の結果として、test split の資産推移、B&H、position 変更点を可視化した。checkpoint 本体は現在削除済み。
 
 ## Reproduction
 

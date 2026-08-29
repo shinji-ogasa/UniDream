@@ -34,6 +34,7 @@ import torch.nn.functional as F
 from unidream.actor_critic.actor import Actor
 from unidream.actor_critic.critic import Critic, RewardEMANorm
 from unidream.device import resolve_device
+from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.eval.policy_stats import action_stats as _action_stats
 from unidream.eval.policy_stats import format_action_stats as _fmt_action_stats
 from unidream.world_model.ensemble import EnsembleWorldModel
@@ -1657,7 +1658,7 @@ class ImagACTrainer:
 
     def save(self, path: str) -> None:
         os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
-        torch.save({
+        atomic_torch_save({
             "actor": self.actor.state_dict(),
             "critic": self.critic.state_dict(),
             "actor_optimizer": self.actor_optimizer.state_dict(),

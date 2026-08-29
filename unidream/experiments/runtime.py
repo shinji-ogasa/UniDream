@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import os
 import random
+from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -15,6 +18,25 @@ from unidream.data.download import (
     fetch_open_interest_hist,
 )
 from unidream.data.features import align_extra_series, compute_features, get_raw_returns
+from unidream.experiments.checkpointing import atomic_text_write
+
+
+CACHE_CONTRACT_VERSION = 1
+_BASE_FEATURE_COLUMNS = {
+    "open_ret",
+    "high_ret",
+    "low_ret",
+    "close_ret",
+    "vol_ret",
+    "RSI_14",
+    "macd",
+    "macd_signal",
+    "atr_norm_ret",
+    "atr",
+    "rv_4",
+    "rv_16",
+    "rv_96",
+}
 
 
 def resolve_cache_pair(cache_dir: str, cache_tag: str) -> tuple[str, str]:
@@ -54,6 +76,112 @@ def read_extra_series_caches(cache_dir: str, cache_tag: str) -> dict[str, pd.Ser
         name = filename[len(prefix) : -len(".parquet")]
         series_map[name] = df.iloc[:, 0].rename(name)
     return series_map
+
+
+def _cache_metadata_path(cache_dir: str, cache_tag: str) -> str:
+    return os.path.join(cache_dir, f"{cache_tag}_metadata.json")
+
+
+def _cache_parameters(
+    *,
+    symbol: str,
+    interval: str,
+    start: str,
+    end: str,
+    zscore_window: int,
+    extra_series_mode: str,
+    extra_series_include: list[str] | None,
+    include_funding: bool,
+    include_oi: bool,
+    include_mark: bool,
+) -> dict[str, object]:
+    return {
+        "symbol": symbol,
+        "interval": interval,
+        "start": start,
+        "end": end,
+        "zscore_window_days": int(zscore_window),
+        "extra_series_mode": str(extra_series_mode),
+        "extra_series_include": sorted(str(name) for name in (extra_series_include or [])),
+        "include_funding": bool(include_funding),
+        "include_oi": bool(include_oi),
+        "include_mark": bool(include_mark),
+    }
+
+
+def _validate_training_cache(
+    features_df: pd.DataFrame,
+    raw_returns: pd.Series,
+    *,
+    include_funding: bool,
+    include_oi: bool,
+    include_mark: bool,
+    cache_tag: str,
+) -> None:
+    if features_df.empty or raw_returns.empty:
+        raise ValueError(f"cache {cache_tag} is empty")
+    if not isinstance(features_df.index, pd.DatetimeIndex):
+        raise ValueError(f"cache {cache_tag} features index is not DatetimeIndex")
+    if not features_df.index.is_monotonic_increasing or not features_df.index.is_unique:
+        raise ValueError(f"cache {cache_tag} features index is not sorted and unique")
+    if not isinstance(raw_returns.index, pd.DatetimeIndex):
+        raise ValueError(f"cache {cache_tag} returns index is not DatetimeIndex")
+    if not features_df.index.equals(raw_returns.index):
+        raise ValueError(f"cache {cache_tag} features/returns indices differ")
+    columns = set(str(column) for column in features_df.columns)
+    required = set(_BASE_FEATURE_COLUMNS)
+    if include_funding:
+        required.add("funding_rate")
+    if include_oi:
+        required.add("oi_change")
+    if include_mark:
+        required.update({"basis", "basis_mom", "basis_abs"})
+    missing = sorted(required - columns)
+    if missing:
+        raise ValueError(f"cache {cache_tag} is missing required feature columns: {missing}")
+    try:
+        feature_values = features_df.to_numpy(dtype=np.float64)
+        return_values = raw_returns.to_numpy(dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"cache {cache_tag} contains non-numeric values") from exc
+    if not np.isfinite(feature_values).all() or not np.isfinite(return_values).all():
+        raise ValueError(f"cache {cache_tag} contains NaN or infinite values")
+
+
+def _write_cache_metadata(
+    *,
+    cache_dir: str,
+    cache_tag: str,
+    parameters: dict[str, object],
+    features_df: pd.DataFrame,
+    provenance: str,
+) -> None:
+    metadata = {
+        "schema_version": CACHE_CONTRACT_VERSION,
+        "cache_tag": cache_tag,
+        "parameters": parameters,
+        "feature_columns": [str(column) for column in features_df.columns],
+        "rows": int(len(features_df)),
+        "first_timestamp": str(features_df.index[0]),
+        "last_timestamp": str(features_df.index[-1]),
+        "provenance": provenance,
+    }
+    atomic_text_write(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+        _cache_metadata_path(cache_dir, cache_tag),
+    )
+
+
+def _atomic_parquet_write(frame: pd.DataFrame, path: str) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.tmp-{os.getpid()}-{uuid4().hex}")
+    try:
+        frame.to_parquet(temporary)
+        os.replace(temporary, destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
 
 def set_seed(seed: int) -> None:
@@ -105,6 +233,18 @@ def load_training_features(
     include_mark: bool = True,
 ) -> tuple[pd.DataFrame, pd.Series]:
     features_cache, returns_cache = resolve_cache_pair(cache_dir, cache_tag)
+    parameters = _cache_parameters(
+        symbol=symbol,
+        interval=interval,
+        start=start,
+        end=end,
+        zscore_window=zscore_window,
+        extra_series_mode=extra_series_mode,
+        extra_series_include=extra_series_include,
+        include_funding=include_funding,
+        include_oi=include_oi,
+        include_mark=include_mark,
+    )
     ohlcv_cache = os.path.join(cache_dir, f"{cache_tag}_ohlcv.parquet")
     funding_cache = os.path.join(cache_dir, f"{cache_tag}_funding.parquet")
     oi_cache = os.path.join(cache_dir, f"{cache_tag}_oi.parquet")
@@ -112,10 +252,53 @@ def load_training_features(
 
     if os.path.exists(features_cache) and os.path.exists(returns_cache):
         print("\n[Data] Loading cached features...")
-        features_df = pd.read_parquet(features_cache)
-        raw_returns = pd.read_parquet(returns_cache).squeeze()
-        print(f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]}")
-        return features_df, raw_returns
+        try:
+            features_df = read_optional_parquet(features_cache)
+            returns_frame = read_optional_parquet(returns_cache)
+            if features_df is None or returns_frame is None:
+                raise ValueError("cache pair disappeared while loading")
+            raw_returns = returns_frame.squeeze("columns")
+            if isinstance(raw_returns, pd.DataFrame):
+                raise ValueError("returns must contain exactly one column")
+            _validate_training_cache(
+                features_df,
+                raw_returns,
+                include_funding=include_funding,
+                include_oi=include_oi,
+                include_mark=include_mark,
+                cache_tag=cache_tag,
+            )
+            metadata_path = _cache_metadata_path(cache_dir, cache_tag)
+            if os.path.exists(metadata_path):
+                metadata = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
+                if not isinstance(metadata, dict):
+                    raise ValueError("cache metadata must be a mapping")
+                if metadata.get("schema_version") != CACHE_CONTRACT_VERSION:
+                    raise ValueError(f"unsupported metadata schema: {metadata.get('schema_version')!r}")
+                if metadata.get("cache_tag") != cache_tag:
+                    raise ValueError("cache tag does not match metadata")
+                if metadata.get("parameters") != parameters:
+                    raise ValueError("cache parameters do not match the requested config")
+                if metadata.get("feature_columns") != [str(column) for column in features_df.columns]:
+                    raise ValueError("cache feature columns do not match metadata")
+                if metadata.get("rows") != len(features_df):
+                    raise ValueError("cache row count does not match metadata")
+                if metadata.get("first_timestamp") != str(features_df.index[0]):
+                    raise ValueError("cache first timestamp does not match metadata")
+                if metadata.get("last_timestamp") != str(features_df.index[-1]):
+                    raise ValueError("cache last timestamp does not match metadata")
+            else:
+                _write_cache_metadata(
+                    cache_dir=cache_dir,
+                    cache_tag=cache_tag,
+                    parameters=parameters,
+                    features_df=features_df,
+                    provenance="legacy_unverified",
+                )
+            print(f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]}")
+            return features_df, raw_returns
+        except Exception as exc:
+            print(f"  Cache invalid; rebuilding from raw data: {exc}")
 
     df = read_optional_parquet(ohlcv_cache)
     if df is not None:
@@ -139,7 +322,9 @@ def load_training_features(
             funding_df = fetch_funding_rate(symbol, start, end)
             print(f"  Funding rate: {len(funding_df)} records")
         except Exception as exc:
-            print(f"  Funding rate skipped: {exc}")
+            raise RuntimeError(
+                "funding rate is required by this training config but could not be fetched"
+            ) from exc
     if not include_oi:
         oi_df = None
     elif oi_df is not None:
@@ -150,7 +335,9 @@ def load_training_features(
             oi_df = fetch_open_interest_hist(symbol, interval, start, end)
             print(f"  Open interest: {len(oi_df)} records")
         except Exception as exc:
-            print(f"  Open interest skipped: {exc}")
+            raise RuntimeError(
+                "open interest is required by this training config but could not be fetched"
+            ) from exc
     if not include_mark:
         mark_price_df = None
     elif mark_price_df is not None:
@@ -161,7 +348,9 @@ def load_training_features(
             mark_price_df = fetch_mark_price_klines(symbol, interval, start, end)
             print(f"  Mark price: {len(mark_price_df)} records")
         except Exception as exc:
-            print(f"  Mark price skipped: {exc}")
+            raise RuntimeError(
+                "mark price is required by this training config but could not be fetched"
+            ) from exc
     if extra_series_include:
         include_set = set(extra_series_include)
         extra_series = {k: v for k, v in extra_series.items() if k in include_set}
@@ -194,9 +383,24 @@ def load_training_features(
     common_idx = features_df.index.intersection(raw_returns.index)
     features_df = features_df.loc[common_idx]
     raw_returns = raw_returns.loc[common_idx]
+    _validate_training_cache(
+        features_df,
+        raw_returns,
+        include_funding=include_funding,
+        include_oi=include_oi,
+        include_mark=include_mark,
+        cache_tag=cache_tag,
+    )
     os.makedirs(cache_dir, exist_ok=True)
-    features_df.to_parquet(features_cache)
-    raw_returns.to_frame(name="returns").to_parquet(returns_cache)
+    _atomic_parquet_write(features_df, features_cache)
+    _atomic_parquet_write(raw_returns.to_frame(name="returns"), returns_cache)
+    _write_cache_metadata(
+        cache_dir=cache_dir,
+        cache_tag=cache_tag,
+        parameters=parameters,
+        features_df=features_df,
+        provenance="generated",
+    )
     print(f"  Features: {features_df.shape} | obs_dim={features_df.shape[1]}")
     print(f"  Saved cache: {features_cache}")
     return features_df, raw_returns

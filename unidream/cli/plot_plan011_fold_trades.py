@@ -27,6 +27,7 @@ from unidream.eval.selector import (
     selector_config,
 )
 from unidream.experiments.checkpoint_eval import load_actor_state_checkpoint, load_fold_model_context
+from unidream.experiments.checkpointing import validate_checkpoint_metadata
 from unidream.experiments.run_config import configure_determinism
 from unidream.experiments.runtime import load_config, load_training_features, resolve_costs, set_seed
 from unidream.experiments.val_selector_stage import run_val_selector_stage
@@ -401,28 +402,42 @@ def main() -> None:
             actor_ckpt = checkpoint_dir / f"fold_{fold_idx}" / "ac_best.pt"
         if not actor_ckpt.exists():
             raise FileNotFoundError(f"missing actor checkpoint: {actor_ckpt}")
-        load_actor_state_checkpoint(context["actor"], actor_ckpt, args.device)
-
-        run_val_selector_stage(
-            actor=context["actor"],
-            wm_trainer=context["wm_trainer"],
-            wfo_dataset=dataset,
-            seq_len=int(data_cfg["seq_len"]),
-            val_regime_probs=context["fold_inputs"]["val_regime_probs"],
-            val_advantage_values=context["val_advantage"],
-            device=args.device,
-            cfg=cfg,
-            ac_cfg=cfg["ac"],
-            costs_cfg=cfg["costs"],
-            backtest_cls=Backtest,
-            action_stats_fn=action_stats,
-            selector_cfg_fn=selector_config,
-            selector_candidate_fn=selector_candidate,
-            select_policy_candidate_fn=select_policy_candidate,
-            candidate_to_text_fn=candidate_to_text,
-            benchmark_positions_fn=lambda length, bench=benchmark: _benchmark_positions(length, bench),
-            benchmark_position=benchmark,
+        actor_metadata = load_actor_state_checkpoint(context["actor"], actor_ckpt, args.device)
+        actor_stage = "bc_actor" if actor_ckpt.name == "bc_actor.pt" else "ac"
+        validate_checkpoint_metadata(
+            actor_metadata,
+            manifest=context["run_manifest"],
+            fold_idx=fold_idx,
+            stage=actor_stage,
+            path=actor_ckpt,
         )
+        persisted_selection = actor_metadata.get("inference_selection") or {}
+        if persisted_selection.get("adjust_rate_scale") is not None:
+            context["actor"].infer_adjust_rate_scale = float(persisted_selection["adjust_rate_scale"])
+            context["actor"].infer_advantage_level = float(
+                persisted_selection.get("advantage_level", context["actor"].infer_advantage_level)
+            )
+        else:
+            run_val_selector_stage(
+                actor=context["actor"],
+                wm_trainer=context["wm_trainer"],
+                wfo_dataset=dataset,
+                seq_len=int(data_cfg["seq_len"]),
+                val_regime_probs=context["fold_inputs"]["val_regime_probs"],
+                val_advantage_values=context["val_advantage"],
+                device=args.device,
+                cfg=cfg,
+                ac_cfg=cfg["ac"],
+                costs_cfg=cfg["costs"],
+                backtest_cls=Backtest,
+                action_stats_fn=action_stats,
+                selector_cfg_fn=selector_config,
+                selector_candidate_fn=selector_candidate,
+                select_policy_candidate_fn=select_policy_candidate,
+                candidate_to_text_fn=candidate_to_text,
+                benchmark_positions_fn=lambda length, bench=benchmark: _benchmark_positions(length, bench),
+                benchmark_position=benchmark,
+            )
 
         positions = context["actor"].predict_positions(
             context["encoded_test"]["z"],
