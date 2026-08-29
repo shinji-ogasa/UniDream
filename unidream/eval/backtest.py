@@ -36,6 +36,44 @@ ANNUALIZATION_EQUITY = {
 ANNUALIZATION = ANNUALIZATION_CRYPTO
 
 
+def align_execution_path(
+    returns: np.ndarray,
+    positions: np.ndarray,
+    benchmark_positions: np.ndarray | None = None,
+    execution_delay_bars: int = 0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Align decisions with returns that are available after execution delay.
+
+    A delay of ``d > 0`` evaluates only the right-aligned window
+    ``positions[:-d]`` against ``returns[d:]``.  The leading returns have no
+    decision yet, and the final ``d`` decisions have no return in the
+    requested window, so neither is padded or scored.  Benchmark positions
+    are trimmed to the same return window.  Invalid delays are rejected
+    explicitly rather than producing an empty or fabricated path.
+    """
+    returns_arr = np.asarray(returns, dtype=np.float64).reshape(-1)
+    positions_arr = np.asarray(positions, dtype=np.float64).reshape(-1)
+    if len(returns_arr) != len(positions_arr):
+        raise ValueError("returns and positions must have equal lengths")
+    benchmark_arr = None
+    if benchmark_positions is not None:
+        benchmark_arr = np.asarray(benchmark_positions, dtype=np.float64).reshape(-1)
+        if len(benchmark_arr) != len(returns_arr):
+            raise ValueError("benchmark_positions and returns must have equal lengths")
+
+    delay = int(execution_delay_bars)
+    if delay < 0:
+        raise ValueError("execution_delay_bars must be non-negative")
+    if delay >= len(returns_arr):
+        raise ValueError(
+            "execution_delay_bars must be smaller than the number of return bars"
+        )
+    if delay == 0:
+        return returns_arr, positions_arr, benchmark_arr
+    benchmark_window = benchmark_arr[delay:] if benchmark_arr is not None else None
+    return returns_arr[delay:], positions_arr[:-delay], benchmark_window
+
+
 @dataclass
 class BacktestMetrics:
     """バックテスト結果メトリクス."""
@@ -225,7 +263,8 @@ class Backtest:
         slippage_bps: スリッページ (basis points)
         interval: 足種（年換算係数計算に使用）
         execution_delay_bars: 決定から執行までの遅延バー数（感度分析用、デフォルト 0）。
-            positions を後方シフトし、先頭は最初の決定値で埋める。benchmark には適用しない。
+            d > 0 では positions[:-d] と returns[d:] を右整列し、未予測の
+            先頭リターンと期間外の末尾決定を評価しない。benchmark も同じ期間に切り詰める。
     """
 
     def __init__(
@@ -255,14 +294,22 @@ class Backtest:
             assert len(self.benchmark_positions) == len(self.positions), (
                 "benchmark_positions と positions の長さが一致しない"
             )
+        if self.execution_delay_bars < 0:
+            raise ValueError("execution_delay_bars must be non-negative")
+        if self.execution_delay_bars >= len(self.returns):
+            raise ValueError(
+                "execution_delay_bars must be smaller than the number of return bars"
+            )
 
     def run(self) -> BacktestMetrics:
         """バックテストを実行してメトリクスを返す."""
-        positions = self.positions
-        if self.execution_delay_bars > 0 and len(positions) > 0:
-            d = min(self.execution_delay_bars, len(positions))
-            positions = np.concatenate([np.full(d, positions[0]), positions[:-d]])
-        pnl = compute_pnl(self.returns, positions, self.spread_bps, self.fee_rate, self.slippage_bps)
+        returns, positions, benchmark_positions = align_execution_path(
+            self.returns,
+            self.positions,
+            self.benchmark_positions,
+            self.execution_delay_bars,
+        )
+        pnl = compute_pnl(returns, positions, self.spread_bps, self.fee_rate, self.slippage_bps)
         # position * log_return ≈ log(1 + position * simple_return) for small returns
         # 15分足では十分な近似。厳密な対数リターンは position=1.0 の場合のみ。
         equity = np.exp(np.cumsum(pnl))  # 累積 PnL → equity curve
@@ -307,10 +354,10 @@ class Backtest:
         upside_capture = None
         downside_capture = None
         max_underperformance_streak = None
-        if self.benchmark_positions is not None:
+        if benchmark_positions is not None:
             bench_pnl = compute_pnl(
-                self.returns,
-                self.benchmark_positions,
+                returns,
+                benchmark_positions,
                 self.spread_bps,
                 self.fee_rate,
                 self.slippage_bps,

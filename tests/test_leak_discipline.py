@@ -138,7 +138,7 @@ class MetricDefinitionTest(unittest.TestCase):
         expected = pnl.mean() / downside_dev * np.sqrt(ann)
         self.assertAlmostEqual(compute_sortino(pnl, ann), expected)
 
-    def test_execution_delay_shifts_positions(self) -> None:
+    def test_execution_delay_right_aligns_positions_and_benchmark(self) -> None:
         returns = np.asarray([0.01, 0.02, -0.01, 0.03], dtype=np.float64)
         positions = np.asarray([1.0, 0.0, 1.0, 0.0], dtype=np.float64)
         no_delay = Backtest(
@@ -146,13 +146,35 @@ class MetricDefinitionTest(unittest.TestCase):
         ).run()
         delayed = Backtest(
             returns, positions, spread_bps=0.0, fee_rate=0.0, slippage_bps=0.0, interval="1d",
+            benchmark_positions=np.ones_like(returns),
             execution_delay_bars=1,
         ).run()
-        # delay=1 では positions が 1 バー後ろにずれる（先頭は最初の決定値で埋める）
-        expected_positions = np.asarray([1.0, 1.0, 0.0, 1.0])
-        expected_pnl = expected_positions * returns
+        # delay=1 は decision[t] と return[t+1] を対応付ける。先頭の
+        # 未予測リターンや末尾の対応しない決定は padding せず除外する。
+        expected_positions = np.asarray([1.0, 0.0, 1.0])
+        expected_returns = returns[1:]
+        expected_pnl = expected_positions * expected_returns
         np.testing.assert_allclose(delayed.pnl_series, expected_pnl, atol=1e-12)
+        self.assertEqual(len(delayed.pnl_series), 3)
+        self.assertAlmostEqual(
+            delayed.benchmark_total_return,
+            float(np.exp(expected_returns.sum()) - 1.0),
+        )
         self.assertNotAlmostEqual(no_delay.total_return, delayed.total_return)
+
+    def test_execution_delay_rejects_negative_and_out_of_window(self) -> None:
+        returns = np.asarray([0.01, 0.02, -0.01], dtype=np.float64)
+        positions = np.ones_like(returns)
+        for delay in (-1, len(returns), len(returns) + 1):
+            with self.assertRaisesRegex(ValueError, "execution_delay_bars"):
+                Backtest(
+                    returns,
+                    positions,
+                    spread_bps=0.0,
+                    fee_rate=0.0,
+                    slippage_bps=0.0,
+                    execution_delay_bars=delay,
+                )
 
 
 if __name__ == "__main__":
