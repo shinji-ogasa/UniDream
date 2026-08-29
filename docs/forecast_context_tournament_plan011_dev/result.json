@@ -1,8 +1,8 @@
 {
-  "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+  "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
   "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
   "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-  "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+  "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
   "data_contract": {
     "wave": "wave3c_forecast_context_tournament",
     "allowed_folds": [
@@ -160,6 +160,142 @@
     "selection_contract": "report-only corrected replay; excluded from Wave3C selection and gate",
     "comparator_contract": "validation-selected constant exposure, common right-side return window, fixed delay 1",
     "rows": [
+      {
+        "status": "ok",
+        "fold": 0,
+        "candidate": "causal_trend_vol_rule",
+        "feature_set": "ohlcv13",
+        "fold_bounds": {
+          "train_start": "2018-01-16 13:45:00",
+          "train_end_exclusive": "2020-01-16 13:45:00",
+          "validation_start": "2020-01-16 13:45:00",
+          "validation_end_exclusive": "2020-04-16 13:45:00",
+          "test_start": "2020-04-16 13:45:00",
+          "test_end_exclusive": "2020-07-16 13:45:00"
+        },
+        "policy_baseline": 0.5,
+        "source_policy": {
+          "threshold": 0.0,
+          "overlay_magnitude": 0.12,
+          "hysteresis": 0.0,
+          "min_hold": 32,
+          "execution_delay": 1
+        },
+        "source_hyperparameters": {
+          "rule": "causal_trend_vol"
+        },
+        "test_is_report_only": true,
+        "test_economics": {
+          "common_evaluation_start_bars": 17,
+          "common_evaluation_rows": 8695,
+          "operational_execution_delay_bars": 1,
+          "dynamic": {
+            "alpha_excess_pt": -15.545178381276603,
+            "maxdd_delta_pt": -6.8618460828215975,
+            "sharpe_delta": -0.15495796598094236,
+            "turnover": 15.439999999999994,
+            "cost_turnover": 15.439999999999994,
+            "total_return_pt": 14.05652714669603,
+            "benchmark_total_return_pt": 29.601705527972634,
+            "max_drawdown_pt": 10.601740965349533,
+            "benchmark_max_drawdown_pt": 17.46358704817113,
+            "n_trades": 213,
+            "execution_delay_bars": 0,
+            "evaluation_initial_position": 0.58
+          },
+          "constant": {
+            "alpha_excess_pt": -15.758960687568946,
+            "maxdd_delta_pt": -8.313140139405451,
+            "sharpe_delta": 0.0,
+            "turnover": 0.0,
+            "cost_turnover": 0.0,
+            "total_return_pt": 13.842744840403686,
+            "benchmark_total_return_pt": 29.601705527972634,
+            "max_drawdown_pt": 9.150446908765678,
+            "benchmark_max_drawdown_pt": 17.46358704817113,
+            "n_trades": 0,
+            "execution_delay_bars": 0,
+            "evaluation_initial_position": 0.5
+          },
+          "lags": {
+            "1": {
+              "alpha_excess_pt": -15.288918883187863,
+              "maxdd_delta_pt": -6.91664825207899,
+              "sharpe_delta": -0.126648374329279,
+              "turnover": 15.439999999999994,
+              "cost_turnover": 15.439999999999994,
+              "total_return_pt": 14.312786644784769,
+              "benchmark_total_return_pt": 29.601705527972634,
+              "max_drawdown_pt": 10.54693879609214,
+              "benchmark_max_drawdown_pt": 17.46358704817113,
+              "n_trades": 213,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.58
+            },
+            "16": {
+              "alpha_excess_pt": -13.480432747451365,
+              "maxdd_delta_pt": -6.937707590434234,
+              "sharpe_delta": 0.058401226595565126,
+              "turnover": 15.439999999999994,
+              "cost_turnover": 15.439999999999994,
+              "total_return_pt": 16.121272780521267,
+              "benchmark_total_return_pt": 29.601705527972634,
+              "max_drawdown_pt": 10.525879457736897,
+              "benchmark_max_drawdown_pt": 17.46358704817113,
+              "n_trades": 213,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.58
+            }
+          },
+          "nulls": {
+            "1": {
+              "alpha_excess_pt": -15.288918883187863,
+              "maxdd_delta_pt": -6.91664825207899,
+              "sharpe_delta": -0.126648374329279,
+              "turnover": 15.439999999999994,
+              "cost_turnover": 15.439999999999994,
+              "total_return_pt": 14.312786644784769,
+              "benchmark_total_return_pt": 29.601705527972634,
+              "max_drawdown_pt": 10.54693879609214,
+              "benchmark_max_drawdown_pt": 17.46358704817113,
+              "n_trades": 213,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.58
+            },
+            "16": {
+              "alpha_excess_pt": -13.485541971049964,
+              "maxdd_delta_pt": -6.937707590437975,
+              "sharpe_delta": 0.057852635594323853,
+              "turnover": 15.439999999999994,
+              "cost_turnover": 15.519999999999994,
+              "total_return_pt": 16.116163556922668,
+              "benchmark_total_return_pt": 29.601705527972634,
+              "max_drawdown_pt": 10.525879457733156,
+              "benchmark_max_drawdown_pt": 17.46358704817113,
+              "n_trades": 214,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.5
+            },
+            "64": {
+              "alpha_excess_pt": -17.109573135943634,
+              "maxdd_delta_pt": -7.823916157862637,
+              "sharpe_delta": -0.2892878638740528,
+              "turnover": 15.439999999999992,
+              "cost_turnover": 15.439999999999992,
+              "total_return_pt": 12.492132392029,
+              "benchmark_total_return_pt": 29.601705527972634,
+              "max_drawdown_pt": 9.639670890308494,
+              "benchmark_max_drawdown_pt": 17.46358704817113,
+              "n_trades": 213,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.58
+            }
+          },
+          "timing_increment_alpha_excess_pt": 0.21378230629234274,
+          "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
+          "dynamic_alpha_excess_pt": -15.545178381276603
+        }
+      },
       {
         "status": "ok",
         "fold": 0,
@@ -431,6 +567,142 @@
           "timing_increment_alpha_excess_pt": 0.3149810485294733,
           "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
           "dynamic_alpha_excess_pt": -15.443979639039473
+        }
+      },
+      {
+        "status": "ok",
+        "fold": 2,
+        "candidate": "causal_trend_vol_rule",
+        "feature_set": "ohlcv13",
+        "fold_bounds": {
+          "train_start": "2018-07-16 13:45:00",
+          "train_end_exclusive": "2020-07-16 13:45:00",
+          "validation_start": "2020-07-16 13:45:00",
+          "validation_end_exclusive": "2020-10-16 13:45:00",
+          "test_start": "2020-10-16 13:45:00",
+          "test_end_exclusive": "2021-01-16 13:45:00"
+        },
+        "policy_baseline": 1.12,
+        "source_policy": {
+          "threshold": 6.495738471150563e-05,
+          "overlay_magnitude": 0.12,
+          "hysteresis": 0.0,
+          "min_hold": 32,
+          "execution_delay": 1
+        },
+        "source_hyperparameters": {
+          "rule": "causal_trend_vol"
+        },
+        "test_is_report_only": true,
+        "test_economics": {
+          "common_evaluation_start_bars": 17,
+          "common_evaluation_rows": 8791,
+          "operational_execution_delay_bars": 1,
+          "dynamic": {
+            "alpha_excess_pt": 26.521233831961766,
+            "maxdd_delta_pt": 1.283904350633891,
+            "sharpe_delta": -0.0047550825983266876,
+            "turnover": 16.000000000000014,
+            "cost_turnover": 16.000000000000014,
+            "total_return_pt": 255.23118417157508,
+            "benchmark_total_return_pt": 228.70995033961333,
+            "max_drawdown_pt": 27.875522225522598,
+            "benchmark_max_drawdown_pt": 26.591617874888705,
+            "n_trades": 222,
+            "execution_delay_bars": 0,
+            "evaluation_initial_position": 1.04
+          },
+          "constant": {
+            "alpha_excess_pt": 50.45692781653335,
+            "maxdd_delta_pt": 2.6732562267055613,
+            "sharpe_delta": 3.552713678800501e-15,
+            "turnover": 0.0,
+            "cost_turnover": 0.0,
+            "total_return_pt": 279.16687815614665,
+            "benchmark_total_return_pt": 228.70995033961333,
+            "max_drawdown_pt": 29.26487410159427,
+            "benchmark_max_drawdown_pt": 26.591617874888705,
+            "n_trades": 0,
+            "execution_delay_bars": 0,
+            "evaluation_initial_position": 1.12
+          },
+          "lags": {
+            "1": {
+              "alpha_excess_pt": 26.266060861633722,
+              "maxdd_delta_pt": 1.4292194727662133,
+              "sharpe_delta": -0.009002458359322674,
+              "turnover": 16.000000000000014,
+              "cost_turnover": 16.000000000000014,
+              "total_return_pt": 254.97601120124705,
+              "benchmark_total_return_pt": 228.70995033961333,
+              "max_drawdown_pt": 28.02083734765492,
+              "benchmark_max_drawdown_pt": 26.591617874888705,
+              "n_trades": 222,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 1.04
+            },
+            "16": {
+              "alpha_excess_pt": 32.41063771656489,
+              "maxdd_delta_pt": 0.8121590240845633,
+              "sharpe_delta": 0.0448631936817101,
+              "turnover": 16.080000000000013,
+              "cost_turnover": 16.080000000000013,
+              "total_return_pt": 261.12058805617824,
+              "benchmark_total_return_pt": 228.70995033961333,
+              "max_drawdown_pt": 27.40377689897327,
+              "benchmark_max_drawdown_pt": 26.591617874888705,
+              "n_trades": 223,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 1.12
+            }
+          },
+          "nulls": {
+            "1": {
+              "alpha_excess_pt": 26.266060861633722,
+              "maxdd_delta_pt": 1.4292194727662133,
+              "sharpe_delta": -0.009002458359322674,
+              "turnover": 16.000000000000014,
+              "cost_turnover": 16.000000000000014,
+              "total_return_pt": 254.97601120124705,
+              "benchmark_total_return_pt": 228.70995033961333,
+              "max_drawdown_pt": 28.02083734765492,
+              "benchmark_max_drawdown_pt": 26.591617874888705,
+              "n_trades": 222,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 1.04
+            },
+            "16": {
+              "alpha_excess_pt": 32.39474876024988,
+              "maxdd_delta_pt": 0.812159024081599,
+              "sharpe_delta": 0.04468773321756636,
+              "turnover": 16.080000000000013,
+              "cost_turnover": 16.160000000000014,
+              "total_return_pt": 261.1046990998632,
+              "benchmark_total_return_pt": 228.70995033961333,
+              "max_drawdown_pt": 27.403776898970307,
+              "benchmark_max_drawdown_pt": 26.591617874888705,
+              "n_trades": 224,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 1.04
+            },
+            "64": {
+              "alpha_excess_pt": 26.2543893061836,
+              "maxdd_delta_pt": 0.8875644073607358,
+              "sharpe_delta": -0.03944731983991634,
+              "turnover": 16.080000000000016,
+              "cost_turnover": 16.080000000000016,
+              "total_return_pt": 254.9643396457969,
+              "benchmark_total_return_pt": 228.70995033961333,
+              "max_drawdown_pt": 27.479182282249443,
+              "benchmark_max_drawdown_pt": 26.591617874888705,
+              "n_trades": 223,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 1.12
+            }
+          },
+          "timing_increment_alpha_excess_pt": -23.935693984571586,
+          "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
+          "dynamic_alpha_excess_pt": 26.521233831961766
         }
       },
       {
@@ -709,6 +981,142 @@
       {
         "status": "ok",
         "fold": 8,
+        "candidate": "causal_trend_vol_rule",
+        "feature_set": "ohlcv13",
+        "fold_bounds": {
+          "train_start": "2020-01-16 13:45:00",
+          "train_end_exclusive": "2022-01-16 13:45:00",
+          "validation_start": "2022-01-16 13:45:00",
+          "validation_end_exclusive": "2022-04-16 13:45:00",
+          "test_start": "2022-04-16 13:45:00",
+          "test_end_exclusive": "2022-07-16 13:45:00"
+        },
+        "policy_baseline": 0.5,
+        "source_policy": {
+          "threshold": 0.0006335289735813236,
+          "overlay_magnitude": 0.04,
+          "hysteresis": 0.0,
+          "min_hold": 32,
+          "execution_delay": 1
+        },
+        "source_hyperparameters": {
+          "rule": "causal_trend_vol"
+        },
+        "test_is_report_only": true,
+        "test_economics": {
+          "common_evaluation_start_bars": 17,
+          "common_evaluation_rows": 8719,
+          "operational_execution_delay_bars": 1,
+          "dynamic": {
+            "alpha_excess_pt": 18.761944972596055,
+            "maxdd_delta_pt": -21.638599096646683,
+            "sharpe_delta": -0.06620192723124685,
+            "turnover": 8.280000000000008,
+            "cost_turnover": 8.280000000000008,
+            "total_return_pt": -29.42267386036833,
+            "benchmark_total_return_pt": -48.18461883296439,
+            "max_drawdown_pt": 36.98002684097893,
+            "benchmark_max_drawdown_pt": 58.61862593762561,
+            "n_trades": 207,
+            "execution_delay_bars": 0,
+            "evaluation_initial_position": 0.54
+          },
+          "constant": {
+            "alpha_excess_pt": 20.167520390928562,
+            "maxdd_delta_pt": -22.946982015731376,
+            "sharpe_delta": 0.0,
+            "turnover": 0.0,
+            "cost_turnover": 0.0,
+            "total_return_pt": -28.017098442035827,
+            "benchmark_total_return_pt": -48.18461883296439,
+            "max_drawdown_pt": 35.67164392189424,
+            "benchmark_max_drawdown_pt": 58.61862593762561,
+            "n_trades": 0,
+            "execution_delay_bars": 0,
+            "evaluation_initial_position": 0.5
+          },
+          "lags": {
+            "1": {
+              "alpha_excess_pt": 18.624002009874996,
+              "maxdd_delta_pt": -21.49765734803542,
+              "sharpe_delta": -0.08413014433872368,
+              "turnover": 8.280000000000008,
+              "cost_turnover": 8.280000000000008,
+              "total_return_pt": -29.56061682308939,
+              "benchmark_total_return_pt": -48.18461883296439,
+              "max_drawdown_pt": 37.12096858959019,
+              "benchmark_max_drawdown_pt": 58.61862593762561,
+              "n_trades": 207,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.54
+            },
+            "16": {
+              "alpha_excess_pt": 18.945197369901578,
+              "maxdd_delta_pt": -21.25132910638611,
+              "sharpe_delta": -0.05058785854577108,
+              "turnover": 8.320000000000007,
+              "cost_turnover": 8.320000000000007,
+              "total_return_pt": -29.239421463062808,
+              "benchmark_total_return_pt": -48.18461883296439,
+              "max_drawdown_pt": 37.36729683123951,
+              "benchmark_max_drawdown_pt": 58.61862593762561,
+              "n_trades": 208,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.5
+            }
+          },
+          "nulls": {
+            "1": {
+              "alpha_excess_pt": 18.624002009874996,
+              "maxdd_delta_pt": -21.49765734803542,
+              "sharpe_delta": -0.08413014433872368,
+              "turnover": 8.280000000000008,
+              "cost_turnover": 8.280000000000008,
+              "total_return_pt": -29.56061682308939,
+              "benchmark_total_return_pt": -48.18461883296439,
+              "max_drawdown_pt": 37.12096858959019,
+              "benchmark_max_drawdown_pt": 58.61862593762561,
+              "n_trades": 207,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.54
+            },
+            "16": {
+              "alpha_excess_pt": 18.945197369901578,
+              "maxdd_delta_pt": -21.25132910638611,
+              "sharpe_delta": -0.05058785854577108,
+              "turnover": 8.320000000000007,
+              "cost_turnover": 8.320000000000007,
+              "total_return_pt": -29.239421463062808,
+              "benchmark_total_return_pt": -48.18461883296439,
+              "max_drawdown_pt": 37.36729683123951,
+              "benchmark_max_drawdown_pt": 58.61862593762561,
+              "n_trades": 208,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.5
+            },
+            "64": {
+              "alpha_excess_pt": 19.08736732324019,
+              "maxdd_delta_pt": -22.0530142478346,
+              "sharpe_delta": -0.02402212485976074,
+              "turnover": 8.320000000000007,
+              "cost_turnover": 8.320000000000007,
+              "total_return_pt": -29.0972515097242,
+              "benchmark_total_return_pt": -48.18461883296439,
+              "max_drawdown_pt": 36.56561168979101,
+              "benchmark_max_drawdown_pt": 58.61862593762561,
+              "n_trades": 208,
+              "execution_delay_bars": 0,
+              "evaluation_initial_position": 0.54
+            }
+          },
+          "timing_increment_alpha_excess_pt": -1.405575418332507,
+          "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
+          "dynamic_alpha_excess_pt": 18.761944972596055
+        }
+      },
+      {
+        "status": "ok",
+        "fold": 8,
         "candidate": "histgb_direct_forecast",
         "feature_set": "ohlcv13",
         "fold_bounds": {
@@ -982,20 +1390,20 @@
     ],
     "failures": [],
     "summary": {
-      "rows": 6,
-      "median_dynamic_alpha_excess_pt": 18.974579083136362,
+      "rows": 9,
+      "median_dynamic_alpha_excess_pt": 18.761944972596055,
       "median_constant_alpha_excess_pt": 20.167520390928562,
-      "median_timing_increment_alpha_excess_pt": -1.1929413077922018
+      "median_timing_increment_alpha_excess_pt": -1.405575418332507
     }
   },
   "wave3a_result_frozen": true,
   "selection_contract": "fit train only; select horizon, risk scale, threshold, overlay, hysteresis, and minimum hold on validation; development test report-only",
   "rows": [
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -1618,13 +2026,13 @@
         "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
         "dynamic_alpha_excess_pt": -15.29439391985119
       },
-      "runtime_seconds": 13.709520500000508
+      "runtime_seconds": 12.797058500000276
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -2250,13 +2658,13 @@
         "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
         "dynamic_alpha_excess_pt": -15.726768065960961
       },
-      "runtime_seconds": 8.277362042001187
+      "runtime_seconds": 7.691944666999916
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -2804,13 +3212,13 @@
         "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
         "dynamic_alpha_excess_pt": -15.720589445634236
       },
-      "runtime_seconds": 7.346363459000713
+      "runtime_seconds": 6.743972666001355
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -3433,13 +3841,13 @@
         "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
         "dynamic_alpha_excess_pt": 25.522371579638836
       },
-      "runtime_seconds": 12.888567999998486
+      "runtime_seconds": 12.708218042000226
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -4065,13 +4473,13 @@
         "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
         "dynamic_alpha_excess_pt": 43.3137455914725
       },
-      "runtime_seconds": 7.952832541999669
+      "runtime_seconds": 7.896540499998082
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -4619,13 +5027,13 @@
         "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
         "dynamic_alpha_excess_pt": 33.44791345080167
       },
-      "runtime_seconds": 7.2287058330002765
+      "runtime_seconds": 7.1272915420013305
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -5248,13 +5656,13 @@
         "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
         "dynamic_alpha_excess_pt": 20.059139429006656
       },
-      "runtime_seconds": 13.467476541998622
+      "runtime_seconds": 13.426194209001551
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -5880,13 +6288,13 @@
         "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
         "dynamic_alpha_excess_pt": 18.49640844252355
       },
-      "runtime_seconds": 7.495053624999855
+      "runtime_seconds": 7.5805355419979605
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -6434,13 +6842,13 @@
         "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
         "dynamic_alpha_excess_pt": 20.093022823322226
       },
-      "runtime_seconds": 6.493178917000478
+      "runtime_seconds": 6.556529624998802
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -7063,13 +7471,13 @@
         "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
         "dynamic_alpha_excess_pt": -13.60006285269677
       },
-      "runtime_seconds": 14.664844499999163
+      "runtime_seconds": 14.876491833001637
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -7695,13 +8103,13 @@
         "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
         "dynamic_alpha_excess_pt": -13.11661581646355
       },
-      "runtime_seconds": 8.036701458000607
+      "runtime_seconds": 7.837361750000127
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -8249,13 +8657,13 @@
         "constant_exposure_component_alpha_excess_pt": -15.758960687568946,
         "dynamic_alpha_excess_pt": -15.591171175915441
       },
-      "runtime_seconds": 6.899251457998616
+      "runtime_seconds": 7.2492467500014754
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -8878,13 +9286,13 @@
         "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
         "dynamic_alpha_excess_pt": 32.54742056070739
       },
-      "runtime_seconds": 14.461072291000164
+      "runtime_seconds": 14.4598799589985
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -9510,13 +9918,13 @@
         "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
         "dynamic_alpha_excess_pt": 25.315472473426894
       },
-      "runtime_seconds": 8.742887124997651
+      "runtime_seconds": 8.867183500002284
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -10064,13 +10472,13 @@
         "constant_exposure_component_alpha_excess_pt": 50.45692781653335,
         "dynamic_alpha_excess_pt": 33.0928089342827
       },
-      "runtime_seconds": 7.459599666999566
+      "runtime_seconds": 7.351885416999721
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -10693,13 +11101,13 @@
         "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
         "dynamic_alpha_excess_pt": 20.076113319214727
       },
-      "runtime_seconds": 15.397478124999907
+      "runtime_seconds": 15.55623425000158
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -11325,13 +11733,13 @@
         "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
         "dynamic_alpha_excess_pt": 19.780975032929916
       },
-      "runtime_seconds": 8.016863749999175
+      "runtime_seconds": 8.397810416998254
     },
     {
-      "commit_hash": "1c1cfd8d727683ab3cfabc43c01b4d9de8446df4",
+      "commit_hash": "8e9e0fcfaed92c99522aa22f724943c89484aee3",
       "config_path": "configs/plan011_overlay_actor_v31_relative_constraint_ac.yaml",
       "config_sha256": "5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944",
-      "source_sha256": "088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd",
+      "source_sha256": "b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1",
       "data_contract": {
         "wave": "wave3c_forecast_context_tournament",
         "allowed_folds": [
@@ -11879,7 +12287,7 @@
         "constant_exposure_component_alpha_excess_pt": 20.167520390928562,
         "dynamic_alpha_excess_pt": 19.71493077205797
       },
-      "runtime_seconds": 6.929047375000664
+      "runtime_seconds": 7.247121791002428
     }
   ],
   "feature_quality": [
@@ -14379,7 +14787,7 @@
   ],
   "next_wave_candidates": [],
   "all_candidates_failed_gate": true,
-  "runtime_seconds": 180.8138331250011,
+  "runtime_seconds": 179.88257045800128,
   "ledger_path": "docs/forecast_context_tournament_plan011_dev/forecast_context_tournament_ledger.jsonl",
   "result_path": "docs/forecast_context_tournament_plan011_dev/result.json",
   "report_path": "docs/forecast_context_tournament_plan011_dev/report.md",

@@ -8,9 +8,9 @@ Wave3C is the formal superseding screen: it uses the validation-selected constan
 
 Frozen source artifact: `docs/forecast_tournament_plan011_dev/result.json`
 Frozen source commit: `e0ab435ab6601ce49b4f6c28bdb15504d2c57315`
-Corrected replay status: `complete`; rows=6; failures=0
-Corrected replay median dynamic AlphaEx: `+18.9746pt`
+Corrected replay status: `complete`; rows=9; failures=0
+Corrected replay median dynamic AlphaEx: `+18.7619pt`
 Corrected replay median constant AlphaEx: `+20.1675pt`
-Corrected replay median timing increment: `-1.1929pt`
+Corrected replay median timing increment: `-1.4056pt`
 
-The corrected replay is report-only and is not used to select a Wave3C candidate, threshold, horizon, or next-wave promotion.
+The corrected replay covers the frozen causal trend+vol rule and Ridge/HistGB rows. It is report-only and is not used to select a Wave3C candidate, threshold, horizon, or next-wave promotion.

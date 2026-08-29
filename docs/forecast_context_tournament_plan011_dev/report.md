@@ -5,9 +5,9 @@
 - development folds only: `[0, 2, 8]` (exactly once each)
 - seed: `7`; horizons: `[4, 16, 64]`
 - causal context lags: `[1, 4, 16, 64]`; rolling windows: `[4, 16, 64, 256]`; statistics: `['mean', 'std', 'slope']`
-- commit: `1c1cfd8d727683ab3cfabc43c01b4d9de8446df4`
+- commit: `8e9e0fcfaed92c99522aa22f724943c89484aee3`
 - config SHA-256: `5c9599bdb2b5495ad525715291fba7812232b24353c4ccc16d42f1d5ad15a944`
-- data SHA-256: `027b476f209d41f477623d92cd3e2f5061976840fd682874588fdcebdeab8704`; source SHA-256: `088387389249a37e2569f005d975e55c60ad628bd31f1406f0014fbf0cd183cd`
+- data SHA-256: `027b476f209d41f477623d92cd3e2f5061976840fd682874588fdcebdeab8704`; source SHA-256: `b1038b7b7af457c29f660f6b117b903b1c436535c0edf9e8e860367f805a3aa1`
 - fixed operational execution delay: `1` bar; sensitivity lags: `[1, 16]`; deterministic null shifts: `[1, 16, 64]`
 
 Feature rows are pre-shifted and context uses only prior rows. Direct targets exclude the current reward and use `t+1..t+h`; therefore the primary economic contract applies a decision at `t` to `returns[t+1]` with delay 1. Timestamp gaps invalidate context/target windows but do not delete returns; ineligible policy rows emit the selected constant baseline.
@@ -267,11 +267,11 @@ External coverage counts deliberately separate finite zero, finite nonzero, and 
 
 ## Frozen Wave3A comparison
 
-Wave3A output is not overwritten. Its Ridge/HistGB OHLCV13 rows are replayed here under the Wave3C validation-selected-constant comparator and common right-side delay alignment. This replay is report-only and excluded from every Wave3C choice.
+Wave3A output is not overwritten. Its causal trend+vol rule and Ridge/HistGB OHLCV13 rows are replayed here under the Wave3C validation-selected-constant comparator and common right-side delay alignment. This replay is report-only and excluded from every Wave3C choice.
 
 | source | status | rows | median dynamic AlphaEx | median constant AlphaEx | median timing increment |
 |---|---|---:|---:|---:|---:|
-| docs/forecast_tournament_plan011_dev/result.json | complete | 6 | +18.9746pt | +20.1675pt | -1.1929pt |
+| docs/forecast_tournament_plan011_dev/result.json | complete | 9 | +18.7619pt | +20.1675pt | -1.4056pt |
 
 ## Artifacts
 
