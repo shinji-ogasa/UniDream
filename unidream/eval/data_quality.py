@@ -57,6 +57,7 @@ EXTERNAL_FEATURES: tuple[str, ...] = (
     "basis_abs",
 )
 FULL17_FEATURES: tuple[str, ...] = OHLCV_FEATURES + EXTERNAL_FEATURES
+RAW_OHLCV_INPUTS: tuple[str, ...] = ("open", "high", "low", "close", "volume")
 
 
 class DataQualityError(ValueError):
@@ -260,6 +261,21 @@ def _expected_external_columns(metadata: Mapping[str, Any]) -> list[str]:
     return expected
 
 
+def _required_raw_input_columns(metadata: Mapping[str, Any]) -> list[str]:
+    """Resolve raw source columns from the cache metadata feature contract."""
+    parameters = metadata.get("parameters")
+    if not isinstance(parameters, Mapping):
+        parameters = {}
+    required = list(RAW_OHLCV_INPUTS)
+    if bool(parameters.get("include_funding", True)):
+        required.append("funding_rate")
+    if bool(parameters.get("include_oi", False)):
+        required.append("open_interest")
+    if bool(parameters.get("include_mark", True)):
+        required.append("mark_close")
+    return required
+
+
 def inspect_feature_contract(
     features: pd.DataFrame,
     returns: pd.Series | pd.DataFrame,
@@ -330,6 +346,23 @@ def inspect_feature_contract(
     missing_ohlcv = [column for column in OHLCV_FEATURES if column not in feature_columns]
     if missing_ohlcv:
         issues.append(f"missing required OHLCV feature columns: {missing_ohlcv}")
+    expected_parameter_values = {
+        "interval": interval,
+        "start": _timestamp(start),
+        "end": _timestamp(end),
+    }
+    for key, expected in expected_parameter_values.items():
+        if key not in parameters:
+            continue
+        actual = parameters[key]
+        try:
+            comparable = _timestamp(actual) if key in {"start", "end"} else str(actual)
+        except (TypeError, ValueError):
+            comparable = actual
+        if comparable != expected:
+            issues.append(
+                f"metadata parameters.{key} mismatch: metadata={actual!r}, expected={expected}"
+            )
 
     feature_index_diag = _index_diagnostics(
         feature_index,
@@ -459,6 +492,7 @@ def inspect_feature_contract(
         "actual_feature_columns": feature_columns,
         "required_ohlcv13": list(OHLCV_FEATURES),
         "required_external4": list(EXTERNAL_FEATURES),
+        "required_raw_inputs": _required_raw_input_columns(metadata),
         "metadata_digest": metadata_digest,
         "schema_digest": schema_digest,
         "metadata_schema_version": metadata.get("schema_version"),
@@ -1180,6 +1214,7 @@ __all__ = [
     "OHLCV_FEATURES",
     "EXTERNAL_FEATURES",
     "FULL17_FEATURES",
+    "RAW_OHLCV_INPUTS",
     "inspect_feature_contract",
     "validate_feature_contract",
     "external_coverage",

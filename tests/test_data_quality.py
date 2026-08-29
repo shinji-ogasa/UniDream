@@ -69,6 +69,10 @@ class DataQualityContractTest(unittest.TestCase):
         self.assertEqual(result["status"], "pass")
         self.assertTrue(result["alignment"]["same_index"])
         self.assertEqual(result["schema"]["actual_feature_columns"], list(FULL17_FEATURES))
+        self.assertEqual(
+            result["schema"]["required_raw_inputs"],
+            ["open", "high", "low", "close", "volume", "funding_rate", "mark_close"],
+        )
         self.assertEqual(len(result["schema"]["schema_digest"]), 64)
 
     def test_missing_funding_and_basis_are_named_and_fail_closed(self) -> None:
