@@ -280,6 +280,7 @@ data:
   train_years: 2
   val_months: 3
 eval:
+  forecast_execution_delay_bars: 1
   hmm_n_states: 3
   pbo_n_trials: 50
   regime_source: feature_stress_tri
