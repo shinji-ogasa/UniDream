@@ -408,6 +408,38 @@ class RuntimeV4Test(unittest.TestCase):
             self.assertEqual(events, ["load_fixed_manifest", "validate_v4_runtime_inputs"])
             self.assertEqual(result["manifest_sha256"], "f" * 64)
 
+    def test_authenticated_frozen_manifest_runs_real_body_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            candidate = _runtime_manifest(root, metadata)
+            candidate.update(
+                {
+                    "manifest_id": "fixture-p1",
+                    "manifest_sha256": "f" * 64,
+                    "base_revision": "b" * 40,
+                    "results_observed": False,
+                }
+            )
+
+            def freeze(value):
+                if isinstance(value, dict):
+                    return {key: freeze(item) for key, item in value.items()}
+                if isinstance(value, list):
+                    return tuple(freeze(item) for item in value)
+                return value
+
+            frozen = freeze(candidate)
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=frozen,
+            ):
+                result = validate_p1_v4_runtime_inputs(candidate, root=root)
+
+            self.assertEqual(result["v4_runtime_validation_status"], "passed")
+            self.assertEqual(result["manifest_sha256"], "f" * 64)
+            self.assertEqual(result["v4_runtime_provenance_disposition"]["status"], "absent")
+
     def test_legacy_v3_cache_is_explicitly_unverified(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

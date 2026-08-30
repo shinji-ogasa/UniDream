@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 import hashlib
 import json
 import os
@@ -258,6 +258,16 @@ def _v4_runtime_plain(value: Any) -> Any:
     return value
 
 
+def _v4_runtime_pinned_string_sequence(value: Any, label: str) -> tuple[str, ...]:
+    """Normalize JSON lists and deep-frozen tuples for exact contract checks."""
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise V4RuntimeInputError(f"{label} must be a sequence of strings")
+    normalized = tuple(value)
+    if any(not isinstance(item, str) for item in normalized):
+        raise V4RuntimeInputError(f"{label} must contain only strings")
+    return normalized
+
+
 def _v4_runtime_body_metadata_matches(
     candidate: Mapping[str, Any],
     expected: Mapping[str, Any],
@@ -348,9 +358,17 @@ def validate_v4_runtime_inputs(
         raise V4RuntimeInputError("manifest does not pin the v4 body validator")
     if contract.get("runtime_validation_required_before_fit_or_score") is not True:
         raise V4RuntimeInputError("v4 runtime validation is not required before fit/score")
-    if contract.get("runtime_disposition_fields") != list(_V4_RUNTIME_DISPOSITION_FIELDS):
+    disposition_fields = _v4_runtime_pinned_string_sequence(
+        contract.get("runtime_disposition_fields"),
+        "v4 runtime disposition fields",
+    )
+    if disposition_fields != _V4_RUNTIME_DISPOSITION_FIELDS:
         raise V4RuntimeInputError("v4 runtime disposition fields are not pinned")
-    if contract.get("runtime_disposition_statuses") != list(_V4_RUNTIME_DISPOSITION_STATUSES):
+    disposition_statuses = _v4_runtime_pinned_string_sequence(
+        contract.get("runtime_disposition_statuses"),
+        "v4 runtime disposition statuses",
+    )
+    if disposition_statuses != _V4_RUNTIME_DISPOSITION_STATUSES:
         raise V4RuntimeInputError("v4 runtime disposition statuses are not pinned")
 
     merged_overrides: dict[str, str | Path] = {}
