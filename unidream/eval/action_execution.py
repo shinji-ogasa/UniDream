@@ -39,6 +39,14 @@ def _as_float_tuple(values: Sequence[float], *, name: str) -> tuple[float, ...]:
     return result
 
 
+def _require_integer(value: Any, *, name: str, minimum: int) -> None:
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)):
+        raise ValueError(f"{name} must be an integer")
+    if int(value) < minimum:
+        qualifier = "positive" if minimum > 0 else "non-negative"
+        raise ValueError(f"{name} must be a {qualifier} integer")
+
+
 def _mapping_section(config: Mapping[str, Any]) -> Mapping[str, Any]:
     """Return the explicitly named new-path contract section.
 
@@ -116,16 +124,11 @@ class ActionExecutionContract:
             raise ValueError("position_min must be <= position_max")
         if not float(self.position_min) <= float(self.p_start) <= float(self.position_max):
             raise ValueError("p_start must lie within position bounds")
-        if isinstance(self.h_decision, (bool, np.bool_)) or int(self.h_decision) != self.h_decision or self.h_decision <= 0:
-            raise ValueError("h_decision must be a positive integer")
-        if isinstance(self.commitment_bars, (bool, np.bool_)) or int(self.commitment_bars) != self.commitment_bars or self.commitment_bars <= 0:
-            raise ValueError("commitment_bars must be a positive integer")
-        if isinstance(self.execution_delay_bars, (bool, np.bool_)) or int(self.execution_delay_bars) != self.execution_delay_bars or self.execution_delay_bars < 0:
-            raise ValueError("execution_delay_bars must be a non-negative integer")
-        if isinstance(self.initial_countdown, (bool, np.bool_)) or int(self.initial_countdown) != self.initial_countdown or self.initial_countdown < 0:
-            raise ValueError("initial_countdown must be a non-negative integer")
-        if isinstance(self.countdown_decrement, (bool, np.bool_)) or int(self.countdown_decrement) != self.countdown_decrement or self.countdown_decrement <= 0:
-            raise ValueError("countdown_decrement must be a positive integer")
+        _require_integer(self.h_decision, name="h_decision", minimum=1)
+        _require_integer(self.commitment_bars, name="commitment_bars", minimum=1)
+        _require_integer(self.execution_delay_bars, name="execution_delay_bars", minimum=0)
+        _require_integer(self.initial_countdown, name="initial_countdown", minimum=0)
+        _require_integer(self.countdown_decrement, name="countdown_decrement", minimum=1)
         deltas = _as_float_tuple(self.candidate_deltas, name="candidate_deltas")
         if not any(abs(delta) <= _FLOAT_TOL for delta in deltas):
             raise ValueError("candidate_deltas must include the hold delta 0.0")
@@ -152,6 +155,8 @@ class ActionExecutionContract:
             raise ValueError("spread_bps must use the full_quoted convention")
         if self.return_unit != "additive_log_return":
             raise ValueError("new path requires additive_log_return units")
+        if not isinstance(self.funding_included, (bool, np.bool_)):
+            raise ValueError("funding_included must be a boolean")
         if bool(self.funding_included):
             raise ValueError("funding is excluded from the spot first-pass contract")
         if self.boundary_cost_policy != "fill_only":
@@ -780,6 +785,19 @@ def run_contract_backtest(
         else decision_deltas_from_positions(benchmark_positions, contract)
     )
     kwargs = dict(kwargs)
+    # Do not even forward historical cost/delay knobs on the explicit path.
+    # The contract is the only source of these values; accepting the legacy
+    # kwargs at the stage boundary is retained solely for call-site shape
+    # compatibility.
+    for legacy_key in (
+        "spread_bps",
+        "fee_rate",
+        "slippage_bps",
+        "execution_delay_bars",
+        "initial_position",
+        "benchmark_initial_position",
+    ):
+        kwargs.pop(legacy_key, None)
     kwargs["benchmark_positions"] = benchmark_deltas
     kwargs["action_execution_contract"] = contract
     kwargs["action_positions_are_deltas"] = True
