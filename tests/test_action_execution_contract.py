@@ -88,7 +88,7 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         np.testing.assert_allclose(
             trajectory.effective_positions,
-            [1.0, 0.92, 0.92, 0.92, 0.92, 0.96, 0.96, 0.96, 0.96, 1.0],
+            [1.0, 0.92, 0.92, 0.92, 0.92, 0.96, 0.96, 0.96, 0.96, 0.96],
         )
         self.assertAlmostEqual(trajectory.transition_costs[1], 0.00055 * 0.08)
         self.assertAlmostEqual(trajectory.transition_costs[5], 0.00055 * 0.04)
@@ -123,6 +123,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             slippage_bps=99.0,
             benchmark_positions=np.zeros(6),
             action_execution_contract=self.contract,
+            action_positions_are_deltas=True,
             interval="1d",
         ).run()
         self.assertEqual(len(metrics.pnl_series), 4)
@@ -139,10 +140,19 @@ class ActionExecutionContractTest(unittest.TestCase):
             positions,
             benchmark_positions=np.ones(9, dtype=np.float64),
             action_execution_contract=self.contract,
+            action_positions_are_deltas=False,
             interval="1d",
         ).run()
         self.assertEqual(metrics.scored_bars, 8)
         self.assertAlmostEqual(metrics.pnl_series[0], -0.00055 * 0.08)
+
+    def test_contract_backtest_rejects_ambiguous_position_semantics(self) -> None:
+        with self.assertRaisesRegex(ValueError, "action_positions_are_deltas"):
+            Backtest(
+                np.zeros(8, dtype=np.float64),
+                np.zeros(8, dtype=np.float64),
+                action_execution_contract=self.contract,
+            )
 
     def test_absolute_path_adapter_rejects_changes_inside_commitment(self) -> None:
         positions = np.asarray([0.92, 0.92, 0.92, 0.92, 0.96, 0.96, 0.96, 0.96, 0.96])
@@ -158,15 +168,22 @@ class ActionExecutionContractTest(unittest.TestCase):
 
     def test_u0_teacher_and_backtest_share_the_same_trajectory(self) -> None:
         returns = np.asarray(
-            [0.0, 0.01, 0.01, 0.01, 0.01, -0.01, -0.01, -0.01, -0.01],
+            [0.0, 0.00125, 0.00125, 0.00125, 0.00125, -0.005, -0.005, -0.005, -0.005],
             dtype=np.float64,
         )
         u0 = hindsight_upper_bound_path(returns, self.contract)
         teacher = conditional_oracle_teacher_path(returns, self.contract)
-        np.testing.assert_array_equal(u0.decision_deltas, teacher.decision_deltas)
+        # The local teacher is causal at t=0 (hold on the small positive
+        # block), while hindsight U0 can pre-position for the next negative
+        # block. They intentionally need not select the same action.
+        self.assertEqual(teacher.decision_deltas[0], 0.0)
+        self.assertAlmostEqual(u0.decision_deltas[0], -0.08)
         np.testing.assert_array_equal(u0.scored_mask, teacher.scored_mask)
-        np.testing.assert_allclose(u0.effective_positions, teacher.effective_positions)
         self.assertEqual(u0.contract_hash, self.contract.contract_hash)
+        for trajectory in (u0, teacher):
+            self.assertTrue(np.all(trajectory.effective_positions >= self.contract.position_min))
+            self.assertTrue(np.all(trajectory.effective_positions <= self.contract.position_max))
+            np.testing.assert_array_equal(trajectory.scored_mask, u0.scored_mask)
 
         metrics = ActionExecutionBacktest(
             returns,
@@ -175,6 +192,26 @@ class ActionExecutionContractTest(unittest.TestCase):
             interval="1d",
         ).run()
         np.testing.assert_allclose(metrics.pnl_series, teacher.scored_pnl)
+
+    def test_causal_teacher_does_not_read_future_decision_block_scores(self) -> None:
+        scores = np.zeros(9, dtype=np.float64)
+        scores[1:5] = -0.01
+        baseline = conditional_oracle_teacher_path(scores, self.contract)
+
+        perturbed = scores.copy()
+        perturbed[5:9] = 100.0
+        changed = conditional_oracle_teacher_path(perturbed, self.contract)
+
+        self.assertEqual(baseline.decision_deltas[0], changed.decision_deltas[0])
+        self.assertEqual(baseline.decision_positions[0], changed.decision_positions[0])
+
+    def test_hindsight_selector_is_iterative_for_long_windows(self) -> None:
+        # More than Python's usual recursion limit in decision blocks: U0 must
+        # remain a valid diagnostic without recursive stack growth.
+        returns = np.zeros(1 + 4 * 1_100, dtype=np.float64)
+        trajectory = hindsight_upper_bound_path(returns, self.contract)
+        self.assertEqual(trajectory.n_complete_blocks, 1_100)
+        self.assertEqual(len(trajectory.decision_deltas), len(returns))
 
     def test_contract_transition_advantage_has_only_complete_decision_rows(self) -> None:
         cfg = config_from_dict(
@@ -193,6 +230,32 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertTrue(np.all(np.isnan(result["values"][1:4])))
         self.assertTrue(np.all(np.isnan(result["values"][5:])))
         self.assertEqual(result["trajectory"].n_complete_blocks, 2)
+
+    def test_contract_transition_advantage_replays_sequential_state(self) -> None:
+        cfg = config_from_dict(
+            {"action_execution_contract": self.contract.to_dict()},
+            costs_cfg={},
+            benchmark_position=1.0,
+            default_actions=np.asarray([0.0]),
+        )
+        returns = np.asarray(
+            [0.0, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, 0.0],
+            dtype=np.float64,
+        )
+        # The first chosen block reduces from 1.00 to 0.92.  The second
+        # decision therefore starts from 0.92, not from the caller's default.
+        current = np.asarray([1.0, 1.0, 1.0, 1.0, 0.92, 0.92, 0.92, 0.92, 0.92])
+        result = compute_transition_advantage(returns, current, cfg)
+        self.assertEqual(result["decision_deltas"][0], -0.08)
+        self.assertEqual(result["decision_deltas"][4], -0.08)
+        self.assertAlmostEqual(result["current_positions"][4], 0.92)
+        np.testing.assert_allclose(
+            result["trajectory"].decision_positions[[0, 4]],
+            result["target_positions"][[0, 4]],
+        )
+
+        with self.assertRaisesRegex(ValueError, "sequential contract path"):
+            compute_transition_advantage(returns, np.ones_like(current), cfg)
 
     def test_unsupported_semantics_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "funding"):

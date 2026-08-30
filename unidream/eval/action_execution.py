@@ -637,6 +637,16 @@ def replay_action_path(
             last_fill = fill_positions[bar]
         fill_positions[bar] = last_fill
 
+    # A filled position remains the live inventory after its four scored bars,
+    # including any unscored incomplete tail.  The tail is excluded from PnL
+    # by ``scored_mask`` but must not pretend that inventory returned to
+    # p_start.
+    last_effective = float(contract.p_start)
+    for bar in range(n_bars):
+        if fill_mask[bar]:
+            last_effective = fill_positions[bar]
+        effective_positions[bar] = last_effective
+
     gross_pnl = np.where(scored_mask, effective_positions * returns_arr, 0.0)
     net_pnl = np.where(scored_mask, gross_pnl - transition_costs, 0.0)
     return ActionExecutionTrajectory(
@@ -699,14 +709,13 @@ def select_block_decisions(
     score_returns: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
 ) -> np.ndarray:
-    """Select deterministic block actions from a bar-level return score path.
+    """Select causal block actions from the current block score only.
 
-    This is the shared trajectory builder for the conditional teacher and U0.
-    It uses the same feasible candidates, delayed four-bar block, transition
-    cost, and tail eligibility as :func:`replay_action_path`.  U0 calls this
-    with realized returns for an upper-bound diagnostic; a conditional teacher
-    calls it with OOF forecast scores.  The returned array is a per-bar delta
-    path with zeros at blocked/tail bars.
+    This is the conditional-teacher selector.  At each decision it scores
+    only the delayed block ``fill:fill+H`` and then advances the current
+    position.  It never reads score values from a later decision block, so a
+    perturbation of future block forecasts cannot alter an earlier teacher
+    decision.  U0 uses :func:`select_hindsight_block_decisions` instead.
     """
     contract = contract or ActionExecutionContract.canonical()
     scores = _validate_series(score_returns, name="score_returns")
@@ -714,42 +723,89 @@ def select_block_decisions(
     if not starts:
         raise ValueError("action path requires at least one complete decision block")
 
-    # Backward dynamic program over the finite set of positions reached by the
-    # candidate grid.  Ties prefer hold, then the smaller absolute delta, then
-    # the lower delta, making artifacts reproducible across platforms.
-    memo: dict[tuple[int, float], tuple[float, tuple[tuple[int, float], ...]]] = {}
-
-    def solve(index: int, current: float) -> tuple[float, tuple[tuple[int, float], ...]]:
-        key = (index, round(float(current), 12))
-        if key in memo:
-            return memo[key]
-        if index >= len(starts):
-            return 0.0, ()
-        start = starts[index]
+    deltas = np.zeros(len(scores), dtype=np.float64)
+    current = float(contract.p_start)
+    for start in starts:
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
         block_sum = float(scores[fill:end].sum())
         candidates: list[tuple[float, float, float]] = []
         for delta in contract.candidate_deltas:
             nxt = _candidate_position(contract, current, delta)
-            cost = transition_cost(current, nxt, contract)
-            future_value, future_choices = solve(index + 1, nxt)
-            value = nxt * block_sum - cost + future_value
+            value = nxt * block_sum - transition_cost(current, nxt, contract)
             candidates.append((value, delta, nxt))
-        best_value, best_delta, best_next = max(
+        _, best_delta, best_next = max(
             candidates,
             key=lambda item: (item[0], -abs(item[1]), -item[1]),
         )
-        future_value, future_choices = solve(index + 1, best_next)
-        # best_value already includes future_value; use the returned suffix only.
-        result = (best_value, ((start, best_delta), *future_choices))
-        memo[key] = result
-        return result
+        deltas[start] = float(best_delta)
+        current = best_next
+    return deltas
 
-    _, choices = solve(0, float(contract.p_start))
+
+def select_hindsight_block_decisions(
+    realized_returns: np.ndarray | Sequence[float],
+    contract: ActionExecutionContract | None = None,
+) -> np.ndarray:
+    """Select the realized-future U0 path with an iterative block DP.
+
+    Unlike the conditional teacher, U0 is permitted to inspect all complete
+    future blocks.  The DP is bottom-up over the finite reachable position
+    states, avoiding Python recursion depth failures on long research folds.
+    It is an upper-bound diagnostic only.
+    """
+    contract = contract or ActionExecutionContract.canonical()
+    scores = _validate_series(realized_returns, name="realized_returns")
+    starts = complete_decision_starts(len(scores), contract)
+    if not starts:
+        raise ValueError("action path requires at least one complete decision block")
+
+    # Reachable states at each block boundary are finite because every action
+    # is clipped to the bounded spot allocation interval.
+    states: list[tuple[float, ...]] = [(float(contract.p_start),)]
+    for _ in starts:
+        previous_states = states[-1]
+        next_values = {
+            round(_candidate_position(contract, current, delta), 12)
+            for current in previous_states
+            for delta in contract.candidate_deltas
+        }
+        states.append(tuple(sorted(next_values)))
+
+    value_next = {round(state, 12): 0.0 for state in states[-1]}
+    policy: list[dict[float, tuple[float, float]]] = [{} for _ in starts]
+    for index in range(len(starts) - 1, -1, -1):
+        start = starts[index]
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        block_sum = float(scores[fill:end].sum())
+        value_now: dict[float, float] = {}
+        for current in states[index]:
+            candidates: list[tuple[float, float, float]] = []
+            for delta in contract.candidate_deltas:
+                nxt = _candidate_position(contract, current, delta)
+                next_key = round(nxt, 12)
+                value = (
+                    nxt * block_sum
+                    - transition_cost(current, nxt, contract)
+                    + value_next[next_key]
+                )
+                candidates.append((value, delta, nxt))
+            best_value, best_delta, best_next = max(
+                candidates,
+                key=lambda item: (item[0], -abs(item[1]), -item[1]),
+            )
+            current_key = round(current, 12)
+            value_now[current_key] = best_value
+            policy[index][current_key] = (best_delta, best_next)
+        value_next = value_now
+
     deltas = np.zeros(len(scores), dtype=np.float64)
-    for start, delta in choices:
-        deltas[start] = float(delta)
+    current = float(contract.p_start)
+    for index, start in enumerate(starts):
+        best_delta, best_next = policy[index][round(current, 12)]
+        deltas[start] = float(best_delta)
+        current = best_next
     return deltas
 
 
@@ -757,10 +813,20 @@ def replay_selected_path(
     score_returns: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
 ) -> ActionExecutionTrajectory:
-    """Select and replay a shared conditional/U0 trajectory."""
+    """Select and replay the causal conditional-teacher trajectory."""
     contract = contract or ActionExecutionContract.canonical()
     deltas = select_block_decisions(score_returns, contract)
     return replay_action_path(score_returns, deltas, contract)
+
+
+def replay_hindsight_selected_path(
+    realized_returns: np.ndarray | Sequence[float],
+    contract: ActionExecutionContract | None = None,
+) -> ActionExecutionTrajectory:
+    """Select and replay the realized-future U0 trajectory."""
+    contract = contract or ActionExecutionContract.canonical()
+    deltas = select_hindsight_block_decisions(realized_returns, contract)
+    return replay_action_path(realized_returns, deltas, contract)
 
 
 def run_contract_backtest(

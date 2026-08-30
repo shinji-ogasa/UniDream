@@ -428,12 +428,27 @@ def _compute_contract_transition_advantage(
     n_actions = len(actions)
     values = np.full((len(returns), n_actions), np.nan, dtype=np.float64)
     best_idx = np.full(len(returns), -1, dtype=np.int64)
-    target_positions = current.copy()
+    # ``current_positions`` is an input contract, not the source of truth for
+    # the next decision.  The chosen path must advance sequentially from
+    # ``p_start``; otherwise Q-values can be computed from one inventory path
+    # and replayed on another.  We retain the supplied array only for the
+    # decision-row consistency checks below.
+    expected_current = np.full(len(returns), float(contract.p_start), dtype=np.float64)
+    target_positions = expected_current.copy()
     best_value = np.full(len(returns), np.nan, dtype=np.float64)
     neutral_idx = int(np.argmin(np.abs(actions)))
+    current_at_decision = np.full(len(returns), np.nan, dtype=np.float64)
+    running = float(contract.p_start)
 
     for start in starts:
-        previous = float(current[start])
+        previous = running
+        supplied = float(current[start])
+        if not np.isclose(supplied, previous, atol=1e-9, rtol=0.0):
+            raise ValueError(
+                "current_positions does not match the sequential contract path "
+                f"at decision bar {start}: expected {previous:.12g}, got {supplied:.12g}"
+            )
+        current_at_decision[start] = previous
         feasible = candidate_positions(previous, contract)
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
@@ -456,6 +471,24 @@ def _compute_contract_transition_advantage(
         best_value[start] = row[idx]
         target_positions[start] = float(
             np.clip(previous + actions[idx], contract.position_min, contract.position_max)
+        )
+        running = float(target_positions[start])
+
+    # Fill the state trace used by callers that need a complete current path:
+    # before each decision, the inventory is the previous chosen target.  A
+    # decision row itself still exposes the newly selected target through
+    # ``target_positions``; non-decision rows retain the committed inventory.
+    for index, start in enumerate(starts):
+        stop = starts[index + 1] if index + 1 < len(starts) else len(returns)
+        expected_current[start:stop] = current_at_decision[start]
+    target_positions = expected_current.copy()
+    for start in starts:
+        target_positions[start] = float(
+            np.clip(
+                current_at_decision[start] + actions[best_idx[start]],
+                contract.position_min,
+                contract.position_max,
+            )
         )
 
     advantage_vs_neutral = values - values[:, neutral_idx, None]
@@ -481,13 +514,25 @@ def _compute_contract_transition_advantage(
     for start in starts:
         decision_deltas[start] = actions[best_idx[start]]
     trajectory = replay_action_path(returns, decision_deltas, contract)
+    for start in starts:
+        if not np.isclose(
+            trajectory.decision_positions[start],
+            target_positions[start],
+            atol=1e-9,
+            rtol=0.0,
+        ):
+            raise RuntimeError(
+                "contract transition replay diverged from sequential decision path "
+                f"at decision bar {start}"
+            )
     classes = np.full((len(returns), n_actions), "neutral", dtype=object)
     for start in starts:
+        previous = current_at_decision[start]
         classes[start] = transition_classes(
-            np.full(n_actions, current[start], dtype=np.float64),
+            np.full(n_actions, previous, dtype=np.float64),
             np.asarray(
                 [
-                    np.clip(current[start] + delta, contract.position_min, contract.position_max)
+                    np.clip(previous + delta, contract.position_min, contract.position_max)
                     for delta in actions
                 ],
                 dtype=np.float64,
@@ -513,6 +558,7 @@ def _compute_contract_transition_advantage(
         "best_class": best_class,
         "class_matrix": classes,
         "decision_deltas": decision_deltas,
+        "current_positions": expected_current.astype(np.float32),
         "trajectory": trajectory,
         "action_execution_contract_hash": contract.contract_hash,
     }

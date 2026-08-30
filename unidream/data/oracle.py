@@ -18,6 +18,7 @@ import pandas as pd
 from unidream.eval.action_execution import (
     ActionExecutionContract,
     ActionExecutionTrajectory,
+    replay_hindsight_selected_path,
     replay_selected_path,
 )
 
@@ -256,12 +257,14 @@ def hindsight_upper_bound_path(
 
     This is an upper-bound diagnostic only.  Callers must not feed its
     decisions, weights, thresholds, or feature values into model training.
-    Keeping U0 on the same replay path as the conditional teacher and
-    Backtest makes opportunity/regret comparisons mechanically meaningful.
+    Keeping U0 on the same replay geometry as the conditional teacher and
+    Backtest makes opportunity/regret comparisons mechanically meaningful;
+    its selector is intentionally hindsight-only and distinct from the
+    causal teacher selector.
     """
     if not isinstance(contract, ActionExecutionContract):
         raise TypeError("contract must be an ActionExecutionContract")
-    return replay_selected_path(realized_returns, contract)
+    return replay_hindsight_selected_path(realized_returns, contract)
 
 
 # Short names used by experiment manifests.  They deliberately retain the

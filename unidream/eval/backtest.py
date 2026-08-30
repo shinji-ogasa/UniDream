@@ -306,6 +306,10 @@ class Backtest:
         initial_position: 最初の評価バー直前の実効ポジション。指定時は
             cost/PnL/trade count の境界遷移をこの値から始める。
         benchmark_initial_position: benchmark の評価窓直前ポジション。
+        action_positions_are_deltas: contract path input mode.  This must be
+            explicitly ``True`` for decision deltas or ``False`` for an
+            absolute committed-position path; contract mode never infers the
+            representation from values.
     """
 
     def __init__(
@@ -345,6 +349,11 @@ class Backtest:
             self.action_positions_are_deltas, bool
         ):
             raise TypeError("action_positions_are_deltas must be a bool when provided")
+        if self.action_execution_contract is not None and self.action_positions_are_deltas is None:
+            raise ValueError(
+                "action_positions_are_deltas must be explicitly True or False "
+                "when an action execution contract is provided"
+            )
         if self.action_execution_contract is not None and self.execution_delay_bars != 0:
             raise ValueError(
                 "execution_delay_bars must be omitted/zero when an action execution contract is provided"
@@ -396,28 +405,12 @@ class Backtest:
                     self.positions,
                     self.action_execution_contract,
                 )
-            else:
-                try:
-                    action_deltas = decision_deltas_from_positions(
-                        self.positions,
-                        self.action_execution_contract,
-                    )
-                except ValueError:
-                    action_deltas = self.positions
             benchmark_deltas = self.benchmark_positions
             if benchmark_deltas is not None and self.action_positions_are_deltas is False:
                 benchmark_deltas = decision_deltas_from_positions(
                     benchmark_deltas,
                     self.action_execution_contract,
                 )
-            elif benchmark_deltas is not None and self.action_positions_are_deltas is None:
-                try:
-                    benchmark_deltas = decision_deltas_from_positions(
-                        benchmark_deltas,
-                        self.action_execution_contract,
-                    )
-                except ValueError:
-                    pass
             return _run_contract_backtest(
                 self.returns,
                 action_deltas,
