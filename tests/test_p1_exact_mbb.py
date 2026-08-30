@@ -22,6 +22,7 @@ from unidream.experiments.p1_mbb import (
     P1MBBImplementationBlocked,
     P1MBBIndexArtifact,
     build_p1_mbb_index_artifact,
+    bootstrap_p1_metric as production_bootstrap_p1_metric,
     bootstrap_p1_metric_fixture as bootstrap_p1_metric,
     bootstrap_p1_metric_seed_aggregate_fixture as bootstrap_p1_metric_seed_aggregate,
     derive_p1_seed,
@@ -779,6 +780,78 @@ class P1ExactMBBTests(unittest.TestCase):
                 mask=mask,
                 regret=np.zeros(n, dtype="<f8"),
                 opportunity=np.full(n, -1.0, dtype="<f8"),
+            )
+
+    def test_production_bootstrap_requires_external_mask_and_source_binding(self) -> None:
+        n = 19
+        artifact = self._artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        candidate = np.arange(n, dtype="<f8")
+        baseline = np.zeros(n, dtype="<f8")
+        payload_digest = "1" * 64
+        schema_digest = "2" * 64
+        content_digest = "3" * 64
+        source_digest = "4" * 64
+        common_digest = p1_mask_sha256(mask)
+        action_provenance = {
+            "kind": "action",
+            "common_mask_sha256": common_digest,
+            "common_mask_field": "common_mask",
+            "action_primitive_payload_sha256": payload_digest,
+            "action_primitive_schema_sha256": schema_digest,
+            "action_primitive_content_sha256": content_digest,
+            "source_result_sha256": source_digest,
+        }
+        result = production_bootstrap_p1_metric(
+            "policy_utility_delta",
+            artifact=artifact,
+            mask=mask,
+            candidate_mask=mask,
+            baseline_mask=mask,
+            candidate_utility=candidate,
+            benchmark_hold_utility=baseline,
+            provenance=action_provenance,
+            expected_common_mask_sha256=common_digest,
+            expected_common_mask_field="common_mask",
+            expected_source_result_sha256=source_digest,
+            expected_action_primitive_payload_sha256=payload_digest,
+            expected_action_primitive_schema_sha256=schema_digest,
+            expected_action_primitive_content_sha256=content_digest,
+        )
+        self.assertEqual(result["provenance"]["kind"], "action")
+        with self.assertRaises(P1MBBError):
+            production_bootstrap_p1_metric(
+                "policy_utility_delta",
+                artifact=artifact,
+                mask=mask,
+                candidate_utility=candidate,
+                benchmark_hold_utility=baseline,
+                provenance=action_provenance,
+                expected_common_mask_sha256=common_digest,
+                expected_common_mask_field="common_mask",
+                expected_source_result_sha256=source_digest,
+                expected_action_primitive_payload_sha256=payload_digest,
+                expected_action_primitive_schema_sha256=schema_digest,
+                expected_action_primitive_content_sha256=content_digest,
+            )
+        wrong_mask = mask.copy()
+        wrong_mask[0] = False
+        with self.assertRaises(P1MBBError):
+            production_bootstrap_p1_metric(
+                "policy_utility_delta",
+                artifact=artifact,
+                mask=wrong_mask,
+                candidate_mask=wrong_mask,
+                baseline_mask=wrong_mask,
+                candidate_utility=candidate,
+                benchmark_hold_utility=baseline,
+                provenance=action_provenance,
+                expected_common_mask_sha256=common_digest,
+                expected_common_mask_field="common_mask",
+                expected_source_result_sha256=source_digest,
+                expected_action_primitive_payload_sha256=payload_digest,
+                expected_action_primitive_schema_sha256=schema_digest,
+                expected_action_primitive_content_sha256=content_digest,
             )
 
     def test_s2_skill_and_normalized_regret_recompute_before_level_contrast(self) -> None:
