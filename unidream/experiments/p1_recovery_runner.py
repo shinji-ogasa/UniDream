@@ -15,7 +15,7 @@ weaken its immutable field checks.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from types import MappingProxyType
@@ -82,6 +82,11 @@ PROBABILITY_CLIP_EPS = 1e-6
 S3_SIGNAL_FEATURE = "close_ret"
 S3_INJECTION_BETA = 0.0005
 S3_PREFIX_ROWS_MIN = 256
+S3_BODY_ROWS = 173_111
+S3_TRAIN_START = 52_492
+S3_VALIDATION_ORIGIN = 104_528
+S3_VALIDATION_END = 139_568
+S3_OUTER_END = 173_111
 V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT = (
     "unidream.experiments.runtime.validate_v4_runtime_inputs"
 )
@@ -807,6 +812,33 @@ class S3InjectionControl:
         return self.context_mask
 
 
+@dataclass(frozen=True)
+class S3ArmDataset:
+    """One full-grid injected/control target body under the fixed v4 features."""
+
+    seed: int
+    arm: Literal["injected", "zero_injection_control"]
+    beta: float
+    timestamps: np.ndarray
+    source: S3InjectionControl
+    features: np.ndarray
+    returns: np.ndarray
+    targets: np.ndarray
+    target_end: np.ndarray
+    target_mask: np.ndarray
+    binary_labels: np.ndarray
+    context_mask: np.ndarray
+    availability: Mapping[str, np.ndarray]
+
+    @property
+    def context_eligible(self) -> np.ndarray:
+        return self.context_mask
+
+    @property
+    def target_complete(self) -> np.ndarray:
+        return self.target_mask
+
+
 def _require_authenticated_v4_result(
     runtime_result: Mapping[str, Any],
 ) -> Mapping[str, Any]:
@@ -1112,7 +1144,74 @@ def load_s3_validation_body(
     return _prepare_s3_injection_control(validated)
 
 
-def _horizon_column(dataset: SyntheticDataset, horizon: int) -> int:
+def build_s3_arm_dataset(
+    body: S3InjectionControl,
+    arm: Literal["injected", "zero_injection_control"],
+) -> S3ArmDataset:
+    """Build canonical targets for one authenticated S3 arm without refitting."""
+
+    if not isinstance(body, S3InjectionControl):
+        raise P1RunnerError("S3 arm dataset requires an authenticated S3InjectionControl")
+    if arm not in {"injected", "zero_injection_control"}:
+        raise P1RunnerError("S3 arm must be 'injected' or 'zero_injection_control'")
+    runtime = body.runtime
+    required_runtime = {
+        "v4_runtime_validation_status": "passed",
+        "p1_manifest_sha256": REGISTERED_MANIFEST_SHA256,
+        "p1_results_observed": False,
+        "v4_runtime_loaded_body_match": True,
+    }
+    for field, expected in required_runtime.items():
+        if runtime.get(field) != expected:
+            raise P1RunnerError(f"S3 authenticated provenance echo mismatch: {field}")
+    if len(body.features) != S3_BODY_ROWS or len(body.timestamps) != S3_BODY_ROWS:
+        raise P1RunnerError("S3 body does not match the preregistered 173111-row v4 body")
+    boundary_timestamps = {
+        52_491: np.datetime64("2020-01-01T00:00:00", "ns"),
+        S3_VALIDATION_ORIGIN: np.datetime64("2022-01-01T00:00:00", "ns"),
+        S3_VALIDATION_END: np.datetime64("2023-01-01T00:00:00", "ns"),
+    }
+    for index, expected in boundary_timestamps.items():
+        if body.timestamps[index] != expected:
+            raise P1RunnerError(f"S3 raw boundary timestamp mismatch at index {index}")
+    selected_returns = (
+        body.injected_returns if arm == "injected" else body.control_returns
+    )
+    targets, target_mask, target_end = build_target_arrays(
+        selected_returns,
+        body.availability["spot_bar_observed"],
+        horizons=FORECAST_HORIZONS,
+        timestamps=body.timestamps,
+    )
+    labels = binary_labels_from_targets(targets)
+    expected_context = build_context_mask(
+        body.features,
+        body.availability,
+        timestamps=body.timestamps,
+    )
+    if not np.array_equal(expected_context, body.context_mask):
+        raise P1RunnerError("S3 context mask does not rederive from its v4 source body")
+    return S3ArmDataset(
+        seed=20260830,
+        arm=arm,
+        beta=S3_INJECTION_BETA if arm == "injected" else 0.0,
+        timestamps=body.timestamps,
+        source=body,
+        features=body.features,
+        returns=_read_only(selected_returns, dtype=np.float64),
+        targets=targets,
+        target_end=target_end,
+        target_mask=target_mask,
+        binary_labels=labels,
+        context_mask=expected_context,
+        availability=body.availability,
+    )
+
+
+RunnerDataset = SyntheticDataset | S3ArmDataset
+
+
+def _horizon_column(dataset: RunnerDataset, horizon: int) -> int:
     _strict_horizon(horizon)
     try:
         return FORECAST_HORIZONS.index(int(horizon))
@@ -1120,9 +1219,9 @@ def _horizon_column(dataset: SyntheticDataset, horizon: int) -> int:
         raise P1RunnerError(f"unsupported horizon: {horizon}") from exc
 
 
-def _ensure_dataset(dataset: SyntheticDataset) -> SyntheticDataset:
-    if not isinstance(dataset, SyntheticDataset):
-        raise P1RunnerError("runner model APIs require a SyntheticDataset")
+def _ensure_dataset(dataset: RunnerDataset) -> RunnerDataset:
+    if not isinstance(dataset, (SyntheticDataset, S3ArmDataset)):
+        raise P1RunnerError("runner model APIs require a canonical P1 dataset")
     features = validate_current_row_features(dataset.features)
     n_rows = len(features)
     timestamps = validate_15m_timestamps(dataset.timestamps, n_rows=n_rows)
@@ -1210,11 +1309,12 @@ def _ensure_dataset(dataset: SyntheticDataset) -> SyntheticDataset:
 
 
 def train_mask_for_origin(
-    dataset: SyntheticDataset,
+    dataset: RunnerDataset,
     origin: int,
     horizon: int,
     *,
     purge_bars: int = PURGE_BARS,
+    train_start: int = 0,
 ) -> np.ndarray:
     """Return the exact context/label/purge/row admissibility mask."""
 
@@ -1230,12 +1330,16 @@ def train_mask_for_origin(
         raise P1RunnerError("purge_bars must be non-negative")
     if origin_int > len(data.features):
         raise P1RunnerError("origin exceeds dataset rows")
+    train_start_int = _strict_origin(train_start)
+    if train_start_int >= origin_int:
+        raise P1RunnerError("train_start must be strictly before origin")
     column = _horizon_column(data, horizon_int)
     rows = np.arange(len(data.features), dtype=np.int64)
     mask = (
         data.context_mask
         & data.target_mask[:, column]
         & (data.target_end[:, column] <= origin_int - purge_int)
+        & (rows >= train_start_int)
         & (rows < origin_int)
     )
     return _read_only(mask, dtype=np.bool_)
@@ -1248,7 +1352,7 @@ def build_train_mask(*args: Any, **kwargs: Any) -> np.ndarray:
 
 
 def prediction_mask_for_range(
-    dataset: SyntheticDataset,
+    dataset: RunnerDataset,
     horizon: int,
     *,
     start: int = 0,
@@ -1282,6 +1386,7 @@ class ModelFit:
     task: Literal["continuous", "binary"]
     horizon: int
     origin: int
+    train_start: int
     train_mask: np.ndarray
     eligible_mask: np.ndarray
     prediction_mask: np.ndarray
@@ -1308,7 +1413,7 @@ def clip_probabilities(probabilities: Any, *, eps: float = PROBABILITY_CLIP_EPS)
 
 
 def _prediction_mask(
-    dataset: SyntheticDataset,
+    dataset: RunnerDataset,
     horizon: int,
     origin: int,
     prediction_range: tuple[int, int] | None,
@@ -1328,6 +1433,7 @@ def _na_model_fit(
     task: Literal["continuous", "binary"],
     horizon: int,
     origin: int,
+    train_start: int,
     train_mask: np.ndarray,
     eligible_mask: np.ndarray,
     predictions: np.ndarray,
@@ -1340,6 +1446,7 @@ def _na_model_fit(
         task=task,
         horizon=horizon,
         origin=origin,
+        train_start=train_start,
         train_mask=train_mask,
         eligible_mask=eligible_mask,
         prediction_mask=_read_only(np.zeros(len(predictions), dtype=np.bool_)),
@@ -1352,13 +1459,14 @@ def _na_model_fit(
 
 
 def fit_model_at_origin(
-    dataset: SyntheticDataset,
+    dataset: RunnerDataset,
     model_id: str,
     origin: int,
     horizon: int,
     *,
     task: Literal["continuous", "binary"] | None = None,
     prediction_range: tuple[int, int] | None = None,
+    train_start: int = 0,
 ) -> ModelFit:
     """Fit one fixed model using only its origin/horizon admissible prefix.
 
@@ -1381,7 +1489,13 @@ def fit_model_at_origin(
     origin_int = _strict_origin(origin)
     if origin_int > len(data.features):
         raise P1RunnerError("origin exceeds dataset rows")
-    train_mask = train_mask_for_origin(data, origin_int, horizon_int)
+    train_start_int = _strict_origin(train_start)
+    train_mask = train_mask_for_origin(
+        data,
+        origin_int,
+        horizon_int,
+        train_start=train_start_int,
+    )
     eligible_mask = prediction_mask_for_range(
         data,
         horizon_int,
@@ -1403,6 +1517,7 @@ def fit_model_at_origin(
             task=resolved_task,
             horizon=horizon_int,
             origin=origin_int,
+            train_start=train_start_int,
             train_mask=train_mask,
             eligible_mask=eligible_mask,
             predictions=predictions,
@@ -1432,6 +1547,7 @@ def fit_model_at_origin(
                 task=resolved_task,
                 horizon=horizon_int,
                 origin=origin_int,
+                train_start=train_start_int,
                 train_mask=train_mask,
                 eligible_mask=eligible_mask,
                 predictions=predictions,
@@ -1467,6 +1583,7 @@ def fit_model_at_origin(
                 task=resolved_task,
                 horizon=horizon_int,
                 origin=origin_int,
+                train_start=train_start_int,
                 train_mask=train_mask,
                 eligible_mask=eligible_mask,
                 predictions=predictions,
@@ -1498,6 +1615,7 @@ def fit_model_at_origin(
         task=resolved_task,
         horizon=horizon_int,
         origin=origin_int,
+        train_start=train_start_int,
         train_mask=train_mask,
         eligible_mask=eligible_mask,
         prediction_mask=_read_only(prediction_mask, dtype=np.bool_),
@@ -1513,6 +1631,96 @@ def fit_origin_model(*args: Any, **kwargs: Any) -> ModelFit:
     """Alias for :func:`fit_model_at_origin`."""
 
     return fit_model_at_origin(*args, **kwargs)
+
+
+def assert_future_perturbation_invariance(
+    dataset: RunnerDataset,
+    model_id: str,
+    origin: int,
+    horizon: int,
+    *,
+    prediction_range: tuple[int, int],
+    perturb_start: int,
+    delta: float = 0.123456789,
+    task: Literal["continuous", "binary"] | None = None,
+    train_start: int = 0,
+) -> Mapping[str, Any]:
+    """Fit twice and prove that a strictly later return mutation is invisible."""
+
+    data = _ensure_dataset(dataset)
+    origin_int = _strict_origin(origin)
+    perturb_int = _strict_origin(perturb_start)
+    if perturb_int <= origin_int or perturb_int >= len(data.returns):
+        raise P1RunnerError("perturb_start must be strictly after origin and inside the body")
+    try:
+        delta_float = float(delta)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise P1RunnerError("future perturbation delta must be finite") from exc
+    if not np.isfinite(delta_float) or delta_float == 0.0:
+        raise P1RunnerError("future perturbation delta must be finite and non-zero")
+    changed_returns = np.array(data.returns, dtype=np.float64, copy=True)
+    future_view = changed_returns[perturb_int:]
+    finite_future = np.isfinite(future_view)
+    future_view[finite_future] = future_view[finite_future] + delta_float
+    targets, target_mask, target_end = build_target_arrays(
+        changed_returns,
+        data.availability["spot_bar_observed"],
+        horizons=FORECAST_HORIZONS,
+        timestamps=data.timestamps,
+    )
+    changed = replace(
+        data,
+        returns=_read_only(changed_returns, dtype=np.float64),
+        targets=targets,
+        target_mask=target_mask,
+        target_end=target_end,
+        binary_labels=binary_labels_from_targets(targets),
+    )
+    original_fit = fit_model_at_origin(
+        data,
+        model_id,
+        origin_int,
+        horizon,
+        task=task,
+        prediction_range=prediction_range,
+        train_start=train_start,
+    )
+    changed_fit = fit_model_at_origin(
+        changed,
+        model_id,
+        origin_int,
+        horizon,
+        task=task,
+        prediction_range=prediction_range,
+        train_start=train_start,
+    )
+    horizon_column = _horizon_column(data, horizon)
+    prefix = (
+        (np.arange(len(data.features), dtype=np.int64) < perturb_int)
+        & (data.target_end[:, horizon_column] <= perturb_int)
+    )
+    if not np.array_equal(original_fit.train_mask, changed_fit.train_mask):
+        raise P1RunnerError("future perturbation changed the fitted-prefix mask")
+    if not np.array_equal(
+        original_fit.prediction_mask[prefix],
+        changed_fit.prediction_mask[prefix],
+    ):
+        raise P1RunnerError("future perturbation changed an earlier prediction mask")
+    earlier_predictions = original_fit.prediction_mask & prefix
+    if not np.array_equal(
+        original_fit.predictions[earlier_predictions],
+        changed_fit.predictions[earlier_predictions],
+    ):
+        raise P1RunnerError("future perturbation changed an earlier prediction")
+    return MappingProxyType(
+        {
+            "status": "passed",
+            "origin": origin_int,
+            "horizon": _strict_horizon(horizon),
+            "perturb_start": perturb_int,
+            "earlier_prediction_count": int(np.count_nonzero(earlier_predictions)),
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -1542,6 +1750,89 @@ class OOFRun:
                 f"model {model_id} does not support task {resolved_task!r}"
             )
         return self.fits[(int(origin), int(horizon), model_id, resolved_task)]
+
+
+@dataclass(frozen=True)
+class S3ValidationRun:
+    """The one fixed 2022 S3 validation fit operation; outer remains sealed."""
+
+    manifest_echo: ManifestEcho
+    arm: Literal["injected", "zero_injection_control"]
+    dataset: S3ArmDataset
+    fits: Mapping[tuple[int, str, Literal["continuous", "binary"]], ModelFit]
+    fit_range: tuple[int, int] = (S3_TRAIN_START, S3_VALIDATION_ORIGIN)
+    prediction_range: tuple[int, int] = (S3_VALIDATION_ORIGIN, S3_VALIDATION_END)
+    outer_report_only: bool = True
+    outer_test_executed: bool = False
+
+    def get(
+        self,
+        horizon: int,
+        model_id: str,
+        task: Literal["continuous", "binary"] | None = None,
+    ) -> ModelFit:
+        if model_id not in MODEL_IDS:
+            raise P1RunnerError(f"unknown model_id: {model_id}")
+        resolved_task = MODEL_TASKS[model_id] if task is None else task
+        if resolved_task not in _MODEL_ALLOWED_TASKS[model_id]:
+            raise P1RunnerError(
+                f"model {model_id} does not support task {resolved_task!r}"
+            )
+        return self.fits[(_strict_horizon(horizon), model_id, resolved_task)]
+
+
+def run_s3_validation_fits(
+    body_or_dataset: S3InjectionControl | S3ArmDataset,
+    arm: Literal["injected", "zero_injection_control"] | None = None,
+    *,
+    model_ids: Sequence[str] = MODEL_IDS,
+    outer_report_only: bool = True,
+) -> S3ValidationRun:
+    """Execute only the preregistered S3 validation-boundary fits.
+
+    This function never reads 2023 outer outcomes and has no outer execution
+    option.  Injected/control calls receive separate fitted objects and later
+    separate action inventory paths.
+    """
+
+    if outer_report_only is not True:
+        raise P1OuterReportBlocked("S3 outer operation must remain report-only")
+    if isinstance(body_or_dataset, S3InjectionControl):
+        if arm is None:
+            raise P1RunnerError("arm is required when building S3 from its source body")
+        dataset = build_s3_arm_dataset(body_or_dataset, arm)
+    elif isinstance(body_or_dataset, S3ArmDataset):
+        dataset = body_or_dataset
+        if arm is not None and arm != dataset.arm:
+            raise P1RunnerError("requested S3 arm disagrees with the dataset arm")
+    else:
+        raise P1RunnerError("S3 validation requires an authenticated S3 dataset/body")
+    data = _ensure_dataset(dataset)
+    if not isinstance(data, S3ArmDataset):  # pragma: no cover - guarded above
+        raise P1RunnerError("S3 validation dataset type mismatch")
+    requested_models = tuple(model_ids)
+    if not requested_models or any(model not in MODEL_IDS for model in requested_models):
+        raise P1RunnerError("model_ids must be a non-empty subset of the fixed models")
+    echo = build_runner_plan().manifest_echo
+    fits: dict[tuple[int, str, Literal["continuous", "binary"]], ModelFit] = {}
+    for horizon in FORECAST_HORIZONS:
+        for model_id in requested_models:
+            for task in _MODEL_ALLOWED_TASKS[model_id]:
+                fits[(horizon, model_id, task)] = fit_model_at_origin(
+                    data,
+                    model_id,
+                    S3_VALIDATION_ORIGIN,
+                    horizon,
+                    task=task,
+                    prediction_range=(S3_VALIDATION_ORIGIN, S3_VALIDATION_END),
+                    train_start=S3_TRAIN_START,
+                )
+    return S3ValidationRun(
+        manifest_echo=echo,
+        arm=data.arm,
+        dataset=data,
+        fits=MappingProxyType(fits),
+    )
 
 
 def run_synthetic_oof(
@@ -1618,12 +1909,21 @@ __all__ = [
     "OuterReportSpec",
     "RunnerPlan",
     "S3InjectionControl",
+    "S3ArmDataset",
+    "S3ValidationRun",
+    "S3_BODY_ROWS",
+    "S3_OUTER_END",
+    "S3_TRAIN_START",
+    "S3_VALIDATION_END",
+    "S3_VALIDATION_ORIGIN",
     "SyntheticBase",
     "SyntheticDataset",
     "binary_labels_from_targets",
+    "assert_future_perturbation_invariance",
     "build_context_mask",
     "build_runner_plan",
     "build_synthetic_dataset",
+    "build_s3_arm_dataset",
     "build_target_arrays",
     "build_train_mask",
     "clip_probabilities",
@@ -1639,6 +1939,7 @@ __all__ = [
     "outer_report_spec",
     "reject_flattened_context",
     "run_oof",
+    "run_s3_validation_fits",
     "run_synthetic_oof",
     "train_mask_for_origin",
     "timestamp_edge_mask",

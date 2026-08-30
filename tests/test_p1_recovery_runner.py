@@ -183,6 +183,45 @@ class P1RecoveryRunnerContractTests(unittest.TestCase):
             {"continuous", "binary"},
         )
 
+    def test_train_start_is_part_of_the_fit_contract(self):
+        full = runner.train_mask_for_origin(self.dataset, 20000, 4)
+        bounded = runner.train_mask_for_origin(
+            self.dataset,
+            20000,
+            4,
+            train_start=1000,
+        )
+        self.assertFalse(bounded[:1000].any())
+        self.assertTrue(np.all(~bounded | full))
+        fit = runner.fit_model_at_origin(
+            self.dataset,
+            "zero_return",
+            20000,
+            4,
+            train_start=1000,
+            prediction_range=(20000, 20010),
+        )
+        self.assertEqual(fit.train_start, 1000)
+        with self.assertRaisesRegex(runner.P1RunnerError, "strictly before"):
+            runner.train_mask_for_origin(
+                self.dataset,
+                20000,
+                4,
+                train_start=20000,
+            )
+
+    def test_future_return_perturbation_cannot_change_earlier_ridge_output(self):
+        evidence = runner.assert_future_perturbation_invariance(
+            self.dataset,
+            "ridge",
+            20000,
+            4,
+            prediction_range=(20000, 20020),
+            perturb_start=20010,
+        )
+        self.assertEqual(evidence["status"], "passed")
+        self.assertGreater(evidence["earlier_prediction_count"], 0)
+
 
 def _fake_authenticated_s3_result(rows=400):
     index = pd.date_range("2020-01-01", periods=rows, freq="15min")
@@ -283,6 +322,50 @@ class P1RecoveryS3BoundaryTests(unittest.TestCase):
         del forged["p1_runtime_validation_entrypoint"]
         with self.assertRaises(runner.P1RunnerError):
             runner._prepare_s3_injection_control(forged)
+
+    def test_s3_validation_uses_one_fixed_fit_boundary_and_never_outer(self):
+        one = np.zeros(1, dtype=np.float64)
+        one_bool = np.ones(1, dtype=np.bool_)
+        dummy_source = SimpleNamespace()
+        dataset = runner.S3ArmDataset(
+            seed=20260830,
+            arm="injected",
+            beta=runner.S3_INJECTION_BETA,
+            timestamps=np.asarray([np.datetime64("2022-01-01", "ns")]),
+            source=dummy_source,
+            features=np.zeros((1, runner.FEATURE_DIMENSION), dtype=np.float64),
+            returns=one,
+            targets=np.zeros((1, len(runner.FORECAST_HORIZONS)), dtype=np.float64),
+            target_end=np.zeros((1, len(runner.FORECAST_HORIZONS)), dtype=np.int64),
+            target_mask=np.ones((1, len(runner.FORECAST_HORIZONS)), dtype=np.bool_),
+            binary_labels=np.zeros((1, len(runner.FORECAST_HORIZONS)), dtype=np.int8),
+            context_mask=one_bool,
+            availability={name: one_bool for name in REQUIRED_AVAILABILITY_COLUMNS},
+        )
+        echo = runner.ManifestEcho("fixed", runner.REGISTERED_MANIFEST_SHA256, "base")
+        with mock.patch.object(runner, "_ensure_dataset", return_value=dataset), mock.patch.object(
+            runner,
+            "build_runner_plan",
+            return_value=SimpleNamespace(manifest_echo=echo),
+        ), mock.patch.object(runner, "fit_model_at_origin", return_value=object()) as fit_call:
+            result = runner.run_s3_validation_fits(dataset)
+        self.assertFalse(result.outer_test_executed)
+        self.assertTrue(result.outer_report_only)
+        self.assertEqual(result.fit_range, (runner.S3_TRAIN_START, runner.S3_VALIDATION_ORIGIN))
+        self.assertEqual(
+            result.prediction_range,
+            (runner.S3_VALIDATION_ORIGIN, runner.S3_VALIDATION_END),
+        )
+        self.assertEqual(fit_call.call_count, 24)
+        for call in fit_call.call_args_list:
+            self.assertEqual(call.args[2], runner.S3_VALIDATION_ORIGIN)
+            self.assertEqual(call.kwargs["train_start"], runner.S3_TRAIN_START)
+            self.assertEqual(
+                call.kwargs["prediction_range"],
+                (runner.S3_VALIDATION_ORIGIN, runner.S3_VALIDATION_END),
+            )
+        with self.assertRaises(runner.P1OuterReportBlocked):
+            runner.run_s3_validation_fits(dataset, outer_report_only=False)
 
 
 if __name__ == "__main__":
