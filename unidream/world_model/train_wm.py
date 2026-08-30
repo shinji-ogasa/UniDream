@@ -7,6 +7,7 @@ EnsembleWorldModel を WFO データ上で学習する。
 """
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from typing import Optional
@@ -422,6 +423,8 @@ class WorldModelTrainer:
 
         self.global_step = 0
         self.loss_history: list[dict] = []
+        self._coverage_sequence_length: int | None = None
+        self._coverage_stats: dict[tuple[str, object, int | None], dict[str, object]] = {}
 
     def _active_auxiliary_heads(self) -> dict[str, nn.Module]:
         """Return all auxiliary heads that participate in this trainer."""
@@ -441,6 +444,239 @@ class WorldModelTrainer:
             )
             if (head := getattr(self, name, None)) is not None
         }
+
+    def _coverage_specs(self) -> list[dict[str, object]]:
+        """Return one machine-readable coverage row for every enabled output.
+
+        The historical training loop used to report a finite aggregate loss as
+        evidence that a future head was trained.  That is insufficient for a
+        sequence whose right edge has no future label (for example horizon 64
+        in a future-only sequence of length 64).  Coverage is tracked per
+        output so a single valid horizon cannot hide a zero-coverage sibling.
+        """
+        specs: list[dict[str, object]] = []
+
+        def add(head: str, horizon: object, output_index: int | None = None, **extra: object) -> None:
+            row = {
+                "head": head,
+                "module": f"{head}_head",
+                "horizon": horizon,
+                "output_index": output_index,
+            }
+            row.update(extra)
+            specs.append(row)
+
+        if self.idm_head is not None:
+            add("idm", 1)
+        if self.return_head is not None:
+            for idx, horizon in enumerate(self.return_horizons):
+                add("return", int(horizon), idx)
+        for head_name, horizons in (
+            ("vol", self.risk_horizons),
+            ("drawdown", self.risk_horizons),
+            ("crash", self.risk_horizons),
+            ("drawdown_excess", self.risk_horizons),
+            ("overweight_advantage", self.risk_horizons),
+            ("recovery", self.risk_horizons),
+        ):
+            if getattr(self, f"{head_name}_head", None) is not None:
+                for idx, horizon in enumerate(horizons):
+                    add(head_name, int(horizon), idx)
+        if self.position_utility_head is not None:
+            for idx, position in enumerate(self.position_utility_positions):
+                add(
+                    "position_utility",
+                    int(self.position_utility_horizon),
+                    idx,
+                    position=float(position),
+                )
+        if self.regime_head is not None:
+            add("regime", "current", None, regime_dim=int(self.regime_dim))
+        return specs
+
+    def _start_target_gradient_coverage(self, sequence_length: int | None = None) -> None:
+        """Reset target/gradient counters for one training invocation."""
+        self._coverage_sequence_length = None if sequence_length is None else int(sequence_length)
+        self._coverage_stats: dict[tuple[str, object, int | None], dict[str, object]] = {}
+        for spec in self._coverage_specs():
+            key = (str(spec["head"]), spec["horizon"], spec.get("output_index"))
+            row = dict(spec)
+            row.update(
+                {
+                    "sequence_length": self._coverage_sequence_length,
+                    "total_target_slots": 0,
+                    "masked_target_slots": 0,
+                    "valid_targets": 0,
+                    "finite_targets": 0,
+                    "finite_masked_targets": 0,
+                    "finite_loss_steps": 0,
+                    "gradient_steps": 0,
+                    "nonzero_gradient_steps": 0,
+                }
+            )
+            self._coverage_stats[key] = row
+
+    @staticmethod
+    def _coverage_tensor_values(
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        output_index: int | None,
+    ) -> tuple[int, int, int, int, int]:
+        """Count slots, masks, and finite values without hiding invalid tails."""
+        target = target.detach()
+        mask = mask.detach().to(dtype=torch.bool)
+        if output_index is not None:
+            target = target[..., output_index]
+            mask = mask[..., output_index]
+        finite = torch.isfinite(target)
+        return (
+            int(target.numel()),
+            int(mask.sum().item()),
+            int((mask & finite).sum().item()),
+            int(finite.sum().item()),
+            int((mask & finite).sum().item()),
+        )
+
+    def _accumulate_target_coverage(
+        self,
+        head: str,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        horizons: list[object] | tuple[object, ...] | None = None,
+    ) -> None:
+        """Accumulate target/mask counts for one auxiliary head."""
+        if not getattr(self, "_coverage_stats", None):
+            return
+        if horizons is None:
+            horizons = [key[1] for key in self._coverage_stats if key[0] == head]
+        for output_index, horizon in enumerate(horizons):
+            key = (head, horizon, output_index)
+            # IDM and regime have no per-output horizon dimension.  Their
+            # rows use ``output_index=None`` and are accumulated as a whole.
+            if key not in self._coverage_stats:
+                key = (head, horizon, None)
+            row = self._coverage_stats.get(key)
+            if row is None:
+                continue
+            slots, masked, valid, finite, finite_masked = self._coverage_tensor_values(
+                target,
+                mask,
+                output_index if key[2] is not None else None,
+            )
+            row["total_target_slots"] = int(row["total_target_slots"]) + slots
+            row["masked_target_slots"] = int(row["masked_target_slots"]) + masked
+            row["valid_targets"] = int(row["valid_targets"]) + valid
+            row["finite_targets"] = int(row["finite_targets"]) + finite
+            row["finite_masked_targets"] = int(row["finite_masked_targets"]) + finite_masked
+
+    @staticmethod
+    def _has_nonzero_parameter_gradient(
+        module: nn.Module,
+        output_index: int | None = None,
+        atol: float = 1e-12,
+    ) -> bool:
+        if output_index is not None:
+            # Multi-output heads share hidden layers.  Looking at any shared
+            # parameter would falsely give a zero-mask horizon credit because
+            # another horizon trained it.  The final projection row isolates
+            # the output whose target/mask is being audited.
+            linear_layers = [submodule for submodule in module.modules() if isinstance(submodule, nn.Linear)]
+            if linear_layers:
+                final = linear_layers[-1]
+                if output_index >= int(final.out_features):
+                    return False
+                for parameter in (final.weight, final.bias):
+                    if parameter is not None and parameter.grad is not None:
+                        row = parameter.grad[output_index]
+                        if bool(torch.any(torch.isfinite(row) & (row.abs() > float(atol)))):
+                            return True
+                return False
+        params = [param for param in module.parameters() if param.requires_grad]
+        if not params:
+            return False
+        return any(
+            param.grad is not None
+            and bool(torch.any(torch.isfinite(param.grad) & (param.grad.abs() > float(atol))))
+            for param in params
+        )
+
+    def _record_gradient_coverage(self, loss: torch.Tensor | None = None) -> None:
+        """Record whether each enabled head received an actual gradient."""
+        finite_loss = loss is not None and bool(torch.isfinite(loss.detach()))
+        for key, row in getattr(self, "_coverage_stats", {}).items():
+            head_name = str(key[0])
+            module = getattr(self, f"{head_name}_head", None)
+            output_index = key[2]
+            row["gradient_steps"] = int(row["gradient_steps"]) + 1
+            if finite_loss:
+                row["finite_loss_steps"] = int(row["finite_loss_steps"]) + 1
+            if module is not None and self._has_nonzero_parameter_gradient(module, output_index=output_index):
+                row["nonzero_gradient_steps"] = int(row["nonzero_gradient_steps"]) + 1
+
+    def target_gradient_coverage(self) -> list[dict[str, object]]:
+        """Return finalized per-head target and nonzero-gradient coverage.
+
+        ``status=pass`` requires both a positive number of valid, finite target
+        values and at least one observed nonzero gradient step.  A finite loss
+        alone never promotes a row.
+        """
+        rows: list[dict[str, object]] = []
+        for row in getattr(self, "_coverage_stats", {}).values():
+            item = dict(row)
+            total = int(item.get("total_target_slots", 0))
+            masked = int(item.get("masked_target_slots", 0))
+            valid = int(item.get("valid_targets", 0))
+            finite = int(item.get("finite_targets", 0))
+            gradients = int(item.get("gradient_steps", 0))
+            nonzero = int(item.get("nonzero_gradient_steps", 0))
+            finite_loss_steps = int(item.get("finite_loss_steps", 0))
+            finite_masked = int(item.get("finite_masked_targets", 0))
+            item["mask_fraction"] = float(masked / total) if total else 0.0
+            item["mask_rate"] = item["mask_fraction"]
+            item["invalid_mask_fraction"] = float(1.0 - item["mask_fraction"]) if total else 1.0
+            item["target_coverage"] = float(valid / total) if total else 0.0
+            item["gradient_coverage"] = float(nonzero / gradients) if gradients else 0.0
+            item["target_count"] = valid
+            item["valid_targets"] = valid
+            item["finite_target_count"] = finite
+            item["gradient_steps"] = gradients
+            item["nonzero_gradient_steps"] = nonzero
+            item["finite_loss_steps"] = finite_loss_steps
+            if valid <= 0:
+                reason = "zero_valid_targets"
+            elif finite_masked < masked:
+                reason = "nonfinite_target_present"
+            elif finite_loss_steps <= 0:
+                reason = "nonfinite_loss"
+            elif nonzero <= 0:
+                reason = "zero_nonzero_gradient_steps"
+            else:
+                reason = None
+            item["pass"] = reason is None
+            item["status"] = "pass" if reason is None else "block"
+            item["block_reason"] = reason
+            rows.append(item)
+        return rows
+
+    def target_gradient_coverage_passes(self) -> bool:
+        """Whether every enabled target head has usable targets and gradients."""
+        rows = self.target_gradient_coverage()
+        return bool(rows) and all(bool(row.get("pass")) for row in rows)
+
+    def _write_target_gradient_coverage(self, path: str | None) -> None:
+        if not path:
+            return
+        os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            for row in self.target_gradient_coverage():
+                handle.write(json.dumps(row, sort_keys=True, allow_nan=False) + "\n")
+        blocked = [
+            f"{row['head']}:{row['horizon']}({row['block_reason']})"
+            for row in self.target_gradient_coverage()
+            if row.get("status") != "pass"
+        ]
+        suffix = f" blocked={','.join(blocked)}" if blocked else ""
+        print(f"[WM] Target/gradient coverage artifact: {path}{suffix}")
 
     @staticmethod
     def _clone_state_dict(module: nn.Module) -> dict[str, torch.Tensor]:
@@ -796,8 +1032,17 @@ class WorldModelTrainer:
         """
         max_steps = max_steps or self.max_steps
 
+        sequence_length = int(getattr(dataset, "seq_len", 0)) if dataset is not None else None
+        self._start_target_gradient_coverage(sequence_length)
+
         if len(dataset) == 0:
             print("[WM] WARNING: dataset is empty, skipping training")
+            coverage_path = (
+                os.path.join(os.path.dirname(checkpoint_path), "target_gradient_coverage.jsonl")
+                if checkpoint_path
+                else None
+            )
+            self._write_target_gradient_coverage(coverage_path)
             return []
 
         # dataset が batch_size 未満の場合 drop_last=True で loader が空になり無限ループする
@@ -900,6 +1145,12 @@ class WorldModelTrainer:
                     z, _ = self.ensemble.encode(obs)  # (B, T, z_dim)
 
                     if self.idm_head is not None and batch_actions is not None and not torch.is_floating_point(batch_actions):
+                        self._accumulate_target_coverage(
+                            "idm",
+                            batch_actions.to(self.device)[:, :-1],
+                            torch.ones_like(batch_actions[:, :-1], dtype=torch.bool, device=self.device),
+                            horizons=[1],
+                        )
                         z_t = z[:, :-1, :]   # (B, T-1, z_dim)
                         z_t1 = z[:, 1:, :]   # (B, T-1, z_dim)
                         idm_logits = self.idm_head(z_t, z_t1)  # (B, T-1, n_actions)
@@ -918,6 +1169,7 @@ class WorldModelTrainer:
                         h = out_h["h"]  # (B, T, d_model)
                     if self.return_head is not None and raw_returns is not None and h is not None:
                         target, mask = self._future_return_targets(raw_returns)
+                        self._accumulate_target_coverage("return", target, mask, self.return_horizons)
                         pred = self.return_head(z, h, obs)
                         return_loss = self._masked_smooth_l1(pred, target, mask)
                         total_loss = total_loss + self.return_scale * return_loss
@@ -936,6 +1188,19 @@ class WorldModelTrainer:
                         vol_target, dd_target, crash_target, dd_excess_target, risk_mask = (
                             self._future_risk_targets(raw_returns)
                         )
+                        for head_name, target_tensor in (
+                            ("vol", vol_target),
+                            ("drawdown", dd_target),
+                            ("crash", crash_target),
+                            ("drawdown_excess", dd_excess_target),
+                        ):
+                            if getattr(self, f"{head_name}_head", None) is not None:
+                                self._accumulate_target_coverage(
+                                    head_name,
+                                    target_tensor,
+                                    risk_mask,
+                                    self.risk_horizons,
+                                )
                         if self.vol_head is not None:
                             vol_pred = self.vol_head(z, h, obs)
                             vol_loss = self._masked_smooth_l1(vol_pred, vol_target, risk_mask)
@@ -968,6 +1233,12 @@ class WorldModelTrainer:
 
                     if self.position_utility_head is not None and raw_returns is not None and h is not None:
                         utility_target, utility_mask = self._future_position_utility_targets(raw_returns)
+                        self._accumulate_target_coverage(
+                            "position_utility",
+                            utility_target,
+                            utility_mask,
+                            [self.position_utility_horizon] * len(self.position_utility_positions),
+                        )
                         utility_pred = self.position_utility_head(z, h, obs)
                         utility_loss = self._position_utility_loss(utility_pred, utility_target, utility_mask)
                         total_loss = total_loss + self.position_utility_scale * utility_loss
@@ -979,6 +1250,20 @@ class WorldModelTrainer:
                         and h is not None
                     ):
                         ow_target, recovery_target, control_mask = self._future_control_targets(raw_returns)
+                        if self.overweight_advantage_head is not None:
+                            self._accumulate_target_coverage(
+                                "overweight_advantage",
+                                ow_target,
+                                control_mask,
+                                self.risk_horizons,
+                            )
+                        if self.recovery_head is not None:
+                            self._accumulate_target_coverage(
+                                "recovery",
+                                recovery_target,
+                                control_mask,
+                                self.risk_horizons,
+                            )
                         if self.overweight_advantage_head is not None:
                             ow_pred = self.overweight_advantage_head(z, h, obs)
                             ow_loss = self._masked_smooth_l1(ow_pred, ow_target, control_mask)
@@ -993,6 +1278,12 @@ class WorldModelTrainer:
                     regime_probs = batch.get("regime")
                     if self.regime_head is not None and regime_probs is not None and h is not None:
                         regime_probs = regime_probs.to(self.device)
+                        self._accumulate_target_coverage(
+                            "regime",
+                            regime_probs,
+                            torch.ones_like(regime_probs, dtype=torch.bool, device=self.device),
+                            horizons=["current"],
+                        )
                         regime_logits = self.regime_head(z, h)
                         log_probs = F.log_softmax(regime_logits, dim=-1)
                         regime_loss = -(regime_probs * log_probs).sum(dim=-1).mean()
@@ -1001,6 +1292,7 @@ class WorldModelTrainer:
 
                 self.optimizer.zero_grad()
                 total_loss.backward()
+                self._record_gradient_coverage(total_loss)
                 nn.utils.clip_grad_norm_(self._all_params, self.grad_clip)
                 self.optimizer.step()
 
@@ -1090,6 +1382,13 @@ class WorldModelTrainer:
             print(f"[WM] Restored best model (val loss: {best_val_loss:.4f})")
             if checkpoint_path is not None:
                 self.save(checkpoint_path)
+
+        coverage_path = (
+            os.path.join(os.path.dirname(checkpoint_path), "target_gradient_coverage.jsonl")
+            if checkpoint_path
+            else None
+        )
+        self._write_target_gradient_coverage(coverage_path)
 
         return logs
 
