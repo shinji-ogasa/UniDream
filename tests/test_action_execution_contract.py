@@ -80,6 +80,43 @@ class ActionExecutionContractTest(unittest.TestCase):
         loaded = ActionExecutionContract.from_config(payload)
         self.assertEqual(loaded.contract_hash, self.contract.contract_hash)
 
+    def test_contract_rejects_ambiguous_numeric_and_flag_config(self) -> None:
+        for field in ("position_min", "spread_bps", "fee_rate", "p_start"):
+            with self.subTest(field=field):
+                config = self.contract.to_dict()
+                config[field] = str(config[field])
+                with self.assertRaisesRegex(ValueError, "finite real number"):
+                    ActionExecutionContract.from_config(config)
+        config = self.contract.to_dict()
+        config["position_min"] = True
+        with self.assertRaisesRegex(ValueError, "finite real number"):
+            ActionExecutionContract.from_config(config)
+        config = self.contract.to_dict()
+        config["candidate_deltas"] = ["-0.08", -0.04, 0.0, 0.04, 0.08]
+        with self.assertRaisesRegex(ValueError, "finite numeric sequence"):
+            ActionExecutionContract.from_config(config)
+        config = self.contract.to_dict()
+        config["eligibility_masks_required"] = 1
+        with self.assertRaisesRegex(ValueError, "boolean"):
+            ActionExecutionContract.from_config(config)
+        with self.assertRaisesRegex(ValueError, "must be a boolean"):
+            configured_action_execution_contract(
+                {
+                    "use_action_execution_contract": "false",
+                    "action_execution_contract": self.contract.to_dict(),
+                }
+            )
+
+    def test_contract_rejects_invalid_cost_and_timing_geometry(self) -> None:
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            dataclasses.replace(self.contract, fee_rate=-0.001)
+        with self.assertRaisesRegex(ValueError, "h_decision"):
+            dataclasses.replace(self.contract, h_decision=8)
+        with self.assertRaisesRegex(ValueError, "execution_delay_bars"):
+            dataclasses.replace(self.contract, execution_delay_bars=0)
+        with self.assertRaisesRegex(ValueError, "initial_countdown"):
+            dataclasses.replace(self.contract, initial_countdown=5)
+
     def test_candidate_grid_clips_then_deduplicates(self) -> None:
         np.testing.assert_allclose(
             candidate_positions(0.52, self.contract),

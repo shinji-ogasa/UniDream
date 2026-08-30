@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
+from numbers import Real
 from typing import Any
 
 import numpy as np
@@ -32,12 +33,24 @@ _FLOAT_TOL = 1e-9
 _CANONICAL_CANDIDATE_DELTAS = (-0.08, -0.04, 0.0, 0.04, 0.08)
 
 
+def _as_real(value: Any, *, name: str) -> float:
+    """Accept real numeric scalars only; reject bools and numeric strings."""
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real):
+        raise ValueError(f"{name} must be a finite real number")
+    result = float(value)
+    if not np.isfinite(result):
+        raise ValueError(f"{name} must be a finite real number")
+    return result
+
+
 def _as_float_tuple(values: Sequence[float], *, name: str) -> tuple[float, ...]:
+    if isinstance(values, (str, bytes)):
+        raise ValueError(f"{name} must be a finite numeric sequence")
     try:
-        result = tuple(float(value) for value in values)
+        result = tuple(_as_real(value, name=name) for value in values)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{name} must be a finite numeric sequence") from exc
-    if not result or not all(np.isfinite(value) for value in result):
+    if not result:
         raise ValueError(f"{name} must be a non-empty finite sequence")
     return result
 
@@ -125,8 +138,13 @@ class ActionExecutionContract:
             "p_start": self.p_start,
         }
         for name, value in numeric.items():
-            if not np.isfinite(float(value)):
-                raise ValueError(f"{name} must be finite")
+            object.__setattr__(self, name, _as_real(value, name=name))
+        if self.spread_bps < 0.0:
+            raise ValueError("spread_bps must be non-negative")
+        if self.slippage_bps < 0.0:
+            raise ValueError("slippage_bps must be non-negative")
+        if self.fee_rate < 0.0:
+            raise ValueError("fee_rate must be non-negative")
         if float(self.position_min) > float(self.position_max):
             raise ValueError("position_min must be <= position_max")
         if not float(self.position_min) <= float(self.p_start) <= float(self.position_max):
@@ -136,6 +154,12 @@ class ActionExecutionContract:
         _require_integer(self.execution_delay_bars, name="execution_delay_bars", minimum=0)
         _require_integer(self.initial_countdown, name="initial_countdown", minimum=0)
         _require_integer(self.countdown_decrement, name="countdown_decrement", minimum=1)
+        if self.h_decision != self.commitment_bars:
+            raise ValueError("h_decision must equal commitment_bars")
+        if self.execution_delay_bars != 1:
+            raise ValueError("execution_delay_bars must be 1")
+        if self.initial_countdown > self.commitment_bars:
+            raise ValueError("initial_countdown must not exceed commitment_bars")
         deltas = _as_float_tuple(self.candidate_deltas, name="candidate_deltas")
         if not any(abs(delta) <= _FLOAT_TOL for delta in deltas):
             raise ValueError("candidate_deltas must include the hold delta 0.0")
@@ -503,7 +527,10 @@ def configured_action_execution_contract(
     """
     if not isinstance(config, Mapping):
         raise ValueError("experiment config must be a mapping")
-    enabled = bool(config.get("use_action_execution_contract", False))
+    raw_enabled = config.get("use_action_execution_contract", False)
+    if not isinstance(raw_enabled, (bool, np.bool_)):
+        raise ValueError("use_action_execution_contract must be a boolean")
+    enabled = bool(raw_enabled)
     enabled = enabled or any(
         key in config for key in ("action_execution_contract", "action_execution")
     )

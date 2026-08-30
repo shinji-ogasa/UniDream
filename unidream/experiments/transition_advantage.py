@@ -49,6 +49,9 @@ def config_from_dict(
     benchmark_position: float,
     default_actions,
 ) -> TransitionAdvantageConfig:
+    raw_use_contract = cfg.get("use_action_execution_contract", False)
+    if not isinstance(raw_use_contract, (bool, np.bool_)):
+        raise ValueError("use_action_execution_contract must be a boolean")
     explicit_contract = None
     if any(key in cfg for key in ("action_execution_contract", "action_execution")):
         raw_contract = cfg.get("action_execution_contract", cfg.get("action_execution"))
@@ -65,7 +68,7 @@ def config_from_dict(
         if not isinstance(conditional, dict):
             raise ValueError("conditional_oracle must be a mapping")
         explicit_contract = ActionExecutionContract.from_config(conditional)
-    if cfg.get("use_action_execution_contract", False) and explicit_contract is None:
+    if bool(raw_use_contract) and explicit_contract is None:
         raise ValueError(
             "use_action_execution_contract requires an explicit action_execution_contract"
         )
