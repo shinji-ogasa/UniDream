@@ -11,6 +11,14 @@ operation.
 The preregistration validator remains in :mod:`p1_recovery_prereg`.  The
 runner calls that validator when loading a manifest, but does not duplicate or
 weaken its immutable field checks.
+
+The public ``fit_model_at_origin`` path is the production fit boundary and is
+fail-closed on the fixed purge, timestamp, range, finite-output, and coverage
+contracts.  ``run_synthetic_oof`` is deliberately fixture/diagnostic-only: it
+accepts one synthetic seed/beta and optional model subsets for deterministic
+contract tests.  A future registered scenario runner must bind the complete
+manifest model/task grid, seed set, beta/level, and per-key coverage before
+any result or gate operation is added.
 """
 from __future__ import annotations
 
@@ -56,6 +64,7 @@ SYNTHETIC_START = np.datetime64("2018-01-01T00:00:00", "ns")
 FORECAST_HORIZONS = (1, 4, 8, 16)
 OOF_ORIGINS = (20_000, 30_000, 40_000, 50_000, 60_000, 70_000, 80_000, 90_000)
 OOF_BATCH_SPAN = 10_000
+SYNTHETIC_OOF_SCOPE = "fixture_diagnostic_only"
 MODEL_IDS = (
     "zero_return",
     "persistence_last_observed",
@@ -518,7 +527,7 @@ class SyntheticDataset:
         )
 
 
-def build_target_arrays(
+def _build_target_arrays(
     returns: Any,
     spot_bar_observed: Any,
     *,
@@ -599,6 +608,45 @@ def build_target_arrays(
     )
 
 
+def build_target_arrays(
+    returns: Any,
+    spot_bar_observed: Any,
+    *,
+    horizons: Sequence[int] = FORECAST_HORIZONS,
+    timestamps: Any | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build production targets; an explicit timestamp grid is mandatory."""
+
+    if timestamps is None:
+        raise P1RunnerError(
+            "production target arrays require timestamps; use "
+            "build_target_arrays_fixture for timestamp-free contract fixtures"
+        )
+    return _build_target_arrays(
+        returns,
+        spot_bar_observed,
+        horizons=horizons,
+        timestamps=timestamps,
+    )
+
+
+def build_target_arrays_fixture(
+    returns: Any,
+    spot_bar_observed: Any,
+    *,
+    horizons: Sequence[int] = FORECAST_HORIZONS,
+    timestamps: Any | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build a timestamp-free target fixture for isolated unit tests only."""
+
+    return _build_target_arrays(
+        returns,
+        spot_bar_observed,
+        horizons=horizons,
+        timestamps=timestamps,
+    )
+
+
 def binary_labels_from_targets(targets: Any) -> np.ndarray:
     """Map positive finite targets to class 1; zero maps exactly to class 0.
 
@@ -615,7 +663,7 @@ def binary_labels_from_targets(targets: Any) -> np.ndarray:
     return _read_only(labels, dtype=np.int8)
 
 
-def build_context_mask(
+def _build_context_mask(
     features: Any,
     availability: Mapping[str, Any],
     *,
@@ -674,6 +722,45 @@ def build_context_mask(
     if bad_edge_prefix is not None:
         eligible[current] &= bad_edge_prefix[current] - bad_edge_prefix[starts] == 0
     return _read_only(eligible, dtype=np.bool_)
+
+
+def build_context_mask(
+    features: Any,
+    availability: Mapping[str, Any],
+    *,
+    context_bars: int = CONTEXT_BARS,
+    timestamps: Any | None = None,
+) -> np.ndarray:
+    """Build a production context mask from an explicit timestamp grid."""
+
+    if timestamps is None:
+        raise P1RunnerError(
+            "production context masks require timestamps; use "
+            "build_context_mask_fixture for timestamp-free contract fixtures"
+        )
+    return _build_context_mask(
+        features,
+        availability,
+        context_bars=context_bars,
+        timestamps=timestamps,
+    )
+
+
+def build_context_mask_fixture(
+    features: Any,
+    availability: Mapping[str, Any],
+    *,
+    context_bars: int = CONTEXT_BARS,
+    timestamps: Any | None = None,
+) -> np.ndarray:
+    """Build a timestamp-free context fixture for isolated unit tests only."""
+
+    return _build_context_mask(
+        features,
+        availability,
+        context_bars=context_bars,
+        timestamps=timestamps,
+    )
 
 
 def validate_current_row_features(features: Any) -> np.ndarray:
@@ -1129,6 +1216,11 @@ def _ensure_dataset(dataset: SyntheticDataset) -> SyntheticDataset:
     returns = np.asarray(dataset.returns)
     if returns.shape != (n_rows,) or not np.issubdtype(returns.dtype, np.number):
         raise P1RunnerError("dataset returns are not row-aligned")
+    if not np.isfinite(returns).all():
+        raise P1RunnerError(
+            "production synthetic dataset returns must be finite; "
+            "missing returns belong in the target mask fixture only"
+        )
     targets = np.asarray(dataset.targets)
     if (
         targets.shape != (n_rows, len(FORECAST_HORIZONS))
@@ -1154,6 +1246,10 @@ def _ensure_dataset(dataset: SyntheticDataset) -> SyntheticDataset:
             raise P1RunnerError(f"dataset {name} must have strict bool dtype")
     if targets.dtype != np.dtype(np.float64):
         raise P1RunnerError("dataset targets must use float64 values")
+    if not np.array_equal(np.isfinite(targets), target_mask):
+        raise P1RunnerError(
+            "dataset targets must be finite exactly where target_mask is true"
+        )
     expected_end = (
         np.arange(n_rows, dtype=np.int64)[:, None]
         + np.asarray(FORECAST_HORIZONS, dtype=np.int64)[None, :]
@@ -1226,8 +1322,10 @@ def train_mask_for_origin(
     ):
         raise P1RunnerError("purge_bars must be an integer")
     purge_int = int(purge_bars)
-    if purge_int < 0:
-        raise P1RunnerError("purge_bars must be non-negative")
+    if purge_int != PURGE_BARS:
+        raise P1RunnerError(
+            f"production train masks require the fixed purge_bars={PURGE_BARS}"
+        )
     if origin_int > len(data.features):
         raise P1RunnerError("origin exceeds dataset rows")
     column = _horizon_column(data, horizon_int)
@@ -1260,7 +1358,9 @@ def prediction_mask_for_range(
     horizon_int = _strict_horizon(horizon)
     start_int = _strict_origin(start)
     end_int = len(data.features) if end is None else _strict_origin(end)
-    if end_int < start_int or end_int > len(data.features):
+    if end_int <= start_int:
+        raise P1RunnerError("prediction support range must satisfy end > start")
+    if start_int > len(data.features) or end_int > len(data.features):
         raise P1RunnerError("prediction support range is outside the dataset")
     column = _horizon_column(data, horizon_int)
     rows = np.arange(len(data.features), dtype=np.int64)
@@ -1291,6 +1391,72 @@ class ModelFit:
     scaler: StandardScaler | None
     estimator: Ridge | LogisticRegression | None
 
+    def __post_init__(self) -> None:
+        """Reject forged or internally inconsistent fit masks and outputs."""
+
+        if not isinstance(self.model_id, str) or self.model_id not in MODEL_IDS:
+            raise P1RunnerError("model fit has an unknown model_id")
+        if not isinstance(self.task, str) or self.task not in {"continuous", "binary"}:
+            raise P1RunnerError("model fit task must be continuous or binary")
+        if self.task not in _MODEL_ALLOWED_TASKS[self.model_id]:
+            raise P1RunnerError("model fit task is not allowed for this model")
+        horizon_int = _strict_horizon(self.horizon)
+        origin_int = _strict_origin(self.origin)
+        object.__setattr__(self, "horizon", horizon_int)
+        object.__setattr__(self, "origin", origin_int)
+        if self.status not in {"ok", "N/A"}:
+            raise P1RunnerError("model fit status must be ok or N/A")
+        if self.reason is not None and not isinstance(self.reason, str):
+            raise P1RunnerError("model fit reason must be a string or None")
+
+        train_mask = np.asarray(self.train_mask)
+        eligible_mask = np.asarray(self.eligible_mask)
+        prediction_mask = np.asarray(self.prediction_mask)
+        predictions = np.asarray(self.predictions)
+        if (
+            train_mask.ndim != 1
+            or eligible_mask.ndim != 1
+            or prediction_mask.ndim != 1
+            or predictions.ndim != 1
+        ):
+            raise P1RunnerError("model fit masks and predictions must be one-dimensional")
+        n_rows = len(train_mask)
+        if (
+            len(eligible_mask) != n_rows
+            or len(prediction_mask) != n_rows
+            or len(predictions) != n_rows
+        ):
+            raise P1RunnerError("model fit masks and predictions must be row-aligned")
+        for name, mask in (
+            ("train_mask", train_mask),
+            ("eligible_mask", eligible_mask),
+            ("prediction_mask", prediction_mask),
+        ):
+            if mask.dtype != np.dtype(np.bool_):
+                raise P1RunnerError(f"model fit {name} must have strict bool dtype")
+        if predictions.dtype != np.dtype(np.float64):
+            raise P1RunnerError("model fit predictions must use float64 values")
+        if np.any(prediction_mask & ~eligible_mask):
+            raise P1RunnerError("model fit prediction_mask exceeds eligible_mask")
+        finite_predictions = np.isfinite(predictions)
+        if not np.array_equal(finite_predictions, prediction_mask):
+            raise P1RunnerError(
+                "model fit predictions must be finite exactly where prediction_mask is true"
+            )
+        if self.status == "ok":
+            if not np.array_equal(prediction_mask, eligible_mask):
+                raise P1RunnerError(
+                    "successful model fits must cover every eligible prediction row"
+                )
+            if not np.any(eligible_mask):
+                raise P1RunnerError("successful model fits require non-empty coverage")
+        elif np.any(prediction_mask):
+            raise P1RunnerError("N/A model fits cannot contain predictions")
+        object.__setattr__(self, "train_mask", _read_only(train_mask, dtype=np.bool_))
+        object.__setattr__(self, "eligible_mask", _read_only(eligible_mask, dtype=np.bool_))
+        object.__setattr__(self, "prediction_mask", _read_only(prediction_mask, dtype=np.bool_))
+        object.__setattr__(self, "predictions", _read_only(predictions, dtype=np.float64))
+
     @property
     def is_na(self) -> bool:
         return self.status == "N/A"
@@ -1316,10 +1482,50 @@ def _prediction_mask(
     if prediction_range is None:
         start, end = origin, len(dataset.features)
     else:
-        if len(prediction_range) != 2:
+        if not isinstance(prediction_range, tuple) or len(prediction_range) != 2:
             raise P1RunnerError("prediction_range must be (start, end)")
         start, end = prediction_range
-    return prediction_mask_for_range(dataset, horizon, start=start, end=end)
+    start_int = _strict_origin(start)
+    end_int = _strict_origin(end)
+    origin_int = _strict_origin(origin)
+    if start_int < origin_int:
+        raise P1RunnerError("prediction_range start must be at or after origin")
+    if end_int <= start_int:
+        raise P1RunnerError("prediction_range must satisfy end > start")
+    return prediction_mask_for_range(dataset, horizon, start=start_int, end=end_int)
+
+
+def _validate_model_fit_arrays(
+    *,
+    eligible_mask: Any,
+    prediction_mask: Any,
+    predictions: Any,
+    require_coverage: bool,
+) -> None:
+    """Validate the finite-prediction/coverage contract before construction."""
+
+    eligible = np.asarray(eligible_mask)
+    predicted = np.asarray(prediction_mask)
+    values = np.asarray(predictions)
+    if eligible.dtype != np.dtype(np.bool_) or predicted.dtype != np.dtype(np.bool_):
+        raise P1RunnerError("model fit masks must have strict bool dtype")
+    if values.dtype != np.dtype(np.float64):
+        raise P1RunnerError("model fit predictions must use float64 values")
+    if eligible.ndim != 1 or predicted.ndim != 1 or values.ndim != 1:
+        raise P1RunnerError("model fit masks and predictions must be one-dimensional")
+    if len(eligible) != len(predicted) or len(eligible) != len(values):
+        raise P1RunnerError("model fit masks and predictions must be row-aligned")
+    if np.any(predicted & ~eligible):
+        raise P1RunnerError("model fit prediction_mask exceeds eligible_mask")
+    if not np.array_equal(np.isfinite(values), predicted):
+        raise P1RunnerError(
+            "model fit predictions must be finite exactly where prediction_mask is true"
+        )
+    if require_coverage:
+        if not np.any(eligible):
+            raise P1RunnerError("production fit requires non-empty eligible coverage")
+        if not np.array_equal(predicted, eligible):
+            raise P1RunnerError("production fit must predict every eligible row")
 
 
 def _na_model_fit(
@@ -1368,11 +1574,11 @@ def fit_model_at_origin(
     """
 
     data = _ensure_dataset(dataset)
-    if model_id not in MODEL_IDS:
+    if not isinstance(model_id, str) or model_id not in MODEL_IDS:
         raise P1RunnerError(f"unknown model_id: {model_id}")
     expected_task = MODEL_TASKS[model_id]
     resolved_task = expected_task if task is None else task
-    if resolved_task not in {"continuous", "binary"}:
+    if not isinstance(resolved_task, str) or resolved_task not in {"continuous", "binary"}:
         raise P1RunnerError("task must be 'continuous' or 'binary'")
     if resolved_task not in _MODEL_ALLOWED_TASKS[model_id]:
         allowed = ", ".join(_MODEL_ALLOWED_TASKS[model_id])
@@ -1390,6 +1596,10 @@ def fit_model_at_origin(
     )
     if prediction_range is not None:
         eligible_mask = _prediction_mask(data, horizon_int, origin_int, prediction_range)
+    if not np.any(eligible_mask):
+        raise P1RunnerError(
+            "production fit requires at least one eligible prediction row"
+        )
     prediction_mask = np.zeros(len(data.features), dtype=np.bool_)
     predictions = np.full(len(data.features), np.nan, dtype=np.float64)
     column = _horizon_column(data, horizon_int)
@@ -1493,6 +1703,12 @@ def fit_model_at_origin(
             predictions[eligible_mask] = clip_probabilities(raw_probability)
             prediction_mask = eligible_mask.copy()
 
+    _validate_model_fit_arrays(
+        eligible_mask=eligible_mask,
+        prediction_mask=prediction_mask,
+        predictions=predictions,
+        require_coverage=True,
+    )
     return ModelFit(
         model_id=model_id,
         task=resolved_task,
@@ -1532,16 +1748,19 @@ class OOFRun:
         model_id: str,
         task: Literal["continuous", "binary"] | None = None,
     ) -> ModelFit:
-        """Get one task-qualified forecast; default keeps legacy task lookup."""
+        """Get one explicitly task-qualified forecast using strict key types."""
 
-        if model_id not in MODEL_IDS:
+        origin_int = _strict_origin(origin)
+        horizon_int = _strict_horizon(horizon)
+        if not isinstance(model_id, str) or model_id not in MODEL_IDS:
             raise P1RunnerError(f"unknown model_id: {model_id}")
-        resolved_task = MODEL_TASKS[model_id] if task is None else task
-        if resolved_task not in _MODEL_ALLOWED_TASKS[model_id]:
+        if not isinstance(task, str) or task not in {"continuous", "binary"}:
+            raise P1RunnerError("OOF get requires an explicit continuous/binary task")
+        if task not in _MODEL_ALLOWED_TASKS[model_id]:
             raise P1RunnerError(
-                f"model {model_id} does not support task {resolved_task!r}"
+                f"model {model_id} does not support task {task!r}"
             )
-        return self.fits[(int(origin), int(horizon), model_id, resolved_task)]
+        return self.fits[(origin_int, horizon_int, model_id, task)]
 
 
 def run_synthetic_oof(
@@ -1551,11 +1770,15 @@ def run_synthetic_oof(
     model_ids: Sequence[str] = MODEL_IDS,
     outer_report_only: bool = True,
 ) -> OOFRun:
-    """Run only fixed synthetic OOF development/validation fits.
+    """Run fixture/diagnostic synthetic OOF fits; never a registered result run.
 
     ``outer_report_only`` is an API guard, not a request to execute the outer
     operation.  Passing ``False`` is rejected so a caller cannot accidentally
-    convert this staged unit into outer selection/tuning.
+    convert this staged unit into outer selection/tuning.  This helper accepts
+    one seed/beta and optional model subsets solely for deterministic unit
+    tests.  A registered scenario runner must bind the complete manifest
+    model/task grid, seed set, beta/level, and every required coverage key
+    before fitting a report or gate result.
     """
 
     if outer_report_only is not True:
@@ -1595,6 +1818,7 @@ def run_synthetic_oof(
     )
 
 
+run_synthetic_oof_fixture = run_synthetic_oof
 run_oof = run_synthetic_oof
 
 
@@ -1610,6 +1834,7 @@ __all__ = [
     "OOF_ORIGINS",
     "PROBABILITY_CLIP_EPS",
     "PURGE_BARS",
+    "SYNTHETIC_OOF_SCOPE",
     "P1OuterReportBlocked",
     "P1RunnerError",
     "ManifestEcho",
@@ -1625,7 +1850,9 @@ __all__ = [
     "build_runner_plan",
     "build_synthetic_dataset",
     "build_target_arrays",
+    "build_target_arrays_fixture",
     "build_train_mask",
+    "build_context_mask_fixture",
     "clip_probabilities",
     "execute_outer_report",
     "fit_model_at_origin",
@@ -1640,6 +1867,7 @@ __all__ = [
     "reject_flattened_context",
     "run_oof",
     "run_synthetic_oof",
+    "run_synthetic_oof_fixture",
     "train_mask_for_origin",
     "timestamp_edge_mask",
     "validate_15m_timestamps",
