@@ -40,6 +40,11 @@ when it has finite masked targets and an actual nonzero gradient step.
 loss actually ran; aggregate WM loss no longer credits a skipped head.
 Multi-output heads inspect the final projection row, so a valid h4 output
 cannot hide a zero-gradient h64 sibling.
+The optional `output_index` is retained for every multi-output row; artifact
+coverage uniqueness is `(head, horizon, output_index)`, while legacy rows
+without an index remain pair-unique. Expected head/horizon checks compare the
+projection, so utility heads with several output rows cannot be collapsed or
+silently omitted.
 
 For future-only `seq_len=64`, h64 and `position_utility_horizon=64` report
 `target_count=0`, `mask_fraction=0`, and `status=block` with
@@ -140,11 +145,23 @@ with its block reason; it is never silently removed.  The strict consumer gate
 rejects that row, while the relaxed producer mode exists only to preserve the
 diagnostic evidence.
 
+Strict validation recursively scans bounded provenance metadata, so an
+`in_sample: true` or non-boolean flag cannot be hidden at a nested depth;
+known model-component mappings still require an explicit `in_sample: false`.
+The shared `conditional_runtime_config` helper propagates an affirmative
+top-level or nested strict-artifact flag into stage-local AC/BC/WM configs;
+`run_fold`, fold inputs, WM/BC stages, the predictive-state wrapper, and the
+legacy WM trainer therefore fail closed instead of falling back to legacy
+state. External strict bindings reject root/generic sections that contain
+artifact core keys or embedded artifact payloads; only independent expected
+fields are accepted.
+
 `write_conditional_oof_artifact`/`load_conditional_oof_artifact` use typed
 base64 array payloads so NaN and mask dtypes survive JSON round trips.  Array
-dtype, dimensions, element/byte counts, and JSON nesting are bounded before
-allocation, and writes use a same-directory unique temporary file followed by
-an atomic replace.  A strict conditional config must set
+dtype, dimensions, aggregate element/byte counts, JSON nodes/depth, and the
+final encoded file size are bounded on both encode and decode; writes use a
+same-directory unique temporary file followed by an atomic replace.  A strict
+conditional config must set
 `require_conditional_oof_artifact: true` (or
 `conditional_oof_artifact_required: true`) and supply all external bindings:
 `expected_heads_horizons`, an `expected_hashes` mapping containing
@@ -161,9 +178,10 @@ raw-bundle path remains for the current integration fixture and historical
 diagnostics; it is not a claim that full per-fold WM/normalizer/calibrator/
 student replay is complete.
 
-Implementation commits for this contract are `8357ab1` (schema, validator,
-hash and persistence), `950d426` (fixture tests), and `a3912c4` (predictive
-state artifact-envelope gate), branch
+Implementation commits for this contract include `8357ab1` (schema, validator,
+hash and persistence), `950d426` (fixture tests), `a3912c4` (predictive state
+artifact-envelope gate), and `99cecec` (strict flag propagation, output-index
+coverage, nested provenance and shared writer budgets), branch
 `exp/p0b-oof-artifact-contract-20260830`.  No WM/BC/AC result was run or
 promoted by this work.
 
@@ -194,8 +212,9 @@ provenance, alias consistency, origin/target-cutoff integrity, exact indexed
 split-view matching, split-only conditional bundles, and hindsight inventory
 rejection.
 
-Observed result: 26 scoped contract tests passed.  The complete repository
-suite passed (209 tests).
+Observed result: 31 scoped artifact/teacher/coverage tests passed after the
+current regression fixtures.  The complete repository suite must be rerun
+after this update; the last pre-fixture baseline was 209 tests.
 
 The full suite is required before promotion:
 

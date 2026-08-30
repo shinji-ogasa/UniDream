@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 
@@ -17,6 +18,9 @@ from unidream.experiments.chronological_oof import (
     chronological_oof_predict,
     hash_conditional_oof_artifact,
     load_conditional_oof_artifact,
+    conditional_oof_artifact_required,
+    conditional_path_or_artifact_enabled,
+    conditional_runtime_config,
     require_conditional_oof_artifact,
     require_conditional_oof_inputs,
     validate_conditional_oof_artifact,
@@ -216,6 +220,99 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
         with self.assertRaises(ConditionalOOFArtifactError):
             validate_conditional_oof_artifact(artifact)
 
+    def test_output_index_keeps_multiple_raw_utility_rows_and_pair_projection(self) -> None:
+        base_row = {
+            "head": "position_utility",
+            "horizon": 64,
+            "target_count": 8,
+            "total_target_slots": 10,
+            "masked_target_slots": 8,
+            "valid_targets": 8,
+            "finite_targets": 10,
+            "finite_masked_targets": 8,
+            "finite_target_count": 10,
+            "finite_loss_steps": 8,
+            "gradient_steps": 8,
+            "nonzero_gradient_steps": 8,
+            "target_coverage": 0.8,
+            "gradient_coverage": 1.0,
+            "pass": True,
+            "status": "pass",
+            "block_reason": None,
+        }
+        rows = [dict(base_row, output_index=0), dict(base_row, output_index=1)]
+        artifact = self._artifact(coverage=rows)
+        validate_conditional_oof_artifact(
+            artifact,
+            expected_action_execution_contract=ActionExecutionContract.canonical(),
+            expected_heads_horizons=[("position_utility", 64)],
+        )
+        self.assertEqual(
+            [row["output_index"] for row in artifact["coverage"]],
+            [0, 1],
+        )
+        with self.assertRaises(ConditionalOOFArtifactError):
+            self._artifact(coverage=[dict(base_row, output_index=0), dict(base_row, output_index=0)])
+
+    def test_nested_provenance_in_sample_flags_are_bounded_and_fail_closed(self) -> None:
+        for nested in (
+            {"wrapper": {"model": {"in_sample": True}}},
+            {"wrapper": {"model": {"in_sample": "false"}}},
+        ):
+            with self.subTest(nested=nested):
+                artifact = self._artifact()
+                artifact["provenance"]["nested"] = nested
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(
+                        artifact,
+                        require_artifact_hash=False,
+                    )
+
+        cyclic = self._artifact()
+        cyclic["provenance"]["cycle"] = cyclic["provenance"]
+        with self.assertRaises(ConditionalOOFArtifactError):
+            validate_conditional_oof_artifact(cyclic, require_artifact_hash=False)
+
+    def test_strict_flag_propagates_from_full_and_nested_configs_without_touching_legacy_false(self) -> None:
+        full = {
+            "require_conditional_oof_artifact": True,
+            "conditional_oracle_path": False,
+            "ac": {"require_conditional_oof_artifact": False},
+        }
+        effective = conditional_runtime_config(full, full["ac"])
+        self.assertTrue(conditional_oof_artifact_required(full))
+        self.assertTrue(conditional_path_or_artifact_enabled(effective))
+        self.assertTrue(effective["require_conditional_oof_artifact"])
+
+        nested = {"ac": {"require_conditional_oof_artifact": True}}
+        nested_effective = conditional_runtime_config(nested, nested["ac"])
+        self.assertTrue(conditional_oof_artifact_required(nested))
+        self.assertTrue(nested_effective["require_conditional_oof_artifact"])
+
+        legacy = {
+            "require_conditional_oof_artifact": False,
+            "conditional_oracle_path": False,
+            "ac": {"require_conditional_oof_artifact": False},
+        }
+        legacy_effective = conditional_runtime_config(legacy, legacy["ac"])
+        self.assertEqual(legacy_effective, legacy["ac"])
+
+    def test_writer_enforces_shared_array_and_file_budgets_before_replace(self) -> None:
+        import unidream.experiments.chronological_oof as oof_module
+
+        with patch.object(oof_module, "_MAX_ARTIFACT_TOTAL_ARRAY_ELEMENTS", 2):
+            with self.assertRaises(ConditionalOOFArtifactError):
+                oof_module._encode_artifact_json(
+                    {"a": np.ones(2, dtype=np.float64), "b": np.ones(1, dtype=np.float64)}
+                )
+        artifact = self._artifact()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "too-large.json"
+            with patch.object(oof_module, "_MAX_ARTIFACT_FILE_BYTES", 1):
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    write_conditional_oof_artifact(path, artifact)
+            self.assertFalse(path.exists())
+
     def test_missing_artifact_and_contract_hash_mismatch_fail_closed(self) -> None:
         config = self._strict_config()
         with self.assertRaises(ConditionalPathBlocked):
@@ -288,6 +385,29 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                 oof_bundle={"conditional_oof_artifact": self_bound},
                 caller="artifact-test",
             )
+
+        # A copied artifact must not become the expected-binding source when
+        # merged into the root or any generic config section, including a
+        # nested payload hidden behind an otherwise innocuous key.
+        for section_name in (
+            None,
+            "conditional_oof",
+            "conditional_oof_artifact_contract",
+            "conditional_oracle",
+            "oracle",
+        ):
+            with self.subTest(self_binding_section=section_name):
+                attack = self._strict_config()
+                if section_name is None:
+                    attack.update(copy.deepcopy(artifact))
+                else:
+                    attack[section_name] = {"artifact_payload": copy.deepcopy(artifact)}
+                with self.assertRaises(ConditionalPathBlocked):
+                    require_conditional_oof_inputs(
+                        config=attack,
+                        oof_bundle={"conditional_oof_artifact": artifact},
+                        caller="artifact-self-binding-test",
+                    )
 
     def test_strict_coverage_requires_pass_and_consistent_counts(self) -> None:
         base = self._artifact()
