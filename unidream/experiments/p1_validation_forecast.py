@@ -1289,7 +1289,7 @@ _SELF_BINDING_KEYS = frozenset(
     }
 )
 _MAX_PROVENANCE_DEPTH = 32
-_MAX_PROVENANCE_NODES = 100_000
+_MAX_PROVENANCE_NODES = 1_000_000
 
 
 def _reject_self_binding_keys(value: Any, *, path: str = "artifact") -> None:
@@ -1315,7 +1315,8 @@ def _reject_self_binding_keys(value: Any, *, path: str = "artifact") -> None:
             for key, item in current.items():
                 if key in _SELF_BINDING_KEYS:
                     raise P1ForecastError(f"{current_path}.{key} is an output self-binding field")
-                stack.append((item, f"{current_path}.{key}", depth + 1, True))
+                if isinstance(item, (Mapping, list, tuple)):
+                    stack.append((item, f"{current_path}.{key}", depth + 1, True))
         elif isinstance(current, (list, tuple)):
             identity = id(current)
             if identity in active:
@@ -1323,7 +1324,8 @@ def _reject_self_binding_keys(value: Any, *, path: str = "artifact") -> None:
             active.add(identity)
             stack.append((current, current_path, depth, False))
             for index, item in enumerate(current):
-                stack.append((item, f"{current_path}[{index}]", depth + 1, True))
+                if isinstance(item, (Mapping, list, tuple)):
+                    stack.append((item, f"{current_path}[{index}]", depth + 1, True))
 
 
 def _validate_identity(
@@ -1862,6 +1864,8 @@ class ForecastActionSource:
     prereg_results_observed: bool = False
     validation_results_observed: bool = True
     outer_results_observed: bool = False
+    validation_status: str = "N/A"
+    promotion_allowed: bool = False
     _production_seal: object | None = field(default=None, repr=False, compare=False)
     binding_sha256: str = ""
 
@@ -1916,6 +1920,8 @@ def _action_source_binding_sha256(value: ForecastActionSource) -> str:
         "prereg_results_observed": value.prereg_results_observed,
         "validation_results_observed": value.validation_results_observed,
         "outer_results_observed": value.outer_results_observed,
+        "validation_status": value.validation_status,
+        "promotion_allowed": value.promotion_allowed,
         "source_hashes": dict(sorted(value.source_hashes.items())),
         "array_hashes": {
             "timestamps": _array_sha256(value.timestamps, name="timestamps"),
@@ -2001,6 +2007,8 @@ def _capability_from_loaded(
         prereg_results_observed=bool(artifact["prereg_results_observed"]),
         validation_results_observed=bool(artifact["validation_results_observed"]),
         outer_results_observed=bool(artifact["outer_results_observed"]),
+        validation_status=str(validation["status"]),
+        promotion_allowed=bool(validation["promotion_allowed"]),
         _production_seal=_FORECAST_ACTION_SOURCE_SEAL if sealed else None,
     )
     return replace(capability, binding_sha256=_action_source_binding_sha256(capability))
@@ -2019,6 +2027,8 @@ class LoadedP1ForecastArtifact:
         return bool(self.validation.get("promotion_allowed"))
 
     def as_action_source(self) -> ForecastActionSource:
+        if not self.action_source.promotion_allowed:
+            raise P1ForecastError("forecast action source is blocked until all validation gates pass")
         return self.action_source
 
 
@@ -2108,7 +2118,7 @@ def load_p1_forecast_artifact(
         payload,
         validation,
         file_sha256=actual_digest,
-        sealed=require_production,
+        sealed=require_production and bool(validation["promotion_allowed"]),
     )
     return LoadedP1ForecastArtifact(
         path=source,
@@ -2142,6 +2152,8 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         value.prereg_results_observed is not False
         or value.validation_results_observed is not True
         or value.outer_results_observed is not False
+        or value.validation_status != "passed"
+        or value.promotion_allowed is not True
     ):
         raise P1ForecastError("forecast action source has invalid result-state semantics")
     scenario_arm = (value.scenario_id, value.arm)
