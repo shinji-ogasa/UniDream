@@ -22,14 +22,19 @@ from unidream.experiments.p1_mbb import (
     P1MBBImplementationBlocked,
     P1MBBIndexArtifact,
     build_p1_mbb_index_artifact,
-    bootstrap_p1_metric,
-    bootstrap_p1_metric_seed_aggregate,
+    bootstrap_p1_metric as production_bootstrap_p1_metric,
+    bootstrap_p1_metric_seed_aggregate as production_seed_aggregate,
+    bootstrap_p1_metric_seed_sensitivity as production_seed_sensitivity,
+    bootstrap_p1_metric_fixture as bootstrap_p1_metric,
+    bootstrap_p1_metric_seed_aggregate_fixture as bootstrap_p1_metric_seed_aggregate,
+    bootstrap_p1_metric_seed_sensitivity_fixture as bootstrap_p1_metric_seed_sensitivity,
     derive_p1_seed,
     draw_non_circular_mbb_starts,
-    load_p1_mbb_index_artifact,
+    load_p1_mbb_index_artifact_fixture as load_p1_mbb_index_artifact,
     materialize_non_circular_mbb_indices,
-    paired_bootstrap_mean_delta,
-    paired_bootstrap_mean_delta_sensitivity,
+    paired_bootstrap_mean_delta_fixture as paired_bootstrap_mean_delta,
+    paired_bootstrap_mean_delta_sensitivity_fixture as paired_bootstrap_mean_delta_sensitivity,
+    p1_mask_sha256,
     recompute_agreement_delta,
     recompute_agreement_mean,
     recompute_logloss_delta,
@@ -45,6 +50,11 @@ from unidream.experiments.p1_mbb import (
     recompute_skill,
     reject_unpaired_or_generic_mbb,
     save_p1_mbb_index_artifact,
+    P1MBBResultArtifact,
+    load_p1_mbb_result,
+    load_p1_mbb_result_fixture,
+    save_p1_mbb_result_artifact,
+    save_p1_mbb_result_fixture,
 )
 
 
@@ -57,6 +67,14 @@ class P1ExactMBBTests(unittest.TestCase):
             support_id="synthetic_validation",
             seed_ordinal=0,
             block_length=block_length,
+        )
+
+    @staticmethod
+    def _production_artifact(*, n: int = 19, block_length: int = 8):
+        artifact = P1ExactMBBTests._artifact(n=n, block_length=block_length)
+        return P1MBBIndexArtifact.from_dict(
+            artifact.to_dict(),
+            expected_artifact_sha256=artifact.artifact_sha256,
         )
 
     def test_exact_start_draw_and_c_order_materialization(self) -> None:
@@ -231,7 +249,7 @@ class P1ExactMBBTests(unittest.TestCase):
     def test_fixed_mask_and_gap_rows_are_not_compressed(self) -> None:
         n = 19
         artifact = self._artifact(n=n)
-        candidate = np.arange(n, dtype="<f8")
+        candidate = (np.arange(n) % 2).astype("<f8")
         baseline = np.zeros(n, dtype="<f8")
         mask = np.ones(n, dtype=np.bool_)
         mask[[2, 3, 17]] = False
@@ -259,6 +277,55 @@ class P1ExactMBBTests(unittest.TestCase):
         np.testing.assert_array_equal(loaded.starts, artifact.starts)
         self.assertEqual(loaded.to_dict(include_starts=False), artifact.to_dict(include_starts=False))
         self.assertEqual(loaded.artifact_sha256, artifact.artifact_sha256)
+
+    def test_production_index_binding_requires_external_and_fixed_stream(self) -> None:
+        artifact = self._artifact()
+        payload = artifact.to_dict()
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(payload)
+        loaded = P1MBBIndexArtifact.from_dict(
+            payload,
+            expected_artifact_sha256=artifact.artifact_sha256,
+        )
+        np.testing.assert_array_equal(loaded.starts, artifact.starts)
+        forged = dict(payload)
+        forged_starts = np.array(artifact.starts, dtype="<i8", copy=True)
+        forged_starts[0, 0] += 1
+        forged["starts"] = forged_starts
+        forged["starts_sha256"] = __import__("hashlib").sha256(
+            forged_starts.tobytes(order="C")
+        ).hexdigest()
+        forged_metadata = dict(forged)
+        forged_metadata.pop("starts")
+        forged_metadata.pop("artifact_sha256")
+        forged["artifact_sha256"] = __import__("hashlib").sha256(
+            json.dumps(
+                forged_metadata,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+            + b"\0"
+            + forged_starts.tobytes(order="C")
+        ).hexdigest()
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(
+                forged,
+                expected_artifact_sha256=forged["artifact_sha256"],
+            )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "indices.npz"
+            save_p1_mbb_index_artifact(path, artifact)
+            with self.assertRaises(P1MBBError):
+                from unidream.experiments.p1_mbb import load_p1_mbb_index_artifact
+
+                load_p1_mbb_index_artifact(path)
+            strict_loaded = load_p1_mbb_index_artifact(
+                path,
+                expected_artifact_sha256=artifact.artifact_sha256,
+            )
+            np.testing.assert_array_equal(strict_loaded.starts, artifact.starts)
 
     def test_index_artifact_layout_and_archive_budgets_fail_closed(self) -> None:
         artifact = self._artifact(n=19)
@@ -421,8 +488,8 @@ class P1ExactMBBTests(unittest.TestCase):
         baseline_se = np.linspace(2.0, 3.0, n, dtype="<f8")
         candidate_logloss = np.linspace(0.1, 0.5, n, dtype="<f8")
         baseline_logloss = np.linspace(0.2, 0.6, n, dtype="<f8")
-        candidate_agreement = np.linspace(0.7, 0.9, n, dtype="<f8")
-        baseline_agreement = np.linspace(0.6, 0.8, n, dtype="<f8")
+        candidate_agreement = (np.arange(n) % 2).astype("<f8")
+        baseline_agreement = ((np.arange(n) + 1) % 2).astype("<f8")
         candidate_utility = np.linspace(-0.2, 0.8, n, dtype="<f8")
         benchmark_hold = np.linspace(-0.1, 0.4, n, dtype="<f8")
         regret = np.linspace(0.1, 0.4, n, dtype="<f8")
@@ -692,6 +759,422 @@ class P1ExactMBBTests(unittest.TestCase):
                 level_b_regret=ones,
                 level_b_opportunity=ones,
             )
+
+    def test_metric_domains_reject_negative_loss_bad_agreement_and_regret(self) -> None:
+        n = 35
+        artifact = self._artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        ones = np.ones(n, dtype="<f8")
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "logloss",
+                artifact=artifact,
+                mask=mask,
+                candidate_logloss=-ones,
+                baseline_logloss=ones,
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "agreement",
+                artifact=artifact,
+                mask=mask,
+                candidate_agreement=np.full(n, 0.5, dtype="<f8"),
+                baseline_agreement=np.zeros(n, dtype="<f8"),
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "normalized_regret",
+                artifact=artifact,
+                mask=mask,
+                regret=np.full(n, -1.0, dtype="<f8"),
+                opportunity=ones,
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "normalized_regret",
+                artifact=artifact,
+                mask=mask,
+                regret=np.zeros(n, dtype="<f8"),
+                opportunity=np.full(n, -1.0, dtype="<f8"),
+            )
+
+    def test_production_bootstrap_requires_external_mask_and_source_binding(self) -> None:
+        n = 19
+        artifact = self._production_artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        candidate = np.arange(n, dtype="<f8")
+        baseline = np.zeros(n, dtype="<f8")
+        payload_digest = "1" * 64
+        schema_digest = "2" * 64
+        content_digest = "3" * 64
+        source_digest = "4" * 64
+        common_digest = p1_mask_sha256(mask)
+        action_provenance = {
+            "kind": "action",
+            "common_mask_sha256": common_digest,
+            "common_mask_field": "common_mask",
+            "action_primitive_payload_sha256": payload_digest,
+            "action_primitive_schema_sha256": schema_digest,
+            "action_primitive_content_sha256": content_digest,
+            "source_result_sha256": source_digest,
+        }
+        result = production_bootstrap_p1_metric(
+            "policy_utility_delta",
+            artifact=artifact,
+            mask=mask,
+            candidate_mask=mask,
+            baseline_mask=mask,
+            candidate_utility=candidate,
+            benchmark_hold_utility=baseline,
+            provenance=action_provenance,
+            expected_common_mask_sha256=common_digest,
+            expected_common_mask_field="common_mask",
+            expected_source_result_sha256=source_digest,
+            expected_action_primitive_payload_sha256=payload_digest,
+            expected_action_primitive_schema_sha256=schema_digest,
+            expected_action_primitive_content_sha256=content_digest,
+        )
+        self.assertEqual(result["provenance"]["kind"], "action")
+        with self.assertRaises(P1MBBError):
+            production_bootstrap_p1_metric(
+                "policy_utility_delta",
+                artifact=artifact,
+                mask=mask,
+                candidate_utility=candidate,
+                benchmark_hold_utility=baseline,
+                provenance=action_provenance,
+                expected_common_mask_sha256=common_digest,
+                expected_common_mask_field="common_mask",
+                expected_source_result_sha256=source_digest,
+                expected_action_primitive_payload_sha256=payload_digest,
+                expected_action_primitive_schema_sha256=schema_digest,
+                expected_action_primitive_content_sha256=content_digest,
+            )
+        wrong_mask = mask.copy()
+        wrong_mask[0] = False
+        with self.assertRaises(P1MBBError):
+            production_bootstrap_p1_metric(
+                "policy_utility_delta",
+                artifact=artifact,
+                mask=wrong_mask,
+                candidate_mask=wrong_mask,
+                baseline_mask=wrong_mask,
+                candidate_utility=candidate,
+                benchmark_hold_utility=baseline,
+                provenance=action_provenance,
+                expected_common_mask_sha256=common_digest,
+                expected_common_mask_field="common_mask",
+                expected_source_result_sha256=source_digest,
+                expected_action_primitive_payload_sha256=payload_digest,
+                expected_action_primitive_schema_sha256=schema_digest,
+                expected_action_primitive_content_sha256=content_digest,
+            )
+
+    def test_production_forecast_provenance_is_distinct_from_action(self) -> None:
+        n = 19
+        artifact = self._production_artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        common_digest = p1_mask_sha256(mask)
+        result = production_bootstrap_p1_metric(
+            "mse_delta",
+            artifact=artifact,
+            mask=mask,
+            candidate_mask=mask,
+            baseline_mask=mask,
+            candidate_se=np.ones(n, dtype="<f8"),
+            baseline_se=np.full(n, 2.0, dtype="<f8"),
+            provenance={
+                "kind": "forecast",
+                "common_mask_sha256": common_digest,
+                "common_mask_field": "common_mask",
+                "forecast_artifact_sha256": "a" * 64,
+                "forecast_result_sha256": "b" * 64,
+            },
+            expected_common_mask_sha256=common_digest,
+            expected_common_mask_field="common_mask",
+            expected_forecast_artifact_sha256="a" * 64,
+            expected_forecast_result_sha256="b" * 64,
+        )
+        self.assertEqual(result["provenance"]["kind"], "forecast")
+        with self.assertRaises(P1MBBError):
+            production_bootstrap_p1_metric(
+                "mse_delta",
+                artifact=artifact,
+                mask=mask,
+                candidate_mask=mask,
+                baseline_mask=mask,
+                candidate_se=np.ones(n, dtype="<f8"),
+                baseline_se=np.full(n, 2.0, dtype="<f8"),
+                provenance={
+                    "kind": "action",
+                    "common_mask_sha256": common_digest,
+                    "common_mask_field": "common_mask",
+                    "action_primitive_payload_sha256": "1" * 64,
+                    "action_primitive_schema_sha256": "2" * 64,
+                    "action_primitive_content_sha256": "3" * 64,
+                    "source_result_sha256": "4" * 64,
+                },
+                expected_common_mask_sha256=common_digest,
+                expected_common_mask_field="common_mask",
+                expected_source_result_sha256="4" * 64,
+                expected_action_primitive_payload_sha256="1" * 64,
+                expected_action_primitive_schema_sha256="2" * 64,
+                expected_action_primitive_content_sha256="3" * 64,
+            )
+
+    def test_result_artifact_is_typed_atomic_and_external_digest_bound(self) -> None:
+        n = 19
+        artifact = self._production_artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        digest = p1_mask_sha256(mask)
+        result = production_bootstrap_p1_metric(
+            "policy_utility_delta",
+            artifact=artifact,
+            mask=mask,
+            candidate_mask=mask,
+            baseline_mask=mask,
+            candidate_utility=np.arange(n, dtype="<f8"),
+            benchmark_hold_utility=np.zeros(n, dtype="<f8"),
+            provenance={
+                "kind": "action",
+                "common_mask_sha256": digest,
+                "common_mask_field": "common_mask",
+                "action_primitive_payload_sha256": "1" * 64,
+                "action_primitive_schema_sha256": "2" * 64,
+                "action_primitive_content_sha256": "3" * 64,
+                "source_result_sha256": "4" * 64,
+            },
+            expected_common_mask_sha256=digest,
+            expected_common_mask_field="common_mask",
+            expected_source_result_sha256="4" * 64,
+            expected_action_primitive_payload_sha256="1" * 64,
+            expected_action_primitive_schema_sha256="2" * 64,
+            expected_action_primitive_content_sha256="3" * 64,
+        )
+        typed = P1MBBResultArtifact.from_result_production(result)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "result.npz"
+            digest_result = save_p1_mbb_result_artifact(path, typed)
+            self.assertEqual(digest_result, typed.result_sha256)
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_result(path)
+            loaded = load_p1_mbb_result(
+                path,
+                expected_result_sha256=typed.result_sha256,
+            )
+            self.assertEqual(loaded.result_sha256, typed.result_sha256)
+            np.testing.assert_array_equal(loaded.bootstrap_values, typed.bootstrap_values)
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_result(path, expected_result_sha256="f" * 64)
+
+        fixture = self._fixture_policy_result()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture-result.npz"
+            save_p1_mbb_result_fixture(path, fixture)
+            fixture_loaded = load_p1_mbb_result_fixture(path)
+            self.assertEqual(fixture_loaded.result_sha256, P1MBBResultArtifact.from_result_fixture(fixture).result_sha256)
+
+    def _fixture_policy_result(self) -> dict[str, object]:
+        n = 19
+        artifact = self._artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        return bootstrap_p1_metric(
+            "policy_utility_delta",
+            artifact=artifact,
+            mask=mask,
+            candidate_mask=mask,
+            baseline_mask=mask,
+            candidate_utility=np.arange(n, dtype="<f8"),
+            benchmark_hold_utility=np.zeros(n, dtype="<f8"),
+        )
+
+    def test_production_ten_seed_result_requires_and_persists_all_provenance(self) -> None:
+        n = 19
+        mask = np.ones(n, dtype=np.bool_)
+        common_digest = p1_mask_sha256(mask)
+        seed_inputs = {
+            seed: {
+                "mask": mask.copy(),
+                "candidate_mask": mask.copy(),
+                "baseline_mask": mask.copy(),
+                "candidate_utility": np.full(n, float(seed + 1), dtype="<f8"),
+                "benchmark_hold_utility": np.zeros(n, dtype="<f8"),
+            }
+            for seed in range(10)
+        }
+        provenance_by_seed = {
+            seed: {
+                "provenance": {
+                    "kind": "action",
+                    "common_mask_sha256": common_digest,
+                    "common_mask_field": "common_mask",
+                    "action_primitive_payload_sha256": f"{seed + 1:064x}",
+                    "action_primitive_schema_sha256": f"{seed + 11:064x}",
+                    "action_primitive_content_sha256": f"{seed + 21:064x}",
+                    "source_result_sha256": f"{seed + 31:064x}",
+                },
+                "expected_common_mask_sha256": common_digest,
+                "expected_common_mask_field": "common_mask",
+                "expected_action_primitive_payload_sha256": f"{seed + 1:064x}",
+                "expected_action_primitive_schema_sha256": f"{seed + 11:064x}",
+                "expected_action_primitive_content_sha256": f"{seed + 21:064x}",
+                "expected_source_result_sha256": f"{seed + 31:064x}",
+            }
+            for seed in range(10)
+        }
+        index_artifacts = {}
+        for seed in range(10):
+            raw_artifact = build_p1_mbb_index_artifact(
+                n,
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                seed_ordinal=seed,
+                block_length=8,
+            )
+            index_artifacts[seed] = P1MBBIndexArtifact.from_dict(
+                raw_artifact.to_dict(),
+                expected_artifact_sha256=raw_artifact.artifact_sha256,
+            )
+        with self.assertRaises(P1MBBError):
+            production_seed_aggregate(
+                "policy_utility_delta",
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                block_length=8,
+                seed_inputs=seed_inputs,
+                direction="positive",
+                provenance_by_seed=provenance_by_seed,
+            )
+        bad_index_digests = {
+            seed: artifact.artifact_sha256
+            for seed, artifact in index_artifacts.items()
+        }
+        bad_index_digests[3] = "f" * 64
+        with self.assertRaises(P1MBBError):
+            production_seed_aggregate(
+                "policy_utility_delta",
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                block_length=8,
+                seed_inputs=seed_inputs,
+                direction="positive",
+                provenance_by_seed=provenance_by_seed,
+                index_artifacts=index_artifacts,
+                expected_index_artifact_sha256_by_seed=bad_index_digests,
+            )
+        result = production_seed_aggregate(
+            "policy_utility_delta",
+            unit="synthetic_action",
+            support_id="synthetic_validation",
+            block_length=8,
+            seed_inputs=seed_inputs,
+            direction="positive",
+            provenance_by_seed=provenance_by_seed,
+            index_artifacts=index_artifacts,
+            expected_index_artifact_sha256_by_seed={
+                seed: artifact.artifact_sha256
+                for seed, artifact in index_artifacts.items()
+            },
+        )
+        self.assertFalse(result["prereg_results_observed"])
+        self.assertTrue(result["validation_results_observed"])
+        self.assertFalse(result["outer_results_observed"])
+        typed = P1MBBResultArtifact.from_result_production(result)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "seed-result.npz"
+            save_p1_mbb_result_artifact(path, typed)
+            loaded = load_p1_mbb_result(
+                path,
+                expected_result_sha256=typed.result_sha256,
+            )
+            self.assertEqual(loaded.metadata["seed_count"], 10)
+            self.assertEqual(set(loaded.metadata["provenance_by_seed"]), {str(i) for i in range(10)})
+            missing_declared = typed.to_dict()
+            missing_declared.pop("result_sha256")
+            with self.assertRaises(P1MBBError):
+                P1MBBResultArtifact.from_dict(
+                    missing_declared,
+                    typed.bootstrap_values,
+                    expected_result_sha256=typed.result_sha256,
+                )
+
+    def test_production_seed_sensitivity_executes_and_has_validation_state(self) -> None:
+        n = 35
+        mask = np.ones(n, dtype=np.bool_)
+        common_digest = p1_mask_sha256(mask)
+        seed_inputs = {
+            seed: {
+                "mask": mask.copy(),
+                "candidate_mask": mask.copy(),
+                "baseline_mask": mask.copy(),
+                "candidate_se": np.ones(n, dtype="<f8"),
+                "baseline_se": np.full(n, 2.0, dtype="<f8"),
+            }
+            for seed in range(10)
+        }
+        provenance_by_seed = {
+            seed: {
+                "provenance": {
+                    "kind": "forecast",
+                    "common_mask_sha256": common_digest,
+                    "common_mask_field": "common_mask",
+                    "forecast_artifact_sha256": f"{seed + 1:064x}",
+                    "forecast_result_sha256": f"{seed + 11:064x}",
+                },
+                "expected_common_mask_sha256": common_digest,
+                "expected_common_mask_field": "common_mask",
+                "expected_forecast_artifact_sha256": f"{seed + 1:064x}",
+                "expected_forecast_result_sha256": f"{seed + 11:064x}",
+            }
+            for seed in range(10)
+        }
+        index_artifacts_by_length = {}
+        expected_by_length = {}
+        for length in P1_MBB_BLOCK_LENGTHS:
+            loaded_by_seed = {}
+            for seed in range(10):
+                raw_artifact = build_p1_mbb_index_artifact(
+                    n,
+                    unit="synthetic_forecast",
+                    support_id="synthetic_validation",
+                    seed_ordinal=seed,
+                    block_length=length,
+                )
+                loaded_by_seed[seed] = P1MBBIndexArtifact.from_dict(
+                    raw_artifact.to_dict(),
+                    expected_artifact_sha256=raw_artifact.artifact_sha256,
+                )
+            index_artifacts_by_length[length] = loaded_by_seed
+            expected_by_length[length] = {
+                seed: artifact.artifact_sha256
+                for seed, artifact in loaded_by_seed.items()
+            }
+
+        result = production_seed_sensitivity(
+            "mse_delta",
+            unit="synthetic_forecast",
+            support_id="synthetic_validation",
+            seed_inputs=seed_inputs,
+            direction="negative",
+            provenance_by_seed=provenance_by_seed,
+            index_artifacts_by_block_length=index_artifacts_by_length,
+            expected_index_artifact_sha256_by_block_length=expected_by_length,
+        )
+        self.assertEqual(result["block_lengths"], [8, 16, 32])
+        self.assertFalse(result["prereg_results_observed"])
+        self.assertTrue(result["validation_results_observed"])
+        self.assertFalse(result["outer_results_observed"])
+
+        fixture_result = bootstrap_p1_metric_seed_sensitivity(
+            "mse_delta",
+            unit="synthetic_forecast",
+            support_id="synthetic_validation",
+            seed_inputs=seed_inputs,
+            direction="negative",
+        )
+        self.assertFalse(fixture_result["prereg_results_observed"])
+        self.assertFalse(fixture_result["validation_results_observed"])
+        self.assertFalse(fixture_result["outer_results_observed"])
 
     def test_s2_skill_and_normalized_regret_recompute_before_level_contrast(self) -> None:
         n = 35
