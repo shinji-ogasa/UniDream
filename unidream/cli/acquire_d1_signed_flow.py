@@ -8,6 +8,7 @@ aggregate-trade archive sizes with HEAD requests only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -62,8 +63,12 @@ def _render_report(
     source_records: Mapping[str, Mapping[str, Any]],
     capacity: Mapping[str, Any],
     feature_path: str | Path,
+    availability_path: str | Path,
     capacity_path: str | Path,
     ledger_path: str | Path,
+    feature_sha256: str,
+    availability_sha256: str,
+    ledger_record_counts: Mapping[str, int],
     git_commit: str | None,
 ) -> str:
     lines = [
@@ -75,9 +80,12 @@ def _render_report(
         "- Row semantics: `decision_ts = bar_open_ts + 15m`; each feature row covers Binance `[bar_open_ts, decision_ts)` with inclusive `close_time=decision_ts-1ms`.",
         "- Leakage rule: a bar is eligible only after its close; no next bar is read while constructing a row.",
         "- Feature artifact: `" + str(feature_path) + "`",
+        "- Availability artifact: `" + str(availability_path) + "`",
         "- Capacity artifact: `" + str(capacity_path) + "`",
         "- Append-only ledger: `" + str(ledger_path) + "`",
         f"- Acquisition code commit: `{git_commit}`",
+        f"- Feature SHA256: `{feature_sha256}`",
+        f"- Availability SHA256: `{availability_sha256}`",
         "",
         "## Official sources",
         "",
@@ -127,12 +135,37 @@ def _render_report(
             "Availability columns: `" + ", ".join(D1_AVAILABILITY_COLUMNS) + "`.",
             "Feature columns: `" + ", ".join(D1_FEATURE_COLUMNS) + "`.",
             "",
+            "Ledger record counts: "
+            + ", ".join(
+                f"`{key}`={value}" for key, value in ledger_record_counts.items()
+            )
+            + ".",
+            "",
             "## Aggregate-trade capacity check",
             "",
             f"Method: `{capacity.get('method')}`",
             f"Known compressed bytes across requested Spot + USD-M monthly archives: `{capacity.get('estimated_compressed_bytes_known')}`",
             "",
-            "No aggregate-trade payload was downloaded. The estimate is based on official `Content-Length` values for available monthly ZIPs; unknown/404 months remain explicit in the capacity JSON and ledger.",
+            "| source | requested months | HTTP 200 | HTTP 404 | known-size months | unknown-size months |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for source in ("spot_aggTrades", "um_aggTrades"):
+        source_summary = (capacity.get("sources") or {}).get(source, {})
+        lines.append(
+            "| `{source}` | `{requested}` | `{http_200}` | `{http_404}` | `{known}` | `{unknown}` |".format(
+                source=source,
+                requested=source_summary.get("months_requested"),
+                http_200=source_summary.get("http_200_count"),
+                http_404=source_summary.get("http_404_count"),
+                known=source_summary.get("known_size_months"),
+                unknown=source_summary.get("unknown_size_months"),
+            )
+        )
+    lines.extend(
+        [
+            "",
+            "No aggregate-trade payload was downloaded. The estimate is based on official `Content-Length` values for HTTP 200 monthly ZIPs only; unknown/404 months remain explicit in the capacity JSON and append-only ledger.",
             "",
             "This artifact is feasibility evidence only. It does not establish that any D1 feature predicts returns or improves trading utility.",
         ]
@@ -168,10 +201,15 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
         ledger_path=ledger_path,
     )
     source_records = {record["source"]: record for record in source_records_list}
-    if any(record.get("error") for record in source_records_list):
+    source_errors = [record for record in source_records_list if record.get("error")]
+    if source_errors:
+        append_jsonl(ledger_path, source_records_list)
         raise RuntimeError(
             "D1 archive download/checksum failed: "
-            + "; ".join(f"{record.get('source')}: {record.get('error')}" for record in source_records_list if record.get("error"))
+            + "; ".join(
+                f"{record.get('source')}: {record.get('error')}"
+                for record in source_errors
+            )
         )
 
     features, availability = build_d1_features(
@@ -197,8 +235,25 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
     feature_path = Path(args.features)
     feature_path.parent.mkdir(parents=True, exist_ok=True)
     features.to_csv(feature_path, index=True)
+    availability_path = Path(args.availability)
+    availability_path.parent.mkdir(parents=True, exist_ok=True)
+    availability.to_csv(availability_path, index=True)
     capacity_path = Path(args.capacity_json)
     _json_write(capacity, capacity_path)
+    feature_sha256 = hashlib.sha256(feature_path.read_bytes()).hexdigest()
+    availability_sha256 = hashlib.sha256(availability_path.read_bytes()).hexdigest()
+    bar_records = d1_bar_ledger_records(
+        availability,
+        source_records=source_records,
+        interval=args.interval,
+    )
+    capacity_records = list(capacity.get("records") or [])
+    ledger_record_counts = {
+        "d1_pilot_run": 1,
+        "d1_archive_download": len(source_records_list),
+        "d1_aggtrade_head_probe": len(capacity_records),
+        "d1_bar_availability": len(bar_records),
+    }
     run_record = {
         "record_type": "d1_pilot_run",
         "schema_version": 1,
@@ -217,7 +272,11 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
         "interval_semantics": "[bar_open_ts, decision_ts); close_time=decision_ts-1ms",
         "feature_columns": list(features.columns),
         "availability_columns": list(availability.columns),
-        "feature_sha256": __import__("hashlib").sha256(feature_path.read_bytes()).hexdigest(),
+        "feature_path": str(feature_path),
+        "availability_path": str(availability_path),
+        "feature_sha256": feature_sha256,
+        "availability_sha256": availability_sha256,
+        "ledger_record_counts": ledger_record_counts,
         "summary": summary,
         "official_sources": {
             "public_data_readme": OFFICIAL_PUBLIC_DATA_README,
@@ -227,12 +286,10 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
         "model_results_read": False,
         "p2_run": False,
     }
-    bar_records = d1_bar_ledger_records(
-        availability,
-        source_records=source_records,
-        interval=args.interval,
+    append_jsonl(
+        ledger_path,
+        [run_record, *source_records_list, *capacity_records, *bar_records],
     )
-    append_jsonl(ledger_path, [run_record, *source_records_list, *bar_records])
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
@@ -244,8 +301,12 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
             source_records=source_records,
             capacity=capacity,
             feature_path=feature_path,
+            availability_path=availability_path,
             capacity_path=capacity_path,
             ledger_path=ledger_path,
+            feature_sha256=feature_sha256,
+            availability_sha256=availability_sha256,
+            ledger_record_counts=ledger_record_counts,
             git_commit=run_record["git_commit"],
         ),
         encoding="utf-8",
@@ -257,6 +318,7 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
         "report": str(report_path),
         "ledger": str(ledger_path),
         "features": str(feature_path),
+        "availability": str(availability_path),
     }
 
 
@@ -279,6 +341,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--features",
         default="docs/d1_signed_flow_pilot/pilot_features.csv",
+    )
+    parser.add_argument(
+        "--availability",
+        default="docs/d1_signed_flow_pilot/pilot_availability.csv",
     )
     parser.add_argument(
         "--capacity-json",
