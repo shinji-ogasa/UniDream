@@ -2,9 +2,11 @@
 
 The P1 experiment is intentionally staged.  This module implements only the
 deterministic synthetic data contract, chronological fit masks, and the four
-forecast primitives needed by a later runner.  It does not replay actions,
-bootstrap metrics, load S3 data, write result artifacts, or execute the outer
-report operation.
+forecast primitives needed by a later runner.  Its S3 entrypoint delegates
+body access to the authenticated v4 runtime wrapper and only constructs the
+preregistered injection/control arrays.  It does not replay actions,
+bootstrap metrics, write result artifacts, or execute the outer report
+operation.
 
 The preregistration validator remains in :mod:`p1_recovery_prereg`.  The
 runner calls that validator when loading a manifest, but does not duplicate or
@@ -20,8 +22,11 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.preprocessing import StandardScaler
+
+from ..data.cache_v4 import MODEL_FEATURE_COLUMNS, REQUIRED_AVAILABILITY_COLUMNS
 
 from .p1_recovery_prereg import (
     DEFAULT_MANIFEST_PATH,
@@ -754,6 +759,359 @@ generate_synthetic_dataset = build_synthetic_dataset
 make_synthetic_dataset = build_synthetic_dataset
 
 
+@dataclass(frozen=True)
+class S3InjectionControl:
+    """Authenticated v4 S3 body plus the preregistered S3 arm pair.
+
+    The body is materialized only from the result of
+    ``validate_p1_v4_runtime_inputs``.  ``injection_mask[t]`` identifies a
+    decision row whose next observed return was modified; the control and
+    injected arrays retain the original full-grid row order and timestamps.
+    ``runtime`` contains only immutable provenance echoes, paths, disposition,
+    and digest scalars; it never retains the wrapper's mutable pandas body.
+    """
+
+    runtime: Mapping[str, Any]
+    timestamps: np.ndarray
+    features: np.ndarray
+    returns_v4: np.ndarray
+    control_returns: np.ndarray
+    injected_returns: np.ndarray
+    injection_mask: np.ndarray
+    z_scores: np.ndarray
+    context_mask: np.ndarray
+    availability: Mapping[str, np.ndarray]
+
+    @property
+    def returns(self) -> np.ndarray:
+        """The unmodified v4 return body."""
+
+        return self.returns_v4
+
+    @property
+    def returns_control(self) -> np.ndarray:
+        """Alias for the zero-injection control arm."""
+
+        return self.control_returns
+
+    @property
+    def returns_injected(self) -> np.ndarray:
+        """Alias for the observable-prefix injection arm."""
+
+        return self.injected_returns
+
+    @property
+    def context_eligible(self) -> np.ndarray:
+        """The timestamp- and availability-complete context mask."""
+
+        return self.context_mask
+
+
+def _require_authenticated_v4_result(
+    runtime_result: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Reject generic/forged body mappings at the S3 construction boundary."""
+
+    if not isinstance(runtime_result, Mapping):
+        raise P1RunnerError(
+            "S3 body must be the mapping returned by validate_p1_v4_runtime_inputs"
+        )
+    expected_identity = {
+        "v4_runtime_validation_status": "passed",
+        "p1_runtime_validation_entrypoint": P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+        "p1_runtime_body_validator_entrypoint": V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT,
+        "results_observed": False,
+        "manifest_sha256": REGISTERED_MANIFEST_SHA256,
+        "p1_manifest_sha256": REGISTERED_MANIFEST_SHA256,
+        "v4_runtime_loaded_body_match": True,
+    }
+    for field, expected in expected_identity.items():
+        if runtime_result.get(field) != expected:
+            raise P1RunnerError(
+                "S3 body must carry the authenticated v4 wrapper identity: "
+                f"{field} mismatch"
+            )
+    metadata = runtime_result.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise P1RunnerError("authenticated S3 body is missing frozen v4 metadata")
+    disposition = runtime_result.get("v4_runtime_provenance_disposition")
+    if not isinstance(disposition, Mapping):
+        raise P1RunnerError("authenticated S3 body is missing v4 provenance disposition")
+    return runtime_result
+
+
+def _immutable_provenance_value(value: Any) -> Any:
+    """Deep-freeze the scalar provenance subset retained by an S3 result."""
+
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {str(key): _immutable_provenance_value(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_immutable_provenance_value(item) for item in value)
+    if isinstance(value, np.generic):
+        return _immutable_provenance_value(value.item())
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
+    raise P1RunnerError("S3 provenance echo contains a non-scalar mutable value")
+
+
+def _s3_provenance_echo(runtime_result: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Retain only immutable authenticated identity/provenance evidence."""
+
+    scalar_fields = (
+        "status",
+        "manifest_id",
+        "manifest_sha256",
+        "base_revision",
+        "results_observed",
+        "p1_manifest_id",
+        "p1_manifest_sha256",
+        "p1_base_revision",
+        "p1_results_observed",
+        "p1_runtime_validation_entrypoint",
+        "p1_runtime_body_validator_entrypoint",
+        "v4_runtime_validation_status",
+        "v4_runtime_body_match",
+        "v4_runtime_loaded_body_match",
+        "v4_runtime_source_provenance_match",
+        "v4_runtime_frozen_metadata_sha256",
+        "v4_runtime_cache_local_metadata_sha256",
+        "v4_runtime_cache_local_source_provenance_digest",
+        "v4_runtime_cache_local_schema_digest",
+        "v4_frozen_metadata_sha256",
+        "v4_frozen_source_provenance_digest",
+        "v4_cache_local_metadata_sha256",
+        "v4_cache_local_source_provenance_digest",
+    )
+    echo: dict[str, Any] = {
+        field: _immutable_provenance_value(runtime_result[field])
+        for field in scalar_fields
+        if field in runtime_result
+    }
+    paths = runtime_result.get("paths")
+    if isinstance(paths, Mapping):
+        echo["paths"] = _immutable_provenance_value(paths)
+    disposition = runtime_result.get("v4_runtime_provenance_disposition")
+    if isinstance(disposition, Mapping):
+        echo["v4_runtime_provenance_disposition"] = _immutable_provenance_value(
+            disposition
+        )
+    metadata = runtime_result.get("metadata")
+    if isinstance(metadata, Mapping):
+        metadata_fields = (
+            "cache_tag",
+            "schema_version",
+            "schema_digest",
+            "content_digests",
+            "rows",
+            "sidecar_rows",
+            "feature_columns",
+            "availability_columns",
+            "returns_columns",
+        )
+        echo["frozen_metadata"] = _immutable_provenance_value(
+            {field: metadata[field] for field in metadata_fields if field in metadata}
+        )
+    return MappingProxyType(echo)
+
+
+def _s3_body_timestamps(
+    frame: pd.DataFrame,
+    *,
+    label: str,
+) -> np.ndarray:
+    if not isinstance(frame.index, pd.DatetimeIndex):
+        raise P1RunnerError(f"S3 {label} index must be a DatetimeIndex")
+    try:
+        return validate_15m_timestamps(np.asarray(frame.index), label=f"S3 {label} timestamps")
+    except P1RunnerError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise P1RunnerError(f"S3 {label} timestamps are invalid") from exc
+
+
+def _s3_return_values(
+    returns_body: Any,
+    feature_index: pd.DatetimeIndex,
+) -> np.ndarray:
+    if isinstance(returns_body, pd.DataFrame):
+        if returns_body.shape[1] != 1:
+            raise P1RunnerError("authenticated S3 returns must contain one column")
+        series = returns_body.iloc[:, 0]
+    elif isinstance(returns_body, pd.Series):
+        series = returns_body
+    else:
+        raise P1RunnerError("authenticated S3 returns must be a pandas Series")
+    if not isinstance(series.index, pd.DatetimeIndex) or not series.index.equals(feature_index):
+        raise P1RunnerError("authenticated S3 features and returns indices differ")
+    try:
+        values = series.to_numpy(dtype=np.float64, copy=True)
+    except (TypeError, ValueError) as exc:
+        raise P1RunnerError("authenticated S3 returns must be numeric") from exc
+    if values.ndim != 1 or len(values) != len(feature_index):
+        raise P1RunnerError("authenticated S3 returns are not row-aligned")
+    return _read_only(values, dtype=np.float64)
+
+
+def _s3_availability_values(
+    availability_body: Any,
+    feature_index: pd.DatetimeIndex,
+) -> Mapping[str, np.ndarray]:
+    required = tuple(REQUIRED_AVAILABILITY_COLUMNS)
+    if isinstance(availability_body, pd.DataFrame):
+        if not isinstance(availability_body.index, pd.DatetimeIndex):
+            raise P1RunnerError("authenticated S3 availability index must be a DatetimeIndex")
+        if not availability_body.index.is_unique or not availability_body.index.is_monotonic_increasing:
+            raise P1RunnerError("authenticated S3 availability index must be ordered and unique")
+        if not feature_index.isin(availability_body.index).all():
+            raise P1RunnerError("authenticated S3 availability does not cover feature timestamps")
+        missing = [name for name in required if name not in availability_body.columns]
+        if missing:
+            raise P1RunnerError("authenticated S3 availability is missing: " + ", ".join(missing))
+        aligned = availability_body.loc[feature_index, list(required)]
+        if aligned.isna().any().any():
+            raise P1RunnerError("authenticated S3 availability contains missing values")
+        for name in required:
+            if aligned[name].dtype != np.dtype(np.bool_):
+                raise P1RunnerError(f"authenticated S3 availability {name} must be bool")
+        return MappingProxyType(
+            {
+                name: _read_only(aligned[name].to_numpy(copy=True), dtype=np.bool_)
+                for name in required
+            }
+        )
+    if not isinstance(availability_body, Mapping):
+        raise P1RunnerError("authenticated S3 availability must be a DataFrame")
+    values: dict[str, np.ndarray] = {}
+    for name in required:
+        if name not in availability_body:
+            raise P1RunnerError(f"authenticated S3 availability is missing: {name}")
+        array = np.asarray(availability_body[name])
+        if array.dtype != np.dtype(np.bool_) or array.ndim != 1 or len(array) != len(feature_index):
+            raise P1RunnerError(f"authenticated S3 availability {name} must be a strict bool row vector")
+        values[name] = _read_only(array, dtype=np.bool_)
+    return MappingProxyType(values)
+
+
+def _prepare_s3_injection_control(
+    runtime_result: Mapping[str, Any],
+) -> S3InjectionControl:
+    """Test-only materializer for an authenticated v4 wrapper result.
+
+    The named ``close_ret`` column is standardized using only prior
+    context-eligible rows (minimum prefix 256), then applied to the next
+    contiguous, Spot-observed return.  No hidden/generated feature is added
+    to the model input and the original row grid is never sorted or compacted.
+    """
+
+    result = _require_authenticated_v4_result(runtime_result)
+    features_body = result.get("features")
+    if not isinstance(features_body, pd.DataFrame):
+        raise P1RunnerError("authenticated S3 features must be a pandas DataFrame")
+    if list(features_body.columns) != list(MODEL_FEATURE_COLUMNS):
+        raise P1RunnerError("authenticated S3 features must equal canonical 17 columns")
+    timestamps = _s3_body_timestamps(features_body, label="feature")
+    feature_index = features_body.index
+    try:
+        feature_values = features_body.to_numpy(dtype=np.float64, copy=True)
+    except (TypeError, ValueError) as exc:
+        raise P1RunnerError("authenticated S3 features must be numeric") from exc
+    if feature_values.shape != (len(timestamps), len(MODEL_FEATURE_COLUMNS)):
+        raise P1RunnerError("authenticated S3 features are not row-aligned")
+    feature_values = _read_only(feature_values, dtype=np.float64)
+    returns = _s3_return_values(result.get("returns"), feature_index)
+    availability = _s3_availability_values(result.get("availability"), feature_index)
+    context_mask = build_context_mask(
+        feature_values,
+        availability,
+        timestamps=timestamps,
+    )
+    edges = timestamp_edge_mask(timestamps)
+    close_index = list(MODEL_FEATURE_COLUMNS).index(S3_SIGNAL_FEATURE)
+    close_ret = feature_values[:, close_index]
+    n_rows = len(timestamps)
+    prefix_context_count = np.cumsum(context_mask.astype(np.int64), dtype=np.int64)
+    prefix_context_sum = np.cumsum(
+        np.where(context_mask, close_ret, 0.0), dtype=np.float64
+    )
+    prefix_context_sumsq = np.cumsum(
+        np.where(context_mask, close_ret * close_ret, 0.0), dtype=np.float64
+    )
+    z_scores = np.full(n_rows, np.nan, dtype=np.float64)
+    injection_mask = np.zeros(n_rows, dtype=np.bool_)
+    injected_returns = np.array(returns, dtype=np.float64, copy=True)
+    spot = availability["spot_bar_observed"]
+    for decision in range(n_rows):
+        if not context_mask[decision] or decision == 0:
+            continue
+        next_row = decision + 1
+        if next_row >= n_rows or not edges[decision] or not spot[next_row]:
+            continue
+        if not np.isfinite(returns[next_row]):
+            continue
+        prior_count = int(prefix_context_count[decision - 1])
+        if prior_count < S3_PREFIX_ROWS_MIN:
+            continue
+        prior_sum = float(prefix_context_sum[decision - 1])
+        prior_sumsq = float(prefix_context_sumsq[decision - 1])
+        prior_mean = prior_sum / prior_count
+        variance = max(prior_sumsq / prior_count - prior_mean * prior_mean, 0.0)
+        prior_std = float(np.sqrt(variance))
+        z_value = (float(close_ret[decision]) - prior_mean) / max(prior_std, 1e-12)
+        if not np.isfinite(z_value):
+            continue
+        z_scores[decision] = z_value
+        injected_returns[next_row] += S3_INJECTION_BETA * z_value
+        injection_mask[decision] = True
+    return S3InjectionControl(
+        runtime=_s3_provenance_echo(result),
+        timestamps=timestamps,
+        features=feature_values,
+        returns_v4=returns,
+        control_returns=_read_only(returns, dtype=np.float64),
+        injected_returns=_read_only(injected_returns, dtype=np.float64),
+        injection_mask=_read_only(injection_mask, dtype=np.bool_),
+        z_scores=_read_only(z_scores, dtype=np.float64),
+        context_mask=context_mask,
+        availability=availability,
+    )
+
+
+def load_s3_validation_body(
+    manifest: Mapping[str, Any] | str | Path | None = None,
+    *,
+    manifest_path: str | Path | None = None,
+    root: str | Path | None = None,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+    cache_local_metadata_path: str | Path | None = None,
+    provenance_disposition: Mapping[str, Any] | None = None,
+) -> S3InjectionControl:
+    """Authenticate v4 first, then construct the preregistered S3 arm pair."""
+
+    from .runtime import validate_p1_v4_runtime_inputs
+
+    validated = validate_p1_v4_runtime_inputs(
+        manifest,
+        manifest_path=manifest_path,
+        root=root,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+        cache_local_metadata_path=cache_local_metadata_path,
+        provenance_disposition=provenance_disposition,
+    )
+    return _prepare_s3_injection_control(validated)
+
+
 def _horizon_column(dataset: SyntheticDataset, horizon: int) -> int:
     _strict_horizon(horizon)
     try:
@@ -1163,12 +1521,27 @@ class OOFRun:
 
     plan: RunnerPlan
     dataset: SyntheticDataset
-    fits: Mapping[tuple[int, int, str], ModelFit]
+    fits: Mapping[tuple[int, int, str, Literal["continuous", "binary"]], ModelFit]
     outer_report_only: bool = True
     outer_test_executed: bool = False
 
-    def get(self, origin: int, horizon: int, model_id: str) -> ModelFit:
-        return self.fits[(int(origin), int(horizon), model_id)]
+    def get(
+        self,
+        origin: int,
+        horizon: int,
+        model_id: str,
+        task: Literal["continuous", "binary"] | None = None,
+    ) -> ModelFit:
+        """Get one task-qualified forecast; default keeps legacy task lookup."""
+
+        if model_id not in MODEL_IDS:
+            raise P1RunnerError(f"unknown model_id: {model_id}")
+        resolved_task = MODEL_TASKS[model_id] if task is None else task
+        if resolved_task not in _MODEL_ALLOWED_TASKS[model_id]:
+            raise P1RunnerError(
+                f"model {model_id} does not support task {resolved_task!r}"
+            )
+        return self.fits[(int(origin), int(horizon), model_id, resolved_task)]
 
 
 def run_synthetic_oof(
@@ -1199,18 +1572,20 @@ def run_synthetic_oof(
         raise P1RunnerError("at least one model is required")
     if any(model not in MODEL_IDS for model in requested_models):
         raise P1RunnerError("model_ids contain an unknown fixed model")
-    fits: dict[tuple[int, int, str], ModelFit] = {}
+    fits: dict[tuple[int, int, str, Literal["continuous", "binary"]], ModelFit] = {}
     for origin in plan.origins:
         batch_end = min(origin + OOF_BATCH_SPAN, len(data.features))
         for horizon in plan.horizons:
             for model_id in requested_models:
-                fits[(origin, horizon, model_id)] = fit_model_at_origin(
-                    data,
-                    model_id,
-                    origin,
-                    horizon,
-                    prediction_range=(origin, batch_end),
-                )
+                for task in _MODEL_ALLOWED_TASKS[model_id]:
+                    fits[(origin, horizon, model_id, task)] = fit_model_at_origin(
+                        data,
+                        model_id,
+                        origin,
+                        horizon,
+                        task=task,
+                        prediction_range=(origin, batch_end),
+                    )
     return OOFRun(
         plan=plan,
         dataset=data,
@@ -1224,9 +1599,11 @@ run_oof = run_synthetic_oof
 
 
 __all__ = [
+    "BAR_NS",
     "CONTEXT_BARS",
     "FEATURE_DIMENSION",
     "FORECAST_HORIZONS",
+    "MIN_HISTORY_ROWS",
     "MODEL_IDS",
     "MODEL_TASKS",
     "OOF_BATCH_SPAN",
@@ -1240,6 +1617,7 @@ __all__ = [
     "OOFRun",
     "OuterReportSpec",
     "RunnerPlan",
+    "S3InjectionControl",
     "SyntheticBase",
     "SyntheticDataset",
     "binary_labels_from_targets",
@@ -1255,6 +1633,7 @@ __all__ = [
     "generate_synthetic_base",
     "generate_synthetic_dataset",
     "load_runner_manifest",
+    "load_s3_validation_body",
     "make_synthetic_dataset",
     "manifest_echo",
     "outer_report_spec",
@@ -1262,6 +1641,8 @@ __all__ = [
     "run_oof",
     "run_synthetic_oof",
     "train_mask_for_origin",
+    "timestamp_edge_mask",
+    "validate_15m_timestamps",
     "validate_current_row_features",
     "validate_model_input",
 ]
