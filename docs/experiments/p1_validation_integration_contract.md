@@ -27,6 +27,24 @@ candidate payload is not an external binding.  The initial producer is bound
 by source/registry expectations; its output digests are recorded only after an
 atomic write, then required when that file is loaded for the next stage.
 
+The persisted MBB index and result writers return the SHA-256 of the complete
+post-rename NPZ bytes.  That file digest is ledger metadata only: it is never
+written into the NPZ payload, whose internal `artifact_sha256`/`result_sha256`
+digests remain canonical content bindings.  Production path loaders require
+both the caller-pinned `expected_file_sha256` and the corresponding external
+internal digest, hash the exact regular-file bytes before parsing, and fail
+closed on omission, replay, or byte tampering.  The loaded index capability
+exposes `file_sha256`; production MBB provenance records it alongside the
+internal index digest.
+
+The existing `LoadedP1ActionArtifact` type currently has no identity-sealed
+production marker (fixture loads and direct dataclass construction have the
+same runtime type).  MBB therefore requires the strict external
+`source_action_file_sha256` placeholder binding for action metrics but rejects
+that typed object until an authenticated action capability is added.  This is
+an intentional integration stop condition, not an invitation to trust a
+self-declared action file hash.
+
 ## Result-state semantics
 
 The frozen preregistration always echoes
