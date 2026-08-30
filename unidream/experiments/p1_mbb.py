@@ -2365,7 +2365,6 @@ def save_p1_mbb_result_artifact(
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
     metadata = artifact.to_dict(include_bootstrap_values=False)
-    metadata.pop("result_sha256", None)
     encoded_metadata = _metadata_bytes(metadata)
     if len(encoded_metadata) > _P1_RESULT_METADATA_MAX_BYTES:
         raise P1MBBError("P1 result metadata exceeds the byte limit")
