@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+import hashlib
 import json
 import os
 import random
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -182,6 +185,362 @@ def cache_quality_status(cache_dir: str, cache_tag: str) -> str:
     except CacheV4Error:
         return "v4_invalid"
     return "v4_verified"
+
+
+class V4RuntimeInputError(ValueError):
+    """Raised when a preregistered v4 runtime input cannot be verified."""
+
+
+_V4_RUNTIME_BODY_FIELDS = ("feature_path", "returns_path", "availability_path", "metadata_path")
+_V4_RUNTIME_DISPOSITION_FIELDS = (
+    "status",
+    "reason",
+    "body_match",
+    "source_provenance_match",
+)
+_V4_RUNTIME_DISPOSITION_STATUSES = (
+    "absent",
+    "identical",
+    "source_provenance_only_difference",
+)
+_V4_RUNTIME_BODY_METADATA_FIELDS = (
+    "cache_tag",
+    "schema_version",
+    "schema_digest",
+    "content_digests",
+    "rows",
+    "sidecar_rows",
+    "feature_columns",
+    "availability_columns",
+    "returns_columns",
+)
+
+
+def _v4_runtime_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _v4_runtime_resolve_path(value: str | Path, root: Path) -> Path:
+    path = Path(value)
+    if not path.is_absolute():
+        path = root / path
+    return path
+
+
+def _v4_runtime_require_mapping(value: Any, label: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise V4RuntimeInputError(f"{label} must be an object")
+    return value
+
+
+def _v4_runtime_body_metadata_matches(
+    candidate: Mapping[str, Any],
+    expected: Mapping[str, Any],
+    *,
+    label: str,
+) -> None:
+    for field in _V4_RUNTIME_BODY_METADATA_FIELDS:
+        expected_value = expected.get(field)
+        candidate_value = candidate.get(field)
+        if candidate_value != expected_value:
+            raise V4RuntimeInputError(
+                f"{label} {field} mismatch: {candidate_value!r} != {expected_value!r}"
+            )
+
+
+def _v4_runtime_validate_disposition(
+    disposition: Mapping[str, Any],
+    derived: Mapping[str, Any],
+) -> dict[str, Any]:
+    missing = [field for field in _V4_RUNTIME_DISPOSITION_FIELDS if field not in disposition]
+    if missing:
+        raise V4RuntimeInputError(
+            "v4 provenance disposition is missing fields: " + ", ".join(missing)
+        )
+    status = disposition.get("status")
+    if status not in _V4_RUNTIME_DISPOSITION_STATUSES:
+        raise V4RuntimeInputError(f"unknown v4 provenance disposition status: {status!r}")
+    if not isinstance(disposition.get("reason"), str) or not disposition["reason"].strip():
+        raise V4RuntimeInputError("v4 provenance disposition reason must be non-empty")
+    for field in ("body_match", "source_provenance_match"):
+        value = disposition.get(field)
+        if value is not None and not isinstance(value, bool):
+            raise V4RuntimeInputError(f"v4 provenance disposition {field} must be bool or null")
+    for field in ("status", "body_match", "source_provenance_match"):
+        if disposition.get(field) != derived.get(field):
+            raise V4RuntimeInputError(
+                f"v4 provenance disposition {field} does not match observed inputs"
+            )
+    return dict(disposition)
+
+
+def validate_v4_runtime_inputs(
+    manifest: Mapping[str, Any],
+    *,
+    root: str | Path | None = None,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+    cache_local_metadata_path: str | Path | None = None,
+    provenance_disposition: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Validate explicit v4 bodies before a preregistered run can fit or score.
+
+    The frozen repository metadata is always passed to ``load_cache_v4`` as the
+    metadata path.  A cache-local metadata file is an optional audit snapshot;
+    when present, its body fields must match the frozen metadata and a source
+    provenance-only difference is surfaced in the returned disposition.  No
+    cache-directory fallback or data repair is performed here.
+    """
+    if not isinstance(manifest, Mapping):
+        raise V4RuntimeInputError("manifest must be an object")
+    common = _v4_runtime_require_mapping(manifest.get("common"), "common")
+    contract = _v4_runtime_require_mapping(common.get("v4_load_contract"), "common.v4_load_contract")
+    parent = _v4_runtime_require_mapping(
+        _v4_runtime_require_mapping(manifest.get("provenance"), "provenance").get("v4_parent"),
+        "provenance.v4_parent",
+    )
+    if contract.get("loader") != "unidream.data.cache_v4.load_cache_v4":
+        raise V4RuntimeInputError("manifest does not pin the v4 cache loader")
+    if contract.get("require_explicit_paths") is not True or contract.get("cache_dir_cache_tag_fallback") != "forbidden":
+        raise V4RuntimeInputError("v4 runtime requires explicit paths and forbids cache fallback")
+    if contract.get("runtime_validation_entrypoint") != "unidream.experiments.runtime.validate_v4_runtime_inputs":
+        raise V4RuntimeInputError("manifest does not pin the production v4 runtime validator")
+    if contract.get("runtime_validation_required_before_fit_or_score") is not True:
+        raise V4RuntimeInputError("v4 runtime validation is not required before fit/score")
+    if contract.get("runtime_disposition_fields") != list(_V4_RUNTIME_DISPOSITION_FIELDS):
+        raise V4RuntimeInputError("v4 runtime disposition fields are not pinned")
+    if contract.get("runtime_disposition_statuses") != list(_V4_RUNTIME_DISPOSITION_STATUSES):
+        raise V4RuntimeInputError("v4 runtime disposition statuses are not pinned")
+
+    merged_overrides: dict[str, str | Path] = {}
+    for source_name, source in (("path_overrides", path_overrides), ("paths", paths)):
+        if source is None:
+            continue
+        if not isinstance(source, Mapping):
+            raise V4RuntimeInputError(f"{source_name} must be an object")
+        for key, value in source.items():
+            if key in merged_overrides and merged_overrides[key] != value:
+                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
+            merged_overrides[str(key)] = value
+    keyword_overrides = {
+        "feature_path": feature_path,
+        "returns_path": returns_path,
+        "availability_path": availability_path,
+        "metadata_path": metadata_path,
+    }
+    for key, value in keyword_overrides.items():
+        if value is not None:
+            if key in merged_overrides and merged_overrides[key] != value:
+                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
+            merged_overrides[key] = value
+    aliases = {"features": "feature_path", "returns": "returns_path", "availability": "availability_path", "metadata": "metadata_path"}
+    normalised_overrides: dict[str, str | Path] = {}
+    for key, value in merged_overrides.items():
+        canonical_key = aliases.get(key, key)
+        if canonical_key not in _V4_RUNTIME_BODY_FIELDS:
+            raise V4RuntimeInputError(f"unknown v4 path override: {key!r}")
+        if canonical_key in normalised_overrides and normalised_overrides[canonical_key] != value:
+            raise V4RuntimeInputError(f"conflicting v4 path override for {canonical_key!r}")
+        normalised_overrides[canonical_key] = value
+    if normalised_overrides and set(normalised_overrides) != set(_V4_RUNTIME_BODY_FIELDS):
+        missing = sorted(set(_V4_RUNTIME_BODY_FIELDS) - set(normalised_overrides))
+        raise V4RuntimeInputError(
+            "v4 path overrides must provide all explicit body paths: " + ", ".join(missing)
+        )
+
+    root_path = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    configured_paths = {
+        field: normalised_overrides.get(field, contract.get(field))
+        for field in _V4_RUNTIME_BODY_FIELDS
+    }
+    if any(value is None or not str(value) for value in configured_paths.values()):
+        raise V4RuntimeInputError("v4 manifest is missing an explicit body path")
+    resolved_paths = {
+        field: _v4_runtime_resolve_path(value, root_path)
+        for field, value in configured_paths.items()
+    }
+    missing_paths = [str(path) for path in resolved_paths.values() if not path.is_file()]
+    if missing_paths:
+        raise V4RuntimeInputError("v4 runtime body is incomplete; missing files: " + ", ".join(missing_paths))
+
+    expected_cache_tag = parent.get("cache_tag")
+    if contract.get("cache_tag") != expected_cache_tag:
+        raise V4RuntimeInputError("v4 manifest/cache metadata cache-tag mismatch")
+    try:
+        features, returns, availability, frozen_metadata = load_cache_v4(
+            cache_tag=str(expected_cache_tag),
+            feature_path=resolved_paths["feature_path"],
+            returns_path=resolved_paths["returns_path"],
+            availability_path=resolved_paths["availability_path"],
+            metadata_path=resolved_paths["metadata_path"],
+        )
+    except (CacheV4Error, OSError, TypeError, ValueError) as exc:
+        raise V4RuntimeInputError(f"explicit v4 body validation failed: {exc}") from exc
+
+    expected_frozen_metadata = {
+        "cache_tag": parent.get("cache_tag"),
+        "schema_version": parent.get("schema_version"),
+        "schema_digest": parent.get("schema_digest"),
+        "content_digests": parent.get("content_digests"),
+        "rows": parent.get("feature_rows"),
+        "sidecar_rows": parent.get("sidecar_rows"),
+        "feature_columns": list(common.get("feature_columns", [])),
+        "availability_columns": list(parent.get("required_availability_columns", [])),
+        "returns_columns": ["returns"],
+    }
+    _v4_runtime_body_metadata_matches(
+        frozen_metadata,
+        expected_frozen_metadata,
+        label="frozen v4 metadata",
+    )
+    if frozen_metadata.get("source_provenance_digest") != parent.get("source_provenance_digest"):
+        raise V4RuntimeInputError("frozen v4 source provenance digest mismatch")
+    frozen_metadata_sha256 = _v4_runtime_sha256(resolved_paths["metadata_path"])
+    if frozen_metadata_sha256 != parent.get("metadata_sha256"):
+        raise V4RuntimeInputError("frozen v4 metadata file SHA-256 mismatch")
+
+    local_path_value = cache_local_metadata_path
+    if local_path_value is None:
+        local_path_value = contract.get("cache_local_metadata_path")
+    local_path = (
+        _v4_runtime_resolve_path(local_path_value, root_path)
+        if local_path_value is not None and str(local_path_value)
+        else None
+    )
+    local_metadata: Mapping[str, Any] | None = None
+    local_sha256: str | None = None
+    local_source_digest: str | None = None
+    local_body_match: bool | None = None
+    local_source_match: bool | None = None
+    if local_path is not None and local_path.exists() and not local_path.is_file():
+        raise V4RuntimeInputError(f"cache-local v4 metadata path is not a file: {local_path}")
+    if local_path is not None and local_path.is_file():
+        try:
+            local_payload = json.loads(local_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise V4RuntimeInputError(f"could not parse cache-local v4 metadata: {local_path}") from exc
+        local_metadata = _v4_runtime_require_mapping(local_payload, "cache-local v4 metadata")
+        local_sha256 = _v4_runtime_sha256(local_path)
+        local_source_digest = local_metadata.get("source_provenance_digest")
+        if not isinstance(local_source_digest, str) or not local_source_digest:
+            raise V4RuntimeInputError("cache-local v4 source provenance is absent or unknown")
+        source_provenance = local_metadata.get("source_provenance")
+        if not isinstance(source_provenance, Mapping):
+            raise V4RuntimeInputError("cache-local v4 source provenance is absent or unknown")
+        source_payload = json.dumps(
+            source_provenance,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        if hashlib.sha256(source_payload).hexdigest() != local_source_digest:
+            raise V4RuntimeInputError("cache-local v4 source provenance digest mismatch")
+        try:
+            _v4_runtime_body_metadata_matches(
+                local_metadata,
+                expected_frozen_metadata,
+                label="cache-local v4 metadata",
+            )
+        except V4RuntimeInputError as exc:
+            raise V4RuntimeInputError("cache-local v4 body metadata mismatch") from exc
+        local_body_match = True
+        local_source_match = local_source_digest == parent.get("source_provenance_digest")
+        if not local_source_match:
+            known_snapshot = contract.get("known_cache_local_snapshot")
+            known_snapshot = (
+                _v4_runtime_require_mapping(known_snapshot, "known_cache_local_snapshot")
+                if known_snapshot is not None
+                else None
+            )
+            if (
+                known_snapshot is None
+                or local_source_digest != known_snapshot.get("source_provenance_digest")
+                or (
+                    known_snapshot.get("metadata_sha256") is not None
+                    and local_sha256 != known_snapshot.get("metadata_sha256")
+                )
+            ):
+                raise V4RuntimeInputError("cache-local source provenance differs with an unknown digest")
+
+    if local_path is None or local_metadata is None:
+        derived_disposition = {
+            "status": "absent",
+            "reason": "cache-local metadata is absent; frozen repository metadata remains authoritative",
+            "body_match": None,
+            "source_provenance_match": None,
+        }
+    elif local_source_match:
+        derived_disposition = {
+            "status": "identical",
+            "reason": "cache-local metadata body and source provenance match frozen metadata",
+            "body_match": True,
+            "source_provenance_match": True,
+        }
+    else:
+        derived_disposition = {
+            "status": "source_provenance_only_difference",
+            "reason": "cache-local body matches but its known source provenance digest differs from frozen metadata",
+            "body_match": True,
+            "source_provenance_match": False,
+        }
+    disposition = (
+        _v4_runtime_validate_disposition(provenance_disposition, derived_disposition)
+        if provenance_disposition is not None
+        else dict(derived_disposition)
+    )
+    local_content_digests = (
+        dict(local_metadata.get("content_digests", {})) if local_metadata is not None else None
+    )
+    local_row_counts = (
+        {"rows": local_metadata.get("rows"), "sidecar_rows": local_metadata.get("sidecar_rows")}
+        if local_metadata is not None
+        else None
+    )
+    result = {
+        "status": "v4_runtime_validated",
+        "features": features,
+        "returns": returns,
+        "availability": availability,
+        "metadata": frozen_metadata,
+        "paths": {field: str(path) for field, path in resolved_paths.items()},
+        "v4_runtime_validation_status": "passed",
+        "v4_runtime_provenance_disposition": disposition,
+        "v4_runtime_body_match": local_body_match,
+        "v4_runtime_loaded_body_match": True,
+        "v4_runtime_source_provenance_match": local_source_match,
+        "v4_runtime_frozen_metadata_sha256": frozen_metadata_sha256,
+        "v4_runtime_cache_local_metadata_sha256": local_sha256,
+        "v4_runtime_cache_local_source_provenance_digest": local_source_digest,
+        "v4_runtime_cache_local_schema_digest": (
+            local_metadata.get("schema_digest") if local_metadata is not None else None
+        ),
+        "v4_runtime_cache_local_content_digests": local_content_digests,
+        "v4_runtime_cache_local_row_counts": local_row_counts,
+        "v4_feature_path": str(resolved_paths["feature_path"]),
+        "v4_returns_path": str(resolved_paths["returns_path"]),
+        "v4_availability_path": str(resolved_paths["availability_path"]),
+        "v4_frozen_metadata_path": str(resolved_paths["metadata_path"]),
+        "v4_frozen_metadata_sha256": frozen_metadata_sha256,
+        "v4_frozen_source_provenance_digest": frozen_metadata.get("source_provenance_digest"),
+        "v4_cache_local_metadata_path": str(local_path) if local_path is not None else None,
+        "v4_cache_local_metadata_sha256": local_sha256,
+        "v4_cache_local_source_provenance_digest": local_source_digest,
+        "v4_cache_local_schema_digest": (
+            local_metadata.get("schema_digest") if local_metadata is not None else None
+        ),
+        "v4_cache_local_content_digests": local_content_digests,
+        "v4_cache_local_row_counts": local_row_counts,
+    }
+    return result
 
 
 def _cache_parameters(

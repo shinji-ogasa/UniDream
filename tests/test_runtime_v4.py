@@ -1,6 +1,9 @@
 """Runtime cache-hit tests for schema v4 and explicit legacy status."""
 from __future__ import annotations
 
+import copy
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +13,12 @@ import pandas as pd
 
 from unidream.data.cache_v4 import MODEL_FEATURE_COLUMNS, cache_v4_paths, write_cache_v4
 from unidream.data.dataset import WFODataset, WFOSplit
-from unidream.experiments.runtime import cache_quality_status, load_training_features
+from unidream.experiments.runtime import (
+    V4RuntimeInputError,
+    cache_quality_status,
+    load_training_features,
+    validate_v4_runtime_inputs,
+)
 from unidream.experiments.train_app import resolve_training_cache_selection
 
 
@@ -56,6 +64,50 @@ def _v4_fixture(root: Path, tag: str = "runtime-v4") -> tuple[dict, pd.DataFrame
         end="2024-01-02",
     )
     return metadata, features, availability
+
+
+def _runtime_manifest(root: Path, metadata: dict, tag: str = "runtime-v4") -> dict:
+    """Build a minimal manifest-shaped runtime contract from the test fixture."""
+    paths = cache_v4_paths(root, tag)
+    frozen_sha = hashlib.sha256(paths["metadata"].read_bytes()).hexdigest()
+    return {
+        "common": {
+            "feature_columns": list(MODEL_FEATURE_COLUMNS),
+            "v4_load_contract": {
+                "loader": "unidream.data.cache_v4.load_cache_v4",
+                "metadata_authority": "repo_frozen_metadata",
+                "require_explicit_paths": True,
+                "cache_dir_cache_tag_fallback": "forbidden",
+                "cache_tag": tag,
+                "feature_path": paths["features"].name,
+                "returns_path": paths["returns"].name,
+                "availability_path": paths["availability"].name,
+                "metadata_path": paths["metadata"].name,
+                "cache_local_metadata_path": "local_metadata.json",
+                "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+                "runtime_validation_required_before_fit_or_score": True,
+                "runtime_disposition_fields": ["status", "reason", "body_match", "source_provenance_match"],
+                "runtime_disposition_statuses": ["absent", "identical", "source_provenance_only_difference"],
+                "known_cache_local_snapshot": {
+                    "source_provenance_digest": "",
+                },
+            },
+        },
+        "provenance": {
+            "v4_parent": {
+                "metadata_path": paths["metadata"].name,
+                "metadata_sha256": frozen_sha,
+                "cache_tag": tag,
+                "schema_version": 4,
+                "schema_digest": metadata["schema_digest"],
+                "source_provenance_digest": metadata["source_provenance_digest"],
+                "content_digests": dict(metadata["content_digests"]),
+                "feature_rows": metadata["rows"],
+                "sidecar_rows": metadata["sidecar_rows"],
+                "required_availability_columns": list(metadata["availability_columns"]),
+            }
+        },
+    }
 
 
 class RuntimeV4Test(unittest.TestCase):
@@ -136,6 +188,99 @@ class RuntimeV4Test(unittest.TestCase):
                     include_funding=True,
                     include_oi=False,
                     include_mark=True,
+                )
+
+    def test_production_v4_runtime_validator_requires_explicit_complete_bodies(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            manifest = _runtime_manifest(root, metadata)
+            paths = cache_v4_paths(root, "runtime-v4")
+            result = validate_v4_runtime_inputs(
+                manifest,
+                root=root,
+                path_overrides={
+                    "feature_path": paths["features"],
+                    "returns_path": paths["returns"],
+                    "availability_path": paths["availability"],
+                    "metadata_path": paths["metadata"],
+                },
+            )
+            self.assertEqual(result["v4_runtime_validation_status"], "passed")
+            self.assertEqual(result["v4_runtime_provenance_disposition"]["status"], "absent")
+            self.assertIsNone(result["v4_runtime_body_match"])
+            self.assertTrue(result["v4_runtime_loaded_body_match"])
+            self.assertIsNone(result["v4_runtime_source_provenance_match"])
+            self.assertEqual(result["features"].shape[1], 17)
+
+            missing = dict(paths)
+            missing["features"] = root / "missing_features.parquet"
+            with self.assertRaisesRegex(V4RuntimeInputError, "missing files"):
+                validate_v4_runtime_inputs(
+                    manifest,
+                    root=root,
+                    path_overrides={
+                        "feature_path": missing["features"],
+                        "returns_path": paths["returns"],
+                        "availability_path": paths["availability"],
+                        "metadata_path": paths["metadata"],
+                    },
+                )
+
+    def test_production_v4_runtime_validator_surfaces_known_source_only_difference(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            manifest = _runtime_manifest(root, metadata)
+            paths = cache_v4_paths(root, "runtime-v4")
+            local_payload = copy.deepcopy(metadata)
+            local_payload["source_provenance"] = {"source": "known-local-revision"}
+            local_payload["source_provenance_digest"] = hashlib.sha256(
+                json.dumps(
+                    local_payload["source_provenance"],
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            local_path = root / "local_metadata.json"
+            local_path.write_text(
+                json.dumps(local_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            manifest["common"]["v4_load_contract"]["known_cache_local_snapshot"] = {
+                "source_provenance_digest": local_payload["source_provenance_digest"],
+            }
+            result = validate_v4_runtime_inputs(
+                manifest,
+                root=root,
+                cache_local_metadata_path=local_path,
+                provenance_disposition={
+                    "status": "source_provenance_only_difference",
+                    "reason": "known local source revision",
+                    "body_match": True,
+                    "source_provenance_match": False,
+                },
+            )
+            self.assertEqual(
+                result["v4_runtime_provenance_disposition"]["status"],
+                "source_provenance_only_difference",
+            )
+            self.assertFalse(result["v4_runtime_source_provenance_match"])
+            self.assertEqual(
+                result["v4_runtime_cache_local_source_provenance_digest"],
+                local_payload["source_provenance_digest"],
+            )
+
+            unknown = copy.deepcopy(manifest)
+            unknown["common"]["v4_load_contract"]["known_cache_local_snapshot"] = {
+                "source_provenance_digest": "unknown"
+            }
+            with self.assertRaisesRegex(V4RuntimeInputError, "unknown digest"):
+                validate_v4_runtime_inputs(
+                    unknown,
+                    root=root,
+                    cache_local_metadata_path=local_path,
                 )
 
     def test_legacy_v3_cache_is_explicitly_unverified(self) -> None:
