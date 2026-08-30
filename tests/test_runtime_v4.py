@@ -6,6 +6,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,7 @@ from unidream.experiments.runtime import (
     V4RuntimeInputError,
     cache_quality_status,
     load_training_features,
+    validate_p1_v4_runtime_inputs,
     validate_v4_runtime_inputs,
 )
 from unidream.experiments.train_app import resolve_training_cache_selection
@@ -84,7 +86,9 @@ def _runtime_manifest(root: Path, metadata: dict, tag: str = "runtime-v4") -> di
                 "availability_path": paths["availability"].name,
                 "metadata_path": paths["metadata"].name,
                 "cache_local_metadata_path": "local_metadata.json",
-                "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+                "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_p1_v4_runtime_inputs",
+                "runtime_body_validator_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+                "runtime_authentication_policy": "production P1 entrypoint must call load_fixed_manifest first, then delegate the authenticated frozen manifest to the body validator; caller mappings and forged manifest_sha256/results_observed/frozen digests are rejected before body validation",
                 "runtime_validation_required_before_fit_or_score": True,
                 "runtime_disposition_fields": ["status", "reason", "body_match", "source_provenance_match"],
                 "runtime_disposition_statuses": ["absent", "identical", "source_provenance_only_difference"],
@@ -282,6 +286,69 @@ class RuntimeV4Test(unittest.TestCase):
                     root=root,
                     cache_local_metadata_path=local_path,
                 )
+
+    def test_authenticated_p1_wrapper_loads_fixed_manifest_before_body(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            fixed = _runtime_manifest(root, metadata)
+            fixed.update(
+                {
+                    "manifest_id": "fixture-p1",
+                    "manifest_sha256": "f" * 64,
+                    "base_revision": "b" * 40,
+                    "results_observed": False,
+                }
+            )
+            paths = cache_v4_paths(root, "runtime-v4")
+            explicit = {
+                "feature_path": paths["features"],
+                "returns_path": paths["returns"],
+                "availability_path": paths["availability"],
+                "metadata_path": paths["metadata"],
+            }
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=fixed,
+            ) as loader:
+                result = validate_p1_v4_runtime_inputs(
+                    fixed,
+                    root=root,
+                    path_overrides=explicit,
+                )
+                loader.assert_called_once()
+            self.assertEqual(result["p1_manifest_sha256"], "f" * 64)
+            self.assertFalse(result["p1_results_observed"])
+            self.assertEqual(
+                result["p1_runtime_body_validator_entrypoint"],
+                "unidream.experiments.runtime.validate_v4_runtime_inputs",
+            )
+
+            forged = copy.deepcopy(fixed)
+            forged["results_observed"] = True
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=fixed,
+            ):
+                with self.assertRaisesRegex(V4RuntimeInputError, "results_observed"):
+                    validate_p1_v4_runtime_inputs(
+                        forged,
+                        root=root,
+                        path_overrides=explicit,
+                    )
+
+            forged = copy.deepcopy(fixed)
+            forged["common"]["v4_load_contract"]["frozen_schema_digest"] = "0" * 64
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=fixed,
+            ):
+                with self.assertRaisesRegex(V4RuntimeInputError, "differs"):
+                    validate_p1_v4_runtime_inputs(
+                        forged,
+                        root=root,
+                        path_overrides=explicit,
+                    )
 
     def test_legacy_v3_cache_is_explicitly_unverified(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -215,6 +215,18 @@ _V4_RUNTIME_BODY_METADATA_FIELDS = (
     "returns_columns",
 )
 
+# ``validate_v4_runtime_inputs`` deliberately remains a small body validator.
+# It is useful in cache fixtures and in tests which construct a temporary v4
+# body, but accepting an arbitrary mapping there must never be mistaken for an
+# authenticated P1 run boundary.  The production entrypoint below pins the
+# manifest first and then delegates to this body validator.
+V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_v4_runtime_inputs"
+)
+P1_V4_RUNTIME_VALIDATION_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_p1_v4_runtime_inputs"
+)
+
 
 def _v4_runtime_sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -311,8 +323,20 @@ def validate_v4_runtime_inputs(
         raise V4RuntimeInputError("manifest does not pin the v4 cache loader")
     if contract.get("require_explicit_paths") is not True or contract.get("cache_dir_cache_tag_fallback") != "forbidden":
         raise V4RuntimeInputError("v4 runtime requires explicit paths and forbids cache fallback")
-    if contract.get("runtime_validation_entrypoint") != "unidream.experiments.runtime.validate_v4_runtime_inputs":
-        raise V4RuntimeInputError("manifest does not pin the production v4 runtime validator")
+    runtime_entrypoint = contract.get("runtime_validation_entrypoint")
+    body_validator_entrypoint = contract.get("runtime_body_validator_entrypoint")
+    if body_validator_entrypoint is not None:
+        if body_validator_entrypoint != V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT:
+            raise V4RuntimeInputError("manifest does not pin the v4 body validator")
+        if runtime_entrypoint != P1_V4_RUNTIME_VALIDATION_ENTRYPOINT:
+            raise V4RuntimeInputError(
+                "manifest does not pin the authenticated P1 v4 runtime validator"
+            )
+    elif runtime_entrypoint != V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT:
+        # Legacy fixture-shaped contracts predate the authenticated wrapper.
+        # Keep the generic function usable for those fixtures, while the fixed
+        # P1 manifest validator requires the two explicit entrypoint fields.
+        raise V4RuntimeInputError("manifest does not pin the v4 body validator")
     if contract.get("runtime_validation_required_before_fit_or_score") is not True:
         raise V4RuntimeInputError("v4 runtime validation is not required before fit/score")
     if contract.get("runtime_disposition_fields") != list(_V4_RUNTIME_DISPOSITION_FIELDS):
@@ -541,6 +565,116 @@ def validate_v4_runtime_inputs(
         "v4_cache_local_row_counts": local_row_counts,
     }
     return result
+
+
+def validate_p1_v4_runtime_inputs(
+    manifest: Mapping[str, Any] | str | Path | None = None,
+    *,
+    manifest_path: str | Path | None = None,
+    root: str | Path | None = None,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+    cache_local_metadata_path: str | Path | None = None,
+    provenance_disposition: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Authenticate the P1 manifest before validating a v4 body.
+
+    ``validate_v4_runtime_inputs`` is intentionally retained as the generic
+    body validator used by fixtures.  A production P1 caller must enter here:
+    this function always invokes :func:`load_fixed_manifest`, checks any
+    caller-supplied manifest against the loaded frozen mapping, and only then
+    delegates to the generic body validator.  Consequently a forged
+    ``manifest_sha256``, ``results_observed`` flag, or frozen v4 digest cannot
+    be paired with an otherwise valid body through this API.
+
+    The first positional argument accepts either an optional manifest mapping
+    (for explicit identity checking) or a manifest path.  A mapping is never
+    used as the authority; the result is always based on ``load_fixed_manifest``.
+    """
+    # Import lazily to keep ordinary cache helpers independent from the P1
+    # preregistration module while still making the authenticated call
+    # observable/patchable in contract tests.
+    from . import p1_recovery_prereg
+
+    candidate_manifest: Mapping[str, Any] | None = None
+    if manifest is not None and isinstance(manifest, Mapping):
+        candidate_manifest = manifest
+    elif manifest is not None:
+        if manifest_path is not None:
+            raise V4RuntimeInputError(
+                "manifest path was supplied both positionally and by keyword"
+            )
+        manifest_path = manifest
+
+    selected_manifest_path = (
+        Path(manifest_path)
+        if manifest_path is not None
+        else p1_recovery_prereg.DEFAULT_MANIFEST_PATH
+    )
+    try:
+        fixed_manifest = p1_recovery_prereg.load_fixed_manifest(selected_manifest_path)
+    except (p1_recovery_prereg.P1PreregistrationError, OSError, TypeError, ValueError) as exc:
+        raise V4RuntimeInputError(
+            "authenticated P1 manifest validation failed before v4 body validation"
+        ) from exc
+
+    if candidate_manifest is not None:
+        # Compare the entire mapping, not only a self-reported digest.  This
+        # catches forged results_observed/frozen-digest fields even when a
+        # caller recomputes the candidate's canonical digest.
+        if not isinstance(candidate_manifest, Mapping):  # defensive for proxies
+            raise V4RuntimeInputError("P1 manifest must be an object")
+        if candidate_manifest.get("results_observed") is not False:
+            raise V4RuntimeInputError(
+                "authenticated P1 manifest must keep results_observed=false"
+            )
+        if candidate_manifest.get("manifest_sha256") != fixed_manifest.get(
+            "manifest_sha256"
+        ):
+            raise V4RuntimeInputError("P1 manifest_sha256 differs from the pinned manifest")
+        if dict(candidate_manifest) != dict(fixed_manifest):
+            raise V4RuntimeInputError(
+                "supplied P1 manifest differs from the authenticated fixed manifest"
+            )
+
+    # The call is deliberately explicit rather than forwarding an arbitrary
+    # mapping.  Body paths remain caller-supplied only as the complete explicit
+    # set enforced by the generic validator; frozen metadata expectations come
+    # from the authenticated manifest.
+    result = validate_v4_runtime_inputs(
+        fixed_manifest,
+        root=root,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+        cache_local_metadata_path=cache_local_metadata_path,
+        provenance_disposition=provenance_disposition,
+    )
+    result.update(
+        {
+            "p1_manifest_id": fixed_manifest.get("manifest_id"),
+            "p1_manifest_sha256": fixed_manifest.get("manifest_sha256"),
+            "p1_base_revision": fixed_manifest.get("base_revision"),
+            "p1_results_observed": fixed_manifest.get("results_observed"),
+            "p1_runtime_validation_entrypoint": P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+            "p1_runtime_body_validator_entrypoint": V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT,
+        }
+    )
+    return result
+
+
+# Descriptive aliases keep callers from bypassing the authenticated boundary
+# merely because they use the shorter P1 naming used by the preregistration
+# protocol.  The manifest pins the long, unambiguous name above.
+validate_p1_runtime_inputs = validate_p1_v4_runtime_inputs
+validate_p1_recovery_runtime_inputs = validate_p1_v4_runtime_inputs
 
 
 def _cache_parameters(
