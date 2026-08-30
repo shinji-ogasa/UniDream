@@ -736,6 +736,24 @@ def _normalise_arm_metadata(
     return {field: merged[field] for field in ACTION_PRIMITIVE_ARM_FIELDS}
 
 
+def _canonical_position(
+    current_position: float,
+    delta: float,
+    contract: ActionExecutionContract,
+) -> float:
+    """Apply the registered clip -> round12 position canonicalisation."""
+    if not np.isfinite(current_position) or not np.isfinite(delta):
+        raise ActionPrimitiveContractError("position and action delta must be finite")
+    clipped = np.clip(
+        float(current_position) + float(delta),
+        contract.position_min,
+        contract.position_max,
+    )
+    # ``round`` is part of the wire/semantic contract, not presentation.  A
+    # float64 is returned so replay and hashing observe one representation.
+    return float(np.round(clipped, decimals=12))
+
+
 def _choose_forecast_delta(
     current_position: float,
     forecast: float,
@@ -745,12 +763,10 @@ def _choose_forecast_delta(
         raise ActionPrimitiveContractError("finite forecast is required for an eligible action block")
     candidates: list[tuple[float, float, float]] = []
     for delta in contract.candidate_deltas:
-        next_position = float(
-            np.clip(
-                current_position + float(delta),
-                contract.position_min,
-                contract.position_max,
-            )
+        next_position = _canonical_position(
+            current_position,
+            float(delta),
+            contract,
         )
         value = next_position * float(forecast) - float(
             abs(next_position - current_position) * contract.transition_cost_rate
@@ -783,12 +799,10 @@ def _expected_block_metrics(
     same_state_local_hold_utility = previous_position * block_sum
     feasible: list[tuple[float, float, float]] = []
     for delta in contract.candidate_deltas:
-        candidate_position = float(
-            np.clip(
-                previous_position + float(delta),
-                contract.position_min,
-                contract.position_max,
-            )
+        candidate_position = _canonical_position(
+            previous_position,
+            float(delta),
+            contract,
         )
         utility = candidate_position * block_sum - abs(
             candidate_position - previous_position
@@ -1340,12 +1354,10 @@ def produce_action_primitive_grid(
                     float(score_block[row_index]),
                     contract_obj,
                 )
-            selected_position = float(
-                np.clip(
-                    previous_position + chosen_delta,
-                    contract_obj.position_min,
-                    contract_obj.position_max,
-                )
+            selected_position = _canonical_position(
+                previous_position,
+                chosen_delta,
+                contract_obj,
             )
             current = selected_position
         else:
@@ -1830,12 +1842,10 @@ def validate_action_primitive_semantics(
             )
         if not contract_obj.position_min - 1e-9 <= selected <= contract_obj.position_max + 1e-9:
             raise ActionPrimitiveContractError(f"row {row_index} selected_position is outside bounds")
-        expected_selected = float(
-            np.clip(
-                previous + chosen_delta,
-                contract_obj.position_min,
-                contract_obj.position_max,
-            )
+        expected_selected = _canonical_position(
+            previous,
+            chosen_delta,
+            contract_obj,
         )
         if not np.isclose(selected, expected_selected, atol=1e-9, rtol=0.0):
             raise ActionPrimitiveContractError(
