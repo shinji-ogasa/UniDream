@@ -1480,11 +1480,9 @@ def _ensure_dataset(dataset: RunnerDataset) -> RunnerDataset:
     returns = np.asarray(dataset.returns)
     if returns.shape != (n_rows,) or not np.issubdtype(returns.dtype, np.number):
         raise P1RunnerError("dataset returns are not row-aligned")
-    if not np.isfinite(returns).all():
-        raise P1RunnerError(
-            "production synthetic dataset returns must be finite; "
-            "missing returns belong in the target mask fixture only"
-        )
+    returns = np.asarray(returns, dtype=np.float64)
+    if np.isinf(returns).any():
+        raise P1RunnerError("dataset returns must not contain infinity")
     targets = np.asarray(dataset.targets)
     if (
         targets.shape != (n_rows, len(FORECAST_HORIZONS))
@@ -1537,6 +1535,16 @@ def _ensure_dataset(dataset: RunnerDataset) -> RunnerDataset:
                 )
     except (KeyError, TypeError, AttributeError) as exc:
         raise P1RunnerError("dataset availability masks are incomplete") from exc
+    # A return gap is represented by a non-finite value together with an
+    # unobserved Spot bar.  It is valid source evidence for evaluation rows,
+    # but a non-finite return on an observed Spot bar is malformed.  Do not
+    # replace missing values with zero; target construction keeps them
+    # masked instead.
+    spot_observed = np.asarray(availability["spot_bar_observed"])
+    if np.any(spot_observed & ~np.isfinite(returns)):
+        raise P1RunnerError(
+            "dataset returns may be non-finite only when spot_bar_observed is false"
+        )
 
     expected_targets, expected_target_mask, expected_target_end = build_target_arrays(
         returns,
@@ -1621,7 +1629,16 @@ def prediction_mask_for_range(
     start: int = 0,
     end: int | None = None,
 ) -> np.ndarray:
-    """Return full-grid context-and-target eligibility inside a support range."""
+    """Return the causal inference mask inside a registered support range.
+
+    This mask is deliberately independent of future target availability.  A
+    decision row is available for inference when its current-inclusive
+    context is complete and its deterministic ``target_end`` remains inside
+    the requested right-exclusive support boundary.  The latter is a known
+    split geometry rule, not an inspection of future returns or a target
+    availability sidecar.  Use :func:`score_eligible_mask_for_range` when a
+    complete future target is required for evaluation.
+    """
 
     data = _ensure_dataset(dataset)
     horizon_int = _strict_horizon(horizon)
@@ -1635,12 +1652,63 @@ def prediction_mask_for_range(
     rows = np.arange(len(data.features), dtype=np.int64)
     mask = (
         data.context_mask
-        & data.target_mask[:, column]
         & (data.target_end[:, column] <= end_int)
         & (rows >= start_int)
         & (rows < end_int)
     )
     return _read_only(mask, dtype=np.bool_)
+
+
+def inference_mask_for_range(
+    dataset: RunnerDataset,
+    horizon: int,
+    *,
+    start: int = 0,
+    end: int | None = None,
+) -> np.ndarray:
+    """Return the causal inference mask for one horizon/support range.
+
+    ``prediction_mask_for_range`` is retained as the historical public name
+    for this causal mask.  This explicit alias makes the distinction visible
+    at call sites and prevents a future implementation from accidentally
+    coupling model inference to a future label/outcome gap.
+    """
+
+    return prediction_mask_for_range(dataset, horizon, start=start, end=end)
+
+
+def score_eligible_mask_for_range(
+    dataset: RunnerDataset,
+    horizon: int,
+    *,
+    start: int = 0,
+    end: int | None = None,
+) -> np.ndarray:
+    """Return context-and-target score eligibility inside a support range.
+
+    The score mask is intentionally a strict subset of the causal inference
+    mask whenever a future target/outcome gap is present.  It is the only
+    range mask that consults ``target_mask``; model inference and action
+    eligibility must use :func:`inference_mask_for_range` instead.
+    """
+
+    data = _ensure_dataset(dataset)
+    horizon_int = _strict_horizon(horizon)
+    start_int = _strict_origin(start)
+    end_int = len(data.features) if end is None else _strict_origin(end)
+    if end_int <= start_int:
+        raise P1RunnerError("score support range must satisfy end > start")
+    if start_int > len(data.features) or end_int > len(data.features):
+        raise P1RunnerError("score support range is outside the dataset")
+    column = _horizon_column(data, horizon_int)
+    inference = prediction_mask_for_range(
+        data,
+        horizon_int,
+        start=start_int,
+        end=end_int,
+    )
+    score = inference & data.target_mask[:, column]
+    return _read_only(score, dtype=np.bool_)
 
 
 @dataclass(frozen=True)
@@ -1706,20 +1774,22 @@ class ModelFit:
                 raise P1RunnerError(f"model fit {name} must have strict bool dtype")
         if predictions.dtype != np.dtype(np.float64):
             raise P1RunnerError("model fit predictions must use float64 values")
-        if np.any(prediction_mask & ~eligible_mask):
-            raise P1RunnerError("model fit prediction_mask exceeds eligible_mask")
+        # ``prediction_mask`` is the finite, causal inference mask.  It must
+        # not be narrowed by a future target/outcome gap.  ``eligible_mask``
+        # is the evaluation score mask and may therefore be a strict subset
+        # of the inference rows.  An N/A fit may retain its score mask as
+        # evidence while carrying no predictions, so the subset invariant is
+        # enforced only for successful fits.
         finite_predictions = np.isfinite(predictions)
         if not np.array_equal(finite_predictions, prediction_mask):
             raise P1RunnerError(
                 "model fit predictions must be finite exactly where prediction_mask is true"
             )
         if self.status == "ok":
-            if not np.array_equal(prediction_mask, eligible_mask):
-                raise P1RunnerError(
-                    "successful model fits must cover every eligible prediction row"
-                )
-            if not np.any(eligible_mask):
-                raise P1RunnerError("successful model fits require non-empty coverage")
+            if np.any(eligible_mask & ~prediction_mask):
+                raise P1RunnerError("model fit eligible_mask exceeds prediction_mask")
+            if not np.any(prediction_mask):
+                raise P1RunnerError("successful model fits require non-empty inference coverage")
         elif np.any(prediction_mask):
             raise P1RunnerError("N/A model fits cannot contain predictions")
         object.__setattr__(self, "train_mask", _read_only(train_mask, dtype=np.bool_))
@@ -1730,6 +1800,18 @@ class ModelFit:
     @property
     def is_na(self) -> bool:
         return self.status == "N/A"
+
+    @property
+    def inference_mask(self) -> np.ndarray:
+        """Causal rows receiving a forecast; alias of ``prediction_mask``."""
+
+        return self.prediction_mask
+
+    @property
+    def score_eligible_mask(self) -> np.ndarray:
+        """Rows with a complete target available for evaluation."""
+
+        return self.eligible_mask
 
 
 def clip_probabilities(probabilities: Any, *, eps: float = PROBABILITY_CLIP_EPS) -> np.ndarray:
@@ -1772,7 +1854,7 @@ def _validate_model_fit_arrays(
     predictions: Any,
     require_coverage: bool,
 ) -> None:
-    """Validate the finite-prediction/coverage contract before construction."""
+    """Validate the causal inference/score finite-prediction contract."""
 
     eligible = np.asarray(eligible_mask)
     predicted = np.asarray(prediction_mask)
@@ -1785,17 +1867,17 @@ def _validate_model_fit_arrays(
         raise P1RunnerError("model fit masks and predictions must be one-dimensional")
     if len(eligible) != len(predicted) or len(eligible) != len(values):
         raise P1RunnerError("model fit masks and predictions must be row-aligned")
-    if np.any(predicted & ~eligible):
-        raise P1RunnerError("model fit prediction_mask exceeds eligible_mask")
+    if np.any(eligible & ~predicted):
+        raise P1RunnerError("model fit eligible_mask exceeds prediction_mask")
     if not np.array_equal(np.isfinite(values), predicted):
         raise P1RunnerError(
             "model fit predictions must be finite exactly where prediction_mask is true"
         )
     if require_coverage:
-        if not np.any(eligible):
-            raise P1RunnerError("production fit requires non-empty eligible coverage")
-        if not np.array_equal(predicted, eligible):
-            raise P1RunnerError("production fit must predict every eligible row")
+        if not np.any(predicted):
+            raise P1RunnerError("production fit requires non-empty inference coverage")
+        if np.any(eligible & ~predicted):
+            raise P1RunnerError("production fit score eligibility exceeds inference coverage")
 
 
 def _na_model_fit(
@@ -1867,17 +1949,29 @@ def fit_model_at_origin(
         horizon_int,
         train_start=train_start_int,
     )
-    eligible_mask = prediction_mask_for_range(
+    inference_mask = inference_mask_for_range(
+        data,
+        horizon_int,
+        start=origin_int,
+        end=len(data.features),
+    )
+    score_eligible_mask = score_eligible_mask_for_range(
         data,
         horizon_int,
         start=origin_int,
         end=len(data.features),
     )
     if prediction_range is not None:
-        eligible_mask = _prediction_mask(data, horizon_int, origin_int, prediction_range)
-    if not np.any(eligible_mask):
+        inference_mask = _prediction_mask(data, horizon_int, origin_int, prediction_range)
+        score_eligible_mask = score_eligible_mask_for_range(
+            data,
+            horizon_int,
+            start=prediction_range[0],
+            end=prediction_range[1],
+        )
+    if not np.any(inference_mask):
         raise P1RunnerError(
-            "production fit requires at least one eligible prediction row"
+            "production fit requires at least one causal inference row"
         )
     prediction_mask = np.zeros(len(data.features), dtype=np.bool_)
     predictions = np.full(len(data.features), np.nan, dtype=np.float64)
@@ -1894,25 +1988,29 @@ def fit_model_at_origin(
             origin=origin_int,
             train_start=train_start_int,
             train_mask=train_mask,
-            eligible_mask=eligible_mask,
+            eligible_mask=score_eligible_mask,
             predictions=predictions,
             reason=f"fewer than {MIN_HISTORY_ROWS} admissible training rows",
         )
 
     if model_id == "zero_return":
-        predictions[eligible_mask] = 0.0 if resolved_task == "continuous" else 0.5
-        prediction_mask = eligible_mask.copy()
+        predictions[inference_mask] = 0.0 if resolved_task == "continuous" else 0.5
+        prediction_mask = inference_mask.copy()
     elif model_id == "persistence_last_observed":
+        if not np.isfinite(data.returns[inference_mask]).all():
+            raise P1RunnerError(
+                "persistence inference rows must have finite current observed returns"
+            )
         if resolved_task == "continuous":
-            predictions[eligible_mask] = horizon_int * data.returns[eligible_mask]
+            predictions[inference_mask] = horizon_int * data.returns[inference_mask]
         else:
-            positive = data.returns[eligible_mask] > 0.0
-            predictions[eligible_mask] = np.where(
+            positive = data.returns[inference_mask] > 0.0
+            predictions[inference_mask] = np.where(
                 positive,
                 1.0 - PROBABILITY_CLIP_EPS,
                 PROBABILITY_CLIP_EPS,
             )
-        prediction_mask = eligible_mask.copy()
+        prediction_mask = inference_mask.copy()
     elif model_id == "ridge":
         X_train = data.features[train_mask]
         y_train = data.targets[train_mask, column]
@@ -1924,7 +2022,7 @@ def fit_model_at_origin(
                 origin=origin_int,
                 train_start=train_start_int,
                 train_mask=train_mask,
-                eligible_mask=eligible_mask,
+                eligible_mask=score_eligible_mask,
                 predictions=predictions,
                 reason="no admissible training rows",
             )
@@ -1939,11 +2037,11 @@ def fit_model_at_origin(
             random_state=None,
         )
         estimator.fit(X_scaled, y_train)
-        if np.any(eligible_mask):
-            predictions[eligible_mask] = estimator.predict(
-                scaler.transform(data.features[eligible_mask])
+        if np.any(inference_mask):
+            predictions[inference_mask] = estimator.predict(
+                scaler.transform(data.features[inference_mask])
             )
-            prediction_mask = eligible_mask.copy()
+            prediction_mask = inference_mask.copy()
     elif model_id == "logistic":
         labels = data.binary_labels[train_mask, column]
         # The target mask guarantees finite labels; keep this explicit so a
@@ -1960,7 +2058,7 @@ def fit_model_at_origin(
                 origin=origin_int,
                 train_start=train_start_int,
                 train_mask=train_mask,
-                eligible_mask=eligible_mask,
+                eligible_mask=score_eligible_mask,
                 predictions=predictions,
                 reason=reason,
             )
@@ -1977,16 +2075,16 @@ def fit_model_at_origin(
             random_state=0,
         )
         estimator.fit(X_scaled, labels)
-        if np.any(eligible_mask):
+        if np.any(inference_mask):
             class_one_index = int(np.flatnonzero(estimator.classes_ == 1)[0])
             raw_probability = estimator.predict_proba(
-                scaler.transform(data.features[eligible_mask])
+                scaler.transform(data.features[inference_mask])
             )[:, class_one_index]
-            predictions[eligible_mask] = clip_probabilities(raw_probability)
-            prediction_mask = eligible_mask.copy()
+            predictions[inference_mask] = clip_probabilities(raw_probability)
+            prediction_mask = inference_mask.copy()
 
     _validate_model_fit_arrays(
-        eligible_mask=eligible_mask,
+        eligible_mask=score_eligible_mask,
         prediction_mask=prediction_mask,
         predictions=predictions,
         require_coverage=True,
@@ -1998,7 +2096,7 @@ def fit_model_at_origin(
         origin=origin_int,
         train_start=train_start_int,
         train_mask=train_mask,
-        eligible_mask=eligible_mask,
+        eligible_mask=score_eligible_mask,
         prediction_mask=_read_only(prediction_mask, dtype=np.bool_),
         predictions=_read_only(predictions, dtype=np.float64),
         status="ok",
@@ -2334,6 +2432,8 @@ __all__ = [
     "run_s3_validation_fits",
     "run_synthetic_oof",
     "run_synthetic_oof_fixture",
+    "inference_mask_for_range",
+    "score_eligible_mask_for_range",
     "train_mask_for_origin",
     "timestamp_edge_mask",
     "validate_15m_timestamps",
