@@ -131,6 +131,19 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(metrics.scored_bars, 4)
         self.assertEqual(metrics.complete_blocks, 1)
 
+    def test_backtest_accepts_historical_absolute_position_shape_when_contract_is_opted_in(self) -> None:
+        returns = np.zeros(9, dtype=np.float64)
+        positions = np.asarray([0.92, 0.92, 0.92, 0.92, 0.96, 0.96, 0.96, 0.96, 0.96])
+        metrics = Backtest(
+            returns,
+            positions,
+            benchmark_positions=np.ones(9, dtype=np.float64),
+            action_execution_contract=self.contract,
+            interval="1d",
+        ).run()
+        self.assertEqual(metrics.scored_bars, 8)
+        self.assertAlmostEqual(metrics.pnl_series[0], -0.00055 * 0.08)
+
     def test_absolute_path_adapter_rejects_changes_inside_commitment(self) -> None:
         positions = np.asarray([0.92, 0.92, 0.92, 0.92, 0.96, 0.96, 0.96, 0.96, 0.96])
         deltas = decision_deltas_from_positions(positions, self.contract)

@@ -782,6 +782,7 @@ def run_contract_backtest(
     kwargs = dict(kwargs)
     kwargs["benchmark_positions"] = benchmark_deltas
     kwargs["action_execution_contract"] = contract
+    kwargs["action_positions_are_deltas"] = True
     return backtest_cls(returns, decision_deltas, **kwargs)
 
 

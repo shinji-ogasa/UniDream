@@ -14,6 +14,7 @@ import pandas as pd
 from unidream.eval.action_execution import (
     ActionExecutionContract,
     ActionExecutionTrajectory,
+    decision_deltas_from_positions,
     replay_action_path,
 )
 
@@ -321,6 +322,7 @@ class Backtest:
         benchmark_initial_position: float | None = None,
         action_execution_contract: ActionExecutionContract | None = None,
         execution_contract: ActionExecutionContract | None = None,
+        action_positions_are_deltas: bool | None = None,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -334,6 +336,15 @@ class Backtest:
             if action_execution_contract != execution_contract:
                 raise ValueError("action_execution_contract and execution_contract disagree")
         self.action_execution_contract = action_execution_contract or execution_contract
+        if self.action_execution_contract is not None and not isinstance(
+            self.action_execution_contract, ActionExecutionContract
+        ):
+            raise TypeError("action_execution_contract must be an ActionExecutionContract")
+        self.action_positions_are_deltas = action_positions_are_deltas
+        if self.action_positions_are_deltas is not None and not isinstance(
+            self.action_positions_are_deltas, bool
+        ):
+            raise TypeError("action_positions_are_deltas must be a bool when provided")
         if self.action_execution_contract is not None and self.execution_delay_bars != 0:
             raise ValueError(
                 "execution_delay_bars must be omitted/zero when an action execution contract is provided"
@@ -378,10 +389,39 @@ class Backtest:
     def run(self) -> BacktestMetrics:
         """バックテストを実行してメトリクスを返す."""
         if self.action_execution_contract is not None:
+            if self.action_positions_are_deltas is True:
+                action_deltas = self.positions
+            elif self.action_positions_are_deltas is False:
+                action_deltas = decision_deltas_from_positions(
+                    self.positions,
+                    self.action_execution_contract,
+                )
+            else:
+                try:
+                    action_deltas = decision_deltas_from_positions(
+                        self.positions,
+                        self.action_execution_contract,
+                    )
+                except ValueError:
+                    action_deltas = self.positions
+            benchmark_deltas = self.benchmark_positions
+            if benchmark_deltas is not None and self.action_positions_are_deltas is False:
+                benchmark_deltas = decision_deltas_from_positions(
+                    benchmark_deltas,
+                    self.action_execution_contract,
+                )
+            elif benchmark_deltas is not None and self.action_positions_are_deltas is None:
+                try:
+                    benchmark_deltas = decision_deltas_from_positions(
+                        benchmark_deltas,
+                        self.action_execution_contract,
+                    )
+                except ValueError:
+                    pass
             return _run_contract_backtest(
                 self.returns,
-                self.positions,
-                self.benchmark_positions,
+                action_deltas,
+                benchmark_deltas,
                 self.action_execution_contract,
                 self.ann_factor,
             )
