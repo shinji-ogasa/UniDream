@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from unidream.data.cache_v4 import MODEL_FEATURE_COLUMNS, cache_v4_paths, write_cache_v4
+from unidream.data.dataset import WFODataset, WFOSplit
 from unidream.experiments.runtime import cache_quality_status, load_training_features
 from unidream.experiments.train_app import resolve_training_cache_selection
 
@@ -84,19 +85,36 @@ class RuntimeV4Test(unittest.TestCase):
             root = Path(temp_dir)
             _v4_fixture(root)
             self.assertEqual(cache_quality_status(temp_dir, "runtime-v4"), "v4_verified")
-            with self.assertRaisesRegex(ValueError, "full17 v4 training promotion blocked"):
-                load_training_features(
-                    symbol="BTCUSDT",
-                    interval="15m",
-                    start="2024-01-01",
-                    end="2024-01-02",
-                    zscore_window=60,
-                    cache_dir=temp_dir,
-                    cache_tag="runtime-v4",
-                    include_funding=True,
-                    include_oi=False,
-                    include_mark=True,
-                )
+            features, returns, availability = load_training_features(
+                symbol="BTCUSDT",
+                interval="15m",
+                start="2024-01-01",
+                end="2024-01-02",
+                zscore_window=60,
+                cache_dir=temp_dir,
+                cache_tag="runtime-v4",
+                include_funding=True,
+                include_oi=False,
+                include_mark=True,
+                return_availability=True,
+            )
+            self.assertEqual(features.shape[1], 17)
+            pd.testing.assert_frame_equal(features.attrs["availability"], availability)
+            split = WFOSplit(
+                fold_idx=0,
+                train_start=features.index[0],
+                train_end=features.index[4],
+                val_start=features.index[4],
+                val_end=features.index[5 - 1] + pd.Timedelta(minutes=15),
+                test_start=features.index[5 - 1] + pd.Timedelta(minutes=15),
+                test_end=features.index[5 - 1] + pd.Timedelta(minutes=30),
+            )
+            dataset = WFODataset(features, returns, split, seq_len=2)
+            self.assertEqual(dataset.obs_dim, 17)
+            # Funding is unavailable at row 1.  The body keeps every row and
+            # only the original-offset window [2, 3] remains eligible.
+            np.testing.assert_array_equal(dataset.train_row_eligible, [True, False, True, True])
+            np.testing.assert_array_equal(dataset.train_dataset().valid_starts, [2])
 
     def test_invalid_v4_hit_does_not_fall_back_to_raw_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
