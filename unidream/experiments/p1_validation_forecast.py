@@ -18,7 +18,7 @@ dataclass as an authenticated source.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import hashlib
 import json
 import os
@@ -73,6 +73,27 @@ P1_CONTEXT_BARS = 64
 P1_FIXED_HORIZONS = (1, 4, 8, 16)
 P1_SYNTHETIC_SEEDS = tuple(range(20_260_830, 20_260_840))
 P1_S3_SEEDS = (20_260_830,)
+P1_VALIDATION_ARM_COUNT = 52
+P1_REGISTERED_TRIAL_REGISTRY_SHA256 = "0f79c41ce0b8ec81c4f02e7ae556ac707779c0e23613cdacddd18b10cfedd587"
+P1_REGISTERED_COMPARISON_REGISTRY_SHA256 = "bed67b607bc7d410add30a81e62f5d452bcc0a67ae3b59cce62744bd18b447db"
+P1_PRIMARY_COMPARISON_IDS = (
+    "S0__ridge__utility_vs_hold__cost_on",
+    "S0__persistence__utility_vs_hold__cost_on",
+    "S1__ridge__mse_vs_zero__cost_off",
+    "S1__ridge__utility_vs_hold__cost_on",
+    "S2__high_vs_medium__ridge__mse_skill__cost_off",
+    "S2__high_vs_medium__ridge__normalized_regret__cost_on",
+    "S2__high_vs_medium__ridge__utility__cost_on",
+    "S2__high_vs_medium__ridge__agreement__cost_on",
+    "S2__high_vs_medium__logistic__log_loss__cost_off",
+    "S2__medium_vs_low__ridge__mse_skill__cost_off",
+    "S2__medium_vs_low__ridge__normalized_regret__cost_on",
+    "S2__medium_vs_low__ridge__utility__cost_on",
+    "S2__medium_vs_low__ridge__agreement__cost_on",
+    "S2__medium_vs_low__logistic__log_loss__cost_off",
+    "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
+    "S3__injected_vs_control__ridge__utility__cost_on",
+)
 P1_SCENARIO_ARMS = (
     ("S0", "zero_signal"),
     ("S1", "known_high_snr_dgp"),
@@ -98,6 +119,13 @@ P1_COVERAGE_THRESHOLD_KEYS = (
     "label_complete_fraction",
     "finite_oof_prediction_fraction",
 )
+P1_FIXED_COVERAGE_THRESHOLDS = {
+    "synthetic_eligible_origin_fraction_min": 0.9,
+    "s3_eligible_origin_fraction_min": 0.5,
+    "label_complete_fraction_min": 0.9,
+    "finite_oof_prediction_fraction_min": 0.95,
+    "scored_action_fraction_min": 0.8,
+}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -364,6 +392,12 @@ class P1ForecastContract:
                 f"scenario/arm is not registered: {scenario_id!r}/{arm!r}"
             ) from exc
 
+    @property
+    def validation_arm_keys(self) -> tuple[tuple[str, str, int], ...]:
+        """Return every registered scenario/arm/seed execution identity."""
+
+        return registered_validation_arm_keys(self)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "manifest_sha256": self.manifest_sha256,
@@ -536,24 +570,47 @@ def authenticate_p1_forecast_contract(
         raise P1ForecastError("authenticated registry hashes/counts do not echo the manifest")
     specs = _build_registered_specs(manifest)
     # Every scenario/arm must have both cost-mode rows for every fixed model.
+    mapper_by_model = {
+        "zero_return": "fixed_baseline",
+        "persistence_last_observed": "fixed_baseline",
+        "ridge": "ridge_h4",
+        "logistic": "none_binary_diagnostic",
+    }
     for scenario_id, arm in P1_SCENARIO_ARMS:
         matching = [row for row in registry.trials if row.get("scenario_id") == scenario_id and row.get("arm") == arm]
         if len(matching) != len(P1_REQUIRED_COST_MODES) * 4:
             raise P1ForecastError(f"registry rows are incomplete for {scenario_id}/{arm}")
-        expected_ids = {
-            f"{scenario_id}__{arm if scenario_id == 'S3' else _registry_model_name(model)}__{cost}"
-            for model in ("zero_return", "persistence_last_observed", "ridge", "logistic")
-            for cost in P1_REQUIRED_COST_MODES
+        spec = specs[(scenario_id, arm)]
+        registry_prefix = (
+            "S3-injected" if (scenario_id, arm) == ("S3", "injected")
+            else "S3-control" if (scenario_id, arm) == ("S3", "zero_injection_control")
+            else scenario_id
+        )
+        expected_rows = {
+            (
+                f"{registry_prefix}__{model_id}__{cost_mode}",
+                scenario_id,
+                arm,
+                model_id,
+                cost_mode,
+                True,
+                mapper_by_model[model_id],
+                len(spec.seeds),
+            )
+            for model_id in mapper_by_model
+            for cost_mode in P1_REQUIRED_COST_MODES
         }
-        # Registry uses compact persistence IDs and S3 control IDs; derive the
-        # exact expected set from its immutable rows rather than accepting a
-        # caller-created trial key.
-        if {row.get("model_id") for row in matching} != {
-            "zero_return", "persistence_last_observed", "ridge", "logistic"
-        } or {row.get("cost_mode") for row in matching} != set(P1_REQUIRED_COST_MODES):
-            raise P1ForecastError(f"registry model/cost grid is incomplete for {scenario_id}/{arm}")
-        if any(row.get("primary") is not True for row in matching):
-            raise P1ForecastError(f"registry contains a non-primary execution row for {scenario_id}/{arm}")
+        actual_rows = {
+            tuple(row.get(field) for field in (
+                "trial_id", "scenario_id", "arm", "model_id", "cost_mode",
+                "primary", "action_mapper", "seed_count",
+            ))
+            for row in matching
+        }
+        if actual_rows != expected_rows:
+            raise P1ForecastError(f"registry rows differ from the fixed grid for {scenario_id}/{arm}")
+    if tuple(row.get("comparison_id") for row in registry.comparisons) != P1_PRIMARY_COMPARISON_IDS:
+        raise P1ForecastError("primary comparison IDs/order differ from the fixed registry")
     thresholds = common.get("gates", {}).get("coverage_thresholds") if isinstance(common.get("gates"), Mapping) else None
     if not isinstance(thresholds, Mapping):
         raise P1ForecastError("fixed coverage thresholds are missing")
@@ -602,13 +659,49 @@ load_p1_forecast_contract = authenticate_p1_forecast_contract
 load_authenticated_p1_forecast_contract = authenticate_p1_forecast_contract
 
 
-def _registry_model_name(model_id: str) -> str:
-    """Keep this helper explicit for readable registry-grid checks."""
+def registered_validation_arm_keys(
+    contract: P1ForecastContract | None = None,
+) -> tuple[tuple[str, str, int], ...]:
+    """Return the exact 52 registered scenario/arm/seed identities."""
 
-    return {"persistence_last_observed": "persistence", "zero_return": "zero_return"}.get(model_id, model_id)
+    selected = contract if contract is not None else authenticate_p1_forecast_contract()
+    if not isinstance(selected, P1ForecastContract):
+        raise P1ForecastError("validation arm enumeration requires the authenticated contract")
+    keys = tuple(
+        (scenario_id, arm, seed)
+        for scenario_id, arm in P1_SCENARIO_ARMS
+        for seed in selected.spec(scenario_id, arm).seeds
+    )
+    if len(keys) != P1_VALIDATION_ARM_COUNT or len(set(keys)) != P1_VALIDATION_ARM_COUNT:
+        raise P1ForecastError("fixed validation arm registry must contain exactly 52 identities")
+    return keys
 
 
-def _expected_metadata(contract: P1ForecastContract, spec: ValidationScenarioSpec) -> dict[str, Any]:
+def _dataset_seed(dataset: Any, spec: ValidationScenarioSpec) -> int:
+    """Resolve one registered seed; every artifact is one seed, never a seed set."""
+
+    value = getattr(dataset, "seed", None)
+    seed = _strict_int(value, name="dataset.seed")
+    if seed not in spec.seeds:
+        raise P1ForecastError(
+            f"dataset seed {seed} is not registered for {spec.scenario_id}/{spec.arm}"
+        )
+    return seed
+
+
+def _expected_metadata(
+    contract: P1ForecastContract,
+    spec: ValidationScenarioSpec,
+    *,
+    seed: int | None = None,
+) -> dict[str, Any]:
+    if seed is None:
+        if len(spec.seeds) != 1:
+            raise P1ForecastError("production expected metadata requires the selected seed")
+        seed = spec.seeds[0]
+    seed = _strict_int(seed, name="expected_metadata.seed")
+    if seed not in spec.seeds:
+        raise P1ForecastError("expected metadata seed is not registered for the scenario/arm")
     return {
         "manifest_sha256": contract.manifest_sha256,
         "trial_registry_sha256": contract.trial_registry_sha256,
@@ -618,13 +711,27 @@ def _expected_metadata(contract: P1ForecastContract, spec: ValidationScenarioSpe
         "outer_results_observed": False,
         "scenario_id": spec.scenario_id,
         "arm": spec.arm,
-        "seed": spec.seeds[0] if len(spec.seeds) == 1 else None,
+        "seed": seed,
         "split_id": spec.split_id,
         "support_id": spec.support_id,
         "support_range": list(spec.support_range),
         "fit_origin": spec.fit_origin,
         "train_start": spec.train_start,
     }
+
+
+def expected_metadata_for_arm(
+    contract: P1ForecastContract,
+    scenario_id: str,
+    arm: str,
+    seed: int,
+) -> Mapping[str, Any]:
+    """Return the fixed external metadata required for one production arm load."""
+
+    if not isinstance(contract, P1ForecastContract):
+        raise P1ForecastError("expected metadata requires the authenticated contract")
+    spec = contract.spec(scenario_id, arm)
+    return MappingProxyType(_expected_metadata(contract, spec, seed=seed))
 
 
 @dataclass(frozen=True)
@@ -772,6 +879,7 @@ def _support_slice(values: Any, spec: ValidationScenarioSpec, *, name: str) -> n
 
 
 def _scenario_provenance(spec: ValidationScenarioSpec, dataset: Any) -> Mapping[str, Any]:
+    seed = _dataset_seed(dataset, spec)
     returns = np.asarray(dataset.returns)
     features = np.asarray(dataset.features)
     timestamps = np.asarray(dataset.timestamps)
@@ -787,7 +895,7 @@ def _scenario_provenance(spec: ValidationScenarioSpec, dataset: Any) -> Mapping[
         "scenario_id": spec.scenario_id,
         "arm": spec.arm,
         "data_kind": spec.data_kind,
-        "seed": spec.seeds[0] if len(spec.seeds) == 1 else None,
+        "seed": seed,
         "beta": spec.beta,
         "snr": spec.snr,
         "n_rows": spec.n_rows,
@@ -939,6 +1047,7 @@ def build_p1_forecast_artifact(
         raise P1ForecastError("artifact scenario/arm is not from the authenticated contract")
     if spec.n_rows <= 0 or spec.n_rows > P1_FORECAST_FILE_MAX_ROWS:
         raise P1ForecastError("registered body row count is outside the artifact bound")
+    seed = _dataset_seed(dataset, spec)
     timestamps = np.asarray(dataset.timestamps)
     if len(timestamps) != spec.n_rows:
         raise P1ForecastError("dataset timestamps are not aligned to the registered body")
@@ -999,16 +1108,47 @@ def build_p1_forecast_artifact(
                 thresholds=contract.coverage_thresholds,
             )
             coverage[_fit_key(horizon, model_id, task)] = summary.as_dict()
+    if future_perturbation_evidence is not None and not isinstance(future_perturbation_evidence, Mapping):
+        raise P1ForecastError("future perturbation evidence must be a mapping")
     evidence = (
         dict(future_perturbation_evidence)
         if future_perturbation_evidence is not None
-        else _future_evidence(
+        else dict(_future_evidence(
             dataset,
             fits[(4, "ridge", "continuous")],
             spec=spec,
             horizon=4,
-        )
+        ))
     )
+    if evidence.get("status") == "passed":
+        evidence.setdefault("origin", spec.fit_origin)
+        evidence.setdefault("horizon", 4)
+        evidence.setdefault("perturb_start", spec.support_range[1])
+        probe_fit = fits[(4, "ridge", "continuous")]
+        probe_train_mask = np.asarray(probe_fit.train_mask)
+        probe_prediction_mask = np.asarray(probe_fit.prediction_mask)
+        probe_predictions = np.asarray(probe_fit.predictions)
+        evidence.setdefault(
+            "fitted_prefix_mask_sha256",
+            _array_sha256(probe_train_mask[: spec.fit_origin], name="fitted_prefix_mask"),
+        )
+        evidence.setdefault(
+            "earlier_prediction_mask_sha256",
+            _array_sha256(probe_prediction_mask[: spec.support_range[1]], name="earlier_prediction_mask"),
+        )
+        evidence.setdefault(
+            "earlier_prediction_sha256",
+            _array_sha256(
+                np.where(
+                    probe_prediction_mask[: spec.support_range[1]],
+                    probe_predictions[: spec.support_range[1]],
+                    0.0,
+                ),
+                name="earlier_predictions",
+            ),
+        )
+        if spec.data_kind == "s3":
+            evidence.setdefault("source_body_sha256", getattr(dataset, "source_body_sha256", None))
     if evidence.get("status") not in {"passed", "N/A"}:
         raise P1ForecastError("future perturbation evidence has an invalid status")
     provenance = _scenario_provenance(spec, dataset)
@@ -1028,7 +1168,7 @@ def build_p1_forecast_artifact(
         "schema_version": P1_FORECAST_FILE_VERSION,
         "scenario_id": spec.scenario_id,
         "arm": spec.arm,
-        "seed": int(getattr(dataset, "seed", spec.seeds[0])),
+        "seed": seed,
         "split_id": spec.split_id,
         "support_id": spec.support_id,
         "support_range": list(spec.support_range),
@@ -1066,7 +1206,11 @@ def build_p1_forecast_artifact(
         "fits": records,
         "coverage": coverage,
     }
-    _validate_forecast_payload(artifact, expected_metadata=_expected_metadata(contract, spec), require_production=True)
+    _validate_forecast_payload(
+        artifact,
+        expected_metadata=_expected_metadata(contract, spec, seed=seed),
+        require_production=True,
+    )
     return artifact
 
 
@@ -1135,13 +1279,60 @@ _FIT_FIELDS = (
     "predictions",
 )
 
+_SELF_BINDING_KEYS = frozenset(
+    {
+        "file_sha256",
+        "artifact_file_sha256",
+        "forecast_file_sha256",
+        "output_file_sha256",
+        "artifact_sha256",
+    }
+)
+_MAX_PROVENANCE_DEPTH = 32
+_MAX_PROVENANCE_NODES = 100_000
+
+
+def _reject_self_binding_keys(value: Any, *, path: str = "artifact") -> None:
+    stack: list[tuple[Any, str, int, bool]] = [(value, path, 0, True)]
+    active: set[int] = set()
+    nodes = 0
+    while stack:
+        current, current_path, depth, entering = stack.pop()
+        if not entering:
+            active.discard(id(current))
+            continue
+        nodes += 1
+        if nodes > _MAX_PROVENANCE_NODES:
+            raise P1ForecastError("forecast artifact provenance is too deep or large")
+        if depth > _MAX_PROVENANCE_DEPTH:
+            raise P1ForecastError("forecast artifact provenance is too deeply nested")
+        if isinstance(current, Mapping):
+            identity = id(current)
+            if identity in active:
+                raise P1ForecastError("forecast artifact provenance contains a cycle")
+            active.add(identity)
+            stack.append((current, current_path, depth, False))
+            for key, item in current.items():
+                if key in _SELF_BINDING_KEYS:
+                    raise P1ForecastError(f"{current_path}.{key} is an output self-binding field")
+                stack.append((item, f"{current_path}.{key}", depth + 1, True))
+        elif isinstance(current, (list, tuple)):
+            identity = id(current)
+            if identity in active:
+                raise P1ForecastError("forecast artifact provenance contains a cycle")
+            active.add(identity)
+            stack.append((current, current_path, depth, False))
+            for index, item in enumerate(current):
+                stack.append((item, f"{current_path}[{index}]", depth + 1, True))
+
 
 def _validate_identity(
     artifact: Mapping[str, Any],
     *,
     expected_metadata: Mapping[str, Any] | None,
     require_production: bool,
-) -> None:
+) -> ValidationScenarioSpec | None:
+    _reject_self_binding_keys(artifact)
     if not isinstance(artifact, Mapping) or set(artifact) != _TOP_LEVEL_FIELDS:
         raise P1ForecastError("forecast artifact top-level fields are not exact")
     if artifact.get("format") != P1_FORECAST_FILE_FORMAT or artifact.get("format_version") != P1_FORECAST_FILE_VERSION:
@@ -1164,7 +1355,10 @@ def _validate_identity(
         or header.get("outer_results_observed") is not False
     ):
         raise P1ForecastOuterBlocked("forecast artifact cannot include outer execution")
-    if expected_metadata is not None:
+    spec: ValidationScenarioSpec | None = None
+    if require_production and expected_metadata is None:
+        raise P1ForecastError("production forecast artifacts require external expected_metadata")
+    if require_production:
         if not isinstance(expected_metadata, Mapping):
             raise P1ForecastError("expected_metadata must be a mapping")
         required = {
@@ -1183,23 +1377,65 @@ def _validate_identity(
             "fit_origin",
             "train_start",
         }
-        if require_production and set(expected_metadata) != required:
+        if set(expected_metadata) != required:
             raise P1ForecastError("production expected_metadata fields are not exact")
-        for field_name in required:
-            if field_name == "seed" and expected_metadata[field_name] is None:
-                # Synthetic expected metadata represents a seed set at the
-                # contract level; the artifact header still carries one seed.
-                continue
+        fixed_contract = authenticate_p1_forecast_contract()
+        if (
+            artifact["manifest_sha256"] != REGISTERED_MANIFEST_SHA256
+            or artifact["trial_registry_sha256"] != P1_REGISTERED_TRIAL_REGISTRY_SHA256
+            or artifact["comparison_registry_sha256"] != P1_REGISTERED_COMPARISON_REGISTRY_SHA256
+            or fixed_contract.manifest_sha256 != REGISTERED_MANIFEST_SHA256
+            or fixed_contract.trial_registry_sha256 != P1_REGISTERED_TRIAL_REGISTRY_SHA256
+            or fixed_contract.comparison_registry_sha256 != P1_REGISTERED_COMPARISON_REGISTRY_SHA256
+            or any(
+                fixed_contract.coverage_thresholds.get(name) != value
+                for name, value in P1_FIXED_COVERAGE_THRESHOLDS.items()
+            )
+        ):
+            raise P1ForecastError("forecast artifact is not bound to the registered manifest/registries")
+        try:
+            spec = fixed_contract.spec(
+                expected_metadata["scenario_id"],
+                expected_metadata["arm"],
+            )
+        except (KeyError, TypeError) as exc:
+            raise P1ForecastError("expected metadata scenario/arm is not registered") from exc
+        expected_seed = _strict_int(expected_metadata["seed"], name="expected_metadata.seed")
+        if expected_seed not in spec.seeds:
+            raise P1ForecastError("expected metadata seed is not registered for the scenario/arm")
+        if (
+            expected_metadata["manifest_sha256"] != fixed_contract.manifest_sha256
+            or expected_metadata["trial_registry_sha256"] != fixed_contract.trial_registry_sha256
+            or expected_metadata["comparison_registry_sha256"] != fixed_contract.comparison_registry_sha256
+            or expected_metadata["prereg_results_observed"] is not False
+            or expected_metadata["validation_results_observed"] is not True
+            or expected_metadata["outer_results_observed"] is not False
+        ):
+            raise P1ForecastError("external forecast metadata has invalid fixed source/state binding")
+        expected_identity = {
+            "scenario_id": spec.scenario_id,
+            "arm": spec.arm,
+            "seed": expected_seed,
+            "split_id": spec.split_id,
+            "support_id": spec.support_id,
+            "support_range": list(spec.support_range),
+            "fit_origin": spec.fit_origin,
+            "train_start": spec.train_start,
+        }
+        if any(expected_metadata[name] != value for name, value in expected_identity.items()):
+            raise P1ForecastError("external forecast metadata disagrees with the registered spec")
+        if any(artifact[name] != expected_metadata[name] for name in (
+            "manifest_sha256", "trial_registry_sha256", "comparison_registry_sha256",
+            "prereg_results_observed", "validation_results_observed", "outer_results_observed",
+        )):
+            raise P1ForecastError("forecast artifact source/state fields disagree with external metadata")
+        if any(header.get(name) != value for name, value in expected_identity.items()):
+            raise P1ForecastError("forecast header identity disagrees with external registered metadata")
+    elif expected_metadata is not None:
+        if not isinstance(expected_metadata, Mapping):
+            raise P1ForecastError("expected_metadata must be a mapping")
+        for field_name in expected_metadata:
             actual = artifact[field_name] if field_name in artifact else header.get(field_name)
-            if field_name in {
-                "manifest_sha256",
-                "trial_registry_sha256",
-                "comparison_registry_sha256",
-                "prereg_results_observed",
-                "validation_results_observed",
-                "outer_results_observed",
-            }:
-                actual = artifact[field_name]
             if actual != expected_metadata[field_name]:
                 raise P1ForecastError(f"forecast artifact {field_name} disagrees with external metadata")
     if header.get("forecast_horizons") != list(P1_FIXED_HORIZONS) or header.get("model_task_keys") != [list(key) for key in P1_ALLOWED_MODEL_TASK_KEYS]:
@@ -1220,6 +1456,163 @@ def _validate_identity(
         raise P1ForecastError("forecast split must be validation")
     if "file_sha256" in artifact or "file_sha256" in header:
         raise P1ForecastError("forecast artifact file digest must remain external")
+    if spec is not None:
+        if header["fit_range"] != list(spec.fit_range) or header["support_range"] != list(spec.support_range):
+            raise P1ForecastError("forecast header ranges do not match the registered scenario/arm")
+        if header["fit_origin"] != spec.fit_origin or header["train_start"] != spec.train_start:
+            raise P1ForecastError("forecast header boundaries do not match the registered scenario/arm")
+    return spec
+
+
+def _validate_provenance(header: Mapping[str, Any], spec: ValidationScenarioSpec) -> None:
+    provenance = header.get("scenario_provenance")
+    body = header.get("body_provenance")
+    if not isinstance(provenance, Mapping) or not isinstance(body, Mapping):
+        raise P1ForecastError("forecast source provenance is missing")
+    expected_provenance = {
+        "scenario_id", "arm", "data_kind", "seed", "beta", "snr", "n_rows", "source_array_sha256",
+    }
+    if spec.data_kind == "s3":
+        expected_provenance.add("source_body_sha256")
+        allowed_provenance = expected_provenance | {"runtime"}
+    else:
+        allowed_provenance = expected_provenance
+    if set(provenance) != allowed_provenance:
+        raise P1ForecastError("scenario provenance fields are not canonical")
+    if (
+        provenance.get("scenario_id") != spec.scenario_id
+        or provenance.get("arm") != spec.arm
+        or provenance.get("data_kind") != spec.data_kind
+        or provenance.get("seed") != header.get("seed")
+        or provenance.get("beta") != spec.beta
+        or provenance.get("snr") != spec.snr
+        or provenance.get("n_rows") != spec.n_rows
+    ):
+        raise P1ForecastError("scenario provenance disagrees with the registered header")
+    source_arrays = provenance.get("source_array_sha256")
+    if not isinstance(source_arrays, Mapping) or set(source_arrays) != {
+        "timestamps", "features", "returns", "availability.spot_bar_observed",
+        "availability.funding_rate_available", "availability.mark_close_available",
+    }:
+        raise P1ForecastError("scenario source-array provenance is incomplete")
+    for name, digest in source_arrays.items():
+        _strict_sha256(digest, name=f"scenario_provenance.source_array_sha256.{name}")
+    expected_body = {"data_kind", "body_rows", "support_range", "source_array_sha256"}
+    if spec.data_kind == "s3":
+        expected_body.add("source_body_sha256")
+        allowed_body = expected_body | {"runtime"}
+    else:
+        allowed_body = expected_body
+    if set(body) != allowed_body:
+        raise P1ForecastError("body provenance fields are not canonical")
+    if (
+        body.get("data_kind") != spec.data_kind
+        or body.get("body_rows") != spec.n_rows
+        or body.get("support_range") != list(spec.support_range)
+        or body.get("source_array_sha256") != source_arrays
+    ):
+        raise P1ForecastError("body provenance disagrees with the registered source")
+    if spec.data_kind == "s3":
+        _strict_sha256(provenance.get("source_body_sha256"), name="scenario_provenance.source_body_sha256")
+        if body.get("source_body_sha256") != provenance.get("source_body_sha256"):
+            raise P1ForecastError("S3 body digest is not echoed consistently")
+        if "runtime" in provenance and not isinstance(provenance["runtime"], Mapping):
+            raise P1ForecastError("S3 runtime provenance is malformed")
+        if "runtime" in body and body["runtime"] != provenance.get("runtime"):
+            raise P1ForecastError("S3 runtime provenance is not echoed consistently")
+
+
+def _coverage_expected(
+    *,
+    support_range: tuple[int, int],
+    target_end: np.ndarray,
+    target_mask: np.ndarray,
+    context_mask: np.ndarray,
+    record: Mapping[str, Any],
+    horizon: int,
+    model_id: str,
+    task: str,
+    data_kind: str,
+) -> dict[str, Any]:
+    column = P1_FIXED_HORIZONS.index(horizon)
+    potential = target_end[:, column] <= support_range[1]
+    context = context_mask[potential]
+    labels = target_mask[potential, column]
+    eligible = context & labels
+    prediction_mask = np.asarray(record["prediction_mask"], dtype=np.bool_)
+    predictions = np.asarray(record["predictions"], dtype=np.float64)
+    finite = prediction_mask[potential] & np.isfinite(predictions[potential])
+    potential_count = int(np.count_nonzero(potential))
+    context_count = int(np.count_nonzero(context))
+    label_count = int(np.count_nonzero(labels))
+    eligible_count = int(np.count_nonzero(eligible))
+    finite_count = int(np.count_nonzero(finite & eligible))
+    eligible_fraction = eligible_count / potential_count if potential_count else None
+    context_fraction = context_count / potential_count if potential_count else None
+    label_fraction = label_count / potential_count if potential_count else None
+    finite_fraction = finite_count / eligible_count if eligible_count else None
+    eligible_threshold = P1_FIXED_COVERAGE_THRESHOLDS[
+        "synthetic_eligible_origin_fraction_min"
+        if data_kind == "synthetic" else "s3_eligible_origin_fraction_min"
+    ]
+    if potential_count == 0 or eligible_count == 0 or record["status"] == "N/A":
+        status = "N/A"
+    elif (
+        eligible_fraction < eligible_threshold
+        or label_fraction < P1_FIXED_COVERAGE_THRESHOLDS["label_complete_fraction_min"]
+        or finite_fraction < P1_FIXED_COVERAGE_THRESHOLDS["finite_oof_prediction_fraction_min"]
+    ):
+        status = "failed"
+    else:
+        status = "passed"
+    return {
+        "horizon": horizon,
+        "model_id": model_id,
+        "task": task,
+        "potential_origins": potential_count,
+        "context_complete": context_count,
+        "label_complete": label_count,
+        "eligible_origins": eligible_count,
+        "finite_predictions": finite_count,
+        "eligible_fraction": eligible_fraction,
+        "context_fraction": context_fraction,
+        "label_complete_fraction": label_fraction,
+        "finite_prediction_fraction": finite_fraction,
+        "thresholds": {
+            "eligible_origin_fraction_min": eligible_threshold,
+            "label_complete_fraction_min": P1_FIXED_COVERAGE_THRESHOLDS["label_complete_fraction_min"],
+            "finite_oof_prediction_fraction_min": P1_FIXED_COVERAGE_THRESHOLDS["finite_oof_prediction_fraction_min"],
+        },
+        "status": status,
+        "promotion_allowed": status == "passed",
+    }
+
+
+def _validate_future_evidence(
+    evidence: Mapping[str, Any],
+    *,
+    spec: ValidationScenarioSpec | None,
+    header: Mapping[str, Any],
+) -> None:
+    if evidence.get("status") not in {"passed", "N/A"}:
+        raise P1ForecastError("future perturbation evidence is missing or invalid")
+    if evidence.get("origin") != header.get("fit_origin") or evidence.get("horizon") != 4:
+        raise P1ForecastError("future perturbation evidence has the wrong fit identity")
+    if evidence.get("perturb_start") != header.get("support_range", [None, None])[1]:
+        raise P1ForecastError("future perturbation evidence has the wrong perturbation boundary")
+    if evidence.get("status") == "N/A":
+        if not isinstance(evidence.get("reason"), str) or not evidence.get("reason"):
+            raise P1ForecastError("N/A future perturbation evidence requires a reason")
+        return
+    for name in ("fitted_prefix_mask_sha256", "earlier_prediction_mask_sha256", "earlier_prediction_sha256"):
+        _strict_sha256(evidence.get(name), name=f"future_perturbation_evidence.{name}")
+    if spec is not None and spec.data_kind == "s3":
+        _strict_sha256(
+            evidence.get("source_body_sha256"),
+            name="future_perturbation_evidence.source_body_sha256",
+        )
+        if evidence["source_body_sha256"] != header["body_provenance"]["source_body_sha256"]:
+            raise P1ForecastError("future perturbation evidence is bound to another S3 body")
 
 
 def _validate_forecast_payload(
@@ -1228,12 +1621,20 @@ def _validate_forecast_payload(
     expected_metadata: Mapping[str, Any] | None,
     require_production: bool,
 ) -> Mapping[str, Any]:
-    _validate_identity(artifact, expected_metadata=expected_metadata, require_production=require_production)
+    spec = _validate_identity(
+        artifact,
+        expected_metadata=expected_metadata,
+        require_production=require_production,
+    )
     header = artifact["header"]
     support_range = tuple(header["support_range"])
     support_count = support_range[1] - support_range[0]
     if support_count <= 0 or support_count > P1_FORECAST_FILE_MAX_ROWS:
         raise P1ForecastError("forecast support row count is outside its bound")
+    if spec is not None:
+        if support_count != spec.support_range[1] - spec.support_range[0]:
+            raise P1ForecastError("forecast support length does not match the registered scenario")
+        _validate_provenance(header, spec)
     timestamps = _decode_timestamps(artifact["support_timestamps"], expected_count=support_count)
     returns = _decode_float_array(
         artifact["realized_returns"],
@@ -1261,6 +1662,8 @@ def _validate_forecast_payload(
         raise P1ForecastError("target_end does not equal the fixed t+h+1 formula")
     if np.any(labels[target_mask] != (targets[target_mask] > 0.0).astype(np.int8)):
         raise P1ForecastError("binary labels do not match finite targets")
+    if np.any(labels[~target_mask] != -1):
+        raise P1ForecastError("binary labels must be -1 where the target mask is false")
     context_mask = _decode_bool_array(artifact["context_mask"], shape=(support_count,), name="context_mask")
     fits = artifact.get("fits")
     if not isinstance(fits, list) or len(fits) != len(P1_FIXED_HORIZONS) * len(P1_ALLOWED_MODEL_TASK_KEYS):
@@ -1288,10 +1691,17 @@ def _validate_forecast_payload(
         if reason is not None and not isinstance(reason, str):
             raise P1ForecastError(f"forecast fit row {index} reason is malformed")
         train_count = _strict_int(record.get("train_count"), name=f"fits[{index}].train_count")
-        if train_count < 0 or train_count > max(P1_FORECAST_FILE_MAX_ROWS, 1_000_000):
+        fit_limit = (spec.fit_range[1] - spec.fit_range[0]) if spec is not None else P1_FORECAST_FILE_MAX_ROWS
+        if train_count < 0 or train_count > fit_limit:
             raise P1ForecastError(f"forecast fit row {index} train_count is outside its bound")
-        for field_name in ("train_mask", "eligible_mask", "prediction_mask"):
-            _decode_bool_array(record.get(field_name), shape=(support_count,), name=f"fits[{index}].{field_name}")
+        train_mask = _decode_bool_array(record.get("train_mask"), shape=(support_count,), name=f"fits[{index}].train_mask")
+        eligible_mask = _decode_bool_array(record.get("eligible_mask"), shape=(support_count,), name=f"fits[{index}].eligible_mask")
+        prediction_mask = _decode_bool_array(record.get("prediction_mask"), shape=(support_count,), name=f"fits[{index}].prediction_mask")
+        expected_eligible = context_mask & target_mask[:, P1_FIXED_HORIZONS.index(horizon)] & (target_end[:, P1_FIXED_HORIZONS.index(horizon)] <= support_range[1])
+        if not np.array_equal(eligible_mask, expected_eligible):
+            raise P1ForecastError(f"forecast fit row {index} eligible_mask disagrees with support masks")
+        if np.any(train_mask):
+            raise P1ForecastError(f"forecast fit row {index} train_mask leaks into validation support")
         prediction_mask = np.asarray(record["prediction_mask"], dtype=np.bool_)
         predictions = _decode_float_array(
             record.get("predictions"),
@@ -1310,25 +1720,33 @@ def _validate_forecast_payload(
     coverage = artifact.get("coverage")
     if not isinstance(coverage, Mapping) or set(coverage) != {_fit_key(*key) for key in expected_keys}:
         raise P1ForecastError("coverage summaries do not cover the complete fit grid")
+    data_kind = spec.data_kind if spec is not None else (
+        "s3" if header.get("support_id") == P1_S3_SUPPORT_ID else "synthetic"
+    )
     for key, summary in coverage.items():
         if not isinstance(summary, Mapping):
             raise P1ForecastError(f"coverage summary is malformed: {key}")
-        if summary.get("status") not in {"passed", "failed", "N/A"}:
-            raise P1ForecastError(f"coverage summary has invalid status: {key}")
-        promotion = summary.get("promotion_allowed")
-        if promotion is not (summary.get("status") == "passed"):
-            raise P1ForecastError(f"coverage promotion flag disagrees with status: {key}")
-        for field_name in ("potential_origins", "context_complete", "label_complete", "eligible_origins", "finite_predictions"):
-            integer = _strict_int(summary.get(field_name), name=f"coverage.{key}.{field_name}")
-            if integer < 0 or integer > support_count:
-                raise P1ForecastError(f"coverage count is outside support bounds: {key}.{field_name}")
-        for field_name in ("eligible_fraction", "context_fraction", "label_complete_fraction", "finite_prediction_fraction"):
-            value = summary.get(field_name)
-            if value is not None:
-                _strict_float(value, name=f"coverage.{key}.{field_name}")
+        try:
+            fit_key = next(item for item in expected_keys if _fit_key(*item) == key)
+        except StopIteration as exc:
+            raise P1ForecastError(f"coverage key is not registered: {key}") from exc
+        expected_summary = _coverage_expected(
+            support_range=support_range,
+            target_end=target_end,
+            target_mask=target_mask,
+            context_mask=context_mask,
+            record=decoded_fits[fit_key],
+            horizon=fit_key[0],
+            model_id=fit_key[1],
+            task=fit_key[2],
+            data_kind=data_kind,
+        )
+        if dict(summary) != expected_summary:
+            raise P1ForecastError(f"coverage summary is not an exact recomputation: {key}")
     evidence = header.get("future_perturbation_evidence")
-    if not isinstance(evidence, Mapping) or evidence.get("status") not in {"passed", "N/A"}:
+    if not isinstance(evidence, Mapping):
         raise P1ForecastError("future perturbation evidence is missing or invalid")
+    _validate_future_evidence(evidence, spec=spec, header=header)
     if evidence.get("status") == "N/A":
         # N/A evidence is retained, but explicitly blocks promotion through
         # the artifact validation result.
@@ -1378,6 +1796,9 @@ def _read_regular_file(path: Path) -> tuple[bytes, str]:
         if opened.st_size <= 0 or opened.st_size > P1_FORECAST_FILE_MAX_BYTES:
             raise P1ForecastError("forecast artifact file size is outside its fixed bound")
         signature = (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns)
+        before_signature = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        if signature != before_signature:
+            raise P1ForecastError("forecast artifact changed before it was opened")
         chunks: list[bytes] = []
         remaining = opened.st_size
         while remaining:
@@ -1442,6 +1863,7 @@ class ForecastActionSource:
     validation_results_observed: bool = True
     outer_results_observed: bool = False
     _production_seal: object | None = field(default=None, repr=False, compare=False)
+    binding_sha256: str = ""
 
     @property
     def is_authenticated(self) -> bool:
@@ -1482,6 +1904,33 @@ class _ForecastActionSourceSeal:
 _FORECAST_ACTION_SOURCE_SEAL = _ForecastActionSourceSeal()
 
 
+def _action_source_binding_sha256(value: ForecastActionSource) -> str:
+    payload = {
+        "scenario_id": value.scenario_id,
+        "arm": value.arm,
+        "seed": value.seed,
+        "split_id": value.split_id,
+        "support_id": value.support_id,
+        "support_range": list(value.support_range),
+        "fit_origin": value.fit_origin,
+        "prereg_results_observed": value.prereg_results_observed,
+        "validation_results_observed": value.validation_results_observed,
+        "outer_results_observed": value.outer_results_observed,
+        "source_hashes": dict(sorted(value.source_hashes.items())),
+        "array_hashes": {
+            "timestamps": _array_sha256(value.timestamps, name="timestamps"),
+            "realized_returns": _array_sha256(value.realized_returns, name="realized_returns"),
+            "forecast_h4": _array_sha256(value.forecast_h4, name="forecast_h4"),
+            "forecast_h4_mask": _array_sha256(value.forecast_h4_mask, name="forecast_h4_mask"),
+            "origin_mask": _array_sha256(value.origin_mask, name="origin_mask"),
+            "score_mask": _array_sha256(value.score_mask, name="score_mask"),
+            "common_mask": _array_sha256(value.common_mask, name="common_mask"),
+        },
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _read_only(array: Any, *, dtype: np.dtype | None = None) -> np.ndarray:
     result = np.array(array, dtype=dtype, copy=True, order="C")
     result.setflags(write=False)
@@ -1493,6 +1942,7 @@ def _capability_from_loaded(
     validation: Mapping[str, Any],
     *,
     file_sha256: str,
+    sealed: bool = True,
 ) -> ForecastActionSource:
     header = artifact["header"]
     h4_record = next(
@@ -1532,7 +1982,7 @@ def _capability_from_loaded(
             for name, value in source_arrays.items():
                 if isinstance(value, str) and _SHA256_RE.fullmatch(value):
                     source_hashes[f"body.{name}"] = value
-    return ForecastActionSource(
+    capability = ForecastActionSource(
         scenario_id=str(header["scenario_id"]),
         arm=str(header["arm"]),
         seed=_strict_int(header["seed"], name="seed"),
@@ -1551,8 +2001,9 @@ def _capability_from_loaded(
         prereg_results_observed=bool(artifact["prereg_results_observed"]),
         validation_results_observed=bool(artifact["validation_results_observed"]),
         outer_results_observed=bool(artifact["outer_results_observed"]),
-        _production_seal=_FORECAST_ACTION_SOURCE_SEAL,
+        _production_seal=_FORECAST_ACTION_SOURCE_SEAL if sealed else None,
     )
+    return replace(capability, binding_sha256=_action_source_binding_sha256(capability))
 
 
 @dataclass(frozen=True)
@@ -1653,7 +2104,12 @@ def load_p1_forecast_artifact(
         expected_metadata=expected_metadata,
         require_production=require_production,
     )
-    action_source = _capability_from_loaded(payload, validation, file_sha256=actual_digest)
+    action_source = _capability_from_loaded(
+        payload,
+        validation,
+        file_sha256=actual_digest,
+        sealed=require_production,
+    )
     return LoadedP1ForecastArtifact(
         path=source,
         file_sha256=actual_digest,
@@ -1688,7 +2144,23 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         or value.outer_results_observed is not False
     ):
         raise P1ForecastError("forecast action source has invalid result-state semantics")
+    scenario_arm = (value.scenario_id, value.arm)
+    expected_arms = set(P1_SCENARIO_ARMS)
+    if scenario_arm not in expected_arms:
+        raise P1ForecastError("forecast action source scenario/arm is not registered")
+    expected_seeds = P1_S3_SEEDS if value.scenario_id == "S3" else P1_SYNTHETIC_SEEDS
+    if _strict_int(value.seed, name="forecast action source seed") not in expected_seeds:
+        raise P1ForecastError("forecast action source seed is not registered")
+    if value.split_id != P1_FORECAST_SPLIT_ID:
+        raise P1ForecastError("forecast action source split is not validation")
+    expected_support = P1_S3_SUPPORT_RANGE if value.scenario_id == "S3" else P1_SYNTHETIC_SUPPORT_RANGE
+    expected_support_id = P1_S3_SUPPORT_ID if value.scenario_id == "S3" else P1_SYNTHETIC_SUPPORT_ID
+    expected_origin = P1_S3_ORIGIN if value.scenario_id == "S3" else P1_SYNTHETIC_ORIGIN
+    if value.support_id != expected_support_id or tuple(value.support_range) != expected_support or value.fit_origin != expected_origin:
+        raise P1ForecastError("forecast action source support is not registered")
     size = len(value.timestamps)
+    if size != expected_support[1] - expected_support[0]:
+        raise P1ForecastError("forecast action source support length is not registered")
     if any(
         np.asarray(array).shape != (size,)
         for array in (
@@ -1717,11 +2189,59 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         raise P1ForecastError("forecast action source realized returns must be finite")
     if not np.array_equal(np.isfinite(value.forecast_h4), value.forecast_h4_mask):
         raise P1ForecastError("forecast action source forecast mask is inconsistent")
+    if not np.array_equal(value.score_mask, value.origin_mask & value.forecast_h4_mask):
+        raise P1ForecastError("forecast action source score mask is inconsistent")
     if not np.array_equal(value.common_mask, value.score_mask):
         raise P1ForecastError("forecast action source common mask must equal its score mask")
+    body_names = {
+        "body.timestamps",
+        "body.features",
+        "body.returns",
+        "body.availability.spot_bar_observed",
+        "body.availability.funding_rate_available",
+        "body.availability.mark_close_available",
+    }
+    expected_hash_names = {
+        "forecast_file_sha256",
+        "manifest_sha256",
+        "trial_registry_sha256",
+        "comparison_registry_sha256",
+        "support_timestamps_sha256",
+        "realized_returns_sha256",
+        "forecast_h4_sha256",
+        "forecast_h4_mask_sha256",
+        "origin_mask_sha256",
+        "score_mask_sha256",
+        "common_mask_sha256",
+        *body_names,
+    }
+    if value.scenario_id == "S3":
+        expected_hash_names.add("source_body_sha256")
+    if set(value.source_hashes) != expected_hash_names:
+        raise P1ForecastError("forecast action source hashes are incomplete or contain extras")
     for name, digest in value.source_hashes.items():
-        if not isinstance(digest, str) or _SHA256_RE.fullmatch(digest) is None:
-            raise P1ForecastError(f"forecast action source hash is malformed: {name}")
+        _strict_sha256(digest, name=f"forecast action source hash {name}")
+    expected_hashes = {
+        "manifest_sha256": REGISTERED_MANIFEST_SHA256,
+        "trial_registry_sha256": P1_REGISTERED_TRIAL_REGISTRY_SHA256,
+        "comparison_registry_sha256": P1_REGISTERED_COMPARISON_REGISTRY_SHA256,
+        "support_timestamps_sha256": _array_sha256(value.timestamps, name="support_timestamps"),
+        "realized_returns_sha256": _array_sha256(value.realized_returns, name="realized_returns"),
+        "forecast_h4_sha256": _array_sha256(value.forecast_h4, name="forecast_h4"),
+        "forecast_h4_mask_sha256": _array_sha256(value.forecast_h4_mask, name="forecast_h4_mask"),
+        "origin_mask_sha256": _array_sha256(value.origin_mask, name="origin_mask"),
+        "score_mask_sha256": _array_sha256(value.score_mask, name="score_mask"),
+        "common_mask_sha256": _array_sha256(value.common_mask, name="common_mask"),
+    }
+    for name, digest in expected_hashes.items():
+        if value.source_hashes.get(name) != digest:
+            raise P1ForecastError(f"forecast action source hash does not match its value: {name}")
+    if value.scenario_id == "S3" and value.source_hashes.get("source_body_sha256") is None:
+        raise P1ForecastError("S3 forecast action source lacks its authenticated body digest")
+    if not isinstance(value.binding_sha256, str) or _SHA256_RE.fullmatch(value.binding_sha256) is None:
+        raise P1ForecastError("forecast action source binding digest is malformed")
+    if value.binding_sha256 != _action_source_binding_sha256(value):
+        raise P1ForecastError("forecast action source binding digest does not match its values")
     return value
 
 
