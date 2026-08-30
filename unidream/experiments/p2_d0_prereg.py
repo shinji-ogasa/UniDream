@@ -36,7 +36,7 @@ DEFAULT_MANIFEST_PATH = (
 
 # Replaced after the manifest is finalized.  This independent pin means an
 # edited P2-D0 manifest cannot make its own self-reported digest authoritative.
-REGISTERED_MANIFEST_SHA256 = "c4189c8cbf8e5d30a9606514b7706cd8d77bee492e831b8c80db83d3cc828285"
+REGISTERED_MANIFEST_SHA256 = "a0ac7357abadb4b459f0687b12fb5926089fe9e1bd0987990ede82750b952cd2"
 REGISTERED_BASE_REVISION = "01f79db3b624187a857eb0a4105d466281259490"
 P2_D0_RUNTIME_VALIDATION_ENTRYPOINT = (
     "unidream.experiments.p2_d0_prereg.load_authenticated_v4_runtime"
@@ -533,6 +533,8 @@ def validate_fixed_manifest(
         "scored_action_fraction_min": 0.8,
     }:
         raise P2D0PreregistrationError("coverage thresholds are altered")
+    if coverage.get("any_na_rule") != "a required N/A cell blocks that comparison; never impute, drop, compact, or convert N/A to zero" or coverage.get("all_na_rule") != "if every primary comparison cell is N/A or undefined, status is blocked_no_inferential_result and no claim or promotion is permitted":
+        raise P2D0PreregistrationError("N/A coverage policy is altered")
     statistical = _require_mapping(common, "statistical_contract")
     if statistical.get("family_id") != "p2_d0_full17_vs_ohlcv13_primary" or statistical.get("family_size") != 14 or statistical.get("multiplicity_method") != "Holm-Bonferroni":
         raise P2D0PreregistrationError("Holm family is altered")
@@ -584,6 +586,12 @@ def validate_fixed_manifest(
     runner = _require_mapping(common, "runner_contract")
     if runner.get("d1_excluded") is not True or runner.get("results_observed") is not False or runner.get("outer_validation_selection_allowed") is not False or runner.get("historical_report_selection_allowed") is not False or runner.get("post_output_tuning_allowed") is not False:
         raise P2D0PreregistrationError("runner fail-closed/report-only policy is altered")
+    if runner.get("outer_operation_policy") != {
+        "mode": "report_only",
+        "max_runs": 1,
+        "rerun_policy": "one report-only execution after all prerequisites are independently validated; any failed, incomplete, or blocked run remains N/A and is not rerun or replaced",
+    }:
+        raise P2D0PreregistrationError("outer report-only execution policy is altered")
     if runner.get("action_primitive_execution_status") != "blocked_not_implemented":
         raise P2D0PreregistrationError("action primitive blocker must remain explicit")
 

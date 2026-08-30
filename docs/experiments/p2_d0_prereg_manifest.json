@@ -14,7 +14,7 @@
     }
   ],
   "results_observed": false,
-  "manifest_sha256": "c4189c8cbf8e5d30a9606514b7706cd8d77bee492e831b8c80db83d3cc828285",
+  "manifest_sha256": "a0ac7357abadb4b459f0687b12fb5926089fe9e1bd0987990ede82750b952cd2",
   "critical_field_paths": [
     "common.symbol",
     "common.data_frequency",
@@ -303,7 +303,9 @@
         "finite_prediction_fraction_min": 0.95,
         "scored_action_fraction_min": 0.8
       },
-      "undefined_policy": "any missing arm/horizon/model/seed coverage field or non-finite denominator is N/A and blocks promotion"
+      "undefined_policy": "any missing arm/horizon/model/seed coverage field or non-finite denominator is N/A and blocks promotion",
+      "any_na_rule": "a required N/A cell blocks that comparison; never impute, drop, compact, or convert N/A to zero",
+      "all_na_rule": "if every primary comparison cell is N/A or undefined, status is blocked_no_inferential_result and no claim or promotion is permitted"
     },
     "statistical_contract": {
       "family_id": "p2_d0_full17_vs_ohlcv13_primary",
@@ -396,6 +398,11 @@
       "d1_policy": "D1 signed-flow acquisition is outside P2-D0 and must not be imported or executed",
       "results_observed": false,
       "fit_score_execution": "blocked in this preregistration-only module; no fit, score, accuracy result, or outer run may be started",
+      "outer_operation_policy": {
+        "mode": "report_only",
+        "max_runs": 1,
+        "rerun_policy": "one report-only execution after all prerequisites are independently validated; any failed, incomplete, or blocked run remains N/A and is not rerun or replaced"
+      },
       "outer_validation_selection_allowed": false,
       "historical_report_selection_allowed": false,
       "post_output_tuning_allowed": false,
