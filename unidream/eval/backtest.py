@@ -6,6 +6,7 @@ Sharpe / Sortino / MaxDD / Calmar を計算する。
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from numbers import Real
 from typing import Optional
 
 import numpy as np
@@ -42,6 +43,7 @@ ANNUALIZATION_EQUITY = {
 }
 # デフォルトは暗号資産（BTCUSDT 対象のため）
 ANNUALIZATION = ANNUALIZATION_CRYPTO
+_UNSET = object()
 
 
 def validate_execution_delay(execution_delay_bars: int) -> int:
@@ -333,12 +335,12 @@ class Backtest:
         self,
         returns: np.ndarray,
         positions: np.ndarray,
-        spread_bps: float = 5.0,
-        fee_rate: float = 0.0004,
-        slippage_bps: float = 2.0,
+        spread_bps: float | object = _UNSET,
+        fee_rate: float | object = _UNSET,
+        slippage_bps: float | object = _UNSET,
         interval: str = "15m",
         benchmark_positions: np.ndarray | None = None,
-        execution_delay_bars: int = 0,
+        execution_delay_bars: int | object = _UNSET,
         initial_position: float | None = None,
         benchmark_initial_position: float | None = None,
         action_execution_contract: ActionExecutionContract | None = None,
@@ -350,11 +352,13 @@ class Backtest:
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
         self.positions = np.asarray(positions, dtype=np.float64)
-        self.spread_bps = spread_bps
-        self.fee_rate = fee_rate
-        self.slippage_bps = slippage_bps
+        self.spread_bps = 5.0 if spread_bps is _UNSET else spread_bps
+        self.fee_rate = 0.0004 if fee_rate is _UNSET else fee_rate
+        self.slippage_bps = 2.0 if slippage_bps is _UNSET else slippage_bps
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
-        self.execution_delay_bars = validate_execution_delay(execution_delay_bars)
+        self.execution_delay_bars = validate_execution_delay(
+            0 if execution_delay_bars is _UNSET else execution_delay_bars
+        )
         if action_execution_contract is not None and execution_contract is not None:
             if action_execution_contract != execution_contract:
                 raise ValueError("action_execution_contract and execution_contract disagree")
@@ -363,6 +367,25 @@ class Backtest:
             self.action_execution_contract, ActionExecutionContract
         ):
             raise TypeError("action_execution_contract must be an ActionExecutionContract")
+        if self.action_execution_contract is not None:
+            contract = self.action_execution_contract
+            for name, supplied, expected in (
+                ("spread_bps", spread_bps, contract.spread_bps),
+                ("fee_rate", fee_rate, contract.fee_rate),
+                ("slippage_bps", slippage_bps, contract.slippage_bps),
+            ):
+                if supplied is _UNSET:
+                    continue
+                if isinstance(supplied, (bool, np.bool_)) or not isinstance(supplied, Real):
+                    raise ValueError(f"{name} must be a real number in contract mode")
+                if not np.isclose(float(supplied), expected, atol=1e-9, rtol=0.0):
+                    raise ValueError(
+                        f"{name} legacy override must equal the action execution contract"
+                    )
+            if execution_delay_bars is not _UNSET and self.execution_delay_bars != 0:
+                raise ValueError(
+                    "execution_delay_bars legacy override must be zero in contract mode"
+                )
         self.action_positions_are_deltas = action_positions_are_deltas
         if self.action_positions_are_deltas is not None and not isinstance(
             self.action_positions_are_deltas, bool
@@ -383,10 +406,6 @@ class Backtest:
                 decision_eligible,
                 score_eligible,
                 len(self.returns),
-            )
-        if self.action_execution_contract is not None and self.execution_delay_bars != 0:
-            raise ValueError(
-                "execution_delay_bars must be omitted/zero when an action execution contract is provided"
             )
         if initial_position is not None and not np.isfinite(float(initial_position)):
             raise ValueError("initial_position must be finite when provided")

@@ -124,6 +124,9 @@ class ActionExecutionContractTest(unittest.TestCase):
             dataclasses.replace(self.contract, p_start=0.9)
 
     def test_candidate_grid_clips_then_deduplicates(self) -> None:
+        self.assertEqual(self.contract.position_bounds, (0.5, 1.0))
+        self.assertEqual(self.contract.min_position, 0.5)
+        self.assertEqual(self.contract.max_position, 1.0)
         np.testing.assert_allclose(
             candidate_positions(0.52, self.contract),
             np.asarray([0.50, 0.52, 0.56, 0.60]),
@@ -221,13 +224,25 @@ class ActionExecutionContractTest(unittest.TestCase):
         deltas = np.zeros(6, dtype=np.float64)
         deltas[0] = -0.08
         decision_eligible, score_eligible = self._all_masks(len(returns))
+        with self.assertRaisesRegex(ValueError, "legacy override"):
+            Backtest(
+                returns,
+                deltas,
+                # Conflicting historical values must fail closed rather than
+                # being silently ignored by the explicit contract path.
+                spread_bps=99.0,
+                fee_rate=0.9,
+                slippage_bps=99.0,
+                benchmark_positions=np.zeros(6),
+                action_execution_contract=self.contract,
+                action_positions_are_deltas=True,
+                decision_eligible=decision_eligible,
+                score_eligible=score_eligible,
+                interval="1d",
+            )
         metrics = Backtest(
             returns,
             deltas,
-            # These historical values must not override the explicit contract.
-            spread_bps=99.0,
-            fee_rate=0.9,
-            slippage_bps=99.0,
             benchmark_positions=np.zeros(6),
             action_execution_contract=self.contract,
             action_positions_are_deltas=True,
