@@ -1216,14 +1216,22 @@ def validate_conditional_oof_artifact(
         provenance.get("teacher_sha256"),
         name="provenance.teacher_sha256",
     )
-    if teacher_alias != provenance["teacher_weight_sha256"] or teacher_alias != artifact.get("teacher_sha256"):
+    root_teacher_alias = _sha256_text(
+        artifact.get("teacher_sha256"),
+        name="teacher_sha256",
+    )
+    if teacher_alias != provenance["teacher_weight_sha256"] or teacher_alias != root_teacher_alias:
         raise ConditionalOOFArtifactError("teacher hash aliases do not match")
     contract_hash = provenance["action_execution_contract_sha256"]
     contract_alias = _sha256_text(
         provenance.get("action_execution_contract_hash"),
         name="provenance.action_execution_contract_hash",
     )
-    if contract_alias != contract_hash or artifact.get("action_execution_contract_hash") != contract_hash:
+    root_contract_alias = _sha256_text(
+        artifact.get("action_execution_contract_hash"),
+        name="action_execution_contract_hash",
+    )
+    if contract_alias != contract_hash or root_contract_alias != contract_hash:
         raise ConditionalOOFArtifactError("ActionExecutionContract hash aliases do not match")
     contract_mapping = provenance.get("action_execution_contract")
     root_contract_mapping = artifact.get("action_execution_contract")
