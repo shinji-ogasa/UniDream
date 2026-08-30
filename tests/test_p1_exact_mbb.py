@@ -1012,6 +1012,43 @@ class P1ExactMBBTests(unittest.TestCase):
             }
             for seed in range(10)
         }
+        index_artifacts = {
+            seed: build_p1_mbb_index_artifact(
+                n,
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                seed_ordinal=seed,
+                block_length=8,
+            )
+            for seed in range(10)
+        }
+        with self.assertRaises(P1MBBError):
+            production_seed_aggregate(
+                "policy_utility_delta",
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                block_length=8,
+                seed_inputs=seed_inputs,
+                direction="positive",
+                provenance_by_seed=provenance_by_seed,
+            )
+        bad_index_digests = {
+            seed: artifact.artifact_sha256
+            for seed, artifact in index_artifacts.items()
+        }
+        bad_index_digests[3] = "f" * 64
+        with self.assertRaises(P1MBBError):
+            production_seed_aggregate(
+                "policy_utility_delta",
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                block_length=8,
+                seed_inputs=seed_inputs,
+                direction="positive",
+                provenance_by_seed=provenance_by_seed,
+                index_artifacts=index_artifacts,
+                expected_index_artifact_sha256_by_seed=bad_index_digests,
+            )
         result = production_seed_aggregate(
             "policy_utility_delta",
             unit="synthetic_action",
@@ -1020,7 +1057,15 @@ class P1ExactMBBTests(unittest.TestCase):
             seed_inputs=seed_inputs,
             direction="positive",
             provenance_by_seed=provenance_by_seed,
+            index_artifacts=index_artifacts,
+            expected_index_artifact_sha256_by_seed={
+                seed: artifact.artifact_sha256
+                for seed, artifact in index_artifacts.items()
+            },
         )
+        self.assertFalse(result["prereg_results_observed"])
+        self.assertTrue(result["validation_results_observed"])
+        self.assertFalse(result["outer_results_observed"])
         typed = P1MBBResultArtifact.from_result_production(result)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "seed-result.npz"
@@ -1031,6 +1076,14 @@ class P1ExactMBBTests(unittest.TestCase):
             )
             self.assertEqual(loaded.metadata["seed_count"], 10)
             self.assertEqual(set(loaded.metadata["provenance_by_seed"]), {str(i) for i in range(10)})
+            missing_declared = typed.to_dict()
+            missing_declared.pop("result_sha256")
+            with self.assertRaises(P1MBBError):
+                P1MBBResultArtifact.from_dict(
+                    missing_declared,
+                    typed.bootstrap_values,
+                    expected_result_sha256=typed.result_sha256,
+                )
     def test_s2_skill_and_normalized_regret_recompute_before_level_contrast(self) -> None:
         n = 35
         artifact = self._artifact(n=n, block_length=8)

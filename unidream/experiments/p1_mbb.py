@@ -164,6 +164,11 @@ P1_MBB_RESULT_SCHEMA = "unidream.p1.moving_block_result"
 P1_MBB_RESULT_SCHEMA_VERSION = 1
 _P1_RESULT_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024
 _P1_RESULT_METADATA_MAX_BYTES = 8 * 1024 * 1024
+_P1_PRODUCTION_RESULT_STATUS: Mapping[str, bool] = {
+    "prereg_results_observed": False,
+    "validation_results_observed": True,
+    "outer_results_observed": False,
+}
 
 
 def _strict_int(value: Any, *, name: str, minimum: int | None = None) -> int:
@@ -1381,14 +1386,7 @@ def _validate_production_provenance(
     if kind_value not in {"action", "forecast"}:
         raise P1MBBError("production provenance kind must be exactly 'action' or 'forecast'")
     kind = str(kind_value)
-    if metric == "s2_contrast":
-        expected_kind = (
-            "action"
-            if level_metric in {"agreement", "policy_utility_delta", "normalized_regret"}
-            else "forecast"
-        )
-    else:
-        expected_kind = "action" if metric in _P1_ACTION_PROVENANCE_METRICS else "forecast"
+    expected_kind = _expected_provenance_kind(metric, level_metric)
     if kind != expected_kind:
         raise P1MBBError(
             f"production provenance kind {kind!r} does not match {metric}/{level_metric} ({expected_kind!r})"
@@ -1434,11 +1432,8 @@ def _validate_production_provenance(
             expected_forecast_artifact_sha256,
             name="expected_forecast_artifact_sha256",
         )
-        result_expected = expected_forecast_result_sha256
-        if result_expected is None:
-            result_expected = expected_source_result_sha256
         result_digest = _strict_sha256(
-            result_expected,
+            expected_forecast_result_sha256,
             name="expected_forecast_result_sha256",
         )
         if provenance.get("forecast_artifact_sha256") != artifact_digest:
@@ -2075,6 +2070,11 @@ def _metric_result(
     return result
 
 
+def _production_result_status_fields() -> dict[str, bool]:
+    """Return the fixed pre-execution validation-result state markers."""
+    return dict(_P1_PRODUCTION_RESULT_STATUS)
+
+
 def _result_values_digest(values: np.ndarray) -> str:
     return hashlib.sha256(values.tobytes(order="C")).hexdigest()
 
@@ -2157,9 +2157,120 @@ def _result_digest(metadata: Mapping[str, Any], values: np.ndarray) -> str:
     ).hexdigest()
 
 
+def _expected_provenance_kind(metric: str, level_metric: str | None) -> str:
+    if metric == "s2_contrast":
+        return (
+            "action"
+            if level_metric in {"agreement", "policy_utility_delta", "normalized_regret"}
+            else "forecast"
+        )
+    return "action" if metric in _P1_ACTION_PROVENANCE_METRICS else "forecast"
+
+
+def _validate_result_index_binding_group(
+    actual_digests: Any,
+    expected_digests: Any,
+    bindings: Any,
+    *,
+    expected_keys: set[str],
+    name: str,
+) -> None:
+    """Verify persisted index hashes still carry an independent binding.
+
+    A result that stores only the artifact's self-reported hash is not enough
+    for promotion: the expected digest must be present and equal, and every
+    binding must retain the starts digest that was authenticated before the
+    bootstrap ran.
+    """
+    if not isinstance(actual_digests, Mapping) or set(actual_digests) != expected_keys:
+        raise P1MBBError(
+            f"production result {name} artifact digests must cover {sorted(expected_keys)}"
+        )
+    if not isinstance(expected_digests, Mapping) or set(expected_digests) != expected_keys:
+        raise P1MBBError(
+            f"production result {name} expected artifact digests must cover {sorted(expected_keys)}"
+        )
+    if not isinstance(bindings, Mapping) or set(bindings) != expected_keys:
+        raise P1MBBError(
+            f"production result {name} bindings must cover {sorted(expected_keys)}"
+        )
+    for key in sorted(expected_keys):
+        actual = _strict_sha256(
+            actual_digests[key],
+            name=f"result {name} artifact_sha256[{key}]",
+        )
+        expected = _strict_sha256(
+            expected_digests[key],
+            name=f"result {name} expected_artifact_sha256[{key}]",
+        )
+        if actual != expected:
+            raise P1MBBError(
+                f"production result {name} artifact digest is not externally bound at {key}"
+            )
+        binding = bindings[key]
+        if not isinstance(binding, Mapping):
+            raise P1MBBError(f"production result {name} binding {key} is not an object")
+        if binding.get("artifact_sha256") != actual:
+            raise P1MBBError(f"production result {name} binding artifact mismatch at {key}")
+        if binding.get("expected_artifact_sha256") != expected:
+            raise P1MBBError(f"production result {name} binding expected digest mismatch at {key}")
+        _strict_sha256(
+            binding.get("starts_sha256"),
+            name=f"result {name} starts_sha256[{key}]",
+        )
+        if "source_path" in binding:
+            _strict_text(binding["source_path"], name=f"result {name} source_path[{key}]")
+
+
+def _validate_result_index_bindings(metadata: Mapping[str, Any]) -> None:
+    """Require external index bindings for persisted aggregate/sensitivity results."""
+    if "index_artifact_expected_sha256_by_seed" in metadata:
+        _validate_result_index_binding_group(
+            metadata.get("index_artifact_sha256_by_seed"),
+            metadata.get("index_artifact_expected_sha256_by_seed"),
+            metadata.get("index_artifact_bindings"),
+            expected_keys={str(index) for index in range(10)},
+            name="by_seed",
+        )
+    if "index_artifact_expected_sha256_by_block_length" in metadata:
+        actual = metadata.get("index_artifacts")
+        _validate_result_index_binding_group(
+            actual,
+            metadata.get("index_artifact_expected_sha256_by_block_length"),
+            metadata.get("index_artifact_bindings"),
+            expected_keys={str(length) for length in P1_MBB_BLOCK_LENGTHS},
+            name="by_block_length",
+        )
+    if "index_artifact_bindings" in metadata and not (
+        "index_artifact_expected_sha256_by_seed" in metadata
+        or "index_artifact_expected_sha256_by_block_length" in metadata
+    ):
+        raise P1MBBError("production result has unclassified index artifact bindings")
+    nested = metadata.get("per_block_length")
+    if isinstance(nested, Mapping):
+        for child in nested.values():
+            if isinstance(child, Mapping):
+                _validate_result_index_bindings(child)
+
+
 def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, production: bool) -> None:
     if not production:
         return
+    for field, expected in _P1_PRODUCTION_RESULT_STATUS.items():
+        if type(metadata.get(field)) is not bool or metadata.get(field) is not expected:
+            raise P1MBBError(
+                f"production result {field} must be exactly {expected!r}"
+            )
+    metric = metadata.get("metric")
+    if not isinstance(metric, str) or metric not in P1_RECOMPUTE_METRICS:
+        raise P1MBBError("production result metric is not registered")
+    level_metric: str | None = None
+    if metric == "s2_contrast":
+        level_metric_value = metadata.get("level_metric")
+        level_metric = _validate_s2_level_metric(level_metric_value)
+        _validate_s2_direction(metadata.get("level_direction"))
+    elif "level_metric" in metadata or "level_direction" in metadata:
+        raise P1MBBError("non-S2 production result cannot declare a level metric/direction")
     if "provenance" not in metadata and "provenance_by_seed" not in metadata:
         raise P1MBBError(
             "production P1 result persistence requires authenticated provenance"
@@ -2187,14 +2298,14 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
         kind = provenance.get("kind")
         if kind not in {"action", "forecast"}:
             raise P1MBBError("production result provenance kind is invalid")
+        if kind != _expected_provenance_kind(metric, level_metric):
+            raise P1MBBError("production result provenance kind does not match its metric")
         _strict_sha256(
             provenance.get("common_mask_sha256"),
             name="result common_mask_sha256",
         )
-        _strict_text(
-            provenance.get("common_mask_field"),
-            name="result common_mask_field",
-        )
+        if provenance.get("common_mask_field") != "common_mask":
+            raise P1MBBError("production result provenance must bind common_mask")
         if kind == "action":
             for field in (
                 "action_primitive_payload_sha256",
@@ -2212,6 +2323,7 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
                 provenance.get("forecast_result_sha256"),
                 name="result forecast_result_sha256",
             )
+    _validate_result_index_bindings(metadata)
 
 
 @dataclass(frozen=True)
@@ -2329,6 +2441,8 @@ class P1MBBResultArtifact:
             raise P1MBBError(
                 "production P1 result loading requires an external expected_result_sha256"
             )
+        if production and declared_result is None:
+            raise P1MBBError("production P1 result requires result_sha256")
         artifact = cls(metadata, bootstrap_values, production=production)
         actual = artifact.result_sha256
         if declared_result is not None and _strict_sha256(
@@ -2702,6 +2816,8 @@ def _bootstrap_p1_metric(
         result_extra.update(
             {"level_direction": level_name, "level_metric": level_metric_name}
         )
+    if production:
+        result_extra.update(_production_result_status_fields())
     if validated_provenance is not None:
         result_extra["provenance"] = validated_provenance
     return _metric_result(
@@ -2799,6 +2915,101 @@ def _payload_grid_length(payload: Mapping[str, Any]) -> int:
     return int(mask.shape[0])
 
 
+def _validate_external_index_artifacts(
+    artifacts: Mapping[Any, Any] | None,
+    expected_digests: Mapping[Any, Any] | None,
+    *,
+    keys: set[int],
+    unit: str,
+    support_id: str,
+    block_length: int,
+    grid_length: int,
+    name: str,
+    paths: Mapping[Any, Any] | None = None,
+) -> tuple[dict[int, P1MBBIndexArtifact], dict[int, str], dict[int, str] | None]:
+    """Authenticate a preloaded index artifact set at a production boundary.
+
+    ``expected_digests`` is deliberately a separate input from the artifact
+    objects.  It represents the digest recorded by the upstream artifact
+    ledger; accepting ``artifact.artifact_sha256`` as the only source would
+    make a forged starts matrix self-binding.  Paths are optional provenance
+    labels, but when supplied they must cover the same exact key set.
+    """
+    if not isinstance(artifacts, Mapping):
+        raise P1MBBError(
+            f"production P1 MBB requires an external {name} mapping"
+        )
+    if not isinstance(expected_digests, Mapping):
+        raise P1MBBError(
+            f"production P1 MBB requires external expected {name} digests"
+        )
+    if set(artifacts) != keys:
+        raise P1MBBError(
+            f"production {name} artifacts must contain exactly {sorted(keys)}"
+        )
+    if set(expected_digests) != keys:
+        raise P1MBBError(
+            f"production expected {name} digests must contain exactly {sorted(keys)}"
+        )
+    if paths is not None:
+        if not isinstance(paths, Mapping) or set(paths) != keys:
+            raise P1MBBError(
+                f"production {name} paths must contain exactly {sorted(keys)}"
+            )
+    authenticated: dict[int, P1MBBIndexArtifact] = {}
+    digests: dict[int, str] = {}
+    normalized_paths: dict[int, str] | None = {} if paths is not None else None
+    for ordinal in sorted(keys):
+        artifact = artifacts[ordinal]
+        if not isinstance(artifact, P1MBBIndexArtifact):
+            raise P1MBBError(
+                f"production {name} artifact {ordinal} is not a P1MBBIndexArtifact"
+            )
+        if (
+            artifact.unit != unit
+            or artifact.support_id != support_id
+            or artifact.seed_ordinal != ordinal
+            or artifact.block_length != block_length
+            or artifact.n != grid_length
+        ):
+            raise P1MBBError(
+                f"production {name} artifact {ordinal} metadata does not match the registered run"
+            )
+        expected = _strict_sha256(
+            expected_digests[ordinal],
+            name=f"expected_{name}_sha256[{ordinal}]",
+        )
+        if artifact.artifact_sha256 != expected:
+            raise P1MBBError(
+                f"production {name} artifact {ordinal} does not match its independent digest"
+            )
+        authenticated[ordinal] = artifact
+        digests[ordinal] = expected
+        if normalized_paths is not None:
+            normalized_paths[ordinal] = _strict_text(
+                paths[ordinal],
+                name=f"{name}_path[{ordinal}]",
+            )
+    return authenticated, digests, normalized_paths
+
+
+def _index_binding_metadata(
+    artifacts: Mapping[int, P1MBBIndexArtifact],
+    expected_digests: Mapping[int, str],
+    paths: Mapping[int, str] | None = None,
+) -> dict[str, dict[str, str]]:
+    """Return explicit external index-digest bindings for result metadata."""
+    return {
+        str(ordinal): {
+            "artifact_sha256": artifacts[ordinal].artifact_sha256,
+            "starts_sha256": artifacts[ordinal].starts_sha256,
+            "expected_artifact_sha256": expected_digests[ordinal],
+            **({"source_path": paths[ordinal]} if paths is not None else {}),
+        }
+        for ordinal in sorted(artifacts)
+    }
+
+
 def _bootstrap_p1_metric_seed_aggregate(
     metric: Any,
     *,
@@ -2812,6 +3023,9 @@ def _bootstrap_p1_metric_seed_aggregate(
     level_metric: Any = None,
     production: bool,
     provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
+    index_artifacts: Mapping[Any, P1MBBIndexArtifact] | None = None,
+    expected_index_artifact_sha256_by_seed: Mapping[Any, Any] | None = None,
+    index_artifact_paths_by_seed: Mapping[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Bootstrap ten synthetic seeds independently and equal-weight them.
 
@@ -2845,6 +3059,17 @@ def _bootstrap_p1_metric_seed_aggregate(
             raise P1MBBError(
                 "production synthetic aggregation requires provenance for every seed 0..9"
             )
+        # Production must consume immutable, externally loaded draw artifacts.
+        # The fixture API below is the only place where this function may
+        # construct starts internally.
+        if not isinstance(index_artifacts, Mapping):
+            raise P1MBBError(
+                "production synthetic aggregation requires externally loaded index_artifacts"
+            )
+        if not isinstance(expected_index_artifact_sha256_by_seed, Mapping):
+            raise P1MBBError(
+                "production synthetic aggregation requires external expected index artifact digests"
+            )
     try:
         raw_ordinals = list(seed_inputs.keys())
     except (TypeError, ValueError, OverflowError, MemoryError) as exc:
@@ -2874,6 +3099,8 @@ def _bootstrap_p1_metric_seed_aggregate(
     )
     per_seed: dict[int, dict[str, Any]] = {}
     artifacts: dict[int, P1MBBIndexArtifact] = {}
+    expected_index_digests: dict[int, str] | None = None
+    normalized_index_paths: dict[int, str] | None = None
     grid_length: int | None = None
     for ordinal in range(10):
         try:
@@ -2905,13 +3132,38 @@ def _bootstrap_p1_metric_seed_aggregate(
             raise P1MBBError(
                 "synthetic seed aggregation requires the same full-grid length for every seed"
             )
-        artifact = build_p1_mbb_index_artifact(
-            n,
-            unit=name,
-            support_id=support,
-            seed_ordinal=ordinal,
-            block_length=length,
-        )
+        if production and ordinal == 0:
+            (
+                external_artifacts,
+                expected_index_digests,
+                normalized_index_paths,
+            ) = _validate_external_index_artifacts(
+                index_artifacts,
+                expected_index_artifact_sha256_by_seed,
+                keys=set(range(10)),
+                unit=name,
+                support_id=support,
+                block_length=length,
+                grid_length=n,
+                name="index_artifacts_by_seed",
+                paths=index_artifact_paths_by_seed,
+            )
+            artifacts.update(external_artifacts)
+        if production:
+            # The mapping was authenticated on seed 0 and covers every seed.
+            artifact = artifacts[ordinal]
+        else:
+            artifact = build_p1_mbb_index_artifact(
+                n,
+                unit=name,
+                support_id=support,
+                seed_ordinal=ordinal,
+                block_length=length,
+            )
+        if artifact.n != n:
+            raise P1MBBError(
+                f"index artifact for seed {ordinal} does not match the seed grid length"
+            )
         artifacts[ordinal] = artifact
         array_payload = {field: payload[field] for field in expected_arrays}
         candidate_mask = payload.get("candidate_mask")
@@ -2979,6 +3231,7 @@ def _bootstrap_p1_metric_seed_aggregate(
             }
         )
     if production:
+        aggregate_extra.update(_production_result_status_fields())
         aggregate_extra["provenance_by_seed"] = {
             ordinal: dict(per_seed[ordinal].get("provenance", {}))
             for ordinal in range(10)
@@ -3009,6 +3262,18 @@ def _bootstrap_p1_metric_seed_aggregate(
             },
         }
     )
+    if production:
+        # Persist the independent digest binding alongside the semantic result;
+        # the artifact object itself is deliberately reduced to its hashes by
+        # the typed JSON serializer.
+        result["index_artifact_expected_sha256_by_seed"] = dict(
+            expected_index_digests or {}
+        )
+        result["index_artifact_bindings"] = _index_binding_metadata(
+            artifacts,
+            expected_index_digests or {},
+            normalized_index_paths,
+        )
     return result
 
 
@@ -3024,6 +3289,9 @@ def bootstrap_p1_metric_seed_aggregate(
     level_direction: Any = None,
     level_metric: Any = None,
     provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
+    index_artifacts: Mapping[Any, P1MBBIndexArtifact] | None = None,
+    expected_index_artifact_sha256_by_seed: Mapping[Any, Any] | None = None,
+    index_artifact_paths_by_seed: Mapping[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the production ten-seed aggregate with external provenance."""
     return _bootstrap_p1_metric_seed_aggregate(
@@ -3038,6 +3306,9 @@ def bootstrap_p1_metric_seed_aggregate(
         level_metric=level_metric,
         production=True,
         provenance_by_seed=provenance_by_seed,
+        index_artifacts=index_artifacts,
+        expected_index_artifact_sha256_by_seed=expected_index_artifact_sha256_by_seed,
+        index_artifact_paths_by_seed=index_artifact_paths_by_seed,
     )
 
 
@@ -3086,8 +3357,41 @@ def bootstrap_p1_metric_seed_sensitivity(
     level_direction: Any = None,
     level_metric: Any = None,
     provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
+    index_artifacts_by_block_length: Mapping[
+        Any, Mapping[Any, P1MBBIndexArtifact]
+    ] | None = None,
+    expected_index_artifact_sha256_by_block_length: Mapping[
+        Any, Mapping[Any, Any]
+    ] | None = None,
+    index_artifact_paths_by_block_length: Mapping[
+        Any, Mapping[Any, Any]
+    ] | None = None,
 ) -> dict[str, Any]:
     """Run the production synthetic sensitivity set with external provenance."""
+    if not isinstance(index_artifacts_by_block_length, Mapping):
+        raise P1MBBError(
+            "production synthetic sensitivity requires externally loaded index artifacts for every block length"
+        )
+    if not isinstance(expected_index_artifact_sha256_by_block_length, Mapping):
+        raise P1MBBError(
+            "production synthetic sensitivity requires external index artifact digests for every block length"
+        )
+    required_lengths = set(P1_MBB_BLOCK_LENGTHS)
+    if set(index_artifacts_by_block_length) != required_lengths:
+        raise P1MBBError(
+            "production synthetic sensitivity index artifacts must cover L=8,16,32"
+        )
+    if set(expected_index_artifact_sha256_by_block_length) != required_lengths:
+        raise P1MBBError(
+            "production synthetic sensitivity index digests must cover L=8,16,32"
+        )
+    if index_artifact_paths_by_block_length is not None and (
+        not isinstance(index_artifact_paths_by_block_length, Mapping)
+        or set(index_artifact_paths_by_block_length) != required_lengths
+    ):
+        raise P1MBBError(
+            "production synthetic sensitivity index paths must cover L=8,16,32"
+        )
     results: dict[int, dict[str, Any]] = {}
     for length in P1_MBB_BLOCK_LENGTHS:
         results[length] = bootstrap_p1_metric_seed_aggregate(
@@ -3101,8 +3405,17 @@ def bootstrap_p1_metric_seed_sensitivity(
             level_direction=level_direction,
             level_metric=level_metric,
             provenance_by_seed=provenance_by_seed,
+            index_artifacts=index_artifacts_by_block_length[length],
+            expected_index_artifact_sha256_by_seed=(
+                expected_index_artifact_sha256_by_block_length[length]
+            ),
+            index_artifact_paths_by_seed=(
+                index_artifact_paths_by_block_length[length]
+                if index_artifact_paths_by_block_length is not None
+                else None
+            ),
         )
-    return {
+    result = {
         "status": "ok",
         "metric": _validate_recompute_metric(metric),
         "direction": results[P1_MBB_BLOCK_LENGTHS[0]]["direction"],
@@ -3111,6 +3424,9 @@ def bootstrap_p1_metric_seed_sensitivity(
         "raw_p": max(float(result["p_value"]) for result in results.values()),
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
     }
+    if production:
+        result.update(_production_result_status_fields())
+    return result
 
 
 bootstrap_p1_metric_sensitivity_by_seed = bootstrap_p1_metric_seed_sensitivity
@@ -3319,20 +3635,73 @@ def paired_bootstrap_mean_delta_sensitivity(
     expected_action_primitive_content_sha256: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
+    index_artifacts_by_block_length: Mapping[
+        Any, P1MBBIndexArtifact
+    ] | None = None,
+    expected_index_artifact_sha256_by_block_length: Mapping[Any, Any] | None = None,
+    index_artifact_paths_by_block_length: Mapping[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate production L={8,16,32} with the same external provenance."""
+    if not isinstance(index_artifacts_by_block_length, Mapping):
+        raise P1MBBError(
+            "production sensitivity requires externally loaded index artifacts for every block length"
+        )
+    if not isinstance(expected_index_artifact_sha256_by_block_length, Mapping):
+        raise P1MBBError(
+            "production sensitivity requires external index artifact digests for every block length"
+        )
+    required_lengths = set(P1_MBB_BLOCK_LENGTHS)
+    if set(index_artifacts_by_block_length) != required_lengths:
+        raise P1MBBError(
+            "production sensitivity index artifacts must cover L=8,16,32"
+        )
+    if set(expected_index_artifact_sha256_by_block_length) != required_lengths:
+        raise P1MBBError(
+            "production sensitivity index digests must cover L=8,16,32"
+        )
+    if index_artifact_paths_by_block_length is not None and (
+        not isinstance(index_artifact_paths_by_block_length, Mapping)
+        or set(index_artifact_paths_by_block_length) != required_lengths
+    ):
+        raise P1MBBError(
+            "production sensitivity index paths must cover L=8,16,32"
+        )
+    normalized_unit, _ = _normalize_unit(unit, unit_code=unit_code)
+    normalized_support = _strict_text(support_id, name="support_id")
+    normalized_seed = _strict_int(seed_ordinal, name="seed_ordinal", minimum=0)
+    grid_length = len(np.asarray(candidate_values))
     results: dict[int, dict[str, Any]] = {}
     artifacts: dict[int, P1MBBIndexArtifact] = {}
+    expected_digests: dict[int, str] = {}
+    paths: dict[int, str] | None = {} if index_artifact_paths_by_block_length is not None else None
     for length in P1_MBB_BLOCK_LENGTHS:
-        artifact = build_p1_mbb_index_artifact(
-            len(np.asarray(candidate_values)),
-            unit=unit,
-            unit_code=unit_code,
-            support_id=support_id,
-            seed_ordinal=seed_ordinal,
+        if index_artifact_paths_by_block_length is not None:
+            current_paths = {normalized_seed: index_artifact_paths_by_block_length[length]}
+        else:
+            current_paths = None
+        if isinstance(index_artifacts_by_block_length[length], Mapping):
+            # A mapping here is never a valid single-seed artifact; reject it
+            # explicitly instead of accidentally treating a seed map as an
+            # artifact object.
+            raise P1MBBError(
+                "production paired sensitivity requires one artifact per block length"
+            )
+        loaded, loaded_expected, loaded_paths = _validate_external_index_artifacts(
+            {normalized_seed: index_artifacts_by_block_length[length]},
+            {normalized_seed: expected_index_artifact_sha256_by_block_length[length]},
+            keys={normalized_seed},
+            unit=normalized_unit,
+            support_id=normalized_support,
             block_length=length,
+            grid_length=grid_length,
+            name=f"index_artifact_L{length}",
+            paths=current_paths,
         )
+        artifact = loaded[normalized_seed]
         artifacts[length] = artifact
+        expected_digests[length] = loaded_expected[normalized_seed]
+        if paths is not None and loaded_paths is not None:
+            paths[length] = loaded_paths[normalized_seed]
         results[length] = _paired_bootstrap_mean_delta(
             candidate_values,
             baseline_values,
@@ -3352,7 +3721,7 @@ def paired_bootstrap_mean_delta_sensitivity(
             expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
             expected_forecast_result_sha256=expected_forecast_result_sha256,
         )
-    return {
+    result = {
         "status": "ok",
         "metric": _validate_metric(metric),
         "direction": _validate_direction(direction),
@@ -3361,7 +3730,19 @@ def paired_bootstrap_mean_delta_sensitivity(
         "raw_p": max(float(result["p_value"]) for result in results.values()),
         "index_artifacts": artifacts,
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
+        "index_artifact_expected_sha256_by_block_length": expected_digests,
+        "index_artifact_bindings": {
+            str(length): {
+                "artifact_sha256": artifacts[length].artifact_sha256,
+                "starts_sha256": artifacts[length].starts_sha256,
+                "expected_artifact_sha256": expected_digests[length],
+                **({"source_path": paths[length]} if paths is not None else {}),
+            }
+            for length in P1_MBB_BLOCK_LENGTHS
+        },
     }
+    result.update(_production_result_status_fields())
+    return result
 
 
 def paired_bootstrap_mean_delta_sensitivity_fixture(
