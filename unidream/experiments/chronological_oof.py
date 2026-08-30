@@ -960,7 +960,7 @@ def validate_conditional_oof_artifact(
         artifact.get("prediction_mask", artifact.get("oof_mask")),
         name="artifact.prediction_mask",
     )
-    if int(prediction_mask.sum()) <= 0:
+    if require_nonzero_coverage and int(prediction_mask.sum()) <= 0:
         raise ConditionalOOFArtifactError(
             "conditional OOF artifact requires at least one usable prediction row"
         )
@@ -1095,19 +1095,22 @@ def validate_conditional_oof_artifact(
     contract_mapping = provenance.get("action_execution_contract")
     root_contract_mapping = artifact.get("action_execution_contract")
     if not isinstance(contract_mapping, Mapping) or not isinstance(root_contract_mapping, Mapping):
-        raise ConditionalOOFArtifactError(
-            "conditional OOF artifact requires canonical ActionExecutionContract mappings"
-        )
-    canonical_contract_hash = _contract_digest(contract_mapping)
-    root_canonical_contract_hash = _contract_digest(root_contract_mapping)
-    if canonical_contract_hash != contract_hash or root_canonical_contract_hash != contract_hash:
-        raise ConditionalOOFArtifactError(
-            "ActionExecutionContract mapping content does not match its claimed hash"
-        )
-    if _artifact_json_value(contract_mapping) != _artifact_json_value(root_contract_mapping):
-        raise ConditionalOOFArtifactError(
-            "ActionExecutionContract mappings differ between artifact root and provenance"
-        )
+        if require_nonzero_coverage:
+            raise ConditionalOOFArtifactError(
+                "strict conditional OOF consumer requires canonical "
+                "ActionExecutionContract mappings"
+            )
+    else:
+        canonical_contract_hash = _contract_digest(contract_mapping)
+        root_canonical_contract_hash = _contract_digest(root_contract_mapping)
+        if canonical_contract_hash != contract_hash or root_canonical_contract_hash != contract_hash:
+            raise ConditionalOOFArtifactError(
+                "ActionExecutionContract mapping content does not match its claimed hash"
+            )
+        if _artifact_json_value(contract_mapping) != _artifact_json_value(root_contract_mapping):
+            raise ConditionalOOFArtifactError(
+                "ActionExecutionContract mappings differ between artifact root and provenance"
+            )
     if expected_action_execution_contract is not None or expected_action_execution_contract_hash is not None:
         expected_contract_hash = _contract_digest(
             expected_action_execution_contract,
@@ -1206,6 +1209,14 @@ def _decode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
             encoded = value.get("data_b64")
             if not isinstance(encoded, str):
                 raise ConditionalOOFArtifactError("persisted ndarray data is missing")
+            # Reject an oversized textual payload before base64 decoding so a
+            # malformed artifact cannot allocate more than the bounded array
+            # budget merely through its 4/3 encoding overhead.
+            max_encoded_length = ((_MAX_ARTIFACT_ARRAY_BYTES + 2) // 3) * 4 + 4
+            if len(encoded) > max_encoded_length:
+                raise ConditionalOOFArtifactError(
+                    f"persisted ndarray base64 payload exceeds {_MAX_ARTIFACT_ARRAY_BYTES} bytes"
+                )
             try:
                 raw = base64.b64decode(encoded.encode("ascii"), validate=True)
             except (ValueError, UnicodeError, binascii.Error) as exc:

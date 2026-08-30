@@ -131,19 +131,34 @@ calibrator, teacher weight, and the P0-C `ActionExecutionContract`.
 `validate_conditional_oof_artifact` re-runs the raw chronological checks and
 also rejects duplicate/overlapping origins, any `idx >= origin`, a target end
 after `origin - purge`, wrong one-bar decision-to-fill delay, root/provenance
-hash disagreement, content tampering, or a contract-hash mismatch.  Coverage
-is represented as an explicit head-by-horizon list.  A zero-covered h64 row is
-kept in the artifact with its block reason; it is never silently removed.  The
-strict consumer gate rejects that row, while the relaxed producer mode exists
-only to preserve the diagnostic evidence.
+hash disagreement, content tampering, or a contract-hash mismatch.  Both the
+root and provenance carry the canonical `ActionExecutionContract` mapping;
+the mapping is reparsed with `ActionExecutionContract.from_config` and its
+content-derived hash must match every alias.  Coverage is represented as an
+explicit head-by-horizon list.  A zero-covered h64 row is kept in the artifact
+with its block reason; it is never silently removed.  The strict consumer gate
+rejects that row, while the relaxed producer mode exists only to preserve the
+diagnostic evidence.
 
 `write_conditional_oof_artifact`/`load_conditional_oof_artifact` use typed
-base64 array payloads so NaN and mask dtypes survive JSON round trips.  A
-conditional config must set `require_conditional_oof_artifact: true` (or
-`conditional_oof_artifact_required: true`) and supply the artifact envelope
-before a new consumer can proceed.  The existing raw-bundle path remains for
-the current integration fixture and historical diagnostics; it is not a
-claim that full per-fold WM/normalizer/calibrator/student replay is complete.
+base64 array payloads so NaN and mask dtypes survive JSON round trips.  Array
+dtype, dimensions, element/byte counts, and JSON nesting are bounded before
+allocation, and writes use a same-directory unique temporary file followed by
+an atomic replace.  A strict conditional config must set
+`require_conditional_oof_artifact: true` (or
+`conditional_oof_artifact_required: true`) and supply all external bindings:
+`expected_heads_horizons`, an `expected_hashes` mapping containing
+`checkpoint_sha256`, `normalizer_sha256`, `calibrator_sha256`, and
+`teacher_weight_sha256` (the `teacher_sha256` alias is accepted), plus
+`expected_action_execution_contract_hash` (and optionally the full canonical
+`expected_action_execution_contract` mapping).  Omitting any binding is a
+configuration blocker; values are never copied from the artifact itself.  A
+nested envelope may add only indexed `train`/`val`/`test` views and their masks;
+outer predictions, origins, provenance, targets, coverage, hashes, or schema
+keys are rejected even when their values happen to match.  The existing
+raw-bundle path remains for the current integration fixture and historical
+diagnostics; it is not a claim that full per-fold WM/normalizer/calibrator/
+student replay is complete.
 
 Implementation commits for this contract are `8357ab1` (schema, validator,
 hash and persistence), `950d426` (fixture tests), and `a3912c4` (predictive
