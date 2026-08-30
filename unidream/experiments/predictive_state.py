@@ -3,9 +3,12 @@ from __future__ import annotations
 import numpy as np
 
 from .chronological_oof import (
+    ChronologicalOOFError,
     ConditionalPathBlocked,
     conditional_path_enabled,
     require_conditional_oof_inputs,
+    strict_bool_array,
+    strict_bool_value,
     validate_oof_result,
 )
 
@@ -53,7 +56,10 @@ def _conditional_oof_state_bundle(
             raise ConditionalPathBlocked(
                 f"conditional OOF bundle is missing {split}_mask; early rows cannot be inferred"
             )
-        mask = np.asarray(mask_value, dtype=bool)
+        try:
+            mask = strict_bool_array(mask_value, name=f"conditional OOF {split}_mask")
+        except ChronologicalOOFError as exc:
+            raise ConditionalPathBlocked(str(exc)) from exc
         if mask.ndim != 1 or len(mask) != len(values):
             raise ConditionalPathBlocked(f"conditional OOF {split}_mask is not row-aligned")
         if np.any(mask & ~np.isfinite(values).all(axis=1)):
@@ -91,7 +97,17 @@ def _conditional_oof_state_bundle(
         detail = provenance.get(component)
         if not isinstance(detail, dict):
             continue
-        if bool(detail.get("in_sample", False)):
+        if "in_sample" in detail:
+            try:
+                in_sample = strict_bool_value(
+                    detail["in_sample"],
+                    name=f"conditional OOF {component}.in_sample",
+                )
+            except ChronologicalOOFError as exc:
+                raise ConditionalPathBlocked(str(exc)) from exc
+        else:
+            in_sample = False
+        if in_sample:
             raise ConditionalPathBlocked(
                 f"conditional OOF {component} is marked in_sample"
             )

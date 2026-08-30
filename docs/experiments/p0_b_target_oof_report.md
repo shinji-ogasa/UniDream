@@ -34,13 +34,24 @@ next to a supplied `world_model.pt` checkpoint:
 Each row contains `head`, `horizon`, `sequence_length`, `target_count`,
 `mask_fraction`, `finite_loss_steps`, `gradient_steps`,
 `nonzero_gradient_steps`, `target_coverage`, `gradient_coverage`, `status`,
-and `block_reason`.  A row passes only when it has finite masked targets and an
-actual nonzero gradient step.  Multi-output heads inspect the final projection
-row, so a valid h4 output cannot hide a zero-gradient h64 sibling.
+`block_reason`, and optional run/fold/phase context fields.  A row passes only
+when it has finite masked targets and an actual nonzero gradient step.
+`finite_loss_steps` and `gradient_steps` count only steps on which that head's
+loss actually ran; aggregate WM loss no longer credits a skipped head.
+Multi-output heads inspect the final projection row, so a valid h4 output
+cannot hide a zero-gradient h64 sibling.
 
 For future-only `seq_len=64`, h64 and `position_utility_horizon=64` report
 `target_count=0`, `mask_fraction=0`, and `status=block` with
 `block_reason=zero_valid_targets`.
+
+The default remains diagnostic-only for legacy callers.  Conditional runs, or
+an explicit `require_target_gradient_coverage: true`, write the JSONL artifact
+first and then raise `TargetGradientCoverageError` when any enabled row is
+blocked.  If a checkpoint was written before the gate, a
+`world_model.pt.blocked.json` marker records `status=blocked` and
+`promotable=false`.  `require_target_gradient_coverage: false` preserves the
+legacy diagnostic-only continuation.
 
 ### Chronological OOF contract
 
@@ -52,6 +63,17 @@ rows stay NaN/false in `prediction_mask`; no in-sample fill is performed.
 Mask外に一つでも finite な成分がある行（例: `[finite, NaN]`）も拒否し、
 partial fill を許さない。OOF validator、expanding standardizer、conditional
 predictive-state bundle の三つの入口でこの契約を検証する。
+All availability masks are strict boolean arrays; integer, float/NaN, and
+string masks are rejected instead of implicitly coerced.  An optional strict
+boolean `row_eligibility_mask` from the caller is ANDed with target and finite
+feature eligibility for both training rows and origins.  A false origin never
+calls the callback and remains NaN/false.  Its caller-supplied provenance is
+retained in the OOF result.  For window/sequence inputs, the caller must pass
+one eligibility value per window; no sidecar is auto-zero-filled.
+Horizon, purge, train-size/window, step, target-end cutoff, and standardizer
+history options require actual integer types; bool, fractional, and string
+coercion are rejected. Conditional flags and mapping `enabled` values likewise
+require actual booleans.
 Callback metadata is retained per origin for model, normalizer, calibrator,
 and teacher-weight provenance.
 
@@ -76,13 +98,15 @@ Scoped tests:
 uv run python -m unittest tests.test_chronological_oof_teacher tests.test_teacher_inventory_contract tests.test_world_model_target_coverage -v
 ```
 
-The new tests cover h64 zero target/gradient detection, output-specific
-gradient coverage, same-row future-label perturbation, horizon/purge
-eligibility, no early-row fill, partial-finite values outside an OOF mask, and
-hindsight inventory rejection.
+The new tests cover h64 zero target/gradient detection, output-specific and
+per-head step coverage, coverage-gate blocking/markers, run/fold/phase
+context, strict mask and integer types, same-row future-label perturbation,
+explicit origin/window eligibility, horizon/purge eligibility, no early-row
+fill, partial-finite values outside an OOF mask, and hindsight inventory
+rejection.
 
-Observed result: 13 scoped contract tests passed.  The complete repository
-suite passed (136 tests).
+Observed result: 19 scoped contract tests passed.  The complete repository
+suite passed (142 tests).
 
 The full suite is required before promotion:
 

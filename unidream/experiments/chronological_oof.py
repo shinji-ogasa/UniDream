@@ -34,12 +34,68 @@ class OOFOrigin:
     n_train: int
 
 
+def strict_bool_array(value: Any, *, name: str) -> np.ndarray:
+    """Return a copy of a boolean mask without coercing other dtypes.
+
+    Availability masks are part of the causal contract. ``np.asarray(...,
+    dtype=bool)`` would silently turn integers, strings, and NaN values into
+    booleans, so every mask boundary uses this helper instead.
+    """
+    try:
+        array = np.asarray(value)
+    except (TypeError, ValueError) as exc:
+        raise ChronologicalOOFError(f"{name} must be a strict bool array") from exc
+    if array.dtype != np.dtype(np.bool_):
+        raise ChronologicalOOFError(
+            f"{name} must have dtype bool; implicit coercion from {array.dtype} is forbidden"
+        )
+    return np.array(array, dtype=np.bool_, copy=True)
+
+
+def strict_bool_value(value: Any, *, name: str) -> bool:
+    """Validate a configuration boolean without accepting truthy strings."""
+    if type(value) is not bool:
+        raise ChronologicalOOFError(f"{name} must be a bool, got {type(value).__name__}")
+    return value
+
+
+def strict_integer_value(value: Any, *, name: str) -> int:
+    """Validate an integer option without accepting bool/fraction/string casts."""
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)):
+        raise ChronologicalOOFError(
+            f"{name} must be an integer (bool, fraction, and string coercion are forbidden)"
+        )
+    return int(value)
+
+
+def strict_integer_array(value: Any, *, name: str) -> np.ndarray:
+    """Validate an integer index/cutoff array without truncating other dtypes."""
+    try:
+        array = np.asarray(value)
+    except (TypeError, ValueError) as exc:
+        raise ChronologicalOOFError(f"{name} must be an integer array") from exc
+    if array.dtype.kind not in "iu":
+        raise ChronologicalOOFError(
+            f"{name} must have an integer dtype; implicit coercion from {array.dtype} is forbidden"
+        )
+    return np.array(array, dtype=np.int64, copy=True)
+
+
+def _finite_rows(array: np.ndarray, *, name: str) -> np.ndarray:
+    try:
+        return np.isfinite(array).all(axis=tuple(range(1, array.ndim)))
+    except (TypeError, ValueError) as exc:
+        raise ChronologicalOOFError(f"{name} must contain numeric finite values") from exc
+
+
 def conditional_path_enabled(config: Mapping[str, Any] | None) -> bool:
     """Return whether a config opts into the new conditional/OOF path.
 
     Several names are accepted so an experiment manifest can choose a clear
-    spelling without weakening the guard.  A truthy ``conditional_oracle``
-    mapping may use an explicit ``enabled`` field.
+    spelling without weakening the guard. A ``conditional_oracle`` mapping may
+    use an explicit boolean ``enabled`` field. Flag values are deliberately
+    strict: strings such as ``"false"`` are rejected rather than interpreted
+    as truthy.
     """
     if not isinstance(config, Mapping):
         return False
@@ -60,8 +116,12 @@ def conditional_path_enabled(config: Mapping[str, Any] | None) -> bool:
                 continue
             value = section[name]
             if isinstance(value, Mapping):
-                value = value.get("enabled", False)
-            if bool(value):
+                if "enabled" not in value:
+                    raise ChronologicalOOFError(
+                        f"{name}.enabled must be a bool when {name} is a mapping"
+                    )
+                value = value["enabled"]
+            if strict_bool_value(value, name=name):
                 return True
         mode = str(section.get("oracle_mode", section.get("mode", ""))).strip().lower()
         teacher_mode = str(section.get("teacher_mode", "")).strip().lower()
@@ -100,7 +160,9 @@ def require_conditional_oof_inputs(
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: fit_scheme must be chronological OOF"
         )
-    if bool(provenance.get("in_sample", False)):
+    if "in_sample" in provenance and strict_bool_value(
+        provenance["in_sample"], name="oof_bundle.provenance.in_sample"
+    ):
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: in-sample state is forbidden"
         )
@@ -121,7 +183,7 @@ def _as_row_mask(mask: np.ndarray | None, targets: np.ndarray) -> np.ndarray:
     if mask is None:
         result = np.ones(targets.shape[0], dtype=bool)
     else:
-        raw = np.asarray(mask, dtype=bool)
+        raw = strict_bool_array(mask, name="valid_target_mask")
         if raw.ndim == 2:
             if raw.shape != targets.shape:
                 raise ChronologicalOOFError(
@@ -134,7 +196,18 @@ def _as_row_mask(mask: np.ndarray | None, targets: np.ndarray) -> np.ndarray:
             raise ChronologicalOOFError(
                 "valid_target_mask must have one value per row or one value per target"
             )
-    return result & np.isfinite(targets).all(axis=1)
+    return result & _finite_rows(targets, name="targets")
+
+
+def _as_row_eligibility_mask(mask: np.ndarray | None, n_rows: int) -> tuple[np.ndarray, bool]:
+    if mask is None:
+        return np.ones(n_rows, dtype=bool), False
+    raw = strict_bool_array(mask, name="row_eligibility_mask")
+    if raw.ndim != 1 or len(raw) != n_rows:
+        raise ChronologicalOOFError(
+            f"row_eligibility_mask must have shape ({n_rows},), got {raw.shape}"
+        )
+    return raw, True
 
 
 def _coerce_prediction(value: Any, n_outputs: int) -> tuple[np.ndarray, Mapping[str, Any] | None]:
@@ -170,6 +243,8 @@ def chronological_oof_predict(
     step: int = 1,
     target_end: np.ndarray | None = None,
     valid_target_mask: np.ndarray | None = None,
+    row_eligibility_mask: np.ndarray | None = None,
+    row_eligibility_provenance: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate predictions using only label-complete chronological prefixes.
 
@@ -182,17 +257,24 @@ def chronological_oof_predict(
     explicit ``target_end`` (exclusive row index) is supplied.  The training
     prefix must end at or before ``prediction_index - purge``.  No early-row
     prediction is imputed: unavailable rows remain NaN and false in
-    ``prediction_mask``.
+    ``prediction_mask``.  ``row_eligibility_mask`` is an optional strict bool
+    vector supplied by the caller (for example, a P0-A availability/window
+    mask). It is ANDed with the finite-target mask for both training rows and
+    prediction origins. A false origin never calls ``fit_predict`` and stays
+    NaN/false; unavailable values are never sidecar-zero-filled. For a
+    sequence/window representation, the caller must provide one eligibility
+    value per window (the first axis); this function does not infer window
+    eligibility from a sidecar or repair invalid windows.
     """
     x = np.asarray(features)
     if x.ndim == 1:
         x = x.reshape(-1, 1)
-    if x.ndim != 2:
-        raise ChronologicalOOFError(f"features must be 2-D, got {x.shape}")
+    if x.ndim < 2:
+        raise ChronologicalOOFError(f"features must have row axis, got {x.shape}")
     n_rows = x.shape[0]
     y = _as_2d_targets(np.asarray(targets), n_rows)
     n_outputs = y.shape[1]
-    horizon = int(horizon)
+    horizon = strict_integer_value(horizon, name="horizon")
     if horizon < 1:
         raise ChronologicalOOFError("horizon must be >= 1")
     if purge is None:
@@ -200,12 +282,16 @@ def chronological_oof_predict(
         # with a future target beginning after that origin.  Extra embargo for
         # serial dependence must be supplied explicitly and is recorded below.
         purge = 0
-    purge = int(purge)
+    purge = strict_integer_value(purge, name="purge")
     if purge < 0:
         raise ChronologicalOOFError("purge must be >= 0")
-    min_train_size = int(min_train_size)
-    train_window = None if train_window is None else int(train_window)
-    step = int(step)
+    min_train_size = strict_integer_value(min_train_size, name="min_train_size")
+    train_window = (
+        None
+        if train_window is None
+        else strict_integer_value(train_window, name="train_window")
+    )
+    step = strict_integer_value(step, name="step")
     if min_train_size < 1:
         raise ChronologicalOOFError("min_train_size must be >= 1")
     if train_window is not None and train_window < min_train_size:
@@ -214,15 +300,29 @@ def chronological_oof_predict(
         raise ChronologicalOOFError("step must be >= 1")
 
     row_valid = _as_row_mask(valid_target_mask, y)
+    caller_row_mask, row_mask_supplied = _as_row_eligibility_mask(
+        row_eligibility_mask,
+        n_rows,
+    )
+    feature_valid = _finite_rows(x, name="features")
+    row_valid = row_valid & caller_row_mask & feature_valid
     if target_end is None:
         label_end = np.arange(n_rows, dtype=np.int64) + horizon
     else:
-        label_end = np.asarray(target_end)
+        label_end = strict_integer_array(target_end, name="target_end")
         if label_end.ndim != 1 or len(label_end) != n_rows:
             raise ChronologicalOOFError("target_end must have one exclusive index per row")
-        if not np.isfinite(label_end).all():
-            raise ChronologicalOOFError("target_end must be finite")
-        label_end = label_end.astype(np.int64)
+
+    if row_eligibility_provenance is not None and not isinstance(
+        row_eligibility_provenance,
+        Mapping,
+    ):
+        raise ChronologicalOOFError("row_eligibility_provenance must be a mapping")
+    eligibility_provenance = dict(row_eligibility_provenance or {})
+    eligibility_source = eligibility_provenance.get(
+        "source",
+        "caller" if row_mask_supplied else "finite_features_and_target_mask",
+    )
 
     predictions = np.full((n_rows, n_outputs), np.nan, dtype=np.float64)
     prediction_mask = np.zeros(n_rows, dtype=bool)
@@ -231,6 +331,8 @@ def chronological_oof_predict(
     metadata_by_row: list[Mapping[str, Any] | None] = [None] * n_rows
 
     for prediction_index in range(0, n_rows, step):
+        if not row_valid[prediction_index]:
+            continue
         label_cutoff_exclusive = prediction_index - purge
         eligible = np.flatnonzero(row_valid & (label_end <= label_cutoff_exclusive))
         if train_window is not None and len(eligible) > train_window:
@@ -285,7 +387,15 @@ def chronological_oof_predict(
             "step": step,
             "n_rows": n_rows,
             "n_predictions": int(prediction_mask.sum()),
+            "n_origins_called": len(origin_records),
             "in_sample": False,
+            "row_eligibility_mask_supplied": row_mask_supplied,
+            "row_eligibility_source": eligibility_source,
+            "row_eligibility_mask_source": eligibility_source,
+            "row_eligibility_provenance": eligibility_provenance,
+            "row_eligibility_mask_provenance": eligibility_provenance,
+            "row_eligibility_applied_with_target_mask": True,
+            "row_eligibility_eligible_rows": int(row_valid.sum()),
         },
     }
     validate_oof_result(result, target_end=label_end)
@@ -299,32 +409,86 @@ def validate_oof_result(
 ) -> None:
     """Validate NaN/availability and prefix invariants of an OOF result."""
     predictions = np.asarray(result.get("predictions"))
-    mask = np.asarray(result.get("prediction_mask", result.get("oof_mask")), dtype=bool)
+    mask = strict_bool_array(
+        result.get("prediction_mask", result.get("oof_mask")),
+        name="prediction_mask",
+    )
     if predictions.ndim != 2 or mask.ndim != 1 or predictions.shape[0] != mask.shape[0]:
         raise ChronologicalOOFError("OOF predictions/mask have incompatible shapes")
-    if np.any(mask & ~np.isfinite(predictions).all(axis=1)):
+    try:
+        finite_predictions = np.isfinite(predictions)
+    except (TypeError, ValueError) as exc:
+        raise ChronologicalOOFError("OOF predictions must contain numeric values") from exc
+    if np.any(mask & ~finite_predictions.all(axis=1)):
         raise ChronologicalOOFError("prediction_mask marks a non-finite OOF row")
-    if np.any(~mask & np.isfinite(predictions).any(axis=1)):
+    if np.any(~mask & finite_predictions.any(axis=1)):
         raise ChronologicalOOFError(
             "finite OOF state exists outside the prediction mask; refusing a partial fill"
         )
     origins = result.get("origins", [])
     provenance = result.get("provenance", {})
-    purge = int(provenance.get("purge", 0))
+    if not isinstance(provenance, Mapping):
+        raise ChronologicalOOFError("OOF provenance must be a mapping")
+    purge = strict_integer_value(provenance.get("purge", 0), name="provenance.purge")
+    for field in ("horizon", "min_train_size", "step"):
+        if field in provenance:
+            strict_integer_value(provenance[field], name=f"provenance.{field}")
+    if "train_window" in provenance and provenance["train_window"] is not None:
+        strict_integer_value(provenance["train_window"], name="provenance.train_window")
+    if not isinstance(origins, (list, tuple)):
+        raise ChronologicalOOFError("OOF origins must be a list or tuple")
+    for origin in origins:
+        if not isinstance(origin, Mapping):
+            raise ChronologicalOOFError("OOF origin must be a mapping")
+        for field in (
+            "prediction_index",
+            "train_start",
+            "train_end_exclusive",
+            "label_cutoff_exclusive",
+            "n_train",
+        ):
+            if field in origin:
+                strict_integer_value(origin[field], name=f"origin.{field}")
     if target_end is not None:
-        ends = np.asarray(target_end, dtype=np.int64)
+        ends = strict_integer_array(target_end, name="target_end")
+        if ends.ndim != 1 or len(ends) != len(predictions):
+            raise ChronologicalOOFError("target_end must have one exclusive index per row")
         for origin in origins:
-            t = int(origin["prediction_index"])
+            try:
+                t = strict_integer_value(
+                    origin["prediction_index"],
+                    name="origin.prediction_index",
+                )
+            except (KeyError, TypeError) as exc:
+                raise ChronologicalOOFError("OOF origin is missing prediction_index") from exc
             cutoff = t - purge
             indices = origin.get("train_indices")
             if indices is None:
-                indices = list(range(int(origin["train_start"]), int(origin["train_end_exclusive"])))
-            train_end = ends[np.asarray(indices, dtype=np.int64)]
+                try:
+                    start = strict_integer_value(origin["train_start"], name="origin.train_start")
+                    end = strict_integer_value(
+                        origin["train_end_exclusive"],
+                        name="origin.train_end_exclusive",
+                    )
+                except (KeyError, TypeError) as exc:
+                    raise ChronologicalOOFError(
+                        "OOF origin is missing train range"
+                    ) from exc
+                indices = np.arange(start, end, dtype=np.int64)
+            else:
+                indices = strict_integer_array(indices, name="origin.train_indices")
+            if indices.ndim != 1:
+                raise ChronologicalOOFError("origin.train_indices must be 1-D")
+            if np.any(indices < 0) or np.any(indices >= len(ends)):
+                raise ChronologicalOOFError("origin.train_indices are out of range")
+            train_end = ends[indices]
             if len(train_end) and int(np.max(train_end)) > cutoff:
                 raise ChronologicalOOFError(
                     f"OOF origin {t} includes a future/incomplete label: max_end={int(np.max(train_end))} cutoff={cutoff}"
                 )
-    if bool(provenance.get("in_sample", False)):
+    if "in_sample" in provenance and strict_bool_value(
+        provenance["in_sample"], name="provenance.in_sample"
+    ):
         raise ChronologicalOOFError("OOF result is marked in_sample")
 
 
@@ -342,7 +506,7 @@ def chronological_oof_standardize(
     with in-sample values or zeros.
     """
     values = np.asarray(predictions, dtype=np.float64)
-    mask = np.asarray(prediction_mask, dtype=bool)
+    mask = strict_bool_array(prediction_mask, name="prediction_mask")
     if values.ndim != 2 or mask.ndim != 1 or len(values) != len(mask):
         raise ChronologicalOOFError("predictions/mask have incompatible shapes")
     if np.any(mask & ~np.isfinite(values).all(axis=1)):
@@ -351,7 +515,7 @@ def chronological_oof_standardize(
         raise ChronologicalOOFError(
             "finite state exists outside the OOF mask; refusing a partial or implicit fill"
         )
-    min_history = int(min_history)
+    min_history = strict_integer_value(min_history, name="min_history")
     if min_history < 1:
         raise ChronologicalOOFError("min_history must be >= 1")
     output = np.full_like(values, np.nan, dtype=np.float64)
@@ -403,5 +567,9 @@ __all__ = [
     "chronological_oof_standardize",
     "conditional_path_enabled",
     "require_conditional_oof_inputs",
+    "strict_bool_array",
+    "strict_bool_value",
+    "strict_integer_array",
+    "strict_integer_value",
     "validate_oof_result",
 ]

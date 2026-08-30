@@ -6,6 +6,7 @@ import numpy as np
 
 from unidream.experiments.chronological_oof import (
     ChronologicalOOFError,
+    conditional_path_enabled,
     chronological_oof_predict,
     chronological_oof_standardize,
     validate_oof_result,
@@ -113,6 +114,122 @@ class ChronologicalOOFTeacherTest(unittest.TestCase):
                 fit_predict=lambda x_train, y_train, x_test: np.asarray([1.0, 2.0]),
                 min_train_size=1,
             )
+
+    def test_masks_require_strict_bool_dtype(self) -> None:
+        features = np.ones((4, 1), dtype=np.float64)
+        targets = np.ones(4, dtype=np.float64)
+        invalid_masks = (
+            np.asarray([1, 0, 1, 0], dtype=np.int64),
+            np.asarray([1.0, 0.0, 1.0, 0.0], dtype=np.float64),
+            np.asarray(["true", "false", "true", "false"]),
+            np.asarray([True, np.nan, True, False], dtype=object),
+        )
+        for invalid in invalid_masks:
+            with self.subTest(dtype=invalid.dtype):
+                with self.assertRaises(ChronologicalOOFError):
+                    chronological_oof_predict(
+                        features,
+                        targets,
+                        fit_predict=self._fit_predict,
+                        valid_target_mask=invalid,
+                    )
+                with self.assertRaises(ChronologicalOOFError):
+                    chronological_oof_standardize(
+                        np.ones((4, 1), dtype=np.float64),
+                        invalid,
+                    )
+                with self.assertRaises(ChronologicalOOFError):
+                    validate_oof_result(
+                        {
+                            "predictions": np.ones((4, 1), dtype=np.float64),
+                            "prediction_mask": invalid,
+                            "provenance": {"in_sample": False},
+                        }
+                    )
+
+    def test_row_eligibility_blocks_origins_and_training_rows(self) -> None:
+        features = np.arange(12, dtype=np.float64).reshape(-1, 1)
+        features[4, 0] = np.nan
+        labels = np.arange(12, dtype=np.float64)
+        row_mask = np.ones(12, dtype=bool)
+        row_mask[[3, 8]] = False
+        calls: list[int] = []
+
+        def callback(x_train, y_train, x_test):
+            calls.append(int(x_test[0, 0]))
+            return {"prediction": [float(np.mean(y_train))]}
+
+        first = chronological_oof_predict(
+            features,
+            labels,
+            fit_predict=callback,
+            min_train_size=2,
+            row_eligibility_mask=row_mask,
+            row_eligibility_provenance={"source": "p0_a_availability"},
+        )
+        self.assertNotIn(3, calls)
+        self.assertNotIn(4, calls)  # non-finite feature row is unavailable
+        self.assertNotIn(8, calls)
+        self.assertFalse(first["prediction_mask"][3])
+        self.assertFalse(first["prediction_mask"][4])
+        self.assertFalse(first["prediction_mask"][8])
+        self.assertTrue(np.isnan(first["predictions"][3]).all())
+        self.assertTrue(first["provenance"]["row_eligibility_mask_supplied"])
+        self.assertEqual(first["provenance"]["row_eligibility_source"], "p0_a_availability")
+        self.assertEqual(
+            first["provenance"]["row_eligibility_provenance"]["source"],
+            "p0_a_availability",
+        )
+
+        perturbed = labels.copy()
+        perturbed[8] = 100_000.0
+        second = chronological_oof_predict(
+            features,
+            perturbed,
+            fit_predict=callback,
+            min_train_size=2,
+            row_eligibility_mask=row_mask,
+        )
+        np.testing.assert_array_equal(first["prediction_mask"], second["prediction_mask"])
+        usable = first["prediction_mask"]
+        np.testing.assert_allclose(first["predictions"][usable], second["predictions"][usable])
+
+    def test_integer_and_conditional_options_are_strict(self) -> None:
+        features = np.ones((6, 1), dtype=np.float64)
+        targets = np.ones(6, dtype=np.float64)
+        invalid_integer_options = {
+            "horizon": 1.0,
+            "purge": "0",
+            "min_train_size": True,
+            "train_window": 2.5,
+            "step": "1",
+        }
+        for name, value in invalid_integer_options.items():
+            with self.subTest(option=name):
+                with self.assertRaises(ChronologicalOOFError):
+                    chronological_oof_predict(
+                        features,
+                        targets,
+                        fit_predict=self._fit_predict,
+                        **{name: value},
+                    )
+        with self.assertRaises(ChronologicalOOFError):
+            chronological_oof_predict(
+                features,
+                targets,
+                fit_predict=self._fit_predict,
+                target_end=np.asarray([1.0] * 6),
+            )
+        with self.assertRaises(ChronologicalOOFError):
+            chronological_oof_standardize(
+                np.ones((6, 1), dtype=np.float64),
+                np.ones(6, dtype=bool),
+                min_history="1",
+            )
+        with self.assertRaises(ChronologicalOOFError):
+            conditional_path_enabled({"conditional_oracle_path": "false"})
+        with self.assertRaises(ChronologicalOOFError):
+            conditional_path_enabled({"conditional_oracle": {"enabled": "false"}})
 
 
 if __name__ == "__main__":

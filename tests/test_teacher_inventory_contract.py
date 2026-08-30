@@ -94,6 +94,40 @@ class TeacherInventoryContractTest(unittest.TestCase):
                 oof_bundle=bundle,
             )
 
+    def test_conditional_bundle_masks_require_strict_bool_dtype(self) -> None:
+        values = np.ones((1, 2), dtype=np.float32)
+        invalid_masks = (
+            np.asarray([1], dtype=np.int64),
+            np.asarray([1.0], dtype=np.float32),
+            np.asarray(["true"]),
+            np.asarray([True, np.nan], dtype=object),
+        )
+        for invalid in invalid_masks:
+            with self.subTest(dtype=invalid.dtype):
+                bundle = {
+                    "train": values,
+                    "val": values,
+                    "test": values,
+                    "train_mask": invalid,
+                    "val_mask": np.asarray([True]),
+                    "test_mask": np.asarray([True]),
+                    "provenance": {
+                        "fit_scheme": "chronological_oof",
+                        "in_sample": False,
+                    },
+                }
+                with self.assertRaises(ConditionalPathBlocked):
+                    build_wm_predictive_state_bundle(
+                        wm_trainer=object(),
+                        wfo_dataset=object(),
+                        z_train=np.zeros((1, 1), dtype=np.float32),
+                        h_train=np.zeros((1, 1), dtype=np.float32),
+                        seq_len=1,
+                        ac_cfg={"conditional_oracle_path": True},
+                        log_ts=lambda: "00:00:00",
+                        oof_bundle=bundle,
+                    )
+
     def test_conditional_fold_input_builder_blocks_before_hindsight_dp(self) -> None:
         with self.assertRaises(ConditionalPathBlocked):
             prepare_fold_inputs(
