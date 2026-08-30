@@ -48,7 +48,8 @@ The README documents monthly/daily archives, Spot/Futures klines and checksum si
 Availability columns: `spot_bar_observed, perp_bar_observed, spot_taker_imbalance_available, perp_taker_imbalance_available, spot_perp_basis_available, spot_perp_return_divergence_available, d1_features_available`.
 Feature columns: `spot_trade_count, spot_quote_volume, spot_taker_buy_base, spot_taker_buy_quote, spot_taker_imbalance, perp_trade_count, perp_quote_volume, perp_taker_buy_base, perp_taker_buy_quote, perp_taker_imbalance, spot_perp_basis, spot_perp_return_divergence`.
 
-Ledger record counts: `d1_pilot_run`=1, `d1_archive_download`=2, `d1_aggtrade_head_probe`=208, `d1_bar_availability`=2976.
+Latest-run appended ledger record counts: `d1_pilot_run`=1, `d1_archive_download`=2, `d1_aggtrade_head_probe`=208, `d1_bar_availability`=2976.
+Tracked append-only ledger total counts: `d1_pilot_run`=2, `d1_archive_download`=4, `d1_aggtrade_head_probe`=208, `d1_bar_availability`=5952.
 
 ## Aggregate-trade capacity check
 
