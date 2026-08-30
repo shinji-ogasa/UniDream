@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+from collections import Counter
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -54,6 +55,15 @@ def _json_write(value: Mapping[str, Any], path: str | Path) -> None:
     )
 
 
+def _ledger_record_counts(path: str | Path) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            record = json.loads(line)
+            counts[str(record.get("record_type", "unknown"))] += 1
+    return dict(counts)
+
+
 def _render_report(
     *,
     symbol: str,
@@ -69,6 +79,7 @@ def _render_report(
     feature_sha256: str,
     availability_sha256: str,
     ledger_record_counts: Mapping[str, int],
+    ledger_total_record_counts: Mapping[str, int],
     git_commit: str | None,
 ) -> str:
     lines = [
@@ -135,9 +146,14 @@ def _render_report(
             "Availability columns: `" + ", ".join(D1_AVAILABILITY_COLUMNS) + "`.",
             "Feature columns: `" + ", ".join(D1_FEATURE_COLUMNS) + "`.",
             "",
-            "Ledger record counts: "
+            "Latest-run appended ledger record counts: "
             + ", ".join(
                 f"`{key}`={value}" for key, value in ledger_record_counts.items()
+            )
+            + ".",
+            "Tracked append-only ledger total counts: "
+            + ", ".join(
+                f"`{key}`={value}" for key, value in ledger_total_record_counts.items()
             )
             + ".",
             "",
@@ -290,6 +306,7 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
         ledger_path,
         [run_record, *source_records_list, *capacity_records, *bar_records],
     )
+    ledger_total_record_counts = _ledger_record_counts(ledger_path)
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
@@ -307,6 +324,7 @@ def run_pilot(args: argparse.Namespace) -> dict[str, Any]:
             feature_sha256=feature_sha256,
             availability_sha256=availability_sha256,
             ledger_record_counts=ledger_record_counts,
+            ledger_total_record_counts=ledger_total_record_counts,
             git_commit=run_record["git_commit"],
         ),
         encoding="utf-8",

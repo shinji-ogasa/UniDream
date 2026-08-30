@@ -366,8 +366,11 @@ class D1SignedFlowTest(unittest.TestCase):
                 run_record["ledger_record_counts"]["d1_aggtrade_head_probe"],
                 2,
             )
-            self.assertIn(availability_sha, Path(result["report"]).read_text(encoding="utf-8"))
-            self.assertIn("HTTP 404", Path(result["report"]).read_text(encoding="utf-8"))
+            report_text = Path(result["report"]).read_text(encoding="utf-8")
+            self.assertIn(availability_sha, report_text)
+            self.assertIn("HTTP 404", report_text)
+            self.assertIn("Latest-run appended ledger record counts", report_text)
+            self.assertIn("Tracked append-only ledger total counts", report_text)
 
     def test_download_failure_is_appended_before_pilot_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
