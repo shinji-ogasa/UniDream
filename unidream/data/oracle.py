@@ -249,8 +249,10 @@ def conditional_oracle_teacher_path(
     not a realized-return label.  The optimizer uses the shared P0-C
     feasible-action/commitment/cost path and the resulting trajectory can be
     replayed by the new Backtest without remapping actions.  Both eligibility
-    masks are required and the delayed four-bar score mask is applied as one
-    all-or-none block.
+    masks are required.  A missing delayed score/outcome bar excludes the
+    complete block; a missing decision feature skips execution while holding
+    the four-bar commitment and still scores finite outcomes.  Neither case
+    compresses the schedule.
     """
     if not isinstance(contract, ActionExecutionContract):
         raise TypeError("contract must be an ActionExecutionContract")
@@ -277,8 +279,10 @@ def hindsight_upper_bound_path(
     Backtest makes opportunity/regret comparisons mechanically meaningful;
     its selector is intentionally hindsight-only and distinct from the
     causal teacher selector.
-    Ineligible scheduled blocks are skipped without reading their realized
-    values; the next scheduled boundary remains unchanged.
+    A block with a missing delayed score/outcome is skipped without reading its
+    realized values; the next scheduled boundary remains unchanged.  A
+    decision-feature gap is a scored hold commitment, so finite realized
+    outcomes remain part of both the strategy and benchmark windows.
     """
     if not isinstance(contract, ActionExecutionContract):
         raise TypeError("contract must be an ActionExecutionContract")

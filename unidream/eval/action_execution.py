@@ -11,10 +11,11 @@ The contract is spot-only and intentionally small:
 
 The final block is scored only when all four returns are present.  A trajectory
 contains full-length diagnostic arrays, plus an explicit ``scored_mask``; the
-Backtest adapter trims to that mask before computing metrics.  The same
-replay geometry is used by conditional teachers and by the upper-bound
-diagnostic, while their selectors remain separate: the teacher is causal and
-U0 is hindsight-only.
+Backtest adapter trims to that mask before computing metrics.  A missing
+decision feature produces a scored hold commitment, while a missing delayed
+score/outcome excludes the whole block.  The same replay geometry is used by
+conditional teachers and by the upper-bound diagnostic, while their selectors
+remain separate: the teacher is causal and U0 is hindsight-only.
 """
 from __future__ import annotations
 
@@ -109,7 +110,8 @@ class ActionExecutionContract:
     initial_countdown: int = 0
     countdown_decrement: int = 1
     boundary_cost_policy: str = "fill_only"
-    feature_unavailable_policy: str = "exclude_block"
+    feature_unavailable_policy: str = "hold_and_score_commitment"
+    outcome_unavailable_policy: str = "exclude_block"
     execution_skip_policy: str = "hold_commitment"
     eligibility_masks_required: bool = True
 
@@ -148,6 +150,7 @@ class ActionExecutionContract:
             ("return_unit", self.return_unit),
             ("boundary_cost_policy", self.boundary_cost_policy),
             ("feature_unavailable_policy", self.feature_unavailable_policy),
+            ("outcome_unavailable_policy", self.outcome_unavailable_policy),
             ("execution_skip_policy", self.execution_skip_policy),
         ):
             if not isinstance(value, str) or not value:
@@ -170,8 +173,12 @@ class ActionExecutionContract:
             raise ValueError("boundary_cost_policy must be fill_only")
         if self.countdown_decrement != 1:
             raise ValueError("countdown_decrement must be 1")
-        if self.feature_unavailable_policy != "exclude_block":
-            raise ValueError("feature_unavailable_policy must be exclude_block")
+        if self.feature_unavailable_policy != "hold_and_score_commitment":
+            raise ValueError(
+                "feature_unavailable_policy must be hold_and_score_commitment"
+            )
+        if self.outcome_unavailable_policy != "exclude_block":
+            raise ValueError("outcome_unavailable_policy must be exclude_block")
         if self.execution_skip_policy != "hold_commitment":
             raise ValueError("execution_skip_policy must be hold_commitment")
         if not isinstance(self.eligibility_masks_required, (bool, np.bool_)):
@@ -252,6 +259,7 @@ class ActionExecutionContract:
             "initial_countdown": int(self.initial_countdown),
             "boundary_cost_policy": self.boundary_cost_policy,
             "feature_unavailable_policy": self.feature_unavailable_policy,
+            "outcome_unavailable_policy": self.outcome_unavailable_policy,
             "execution_skip_policy": self.execution_skip_policy,
             "eligibility_masks_required": bool(self.eligibility_masks_required),
         }
@@ -375,6 +383,7 @@ class ActionExecutionContract:
             "countdown_decrement",
             "boundary_cost_policy",
             "feature_unavailable_policy",
+            "outcome_unavailable_policy",
             "execution_skip_policy",
             "eligibility_masks_required",
         }
@@ -417,6 +426,7 @@ class ActionExecutionContract:
             countdown_decrement=normalized.get("countdown_decrement", 1),
             boundary_cost_policy=normalized["boundary_cost_policy"],
             feature_unavailable_policy=normalized["feature_unavailable_policy"],
+            outcome_unavailable_policy=normalized["outcome_unavailable_policy"],
             execution_skip_policy=normalized["execution_skip_policy"],
             eligibility_masks_required=normalized["eligibility_masks_required"],
         )
@@ -443,6 +453,7 @@ class ActionExecutionContract:
                 "countdown_decrement",
                 "boundary_cost_policy",
                 "feature_unavailable_policy",
+                "outcome_unavailable_policy",
                 "execution_skip_policy",
                 "eligibility_masks_required",
             )
@@ -528,6 +539,8 @@ class ActionExecutionTrajectory:
     score_eligible: np.ndarray = field(repr=False)
     eligible_decision_mask: np.ndarray = field(repr=False)
     block_eligible_mask: np.ndarray = field(repr=False)
+    score_block_eligible_mask: np.ndarray = field(repr=False)
+    execution_skipped_mask: np.ndarray = field(repr=False)
 
     @property
     def scored_indices(self) -> np.ndarray:
@@ -550,8 +563,23 @@ class ActionExecutionTrajectory:
         return self.net_pnl[self.scored_mask]
 
     @property
-    def n_complete_blocks(self) -> int:
+    def n_filled_blocks(self) -> int:
+        """Number of scheduled blocks with an actual execution fill.
+
+        A decision-feature gap can still be a complete/scorable four-bar
+        block while deliberately producing no fill.  Keep this count
+        separate from the denominator used by the PnL metrics.
+        """
         return int(np.count_nonzero(self.fill_mask))
+
+    @property
+    def n_complete_blocks(self) -> int:
+        """Number of complete/scorable scheduled blocks.
+
+        This compatibility name now follows the outcome window, not the
+        number of fills.  Use :attr:`n_filled_blocks` for execution fills.
+        """
+        return self.n_scorable_blocks
 
     @property
     def n_scheduled_decisions(self) -> int:
@@ -566,8 +594,16 @@ class ActionExecutionTrajectory:
         return int(np.count_nonzero(self.block_eligible_mask))
 
     @property
+    def n_scorable_blocks(self) -> int:
+        return int(np.count_nonzero(self.score_block_eligible_mask))
+
+    @property
+    def n_execution_skipped_blocks(self) -> int:
+        return int(np.count_nonzero(self.execution_skipped_mask))
+
+    @property
     def n_excluded_blocks(self) -> int:
-        return self.n_scheduled_decisions - self.n_eligible_blocks
+        return self.n_scheduled_decisions - self.n_scorable_blocks
 
     @property
     def n_scored_bars(self) -> int:
@@ -580,9 +616,27 @@ class ActionExecutionTrajectory:
             "scheduled_decisions": self.n_scheduled_decisions,
             "eligible_decisions": self.n_eligible_decisions,
             "eligible_blocks": self.n_eligible_blocks,
+            "scorable_blocks": self.n_scorable_blocks,
+            "filled_blocks": self.n_filled_blocks,
+            "execution_skipped_blocks": self.n_execution_skipped_blocks,
             "excluded_blocks": self.n_excluded_blocks,
             "scored_bars": self.n_scored_bars,
         }
+
+    @property
+    def scheduled_mask(self) -> np.ndarray:
+        """Alias used by audit/manifest consumers."""
+        return self.scheduled_decision_mask
+
+    @property
+    def eligible_block_mask(self) -> np.ndarray:
+        """Alias for the action-executable block mask."""
+        return self.block_eligible_mask
+
+    @property
+    def scorable_block_mask(self) -> np.ndarray:
+        """Alias for the outcome/scoring block mask."""
+        return self.score_block_eligible_mask
 
     @property
     def eligibility_mask_hash(self) -> str:
@@ -682,15 +736,25 @@ def _contract_block_masks(
     scheduled = np.zeros(n_bars, dtype=bool)
     eligible_decision = np.zeros(n_bars, dtype=bool)
     block_eligible = np.zeros(n_bars, dtype=bool)
+    score_block_eligible = np.zeros(n_bars, dtype=bool)
     for start in starts:
         scheduled[start] = True
         eligible_decision[start] = decision_mask[start]
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
+        score_block_eligible[start] = bool(score_mask[fill:end].all())
         block_eligible[start] = bool(
-            decision_mask[start] and score_mask[fill:end].all()
+            decision_mask[start] and score_block_eligible[start]
         )
-    return decision_mask, score_mask, scheduled, eligible_decision, block_eligible, starts
+    return (
+        decision_mask,
+        score_mask,
+        scheduled,
+        eligible_decision,
+        block_eligible,
+        score_block_eligible,
+        starts,
+    )
 
 
 def _validate_decision_block_scores(
@@ -700,6 +764,7 @@ def _validate_decision_block_scores(
     decision_eligible: np.ndarray | Sequence[bool] | None,
     score_eligible: np.ndarray | Sequence[bool] | None,
 ) -> tuple[
+    np.ndarray,
     np.ndarray,
     np.ndarray,
     np.ndarray,
@@ -721,6 +786,7 @@ def _validate_decision_block_scores(
         scheduled,
         eligible_decision,
         block_eligible,
+        score_block_eligible,
         starts,
     ) = _contract_block_masks(
         len(arr),
@@ -742,6 +808,7 @@ def _validate_decision_block_scores(
         scheduled,
         eligible_decision,
         block_eligible,
+        score_block_eligible,
         starts,
     )
 
@@ -825,10 +892,12 @@ def replay_action_path(
     """Replay deltas under the fixed delay, commitment and fill contract.
 
     ``decision_deltas[t]`` is read only at eligible complete decision bars.
-    A scheduled block is excluded as a whole when its decision or any delayed
-    score bar is ineligible.  The schedule is not compressed: the next
-    decision remains at the next commitment boundary.  Both masks are strict,
-    full-length boolean arrays and are mandatory for the new contract path.
+    A scheduled block with an unavailable delayed score/outcome bar is
+    excluded as a whole.  A decision-feature gap instead skips execution,
+    holds the current inventory for the fixed commitment, and leaves the
+    finite delayed returns scored.  The schedule is never compressed: the
+    next decision remains at the next commitment boundary. Both masks are
+    strict, full-length boolean arrays and are mandatory for the new path.
     """
     contract = contract or ActionExecutionContract.canonical()
     returns_arr = _coerce_numeric_series(returns, name="returns")
@@ -841,6 +910,7 @@ def replay_action_path(
         scheduled_decision_mask,
         eligible_decision_mask,
         block_eligible_mask,
+        score_block_eligible_mask,
         starts,
     ) = _contract_block_masks(
         n_bars,
@@ -857,13 +927,16 @@ def replay_action_path(
     fill_mask = np.zeros(n_bars, dtype=bool)
     scored_mask = np.zeros(n_bars, dtype=bool)
     commitment_countdown = np.zeros(n_bars, dtype=np.int64)
+    execution_skipped_mask = np.zeros(n_bars, dtype=bool)
 
     current = float(contract.p_start)
     for start in starts:
-        if not block_eligible_mask[start]:
-            # An excluded scheduled block cannot mutate inventory.  A caller
-            # may use NaN as its masked delta, but a supplied nonzero delta is
-            # an explicit contract violation rather than a silent fallback.
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        if not score_block_eligible_mask[start]:
+            # A block with an unavailable delayed score/outcome is excluded
+            # from PnL.  The schedule is retained and no inventory mutation is
+            # permitted.
             raw_delta = deltas_arr[start]
             if np.isfinite(raw_delta) and not np.isclose(
                 raw_delta,
@@ -875,19 +948,37 @@ def replay_action_path(
                     f"decision delta at ineligible block {start} must be zero"
                 )
             continue
+        if not block_eligible_mask[start]:
+            # A decision-feature gap is an execution skip, not a data gap:
+            # hold the current inventory for this fixed commitment block and
+            # keep its finite returns in the scored window.
+            raw_delta = deltas_arr[start]
+            if np.isfinite(raw_delta) and not np.isclose(
+                raw_delta,
+                0.0,
+                atol=_FLOAT_TOL,
+                rtol=0.0,
+            ):
+                raise ValueError(
+                    f"decision delta at ineligible block {start} must be zero"
+                )
+            execution_skipped_mask[start] = True
+            scored_mask[fill:end] = True
+            continue
         # A decision is made before the delayed fill.  The state remains the
         # previous position until the fill bar, then stays fixed for H bars.
         raw_delta = float(deltas_arr[start])
         next_position = _candidate_position(contract, current, raw_delta)
         actual_delta = next_position - current
-        fill = start + contract.execution_delay_bars
-        end = fill + contract.h_decision
         decision_mask[start] = True
         decision_deltas_out[start] = actual_delta
         decision_positions[start] = next_position
-        fill_mask[fill] = True
-        fill_positions[fill] = next_position
-        transition_costs[fill] = transition_cost(current, next_position, contract)
+        # A hold decision still starts a scored commitment, but it is not a
+        # fill/order and therefore must not inflate the filled-block count.
+        if not np.isclose(actual_delta, 0.0, atol=_FLOAT_TOL, rtol=0.0):
+            fill_mask[fill] = True
+            fill_positions[fill] = next_position
+            transition_costs[fill] = transition_cost(current, next_position, contract)
         effective_positions[fill:end] = next_position
         scored_mask[fill:end] = True
         current = next_position
@@ -901,6 +992,7 @@ def replay_action_path(
     for bar in range(n_bars):
         if decision_mask[bar]:
             last_decision = decision_positions[bar]
+        if scheduled_decision_mask[bar] and score_block_eligible_mask[bar]:
             commitment_countdown[bar] = int(contract.commitment_bars)
         elif bar > 0:
             commitment_countdown[bar] = max(
@@ -946,6 +1038,8 @@ def replay_action_path(
         score_eligible=score_eligible_arr,
         eligible_decision_mask=eligible_decision_mask,
         block_eligible_mask=block_eligible_mask,
+        score_block_eligible_mask=score_block_eligible_mask,
+        execution_skipped_mask=execution_skipped_mask,
     )
 
 
@@ -974,6 +1068,7 @@ def decision_deltas_from_positions(
         _,
         _,
         block_eligible_mask,
+        _,
         starts_tuple,
     ) = _contract_block_masks(
         len(positions_arr),
@@ -1038,6 +1133,7 @@ def select_block_decisions(
         _,
         _,
         block_eligible,
+        _,
         starts,
     ) = _validate_decision_block_scores(
         decision_block_scores,
@@ -1088,6 +1184,7 @@ def select_hindsight_block_decisions(
         _,
         _,
         block_eligible,
+        score_block_eligible,
         starts,
     ) = _contract_block_masks(
         len(scores),
@@ -1099,7 +1196,7 @@ def select_hindsight_block_decisions(
         raise ValueError("action path requires at least one complete decision block")
 
     for start in starts:
-        if not block_eligible[start]:
+        if not score_block_eligible[start]:
             continue
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
@@ -1128,10 +1225,20 @@ def select_hindsight_block_decisions(
     for index in range(len(starts) - 1, -1, -1):
         start = starts[index]
         if not block_eligible[start]:
-            value_next = {
-                round(current, 12): value_next[round(current, 12)]
-                for current in states[index]
-            }
+            if score_block_eligible[start]:
+                fill = start + contract.execution_delay_bars
+                end = fill + contract.h_decision
+                block_sum = float(scores[fill:end].sum())
+                value_next = {
+                    round(current, 12): current * block_sum
+                    + value_next[round(current, 12)]
+                    for current in states[index]
+                }
+            else:
+                value_next = {
+                    round(current, 12): value_next[round(current, 12)]
+                    for current in states[index]
+                }
             policy[index] = {
                 round(current, 12): (0.0, current)
                 for current in states[index]
@@ -1192,6 +1299,7 @@ def replay_selected_path(
         _,
         _,
         block_eligible,
+        _,
         starts,
     ) = _validate_decision_block_scores(
         decision_block_scores,
@@ -1284,19 +1392,24 @@ def run_contract_backtest(
         )
     )
     kwargs = dict(kwargs)
-    # Do not even forward historical cost/delay knobs on the explicit path.
-    # The contract is the only source of these values; accepting the legacy
-    # kwargs at the stage boundary is retained solely for call-site shape
-    # compatibility.
-    for legacy_key in (
+    # Do not accept historical cost/delay knobs on the explicit path.  Merely
+    # dropping them would hide a mixed-contract caller (and could make a
+    # report claim the wrong 3/1/.0003 geometry), so fail closed even when the
+    # supplied value happens to equal the canonical one.
+    legacy_keys = (
         "spread_bps",
         "fee_rate",
         "slippage_bps",
         "execution_delay_bars",
         "initial_position",
         "benchmark_initial_position",
-    ):
-        kwargs.pop(legacy_key, None)
+    )
+    supplied_legacy = sorted(key for key in legacy_keys if key in kwargs)
+    if supplied_legacy:
+        raise ValueError(
+            "contract path rejects legacy overrides: "
+            + ", ".join(supplied_legacy)
+        )
     kwargs["benchmark_positions"] = benchmark_deltas
     kwargs["action_execution_contract"] = contract
     kwargs["action_positions_are_deltas"] = True

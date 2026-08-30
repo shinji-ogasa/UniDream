@@ -123,9 +123,12 @@ class BacktestMetrics:
     eligibility_mask_hash: str | None = None
     scored_bars: int | None = None
     complete_blocks: int | None = None
+    filled_blocks: int | None = None
     scheduled_decisions: int | None = None
     eligible_decisions: int | None = None
     eligible_blocks: int | None = None
+    scorable_blocks: int | None = None
+    execution_skipped_blocks: int | None = None
     excluded_blocks: int | None = None
 
     def to_dict(self) -> dict:
@@ -156,9 +159,12 @@ class BacktestMetrics:
             "eligibility_mask_hash": self.eligibility_mask_hash,
             "scored_bars": self.scored_bars,
             "complete_blocks": self.complete_blocks,
+            "filled_blocks": self.filled_blocks,
             "scheduled_decisions": self.scheduled_decisions,
             "eligible_decisions": self.eligible_decisions,
             "eligible_blocks": self.eligible_blocks,
+            "scorable_blocks": self.scorable_blocks,
+            "execution_skipped_blocks": self.execution_skipped_blocks,
             "excluded_blocks": self.excluded_blocks,
         }
 
@@ -711,9 +717,12 @@ def _run_contract_backtest(
         eligibility_mask_hash=trajectory.eligibility_mask_hash,
         scored_bars=trajectory.n_scored_bars,
         complete_blocks=trajectory.n_complete_blocks,
+        filled_blocks=trajectory.n_filled_blocks,
         scheduled_decisions=trajectory.n_scheduled_decisions,
         eligible_decisions=trajectory.n_eligible_decisions,
         eligible_blocks=trajectory.n_eligible_blocks,
+        scorable_blocks=trajectory.n_scorable_blocks,
+        execution_skipped_blocks=trajectory.n_execution_skipped_blocks,
         excluded_blocks=trajectory.n_excluded_blocks,
     )
 

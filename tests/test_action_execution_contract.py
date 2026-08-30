@@ -1,4 +1,6 @@
 import dataclasses
+import json
+from pathlib import Path
 import unittest
 
 import numpy as np
@@ -21,6 +23,7 @@ from unidream.eval.action_execution import (
 from unidream.eval.backtest import ActionExecutionBacktest, Backtest
 from unidream.experiments.transition_advantage import (
     compute_transition_advantage,
+    compute_hindsight_transition_advantage,
     config_from_dict,
 )
 
@@ -43,9 +46,13 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         self.assertEqual(
             self.contract.contract_hash,
-            "feb04fba4ce65fabb3966ec0fd54eb32391742b6b9b31728f267a86cd138e69c",
+            "6f5beb7865fceac5ecbcfbb31dd11e8fdada02e1841fecac1c17e22377bb624f",
         )
-        self.assertEqual(self.contract.to_dict()["feature_unavailable_policy"], "exclude_block")
+        self.assertEqual(
+            self.contract.to_dict()["feature_unavailable_policy"],
+            "hold_and_score_commitment",
+        )
+        self.assertEqual(self.contract.to_dict()["outcome_unavailable_policy"], "exclude_block")
         self.assertEqual(self.contract.to_dict()["execution_skip_policy"], "hold_commitment")
         self.assertTrue(self.contract.to_dict()["eligibility_masks_required"])
         with self.assertRaises(dataclasses.FrozenInstanceError):
@@ -58,6 +65,20 @@ class ActionExecutionContractTest(unittest.TestCase):
                     "costs": {"spread_bps": 5.0, "slippage_bps": 2.0, "fee_rate": 0.0004},
                 }
             )
+        with self.assertRaisesRegex(ValueError, "outcome_unavailable_policy"):
+            ActionExecutionContract.from_config(
+                {
+                    key: value
+                    for key, value in self.contract.to_dict().items()
+                    if key != "outcome_unavailable_policy"
+                }
+            )
+
+    def test_tracked_contract_artifact_round_trips_to_canonical_hash(self) -> None:
+        artifact = Path(__file__).parents[1] / "docs" / "experiments" / "action_execution_contract.json"
+        payload = json.loads(artifact.read_text(encoding="utf-8"))
+        loaded = ActionExecutionContract.from_config(payload)
+        self.assertEqual(loaded.contract_hash, self.contract.contract_hash)
 
     def test_candidate_grid_clips_then_deduplicates(self) -> None:
         np.testing.assert_allclose(
@@ -119,6 +140,24 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(trajectory.n_complete_blocks, 2)
         self.assertEqual(trajectory.n_scored_bars, 8)
         self.assertAlmostEqual(trajectory.effective_positions[-1], 0.96)
+
+    def test_noop_hold_is_scorable_but_not_a_filled_block(self) -> None:
+        returns = np.zeros(8, dtype=np.float64)
+        decision_eligible, score_eligible = self._all_masks(len(returns))
+        trajectory = replay_action_path(
+            returns,
+            np.zeros(len(returns), dtype=np.float64),
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        self.assertEqual(trajectory.n_complete_blocks, 1)
+        self.assertEqual(trajectory.n_scorable_blocks, 1)
+        self.assertEqual(trajectory.n_filled_blocks, 0)
+        self.assertEqual(trajectory.n_execution_skipped_blocks, 0)
+        self.assertEqual(trajectory.n_scored_bars, 4)
+        self.assertFalse(trajectory.fill_mask[1])
+        self.assertTrue(trajectory.decision_mask[0])
 
     def test_complete_starts_exclude_incomplete_final_block(self) -> None:
         self.assertEqual(complete_decision_starts(9, self.contract), (0, 4))
@@ -394,6 +433,9 @@ class ActionExecutionContractTest(unittest.TestCase):
                 "scheduled_decisions": 2,
                 "eligible_decisions": 2,
                 "eligible_blocks": 1,
+                "scorable_blocks": 1,
+                "filled_blocks": 1,
+                "execution_skipped_blocks": 0,
                 "excluded_blocks": 1,
                 "scored_bars": 4,
             },
@@ -434,6 +476,129 @@ class ActionExecutionContractTest(unittest.TestCase):
                 score_eligible=score_eligible,
             )
 
+    def test_decision_feature_gap_holds_commitment_but_keeps_finite_outcomes_scored(self) -> None:
+        n_bars = 13
+        returns = np.zeros(n_bars, dtype=np.float64)
+        returns[1:5] = -0.01
+        returns[5:9] = 0.02
+        returns[9:13] = -0.01
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        deltas[4] = 0.0  # execution skip is an explicit hold, never a fallback action
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        decision_eligible[4] = False
+
+        trajectory = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+
+        np.testing.assert_array_equal(
+            trajectory.scheduled_decision_mask[[0, 4, 8]], [True, True, True]
+        )
+        np.testing.assert_array_equal(
+            trajectory.block_eligible_mask[[0, 4, 8]], [True, False, True]
+        )
+        np.testing.assert_array_equal(
+            trajectory.score_block_eligible_mask[[0, 4, 8]], [True, True, True]
+        )
+        np.testing.assert_array_equal(
+            trajectory.execution_skipped_mask[[0, 4, 8]], [False, True, False]
+        )
+        self.assertEqual(trajectory.n_scored_bars, 12)
+        self.assertEqual(trajectory.n_scorable_blocks, 3)
+        self.assertEqual(trajectory.n_complete_blocks, 3)
+        self.assertEqual(trajectory.n_filled_blocks, 1)
+        self.assertEqual(trajectory.n_execution_skipped_blocks, 1)
+        self.assertEqual(trajectory.n_excluded_blocks, 0)
+        np.testing.assert_allclose(trajectory.effective_positions[1:13], 0.92)
+        np.testing.assert_allclose(trajectory.transition_costs[[1, 5, 9]], [0.00055 * 0.08, 0.0, 0.0])
+        np.testing.assert_array_equal(trajectory.scored_mask[1:13], np.ones(12, dtype=bool))
+        self.assertEqual(trajectory.commitment_countdown[4], 4)
+
+    def test_strategy_and_benchmark_parity_includes_execution_skips(self) -> None:
+        n_bars = 13
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        decision_eligible[4] = False
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        metrics = ActionExecutionBacktest(
+            returns,
+            deltas,
+            contract=self.contract,
+            benchmark_decision_deltas=np.zeros(n_bars),
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        ).run()
+        self.assertEqual(metrics.complete_blocks, 3)
+        self.assertEqual(metrics.filled_blocks, 1)
+        self.assertEqual(metrics.scorable_blocks, 3)
+        self.assertEqual(metrics.execution_skipped_blocks, 1)
+        self.assertEqual(metrics.excluded_blocks, 0)
+
+    def test_teacher_and_u0_share_skip_vs_exclusion_classification(self) -> None:
+        n_bars = 13
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        decision_eligible[4] = False
+        score_eligible[10] = False
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[0] = -0.01
+        scores[8] = 0.01
+        realized = np.zeros(n_bars, dtype=np.float64)
+        realized[1:5] = -0.01
+        realized[5:9] = 0.02
+        realized[9:13] = np.nan
+
+        teacher = conditional_oracle_teacher_path(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        u0 = hindsight_upper_bound_path(
+            realized,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        np.testing.assert_array_equal(teacher.score_block_eligible_mask, u0.score_block_eligible_mask)
+        np.testing.assert_array_equal(teacher.execution_skipped_mask, u0.execution_skipped_mask)
+        np.testing.assert_array_equal(teacher.scored_mask, u0.scored_mask)
+        self.assertEqual(teacher.n_execution_skipped_blocks, 1)
+        self.assertEqual(teacher.n_excluded_blocks, 1)
+        self.assertEqual(teacher.n_scored_bars, 8)
+
+    def test_stage_contract_adapter_rejects_legacy_overrides(self) -> None:
+        n_bars = 8
+        returns = np.zeros(n_bars, dtype=np.float64)
+        positions = np.ones(n_bars, dtype=np.float64)
+        benchmark = np.ones(n_bars, dtype=np.float64)
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        for key, value in {
+            "spread_bps": self.contract.spread_bps,
+            "fee_rate": self.contract.fee_rate,
+            "slippage_bps": self.contract.slippage_bps,
+            "execution_delay_bars": 0,
+            "initial_position": self.contract.p_start,
+            "benchmark_initial_position": self.contract.p_start,
+        }.items():
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(ValueError, rf"rejects legacy overrides.*{key}"):
+                    run_contract_backtest(
+                        Backtest,
+                        returns,
+                        positions,
+                        benchmark_positions=benchmark,
+                        contract=self.contract,
+                        decision_eligible=decision_eligible,
+                        score_eligible=score_eligible,
+                        **{key: value},
+                    )
+
     def test_teacher_and_u0_apply_identical_masks_without_reading_gap_values(self) -> None:
         n_bars = 10
         decision_eligible, score_eligible = self._all_masks(n_bars)
@@ -465,6 +630,43 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertNotEqual(u0.decision_deltas[4], 0.0)
         np.testing.assert_allclose(teacher.effective_positions[:5], 1.0)
         np.testing.assert_allclose(u0.effective_positions[:5], 1.0)
+
+    def test_u0_persists_target_inventory_across_excluded_schedule(self) -> None:
+        n_bars = 13
+        returns = np.zeros(n_bars, dtype=np.float64)
+        returns[1:5] = -0.01  # U0 should de-risk in the first block.
+        returns[5:9] = np.nan  # Excluded block must not be read by U0.
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        score_eligible[6] = False
+
+        u0 = hindsight_upper_bound_path(
+            returns,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+
+        np.testing.assert_array_equal(
+            u0.scheduled_decision_mask[[0, 4, 8]], [True, True, True]
+        )
+        np.testing.assert_array_equal(
+            u0.score_block_eligible_mask[[0, 4, 8]], [True, False, True]
+        )
+        np.testing.assert_array_equal(
+            u0.block_eligible_mask[[0, 4, 8]], [True, False, True]
+        )
+        np.testing.assert_allclose(
+            u0.decision_deltas[[0, 4, 8]], [-0.08, 0.0, 0.0]
+        )
+        np.testing.assert_allclose(u0.effective_positions[1:13], 0.92)
+        np.testing.assert_allclose(u0.effective_positions[9:13], 0.92)
+        self.assertEqual(u0.n_complete_blocks, 2)
+        self.assertEqual(u0.n_filled_blocks, 1)
+        self.assertEqual(u0.n_excluded_blocks, 1)
+        self.assertEqual(u0.n_scored_bars, 8)
+        self.assertAlmostEqual(u0.transition_costs[1], 0.00055 * 0.08)
+        self.assertEqual(float(u0.transition_costs[5]), 0.0)
+        self.assertEqual(float(u0.transition_costs[9]), 0.0)
 
     def test_strategy_and_benchmark_use_the_same_eligibility_window(self) -> None:
         n_bars = 10
@@ -533,7 +735,7 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(metrics.excluded_blocks, 1)
         self.assertEqual(metrics.scored_bars, 4)
 
-    def test_contract_transition_advantage_keeps_ineligible_inventory_unchanged(self) -> None:
+    def test_contract_transition_advantage_is_explicit_hindsight_diagnostic(self) -> None:
         cfg = config_from_dict(
             {"action_execution_contract": self.contract.to_dict()},
             costs_cfg={},
@@ -547,10 +749,20 @@ class ActionExecutionContractTest(unittest.TestCase):
         current = np.ones(n_bars, dtype=np.float64)
         decision_eligible, score_eligible = self._all_masks(n_bars)
         score_eligible[2] = False
-        result = compute_transition_advantage(
+        with self.assertRaisesRegex(ValueError, "diagnostic-only"):
+            compute_transition_advantage(
+                returns,
+                current,
+                cfg,
+                decision_eligible=decision_eligible,
+                score_eligible=score_eligible,
+            )
+        result = compute_hindsight_transition_advantage(
             returns,
             current,
             cfg,
+            diagnostic_only=True,
+            current_position_source="benchmark_replay",
             decision_eligible=decision_eligible,
             score_eligible=score_eligible,
         )
@@ -558,13 +770,14 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(result["best_idx"][0], -1)
         self.assertAlmostEqual(result["target_positions"][0], 1.0)
         self.assertAlmostEqual(result["target_positions"][4], 0.92)
-        self.assertAlmostEqual(result["trajectory"].effective_positions[4], 1.0)
-        self.assertAlmostEqual(result["trajectory"].effective_positions[5], 0.92)
+        self.assertIsNone(result["trajectory"])
+        self.assertFalse(result["replayable"])
+        self.assertTrue(result["future_derived"])
+        self.assertFalse(result["training_eligible"])
+        self.assertEqual(result["role"], "hindsight_transition_diagnostic")
+        self.assertTrue(result["provenance"]["future_derived"])
         self.assertEqual(result["excluded_blocks"], 1)
-        np.testing.assert_array_equal(
-            result["trajectory"].block_eligible_mask,
-            result["block_eligible_mask"],
-        )
+        np.testing.assert_array_equal(result["score_block_eligible_mask"], [False, False, False, False, True, False, False, False, False, False])
 
     def test_hindsight_selector_is_iterative_for_long_windows(self) -> None:
         # More than Python's usual recursion limit in decision blocks: U0 must
@@ -587,10 +800,12 @@ class ActionExecutionContractTest(unittest.TestCase):
             benchmark_position=1.0,
             default_actions=np.asarray([0.0, 1.0]),
         )
-        result = compute_transition_advantage(
+        result = compute_hindsight_transition_advantage(
             np.ones(10, dtype=np.float64) * 0.001,
             np.ones(10, dtype=np.float64),
             cfg,
+            diagnostic_only=True,
+            current_position_source="benchmark_replay",
             decision_eligible=np.ones(10, dtype=bool),
             score_eligible=np.ones(10, dtype=bool),
         )
@@ -598,9 +813,9 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(tuple(result["actions"]), self.contract.candidate_deltas)
         self.assertTrue(np.all(np.isnan(result["values"][1:4])))
         self.assertTrue(np.all(np.isnan(result["values"][5:])))
-        self.assertEqual(result["trajectory"].n_complete_blocks, 2)
+        self.assertIsNone(result["trajectory"])
 
-    def test_contract_transition_advantage_replays_sequential_state(self) -> None:
+    def test_hindsight_transition_diagnostic_uses_independent_current_rows(self) -> None:
         cfg = config_from_dict(
             {"action_execution_contract": self.contract.to_dict()},
             costs_cfg={},
@@ -611,30 +826,45 @@ class ActionExecutionContractTest(unittest.TestCase):
             [0.0, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, 0.0],
             dtype=np.float64,
         )
-        # The first chosen block reduces from 1.00 to 0.92.  The second
-        # decision therefore starts from 0.92, not from the caller's default.
-        current = np.asarray([1.0, 1.0, 1.0, 1.0, 0.92, 0.92, 0.92, 0.92, 0.92])
+        # The diagnostic evaluates each row from an independently supplied
+        # benchmark inventory.  It must not require (or manufacture) a
+        # hindsight-selected inventory path for the next row.
+        current = np.ones_like(returns)
         decision_eligible, score_eligible = self._all_masks(len(returns))
-        result = compute_transition_advantage(
+        result = compute_hindsight_transition_advantage(
             returns,
             current,
             cfg,
+            diagnostic_only=True,
+            current_position_source="benchmark_replay",
             decision_eligible=decision_eligible,
             score_eligible=score_eligible,
         )
         self.assertEqual(result["decision_deltas"][0], -0.08)
         self.assertEqual(result["decision_deltas"][4], -0.08)
-        self.assertAlmostEqual(result["current_positions"][4], 0.92)
-        np.testing.assert_allclose(
-            result["trajectory"].decision_positions[[0, 4]],
-            result["target_positions"][[0, 4]],
-        )
+        self.assertAlmostEqual(result["current_positions"][4], 1.0)
+        self.assertAlmostEqual(result["current_positions_at_decision"][4], 1.0)
+        self.assertAlmostEqual(result["target_positions"][0], 0.92)
+        self.assertAlmostEqual(result["target_positions"][4], 0.92)
+        self.assertIsNone(result["trajectory"])
 
-        with self.assertRaisesRegex(ValueError, "sequential contract path"):
-            compute_transition_advantage(
+        with self.assertRaisesRegex(ValueError, "diagnostic_only=True"):
+            compute_hindsight_transition_advantage(
                 returns,
-                np.ones_like(current),
+                current,
                 cfg,
+                decision_eligible=decision_eligible,
+                score_eligible=score_eligible,
+                diagnostic_only=False,
+                current_position_source="benchmark_replay",
+            )
+        with self.assertRaisesRegex(ValueError, "benchmark_replay or causal_policy_replay"):
+            compute_hindsight_transition_advantage(
+                returns,
+                current,
+                cfg,
+                diagnostic_only=True,
+                current_position_source="hindsight_teacher",
                 decision_eligible=decision_eligible,
                 score_eligible=score_eligible,
             )

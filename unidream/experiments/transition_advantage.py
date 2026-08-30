@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from dataclasses import dataclass
 
@@ -9,7 +11,6 @@ from unidream.eval.action_execution import (
     ActionExecutionContract,
     candidate_positions,
     complete_decision_starts,
-    replay_action_path,
     transition_cost,
     validate_eligibility_masks,
 )
@@ -314,12 +315,10 @@ def compute_transition_advantage(
     score_eligible: np.ndarray | list[bool] | None = None,
 ) -> dict:
     if cfg.action_execution_contract is not None:
-        return _compute_contract_transition_advantage(
-            returns,
-            current_positions,
-            cfg,
-            decision_eligible=decision_eligible,
-            score_eligible=score_eligible,
+        raise ValueError(
+            "contract transition advantage uses realized future returns and is "
+            "diagnostic-only; call compute_hindsight_transition_advantage with "
+            "diagnostic_only=True and an independent current_position_source"
         )
     returns = np.asarray(returns, dtype=np.float64)
     current = np.asarray(current_positions, dtype=np.float64)
@@ -406,7 +405,66 @@ def compute_transition_advantage(
     }
 
 
-def _compute_contract_transition_advantage(
+def compute_hindsight_transition_advantage(
+    returns: np.ndarray,
+    current_positions: np.ndarray,
+    cfg: TransitionAdvantageConfig,
+    *,
+    diagnostic_only: bool,
+    current_position_source: str,
+    decision_eligible: np.ndarray | list[bool] | None = None,
+    score_eligible: np.ndarray | list[bool] | None = None,
+) -> dict:
+    """Compute the contract transition diagnostic from realized returns.
+
+    This is deliberately separate from :func:`compute_transition_advantage`:
+    realized future returns can produce a hindsight upper-bound/relabeling
+    path, never a causal teacher.  Callers must opt in explicitly and declare
+    that the supplied inventory trace came from an independent benchmark or
+    causal policy replay.  The declaration is persisted in the result
+    provenance so downstream training code cannot mistake this output for an
+    OOF teacher.
+    """
+    if not isinstance(diagnostic_only, (bool, np.bool_)) or not bool(diagnostic_only):
+        raise ValueError(
+            "compute_hindsight_transition_advantage requires diagnostic_only=True"
+        )
+    if current_position_source not in {
+        "benchmark_replay",
+        "causal_policy_replay",
+    }:
+        raise ValueError(
+            "current_position_source must be benchmark_replay or causal_policy_replay"
+        )
+    if cfg.action_execution_contract is None:
+        raise ValueError(
+            "compute_hindsight_transition_advantage requires an explicit action_execution_contract"
+        )
+    result = _compute_contract_hindsight_transition_advantage(
+        returns,
+        current_positions,
+        cfg,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+    result["provenance"] = {
+        "role": "hindsight_transition_diagnostic",
+        "kind": "hindsight_transition_diagnostic",
+        "diagnostic_only": True,
+        "future_derived": True,
+        "training_eligible": False,
+        "future_returns_used": True,
+        "current_position_source": current_position_source,
+        "teacher_eligible": False,
+    }
+    result["role"] = "hindsight_transition_diagnostic"
+    result["future_derived"] = True
+    result["training_eligible"] = False
+    result["current_position_source"] = current_position_source
+    return result
+
+
+def _compute_contract_hindsight_transition_advantage(
     returns: np.ndarray,
     current_positions: np.ndarray,
     cfg: TransitionAdvantageConfig,
@@ -414,13 +472,15 @@ def _compute_contract_transition_advantage(
     decision_eligible: np.ndarray | list[bool] | None,
     score_eligible: np.ndarray | list[bool] | None,
 ) -> dict:
-    """Compute contract-compliant block utility without legacy relabeling.
+    """Compute a row-wise realized-future diagnostic, never a replay path.
 
-    Values are B&H-relative expected/realized additive log utility over the
-    next delayed four-bar block.  Rows without a complete block are NaN and
-    cannot become a teacher target.  This function is deliberately a separate
-    branch: it does not apply legacy min-hold smoothing, same-bar reward, or
-    the old action grid.
+    The supplied ``current_positions`` is an independently generated
+    benchmark/policy inventory trace.  Each complete decision row is scored
+    from ``current_positions[start]`` and the realized delayed block, without
+    advancing that input from a selected hindsight action.  Consequently the
+    returned ``decision_deltas``/``target_positions`` are row-wise diagnostic
+    quantities and are explicitly marked non-replayable.  Sequential
+    hindsight selection belongs only to ``hindsight_upper_bound_path``.
     """
     contract = cfg.action_execution_contract
     if contract is None:  # pragma: no cover - guarded by the public function
@@ -431,8 +491,15 @@ def _compute_contract_transition_advantage(
         raise ValueError("returns and current_positions must have equal lengths")
     if not np.all(np.isfinite(current)):
         raise ValueError("current_positions must be finite")
-    if len(current) and not np.isclose(current[0], contract.p_start, atol=1e-9, rtol=0.0):
-        raise ValueError("contract transition path must start at contract p_start")
+    if len(current) and not np.isclose(
+        current[0], contract.p_start, atol=1e-9, rtol=0.0
+    ):
+        raise ValueError("independent current position trace must start at contract p_start")
+    if len(current) and np.any(
+        (current < contract.position_min - 1e-9)
+        | (current > contract.position_max + 1e-9)
+    ):
+        raise ValueError("current_positions must stay within contract bounds")
     decision_eligible_arr, score_eligible_arr = validate_eligibility_masks(
         decision_eligible,
         score_eligible,
@@ -444,43 +511,39 @@ def _compute_contract_transition_advantage(
     scheduled_decision_mask = np.zeros(len(returns), dtype=bool)
     eligible_decision_mask = np.zeros(len(returns), dtype=bool)
     block_eligible_mask = np.zeros(len(returns), dtype=bool)
+    score_block_eligible_mask = np.zeros(len(returns), dtype=bool)
+    execution_skipped_mask = np.zeros(len(returns), dtype=bool)
     for start in starts:
         scheduled_decision_mask[start] = True
         eligible_decision_mask[start] = decision_eligible_arr[start]
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
+        score_block_eligible_mask[start] = bool(score_eligible_arr[fill:end].all())
         block_eligible_mask[start] = bool(
-            decision_eligible_arr[start] and score_eligible_arr[fill:end].all()
+            decision_eligible_arr[start] and score_block_eligible_mask[start]
         )
-        if block_eligible_mask[start] and not np.all(np.isfinite(returns[fill:end])):
+        execution_skipped_mask[start] = bool(
+            score_block_eligible_mask[start] and not decision_eligible_arr[start]
+        )
+        if score_block_eligible_mask[start] and not np.all(np.isfinite(returns[fill:end])):
             raise ValueError(
-                f"returns must be finite on eligible score block {start}"
+                f"returns must be finite on scorable block {start}"
             )
 
     actions = np.asarray(contract.candidate_deltas, dtype=np.float64)
     n_actions = len(actions)
     values = np.full((len(returns), n_actions), np.nan, dtype=np.float64)
     best_idx = np.full(len(returns), -1, dtype=np.int64)
-    # ``current_positions`` is an input contract, not the source of truth for
-    # the next decision.  The chosen path must advance sequentially from
-    # ``p_start``; otherwise Q-values can be computed from one inventory path
-    # and replayed on another.  We retain the supplied array only for the
-    # decision-row consistency checks below.
-    expected_current = np.full(len(returns), float(contract.p_start), dtype=np.float64)
-    target_positions = expected_current.copy()
+    # This diagnostic must not manufacture a sequential inventory path from
+    # future-selected actions.  Preserve the independent trace and expose
+    # selected targets only at their own decision rows.
+    target_positions = current.copy()
     best_value = np.full(len(returns), np.nan, dtype=np.float64)
     neutral_idx = int(np.argmin(np.abs(actions)))
     current_at_decision = np.full(len(returns), np.nan, dtype=np.float64)
-    running = float(contract.p_start)
 
     for start in starts:
-        previous = running
-        supplied = float(current[start])
-        if not np.isclose(supplied, previous, atol=1e-9, rtol=0.0):
-            raise ValueError(
-                "current_positions does not match the sequential contract path "
-                f"at decision bar {start}: expected {previous:.12g}, got {supplied:.12g}"
-            )
+        previous = float(current[start])
         current_at_decision[start] = previous
         if not block_eligible_mask[start]:
             continue
@@ -504,25 +567,19 @@ def _compute_contract_transition_advantage(
         idx = int(min(tied, key=lambda item: (abs(actions[item]), actions[item])))
         best_idx[start] = idx
         best_value[start] = row[idx]
-        target_positions[start] = float(
+        selected_target = float(
             np.clip(previous + actions[idx], contract.position_min, contract.position_max)
         )
-        running = float(target_positions[start])
+        target_positions[start] = selected_target
 
-    # Fill the state trace used by callers that need a complete current path:
-    # before each decision, the inventory is the previous chosen target.  A
-    # decision row itself still exposes the newly selected target through
-    # ``target_positions``; non-decision rows retain the committed inventory.
-    for index, start in enumerate(starts):
-        stop = starts[index + 1] if index + 1 < len(starts) else len(returns)
-        expected_current[start:stop] = current_at_decision[start]
     advantage_vs_neutral = values - values[:, neutral_idx, None]
-    # The current position is the hold candidate in a canonical contract.  Use
-    # actual current value rather than assuming the current value equals p_start.
+    # The supplied current position is the diagnostic's independent hold
+    # baseline; it is not replaced with a target selected from realized data.
     current_values = np.full(len(returns), np.nan, dtype=np.float64)
     for start in starts:
-        hold_idx = int(np.argmin(np.abs(actions)))
-        current_values[start] = values[start, hold_idx]
+        if block_eligible_mask[start]:
+            hold_idx = int(np.argmin(np.abs(actions)))
+            current_values[start] = values[start, hold_idx]
     advantage_vs_current = values - current_values[:, None]
     finite_best = np.isfinite(best_value)
     best_adv_neutral = np.full(len(returns), np.nan, dtype=np.float64)
@@ -539,24 +596,6 @@ def _compute_contract_transition_advantage(
     for start in starts:
         if block_eligible_mask[start]:
             decision_deltas[start] = actions[best_idx[start]]
-    trajectory = replay_action_path(
-        returns,
-        decision_deltas,
-        contract,
-        decision_eligible=decision_eligible_arr,
-        score_eligible=score_eligible_arr,
-    )
-    for start in starts:
-        if not np.isclose(
-            trajectory.decision_positions[start],
-            target_positions[start],
-            atol=1e-9,
-            rtol=0.0,
-        ):
-            raise RuntimeError(
-                "contract transition replay diverged from sequential decision path "
-                f"at decision bar {start}"
-            )
     classes = np.full((len(returns), n_actions), "neutral", dtype=object)
     for start in starts:
         previous = current_at_decision[start]
@@ -591,19 +630,35 @@ def _compute_contract_transition_advantage(
         "best_class": best_class,
         "class_matrix": classes,
         "decision_deltas": decision_deltas,
-        "current_positions": expected_current.astype(np.float32),
-        "trajectory": trajectory,
+        "current_positions": current.astype(np.float32),
+        "current_positions_at_decision": current_at_decision.astype(np.float32),
+        "target_positions_are_rowwise": True,
+        "replayable": False,
+        "trajectory": None,
         "action_execution_contract_hash": contract.contract_hash,
-        "eligibility_mask_hash": trajectory.eligibility_mask_hash,
+        "eligibility_mask_hash": hashlib.sha256(
+            json.dumps(
+                {
+                    "decision_eligible": decision_eligible_arr.tolist(),
+                    "score_eligible": score_eligible_arr.tolist(),
+                },
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
         "decision_eligible": decision_eligible_arr,
         "score_eligible": score_eligible_arr,
         "scheduled_decision_mask": scheduled_decision_mask,
         "eligible_decision_mask": eligible_decision_mask,
         "block_eligible_mask": block_eligible_mask,
+        "score_block_eligible_mask": score_block_eligible_mask,
+        "execution_skipped_mask": execution_skipped_mask,
         "scheduled_decisions": int(scheduled_decision_mask.sum()),
         "eligible_decisions": int(eligible_decision_mask.sum()),
         "eligible_blocks": int(block_eligible_mask.sum()),
-        "excluded_blocks": int(scheduled_decision_mask.sum() - block_eligible_mask.sum()),
+        "scorable_blocks": int(score_block_eligible_mask.sum()),
+        "execution_skipped_blocks": int(execution_skipped_mask.sum()),
+        "filled_blocks": 0,
+        "excluded_blocks": int(scheduled_decision_mask.sum() - score_block_eligible_mask.sum()),
     }
 
 
