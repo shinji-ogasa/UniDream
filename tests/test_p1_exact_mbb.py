@@ -860,6 +860,58 @@ class P1ExactMBBTests(unittest.TestCase):
                 expected_action_primitive_content_sha256=content_digest,
             )
 
+    def test_production_forecast_provenance_is_distinct_from_action(self) -> None:
+        n = 19
+        artifact = self._artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        common_digest = p1_mask_sha256(mask)
+        result = production_bootstrap_p1_metric(
+            "mse_delta",
+            artifact=artifact,
+            mask=mask,
+            candidate_mask=mask,
+            baseline_mask=mask,
+            candidate_se=np.ones(n, dtype="<f8"),
+            baseline_se=np.full(n, 2.0, dtype="<f8"),
+            provenance={
+                "kind": "forecast",
+                "common_mask_sha256": common_digest,
+                "common_mask_field": "common_mask",
+                "forecast_artifact_sha256": "a" * 64,
+                "forecast_result_sha256": "b" * 64,
+            },
+            expected_common_mask_sha256=common_digest,
+            expected_common_mask_field="common_mask",
+            expected_forecast_artifact_sha256="a" * 64,
+            expected_forecast_result_sha256="b" * 64,
+        )
+        self.assertEqual(result["provenance"]["kind"], "forecast")
+        with self.assertRaises(P1MBBError):
+            production_bootstrap_p1_metric(
+                "mse_delta",
+                artifact=artifact,
+                mask=mask,
+                candidate_mask=mask,
+                baseline_mask=mask,
+                candidate_se=np.ones(n, dtype="<f8"),
+                baseline_se=np.full(n, 2.0, dtype="<f8"),
+                provenance={
+                    "kind": "action",
+                    "common_mask_sha256": common_digest,
+                    "common_mask_field": "common_mask",
+                    "action_primitive_payload_sha256": "1" * 64,
+                    "action_primitive_schema_sha256": "2" * 64,
+                    "action_primitive_content_sha256": "3" * 64,
+                    "source_result_sha256": "4" * 64,
+                },
+                expected_common_mask_sha256=common_digest,
+                expected_common_mask_field="common_mask",
+                expected_source_result_sha256="4" * 64,
+                expected_action_primitive_payload_sha256="1" * 64,
+                expected_action_primitive_schema_sha256="2" * 64,
+                expected_action_primitive_content_sha256="3" * 64,
+            )
+
     def test_result_artifact_is_typed_atomic_and_external_digest_bound(self) -> None:
         n = 19
         artifact = self._artifact(n=n)

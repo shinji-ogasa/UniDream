@@ -137,6 +137,9 @@ _P1_METRIC_DEFAULT_DIRECTIONS: Mapping[str, str] = {
     "s3_skill_did": "positive",
     "s3_utility_did": "positive",
 }
+_P1_ACTION_PROVENANCE_METRICS = frozenset(
+    {"agreement", "policy_utility_delta", "normalized_regret", "s3_utility_did"}
+)
 _P1_S2_DIRECTIONS = frozenset(
     {"high_ge_medium", "high_le_medium", "medium_ge_low", "medium_le_low"}
 )
@@ -1355,6 +1358,7 @@ def _validate_production_provenance(
     metric: str,
     common_mask: np.ndarray,
     *,
+    level_metric: str | None,
     provenance: Mapping[str, Any] | None,
     expected_common_mask_sha256: Any,
     expected_common_mask_field: Any,
@@ -1377,6 +1381,18 @@ def _validate_production_provenance(
     if kind_value not in {"action", "forecast"}:
         raise P1MBBError("production provenance kind must be exactly 'action' or 'forecast'")
     kind = str(kind_value)
+    if metric == "s2_contrast":
+        expected_kind = (
+            "action"
+            if level_metric in {"agreement", "policy_utility_delta", "normalized_regret"}
+            else "forecast"
+        )
+    else:
+        expected_kind = "action" if metric in _P1_ACTION_PROVENANCE_METRICS else "forecast"
+    if kind != expected_kind:
+        raise P1MBBError(
+            f"production provenance kind {kind!r} does not match {metric}/{level_metric} ({expected_kind!r})"
+        )
     common_digest = _strict_sha256(
         expected_common_mask_sha256,
         name="expected_common_mask_sha256",
@@ -1387,6 +1403,10 @@ def _validate_production_provenance(
         expected_common_mask_field,
         name="expected_common_mask_field",
     )
+    if field != "common_mask":
+        raise P1MBBError(
+            "production provenance must bind the registered common_mask field"
+        )
     if provenance.get("common_mask_sha256") != common_digest:
         raise P1MBBError("production provenance common mask digest mismatch")
     if provenance.get("common_mask_field") != field:
@@ -1429,7 +1449,6 @@ def _validate_production_provenance(
         validated["forecast_result_sha256"] = result_digest
     # Echo only authenticated fields.  Additional caller-provided provenance is
     # deliberately ignored so an unregistered field cannot become evidence.
-    del metric
     return validated
 
 
@@ -2632,6 +2651,7 @@ def _bootstrap_p1_metric(
         validated_provenance = _validate_production_provenance(
             metric_name,
             common_mask,
+            level_metric=level_metric_name,
             provenance=provenance,
             expected_common_mask_sha256=expected_common_mask_sha256,
             expected_common_mask_field=expected_common_mask_field,
