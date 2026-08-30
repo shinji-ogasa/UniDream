@@ -2,7 +2,7 @@
 
 The command performs no model training or prediction evaluation.  It downloads
 only monthly Spot/USD-M kline metadata archives, verifies each official
-CHECKSUM sidecar, builds right-closed 15-minute features, and probes
+CHECKSUM sidecar, builds completed-bar 15-minute features, and probes
 aggregate-trade archive sizes with HEAD requests only.
 """
 from __future__ import annotations

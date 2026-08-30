@@ -144,7 +144,7 @@ class D1SignedFlowTest(unittest.TestCase):
             self.assertFalse(record["live_causal_eligible"])
             self.assertTrue(Path(record["raw_path"]).exists())
 
-    def test_build_is_right_closed_and_future_mutation_does_not_change_prefix(self) -> None:
+    def test_build_uses_completed_bars_and_future_mutation_does_not_change_prefix(self) -> None:
         spot = _frame([100.0, 101.0, 102.0])
         perp = _frame([100.5, 101.5, 103.0])
         features, availability = build_d1_features(

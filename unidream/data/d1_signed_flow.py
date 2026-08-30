@@ -561,7 +561,7 @@ def build_d1_features(
     bar_open_start: str | pd.Timestamp | None = None,
     bar_open_end: str | pd.Timestamp | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build right-closed D1 features and explicit availability masks.
+    """Build completed-bar D1 features and explicit availability masks.
 
     ``bar_open_start``/``bar_open_end`` describe an open-time scope
     ``[start, end)``.  The returned index is ``decision_ts = bar_open + 15m``;
