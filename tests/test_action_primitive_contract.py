@@ -13,6 +13,7 @@ from unidream.experiments.action_primitives import (
     ActionPrimitiveContractError,
     ActionPrimitiveImplementationBlocked,
     action_primitive_content_sha256,
+    action_primitive_payload_sha256,
     build_action_primitive_grid,
     canonical_action_primitive_schema_sha256,
     require_action_primitive_implementation,
@@ -77,10 +78,19 @@ class ActionPrimitiveContractTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
+        schema_sha256 = "d0520b3dbc3c444e2efe5a55e175e96b662f97fb404d901ea51e1c32e5bb9955"
+        content_sha256 = action_primitive_content_sha256(records)
+        payload_sha256 = action_primitive_payload_sha256(
+            records,
+            schema_sha256=schema_sha256,
+            content_sha256=content_sha256,
+        )
         result = validate_action_primitive_records(
             records,
             schema=schema,
-            expected_schema_sha256="d0520b3dbc3c444e2efe5a55e175e96b662f97fb404d901ea51e1c32e5bb9955",
+            expected_schema_sha256=schema_sha256,
+            expected_content_sha256=content_sha256,
+            expected_payload_sha256=payload_sha256,
         )
         self.assertEqual(result["record_count"], 2)
         self.assertIn("common_mask", result["record_fields"])
@@ -105,6 +115,63 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             build_action_primitive_grid([broken])
         with self.assertRaises(ActionPrimitiveImplementationBlocked):
             run_action_primitive_mbb([broken], block_length=16)
+
+    def test_validator_is_fail_closed_for_schema_empty_rows_and_omitted_hashes(self) -> None:
+        records = [_record(0)]
+        schema = json.loads(
+            (ROOT / "docs" / "experiments" / "action_primitive_schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        schema_sha256 = "d0520b3dbc3c444e2efe5a55e175e96b662f97fb404d901ea51e1c32e5bb9955"
+        content_sha256 = action_primitive_content_sha256(records)
+        payload_sha256 = action_primitive_payload_sha256(
+            records,
+            schema_sha256=schema_sha256,
+            content_sha256=content_sha256,
+        )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "payload SHA-256 is required"):
+            validate_action_primitive_records(
+                records,
+                schema=schema,
+                expected_schema_sha256=schema_sha256,
+                expected_content_sha256=content_sha256,
+            )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "schema mapping is required"):
+            validate_action_primitive_records(
+                records,
+                expected_schema_sha256=schema_sha256,
+                expected_content_sha256=content_sha256,
+                expected_payload_sha256=payload_sha256,
+            )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "independently pinned"):
+            validate_action_primitive_records(
+                records,
+                schema=schema,
+                expected_schema_sha256="a" * 64,
+                expected_content_sha256=content_sha256,
+                expected_payload_sha256=payload_sha256,
+            )
+        forged_schema = copy.deepcopy(schema)
+        forged_schema["forged"] = True
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "external schema SHA-256 mismatch"):
+            validate_action_primitive_records(
+                records,
+                schema=forged_schema,
+                expected_schema_sha256=schema_sha256,
+                expected_content_sha256=content_sha256,
+                expected_payload_sha256=payload_sha256,
+            )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "expected external schema SHA-256 is required"):
+            validate_action_primitive_records(records, schema=schema)
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "at least one full-grid row"):
+            validate_action_primitive_records(
+                [],
+                schema=schema,
+                expected_schema_sha256=schema_sha256,
+                expected_content_sha256=content_sha256,
+                expected_payload_sha256=payload_sha256,
+            )
 
 
 if __name__ == "__main__":

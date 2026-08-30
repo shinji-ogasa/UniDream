@@ -184,6 +184,10 @@ def _records_to_columns(
 ) -> tuple[dict[str, list[Any]], int]:
     if isinstance(records, (str, bytes, bytearray)) or not isinstance(records, Sequence):
         raise ActionPrimitiveContractError("action primitive records must be a sequence")
+    if len(records) == 0:
+        raise ActionPrimitiveContractError(
+            "action primitive records must contain at least one full-grid row"
+        )
     columns = {field: [] for field in ACTION_PRIMITIVE_RECORD_FIELDS}
     for row_index, record in enumerate(records):
         if not isinstance(record, Mapping):
@@ -275,6 +279,16 @@ def action_primitive_content_sha256(records: Sequence[Mapping[str, Any]]) -> str
     return hashlib.sha256(canonical_action_primitive_content_bytes(records)).hexdigest()
 
 
+def _strict_sha256(value: Any, *, field: str) -> str:
+    if not isinstance(value, str) or len(value) != 64:
+        raise ActionPrimitiveContractError(
+            f"{field} must be a 64-character lowercase hex digest"
+        )
+    if any(character not in "0123456789abcdef" for character in value):
+        raise ActionPrimitiveContractError(f"{field} must be lowercase hexadecimal")
+    return value
+
+
 def canonical_action_primitive_payload_bytes(
     records: Sequence[Mapping[str, Any]],
     *,
@@ -288,14 +302,13 @@ def canonical_action_primitive_payload_bytes(
     distinct from the content hash and cannot be self-bound by changing only
     a declared digest field.
     """
-    if not isinstance(schema_sha256, str) or len(schema_sha256) != 64:
-        raise ActionPrimitiveContractError("schema_sha256 must be a 64-character hex digest")
-    if any(character not in "0123456789abcdef" for character in schema_sha256):
-        raise ActionPrimitiveContractError("schema_sha256 must be lowercase hexadecimal")
+    schema_sha256 = _strict_sha256(schema_sha256, field="schema_sha256")
     content = canonical_action_primitive_content_bytes(records)
     actual_content = hashlib.sha256(content).hexdigest()
     if content_sha256 is None:
         content_sha256 = actual_content
+    else:
+        content_sha256 = _strict_sha256(content_sha256, field="content_sha256")
     if content_sha256 != actual_content:
         raise ActionPrimitiveContractError("content_sha256 does not match canonical records")
     header = json.dumps(
@@ -354,25 +367,56 @@ def validate_action_primitive_records(
     expected_content_sha256: str | None = None,
     expected_payload_sha256: str | None = None,
 ) -> dict[str, Any]:
-    """Validate records and independently check all three declared hashes."""
-    content_sha256 = action_primitive_content_sha256(records)
-    schema_sha256 = (
-        canonical_action_primitive_schema_sha256(schema) if schema is not None else expected_schema_sha256
+    """Validate a non-empty artifact against the pinned external schema.
+
+    All three expected digests and the external schema mapping are mandatory.
+    The schema digest is never accepted as a self-declared payload value: the
+    canonical external schema must hash to the independently pinned digest.
+    """
+    if schema is None:
+        raise ActionPrimitiveContractError(
+            "external schema mapping is required for action primitive validation"
+        )
+    if expected_schema_sha256 is None:
+        raise ActionPrimitiveContractError(
+            "expected external schema SHA-256 is required"
+        )
+    if expected_content_sha256 is None:
+        raise ActionPrimitiveContractError(
+            "expected action primitive content SHA-256 is required"
+        )
+    if expected_payload_sha256 is None:
+        raise ActionPrimitiveContractError(
+            "expected action primitive payload SHA-256 is required"
+        )
+    expected_schema_sha256 = _strict_sha256(
+        expected_schema_sha256,
+        field="expected external schema SHA-256",
     )
-    if not isinstance(schema_sha256, str) or len(schema_sha256) != 64:
-        raise ActionPrimitiveContractError("external schema SHA-256 is required")
-    if any(character not in "0123456789abcdef" for character in schema_sha256):
-        raise ActionPrimitiveContractError("external schema SHA-256 must be lowercase hexadecimal")
-    if expected_schema_sha256 is not None and schema_sha256 != expected_schema_sha256:
+    expected_content_sha256 = _strict_sha256(
+        expected_content_sha256,
+        field="expected action primitive content SHA-256",
+    )
+    expected_payload_sha256 = _strict_sha256(
+        expected_payload_sha256,
+        field="expected action primitive payload SHA-256",
+    )
+    if expected_schema_sha256 != ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256:
+        raise ActionPrimitiveContractError(
+            "expected external schema SHA-256 is not the independently pinned digest"
+        )
+    content_sha256 = action_primitive_content_sha256(records)
+    schema_sha256 = canonical_action_primitive_schema_sha256(schema)
+    if schema_sha256 != expected_schema_sha256:
         raise ActionPrimitiveContractError("external schema SHA-256 mismatch")
-    if expected_content_sha256 is not None and content_sha256 != expected_content_sha256:
+    if content_sha256 != expected_content_sha256:
         raise ActionPrimitiveContractError("action primitive content SHA-256 mismatch")
     payload_sha256 = action_primitive_payload_sha256(
         records,
         schema_sha256=schema_sha256,
         content_sha256=content_sha256,
     )
-    if expected_payload_sha256 is not None and payload_sha256 != expected_payload_sha256:
+    if payload_sha256 != expected_payload_sha256:
         raise ActionPrimitiveContractError("action primitive payload SHA-256 mismatch")
     return {
         "action_primitive_schema_sha256": schema_sha256,
