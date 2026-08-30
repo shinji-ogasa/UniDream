@@ -7,12 +7,44 @@ import torch
 
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.imagination_ac import ImagACTrainer
+from unidream.eval.action_execution import (
+    contract_pnl_attribution,
+    configured_action_execution_contract,
+    replay_contract_absolute_path,
+    run_contract_backtest,
+)
 from unidream.experiments.overlay_teacher import (
     apply_benchmark_overlay_teacher,
     benchmark_overlay_teacher_enabled,
     describe_benchmark_overlay_teacher,
 )
 from unidream.experiments.policy_fire import evaluate_fire_metrics, format_fire_metrics
+
+
+def _run_stage_backtest(
+    *,
+    backtest_cls,
+    returns,
+    positions,
+    benchmark_positions,
+    contract,
+    **kwargs,
+):
+    if contract is not None:
+        return run_contract_backtest(
+            backtest_cls,
+            returns,
+            positions,
+            benchmark_positions=benchmark_positions,
+            contract=contract,
+            **kwargs,
+        ).run()
+    return backtest_cls(
+        returns,
+        positions,
+        benchmark_positions=benchmark_positions,
+        **kwargs,
+    ).run()
 
 
 def _optimizer_lr(optimizer, default: float) -> float:
@@ -185,6 +217,7 @@ def run_ac_stage(
     sequence_dataset_cls,
     checkpoint_metadata: dict | None = None,
 ):
+    action_contract = configured_action_execution_contract(cfg)
     if ac_max_steps_cfg <= 0:
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
         return None
@@ -247,16 +280,26 @@ def run_ac_stage(
             device=device,
         )
         t_min = min(len(val_returns_arr), len(pos))
-        metrics = backtest_cls(
-            val_returns_arr[:t_min],
-            pos[:t_min],
+        metrics = _run_stage_backtest(
+            backtest_cls=backtest_cls,
+            returns=val_returns_arr[:t_min],
+            positions=pos[:t_min],
+            benchmark_positions=benchmark_positions_fn(t_min),
+            contract=action_contract,
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
             interval=cfg.get("data", {}).get("interval", "15m"),
-            benchmark_positions=benchmark_positions_fn(t_min),
-        ).run()
-        stats = action_stats_fn(pos[:t_min], benchmark_position=benchmark_position)
+        )
+        if action_contract is not None:
+            stats = action_stats_fn(
+                replay_contract_absolute_path(
+                    val_returns_arr[:t_min], pos[:t_min], action_contract
+                ).scored_positions,
+                benchmark_position=benchmark_position,
+            )
+        else:
+            stats = action_stats_fn(pos[:t_min], benchmark_position=benchmark_position)
         return policy_score_fn(metrics, stats, benchmark_position=benchmark_position)
 
     fire_selector_cfg = dict(ac_cfg.get("fire_checkpoint_selector") or {})
@@ -266,6 +309,15 @@ def run_ac_stage(
     def _fire_checkpoint_eval():
         if z_val_fixed is None:
             return {"score": -float("inf"), "label": "unavailable", "accepted": False}
+        if action_contract is not None:
+            # policy_fire is a historical every-bar evaluator and cannot prove
+            # the P0-C delayed/committed trajectory.  Do not let it silently
+            # select an AC checkpoint under legacy defaults.
+            return {
+                "score": -float("inf"),
+                "label": "disabled: action execution contract requires shared evaluator",
+                "accepted": False,
+            }
         selector_cfg = dict(fire_selector_cfg)
         if bool(selector_cfg.get("use_bc_val_baseline", False)):
             alpha_base = fire_selector_bc_baseline["alpha_excess_pt"]
@@ -316,25 +368,39 @@ def run_ac_stage(
             device=device,
         )
         bc_t = min(len(val_returns_arr), len(bc_pos))
-        bc_metrics = backtest_cls(
-            val_returns_arr[:bc_t],
-            bc_pos[:bc_t],
+        bc_metrics = _run_stage_backtest(
+            backtest_cls=backtest_cls,
+            returns=val_returns_arr[:bc_t],
+            positions=bc_pos[:bc_t],
+            benchmark_positions=benchmark_positions_fn(bc_t),
+            contract=action_contract,
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
             interval=cfg.get("data", {}).get("interval", "15m"),
-            benchmark_positions=benchmark_positions_fn(bc_t),
-        ).run()
+        )
         fire_selector_bc_baseline["alpha_excess_pt"] = 100.0 * float(bc_metrics.alpha_excess or 0.0)
         fire_selector_bc_baseline["sharpe_delta"] = float(bc_metrics.sharpe_delta or 0.0)
-        bc_attr = pnl_attribution_fn(
-            val_returns_arr[:bc_t],
-            bc_pos[:bc_t],
-            spread_bps=costs_cfg.get("spread_bps", 5.0),
-            fee_rate=costs_cfg.get("fee_rate", 0.0004),
-            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
-        )
-        bc_stats = action_stats_fn(bc_pos[:bc_t], benchmark_position=benchmark_position)
+        if action_contract is not None:
+            bc_attr = contract_pnl_attribution(
+                val_returns_arr[:bc_t], bc_pos[:bc_t], action_contract
+            )
+            bc_trajectory = replay_contract_absolute_path(
+                val_returns_arr[:bc_t], bc_pos[:bc_t], action_contract
+            )
+            bc_stats = action_stats_fn(
+                bc_trajectory.scored_positions,
+                benchmark_position=benchmark_position,
+            )
+        else:
+            bc_attr = pnl_attribution_fn(
+                val_returns_arr[:bc_t],
+                bc_pos[:bc_t],
+                spread_bps=costs_cfg.get("spread_bps", 5.0),
+                fee_rate=costs_cfg.get("fee_rate", 0.0004),
+                slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+            )
+            bc_stats = action_stats_fn(bc_pos[:bc_t], benchmark_position=benchmark_position)
         print(f"  BC val dist: {format_action_stats_fn(bc_stats)}")
         print(
             f"  BC val: TotalRet={bc_metrics.total_return:.3f}  "

@@ -5,6 +5,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from unidream.eval.action_execution import (
+    ActionExecutionContract,
+    candidate_positions,
+    complete_decision_starts,
+    replay_action_path,
+    transition_cost,
+)
+
 
 ROUTE_NAMES: tuple[str, ...] = ("neutral", "de_risk", "recovery", "overweight")
 ROUTE_TO_ID = {name: idx for idx, name in enumerate(ROUTE_NAMES)}
@@ -25,6 +33,7 @@ class TransitionAdvantageConfig:
     spread_bps: float = 3.0
     fee_rate: float = 0.0003
     slippage_bps: float = 1.0
+    action_execution_contract: ActionExecutionContract | None = None
 
 
 def transition_unit_cost(spread_bps: float, fee_rate: float, slippage_bps: float) -> float:
@@ -38,6 +47,48 @@ def config_from_dict(
     benchmark_position: float,
     default_actions,
 ) -> TransitionAdvantageConfig:
+    explicit_contract = None
+    if any(key in cfg for key in ("action_execution_contract", "action_execution")):
+        raw_contract = cfg.get("action_execution_contract", cfg.get("action_execution"))
+        if isinstance(raw_contract, ActionExecutionContract):
+            explicit_contract = raw_contract
+        else:
+            explicit_contract = ActionExecutionContract.from_config(
+                {"action_execution_contract": raw_contract}
+            )
+    elif cfg.get("conditional_oracle") is not None:
+        # A conditional-oracle section opts into the new path.  It must carry
+        # the complete contract rather than silently inheriting legacy costs.
+        conditional = cfg.get("conditional_oracle")
+        if not isinstance(conditional, dict):
+            raise ValueError("conditional_oracle must be a mapping")
+        explicit_contract = ActionExecutionContract.from_config(conditional)
+    if cfg.get("use_action_execution_contract", False) and explicit_contract is None:
+        raise ValueError(
+            "use_action_execution_contract requires an explicit action_execution_contract"
+        )
+
+    if explicit_contract is not None:
+        return TransitionAdvantageConfig(
+            horizons=tuple(int(h) for h in cfg.get("transition_advantage_horizons", [4])),
+            horizon_weights=(
+                tuple(float(w) for w in cfg["transition_advantage_horizon_weights"])
+                if cfg.get("transition_advantage_horizon_weights") is not None
+                else None
+            ),
+            margin=float(cfg.get("transition_advantage_margin", 0.0)),
+            drawdown_penalty_coef=0.0,
+            volatility_penalty_coef=0.0,
+            turnover_penalty_coef=0.0,
+            leverage_penalty_coef=0.0,
+            short_penalty_coef=0.0,
+            candidate_actions=tuple(explicit_contract.candidate_deltas),
+            benchmark_position=float(explicit_contract.p_start),
+            spread_bps=float(explicit_contract.spread_bps),
+            fee_rate=float(explicit_contract.fee_rate),
+            slippage_bps=float(explicit_contract.slippage_bps),
+            action_execution_contract=explicit_contract,
+        )
     horizons = tuple(int(h) for h in cfg.get("transition_advantage_horizons", [4, 8, 16, 32]))
     weights = cfg.get("transition_advantage_horizon_weights")
     horizon_weights = tuple(float(w) for w in weights) if weights is not None else None
@@ -258,6 +309,8 @@ def compute_transition_advantage(
     current_positions: np.ndarray,
     cfg: TransitionAdvantageConfig,
 ) -> dict:
+    if cfg.action_execution_contract is not None:
+        return _compute_contract_transition_advantage(returns, current_positions, cfg)
     returns = np.asarray(returns, dtype=np.float64)
     current = np.asarray(current_positions, dtype=np.float64)
     T = min(len(returns), len(current))
@@ -340,6 +393,128 @@ def compute_transition_advantage(
         "best_advantage_vs_current": best_adv_current.astype(np.float32),
         "best_class": best_class,
         "class_matrix": classes,
+    }
+
+
+def _compute_contract_transition_advantage(
+    returns: np.ndarray,
+    current_positions: np.ndarray,
+    cfg: TransitionAdvantageConfig,
+) -> dict:
+    """Compute contract-compliant block utility without legacy relabeling.
+
+    Values are B&H-relative expected/realized additive log utility over the
+    next delayed four-bar block.  Rows without a complete block are NaN and
+    cannot become a teacher target.  This function is deliberately a separate
+    branch: it does not apply legacy min-hold smoothing, same-bar reward, or
+    the old action grid.
+    """
+    contract = cfg.action_execution_contract
+    if contract is None:  # pragma: no cover - guarded by the public function
+        raise ValueError("contract transition advantage requires a contract")
+    returns = np.asarray(returns, dtype=np.float64).reshape(-1)
+    current = np.asarray(current_positions, dtype=np.float64).reshape(-1)
+    if len(returns) != len(current):
+        raise ValueError("returns and current_positions must have equal lengths")
+    if not np.all(np.isfinite(returns)) or not np.all(np.isfinite(current)):
+        raise ValueError("returns and current_positions must be finite")
+    if len(current) and not np.isclose(current[0], contract.p_start, atol=1e-9, rtol=0.0):
+        raise ValueError("contract transition path must start at contract p_start")
+    starts = complete_decision_starts(len(returns), contract)
+    if not starts:
+        raise ValueError("contract transition advantage requires a complete decision block")
+
+    actions = np.asarray(contract.candidate_deltas, dtype=np.float64)
+    n_actions = len(actions)
+    values = np.full((len(returns), n_actions), np.nan, dtype=np.float64)
+    best_idx = np.full(len(returns), -1, dtype=np.int64)
+    target_positions = current.copy()
+    best_value = np.full(len(returns), np.nan, dtype=np.float64)
+    neutral_idx = int(np.argmin(np.abs(actions)))
+
+    for start in starts:
+        previous = float(current[start])
+        feasible = candidate_positions(previous, contract)
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        block_sum = float(returns[fill:end].sum())
+        row = np.full(n_actions, np.nan, dtype=np.float64)
+        for idx, delta in enumerate(actions):
+            nxt = float(np.clip(previous + delta, contract.position_min, contract.position_max))
+            # If clipping collapses two deltas, both remain the same candidate;
+            # the returned contract grid still records the requested delta.
+            if not np.any(np.isclose(feasible, nxt, atol=1e-9, rtol=0.0)):
+                raise ValueError("contract candidate clipping produced an invalid position")
+            row[idx] = (nxt - contract.p_start) * block_sum - transition_cost(
+                previous, nxt, contract
+            )
+        values[start] = row
+        max_value = float(np.nanmax(row))
+        tied = np.flatnonzero(np.isclose(row, max_value, atol=1e-12, rtol=0.0))
+        idx = int(min(tied, key=lambda item: (abs(actions[item]), actions[item])))
+        best_idx[start] = idx
+        best_value[start] = row[idx]
+        target_positions[start] = float(
+            np.clip(previous + actions[idx], contract.position_min, contract.position_max)
+        )
+
+    advantage_vs_neutral = values - values[:, neutral_idx, None]
+    # The current position is the hold candidate in a canonical contract.  Use
+    # actual current value rather than assuming the current value equals p_start.
+    current_values = np.full(len(returns), np.nan, dtype=np.float64)
+    for start in starts:
+        hold_idx = int(np.argmin(np.abs(actions)))
+        current_values[start] = values[start, hold_idx]
+    advantage_vs_current = values - current_values[:, None]
+    finite_best = np.isfinite(best_value)
+    best_adv_neutral = np.full(len(returns), np.nan, dtype=np.float64)
+    best_adv_current = np.full(len(returns), np.nan, dtype=np.float64)
+    best_adv_neutral[finite_best] = advantage_vs_neutral[
+        finite_best, best_idx[finite_best]
+    ]
+    best_adv_current[finite_best] = advantage_vs_current[
+        finite_best, best_idx[finite_best]
+    ]
+    best_advantage = np.maximum(best_adv_neutral, best_adv_current)
+
+    decision_deltas = np.zeros(len(returns), dtype=np.float64)
+    for start in starts:
+        decision_deltas[start] = actions[best_idx[start]]
+    trajectory = replay_action_path(returns, decision_deltas, contract)
+    classes = np.full((len(returns), n_actions), "neutral", dtype=object)
+    for start in starts:
+        classes[start] = transition_classes(
+            np.full(n_actions, current[start], dtype=np.float64),
+            np.asarray(
+                [
+                    np.clip(current[start] + delta, contract.position_min, contract.position_max)
+                    for delta in actions
+                ],
+                dtype=np.float64,
+            ),
+            benchmark_position=contract.p_start,
+        )
+    best_class = np.full(len(returns), "neutral", dtype=object)
+    for start in starts:
+        best_class[start] = classes[start, best_idx[start]]
+    return {
+        "actions": actions,
+        "horizons": np.asarray([contract.h_decision], dtype=np.int64),
+        "values": values.astype(np.float32),
+        "values_h": values[:, :, None].astype(np.float32),
+        "advantage_vs_neutral": advantage_vs_neutral.astype(np.float32),
+        "advantage_vs_current": advantage_vs_current.astype(np.float32),
+        "target_positions": target_positions.astype(np.float32),
+        "best_idx": best_idx,
+        "best_value": best_value.astype(np.float32),
+        "best_advantage": best_advantage.astype(np.float32),
+        "best_advantage_vs_neutral": best_adv_neutral.astype(np.float32),
+        "best_advantage_vs_current": best_adv_current.astype(np.float32),
+        "best_class": best_class,
+        "class_matrix": classes,
+        "decision_deltas": decision_deltas,
+        "trajectory": trajectory,
+        "action_execution_contract_hash": contract.contract_hash,
     }
 
 

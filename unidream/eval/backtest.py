@@ -11,6 +11,12 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from unidream.eval.action_execution import (
+    ActionExecutionContract,
+    ActionExecutionTrajectory,
+    replay_action_path,
+)
+
 
 # 暗号資産は 24h/365d 取引可能 → 365 日で年換算
 # 株式は 252 営業日
@@ -111,6 +117,9 @@ class BacktestMetrics:
     upside_capture: float | None = None
     downside_capture: float | None = None
     max_underperformance_streak: int | None = None
+    action_execution_contract_hash: str | None = None
+    scored_bars: int | None = None
+    complete_blocks: int | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -136,6 +145,9 @@ class BacktestMetrics:
             "upside_capture": self.upside_capture,
             "downside_capture": self.downside_capture,
             "max_underperformance_streak": self.max_underperformance_streak,
+            "action_execution_contract_hash": self.action_execution_contract_hash,
+            "scored_bars": self.scored_bars,
+            "complete_blocks": self.complete_blocks,
         }
 
 
@@ -307,6 +319,8 @@ class Backtest:
         execution_delay_bars: int = 0,
         initial_position: float | None = None,
         benchmark_initial_position: float | None = None,
+        action_execution_contract: ActionExecutionContract | None = None,
+        execution_contract: ActionExecutionContract | None = None,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -316,6 +330,14 @@ class Backtest:
         self.slippage_bps = slippage_bps
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
         self.execution_delay_bars = validate_execution_delay(execution_delay_bars)
+        if action_execution_contract is not None and execution_contract is not None:
+            if action_execution_contract != execution_contract:
+                raise ValueError("action_execution_contract and execution_contract disagree")
+        self.action_execution_contract = action_execution_contract or execution_contract
+        if self.action_execution_contract is not None and self.execution_delay_bars != 0:
+            raise ValueError(
+                "execution_delay_bars must be omitted/zero when an action execution contract is provided"
+            )
         if initial_position is not None and not np.isfinite(float(initial_position)):
             raise ValueError("initial_position must be finite when provided")
         self.initial_position = (
@@ -330,6 +352,16 @@ class Backtest:
             if benchmark_initial_position is None
             else float(benchmark_initial_position)
         )
+        if self.action_execution_contract is not None:
+            contract = self.action_execution_contract
+            if self.initial_position is not None and not np.isclose(
+                self.initial_position, contract.p_start, atol=1e-9, rtol=0.0
+            ):
+                raise ValueError("initial_position must equal contract p_start")
+            if self.benchmark_initial_position is not None and not np.isclose(
+                self.benchmark_initial_position, contract.p_start, atol=1e-9, rtol=0.0
+            ):
+                raise ValueError("benchmark_initial_position must equal contract p_start")
         self.benchmark_positions = (
             np.asarray(benchmark_positions, dtype=np.float64)
             if benchmark_positions is not None else None
@@ -345,6 +377,14 @@ class Backtest:
 
     def run(self) -> BacktestMetrics:
         """バックテストを実行してメトリクスを返す."""
+        if self.action_execution_contract is not None:
+            return _run_contract_backtest(
+                self.returns,
+                self.positions,
+                self.benchmark_positions,
+                self.action_execution_contract,
+                self.ann_factor,
+            )
         returns, positions, benchmark_positions = align_execution_path(
             self.returns,
             self.positions,
@@ -458,6 +498,132 @@ class Backtest:
             equity_curve=equity,
             pnl_series=pnl,
         )
+
+
+class ActionExecutionBacktest:
+    """Explicit adapter for the P0-C action-delta trajectory.
+
+    Unlike :class:`Backtest`, this class names the new input as
+    ``decision_deltas`` so callers cannot accidentally pass the historical
+    absolute-position path.  It returns the same ``BacktestMetrics`` shape and
+    records the contract hash for artifact parity checks.
+    """
+
+    def __init__(
+        self,
+        returns: np.ndarray,
+        decision_deltas: np.ndarray,
+        *,
+        contract: ActionExecutionContract,
+        benchmark_decision_deltas: np.ndarray | None = None,
+        interval: str = "15m",
+    ):
+        if not isinstance(contract, ActionExecutionContract):
+            raise TypeError("contract must be an ActionExecutionContract")
+        self.returns = np.asarray(returns, dtype=np.float64)
+        self.decision_deltas = np.asarray(decision_deltas, dtype=np.float64)
+        self.benchmark_decision_deltas = (
+            None
+            if benchmark_decision_deltas is None
+            else np.asarray(benchmark_decision_deltas, dtype=np.float64)
+        )
+        self.contract = contract
+        self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
+
+    def run(self) -> BacktestMetrics:
+        return _run_contract_backtest(
+            self.returns,
+            self.decision_deltas,
+            self.benchmark_decision_deltas,
+            self.contract,
+            self.ann_factor,
+        )
+
+
+def _mean_holding(positions: np.ndarray) -> float:
+    if len(positions) == 0:
+        return 0.0
+    lengths: list[int] = []
+    current_len = 1
+    for idx in range(1, len(positions)):
+        if positions[idx] == positions[idx - 1]:
+            current_len += 1
+        else:
+            lengths.append(current_len)
+            current_len = 1
+    lengths.append(current_len)
+    return float(np.mean(lengths)) if lengths else 0.0
+
+
+def _run_contract_backtest(
+    returns: np.ndarray,
+    decision_deltas: np.ndarray,
+    benchmark_decision_deltas: np.ndarray | None,
+    contract: ActionExecutionContract,
+    ann_factor: float,
+) -> BacktestMetrics:
+    """Build strategy/benchmark metrics from one shared contract replay."""
+    trajectory = replay_action_path(returns, decision_deltas, contract)
+    if trajectory.n_scored_bars <= 0:
+        raise ValueError(
+            "action execution contract produced no complete decision block"
+        )
+    benchmark_deltas = (
+        np.zeros(len(trajectory.returns), dtype=np.float64)
+        if benchmark_decision_deltas is None
+        else benchmark_decision_deltas
+    )
+    benchmark = replay_action_path(trajectory.returns, benchmark_deltas, contract)
+    if not np.array_equal(trajectory.scored_mask, benchmark.scored_mask):
+        raise ValueError("strategy and benchmark action paths have different scored masks")
+
+    pnl = trajectory.scored_pnl
+    bench_pnl = benchmark.scored_pnl
+    equity = np.exp(np.cumsum(pnl))
+    bench_equity = np.exp(np.cumsum(bench_pnl))
+    total_return = float(equity[-1] - 1.0)
+    benchmark_total_return = float(bench_equity[-1] - 1.0)
+    period_years = len(pnl) / ann_factor
+    annual_return = compute_annual_return(total_return, period_years)
+    benchmark_annual_return = compute_annual_return(benchmark_total_return, period_years)
+    max_dd = compute_max_drawdown(equity)
+    benchmark_max_dd = compute_max_drawdown(bench_equity)
+    sharpe = compute_sharpe(pnl, ann_factor)
+    benchmark_sharpe = compute_sharpe(bench_pnl, ann_factor)
+    final_excess = total_return - benchmark_total_return
+    period_bars = max(int(round(ann_factor / 12)), 1)
+    position_path = trajectory.scored_positions
+    n_trades = int(np.count_nonzero(trajectory.transition_costs[trajectory.scored_mask] > 0.0))
+
+    return BacktestMetrics(
+        sharpe=sharpe,
+        sortino=compute_sortino(pnl, ann_factor),
+        max_drawdown=max_dd,
+        calmar=compute_calmar(total_return, max_dd, period_years),
+        total_return=total_return,
+        annual_return=annual_return,
+        n_trades=n_trades,
+        avg_holding=_mean_holding(position_path),
+        benchmark_total_return=benchmark_total_return,
+        benchmark_annual_return=benchmark_annual_return,
+        benchmark_sharpe=benchmark_sharpe,
+        benchmark_max_drawdown=benchmark_max_dd,
+        final_excess=final_excess,
+        alpha_excess=final_excess,
+        annual_alpha_excess=annual_return - benchmark_annual_return,
+        sharpe_delta=sharpe - benchmark_sharpe,
+        maxdd_delta=abs(max_dd) - abs(benchmark_max_dd),
+        win_rate_vs_bh=float(np.mean(pnl > bench_pnl)),
+        period_win_rate_vs_bh=compute_period_win_rate(pnl, bench_pnl, period_bars),
+        upside_capture=compute_capture_ratio(pnl, bench_pnl, positive_benchmark=True),
+        downside_capture=compute_capture_ratio(pnl, bench_pnl, positive_benchmark=False),
+        max_underperformance_streak=max_consecutive_underperformance(pnl, bench_pnl),
+        equity_curve=equity,
+        pnl_series=pnl,
+        action_execution_contract_hash=contract.contract_hash,
+        scored_bars=trajectory.n_scored_bars,
+        complete_blocks=trajectory.n_complete_blocks,
+    )
 
 
 def pnl_attribution(

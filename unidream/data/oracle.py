@@ -15,6 +15,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from unidream.eval.action_execution import (
+    ActionExecutionContract,
+    ActionExecutionTrajectory,
+    replay_selected_path,
+)
+
 # 離散行動: ポジション比率
 ACTIONS = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
 N_ACTIONS = len(ACTIONS)
@@ -224,6 +230,44 @@ def compute_net_returns(
         prev_pos = pos
 
     return net_returns
+
+
+def conditional_oracle_teacher_path(
+    forecast_returns: np.ndarray | pd.Series,
+    contract: ActionExecutionContract,
+) -> ActionExecutionTrajectory:
+    """Build a contract-compliant teacher from decision-time forecasts.
+
+    ``forecast_returns`` is a causal/OOF bar-level expected return score.  It
+    is intentionally not a realized-return label here.  The optimizer uses
+    the shared P0-C feasible-action/commitment/cost path and the resulting
+    trajectory can be replayed by the new Backtest without remapping actions.
+    """
+    if not isinstance(contract, ActionExecutionContract):
+        raise TypeError("contract must be an ActionExecutionContract")
+    return replay_selected_path(forecast_returns, contract)
+
+
+def hindsight_upper_bound_path(
+    realized_returns: np.ndarray | pd.Series,
+    contract: ActionExecutionContract,
+) -> ActionExecutionTrajectory:
+    """Build U0 from realized returns using the shared contract trajectory.
+
+    This is an upper-bound diagnostic only.  Callers must not feed its
+    decisions, weights, thresholds, or feature values into model training.
+    Keeping U0 on the same replay path as the conditional teacher and
+    Backtest makes opportunity/regret comparisons mechanically meaningful.
+    """
+    if not isinstance(contract, ActionExecutionContract):
+        raise TypeError("contract must be an ActionExecutionContract")
+    return replay_selected_path(realized_returns, contract)
+
+
+# Short names used by experiment manifests.  They deliberately retain the
+# explicit ``path`` suffix so callers do not mistake a trajectory for labels.
+conditional_oracle_path = conditional_oracle_teacher_path
+u0_upper_bound_path = hindsight_upper_bound_path
 
 
 def oracle_positions(
