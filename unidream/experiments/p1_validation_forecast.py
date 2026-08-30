@@ -54,7 +54,7 @@ class P1ForecastOuterBlocked(RuntimeError):
 
 
 P1_FORECAST_FILE_FORMAT = "unidream.p1.validation_forecast.columnar_json"
-P1_FORECAST_FILE_VERSION = 1
+P1_FORECAST_FILE_VERSION = 2
 P1_FORECAST_FILE_MAX_BYTES = 64 * 1024 * 1024
 P1_FORECAST_FILE_MAX_ROWS = 200_000
 P1_FORECAST_FILE_MAX_FITS = 64
@@ -127,6 +127,7 @@ P1_FIXED_COVERAGE_THRESHOLDS = {
     "finite_oof_prediction_fraction_min": 0.95,
     "scored_action_fraction_min": 0.8,
 }
+P1_FORECAST_SCHEMA_ID = "p1-validation-forecast-v2"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -1066,6 +1067,7 @@ def _fit_record(
     task: str,
     expected_train_mask: np.ndarray | None = None,
     expected_prediction_mask: np.ndarray | None = None,
+    expected_score_eligible_mask: np.ndarray | None = None,
 ) -> dict[str, Any]:
     runner = _runner_module()
     if type(fit) is not runner.ModelFit:
@@ -1108,10 +1110,20 @@ def _fit_record(
             )
         except Exception as exc:
             raise P1ForecastError("could not derive the registered prediction mask") from exc
+    if expected_score_eligible_mask is None:
+        try:
+            expected_score_eligible_mask = runner.score_eligible_mask_for_range(
+                dataset,
+                horizon,
+                start=spec.support_range[0],
+                end=spec.support_range[1],
+            )
+        except Exception as exc:
+            raise P1ForecastError("could not derive the registered score mask") from exc
     if not np.array_equal(train_mask, expected_train_mask):
         raise P1ForecastError("fit train_mask differs from the registered runner chronology")
-    if not np.array_equal(eligible_mask, expected_prediction_mask):
-        raise P1ForecastError("fit eligible_mask differs from the registered prediction range")
+    if not np.array_equal(eligible_mask, expected_score_eligible_mask):
+        raise P1ForecastError("fit eligible_mask differs from the registered score mask")
     if fit.status == "ok" and not np.array_equal(prediction_mask, expected_prediction_mask):
         raise P1ForecastError("fit prediction_mask differs from the registered prediction range")
     if predictions.dtype != np.dtype(np.float64) or not np.array_equal(np.isfinite(predictions), prediction_mask):
@@ -1206,6 +1218,32 @@ def build_p1_forecast_artifact(
     support_end = _support_slice(target_end_full, spec, name="target_end")
     support_labels = _support_slice(labels_full, spec, name="binary_labels")
     support_context = _support_slice(context_full, spec, name="context_mask")
+    try:
+        origin_full = _runner_module().inference_mask_for_range(
+            dataset,
+            4,
+            start=spec.support_range[0],
+            end=spec.support_range[1],
+        )
+        score_full = _runner_module().score_eligible_mask_for_range(
+            dataset,
+            4,
+            start=spec.support_range[0],
+            end=spec.support_range[1],
+        )
+    except Exception as exc:
+        raise P1ForecastError("could not derive the registered causal/score support masks") from exc
+    support_origin = _support_slice(origin_full, spec, name="origin_mask")
+    support_score = _support_slice(score_full, spec, name="score_eligible_mask")
+    support_spot = _support_slice(
+        dataset.availability["spot_bar_observed"],
+        spec,
+        name="spot_bar_observed",
+    )
+    if not np.array_equal(support_score, support_origin & support_mask[:, 1]):
+        raise P1ForecastError("h4 score eligibility is not origin mask AND target mask")
+    if not np.array_equal(support_origin, support_context & (support_end[:, 1] <= spec.support_range[1])):
+        raise P1ForecastError("h4 origin mask is not causal context plus split-tail boundary")
     if not np.array_equal(np.isfinite(support_targets), support_mask):
         raise P1ForecastError("target values are finite exactly where target_mask is true")
     if np.any((support_labels < -1) | (support_labels > 1)):
@@ -1215,7 +1253,7 @@ def build_p1_forecast_artifact(
         missing = sorted(expected_keys - set(fits))
         extra = sorted(set(fits) - expected_keys)
         raise P1ForecastError(f"forecast fit grid is not complete (missing={missing}, extra={extra})")
-    expected_masks: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    expected_masks: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
     runner = _runner_module()
     for horizon in contract.horizons:
         try:
@@ -1227,6 +1265,12 @@ def build_p1_forecast_artifact(
                     train_start=spec.train_start,
                 ),
                 runner.prediction_mask_for_range(
+                    dataset,
+                    horizon,
+                    start=spec.support_range[0],
+                    end=spec.support_range[1],
+                ),
+                runner.score_eligible_mask_for_range(
                     dataset,
                     horizon,
                     start=spec.support_range[0],
@@ -1249,6 +1293,7 @@ def build_p1_forecast_artifact(
                 task=task,
                 expected_train_mask=expected_masks[horizon][0],
                 expected_prediction_mask=expected_masks[horizon][1],
+                expected_score_eligible_mask=expected_masks[horizon][2],
             )
             records.append(record)
             summary = _coverage_for_fit(
@@ -1284,7 +1329,7 @@ def build_p1_forecast_artifact(
             body_provenance["runtime"] = provenance["runtime"]
     header = {
         "artifact_type": "p1_validation_forecast",
-        "schema_id": "p1-validation-forecast-v1",
+        "schema_id": P1_FORECAST_SCHEMA_ID,
         "schema_version": P1_FORECAST_FILE_VERSION,
         "scenario_id": spec.scenario_id,
         "arm": spec.arm,
@@ -1317,12 +1362,29 @@ def build_p1_forecast_artifact(
         "validation_results_observed": True,
         "outer_results_observed": False,
         "support_timestamps": support_timestamps,
-        "realized_returns": _encode_float_array(support_returns, mask=None, name="realized_returns"),
+        "realized_returns": _encode_float_array(
+            support_returns,
+            mask=np.isfinite(support_returns),
+            name="realized_returns",
+        ),
         "targets": _encode_float_array(support_targets, mask=support_mask, name="targets"),
         "target_end": support_end.tolist(),
         "target_mask": support_mask.tolist(),
         "binary_labels": support_labels.tolist(),
         "context_mask": support_context.tolist(),
+        "origin_mask": support_origin.tolist(),
+        "score_eligible_mask": support_score.tolist(),
+        "spot_bar_observed": support_spot.tolist(),
+        "mask_hashes": {
+            "context_mask": _array_sha256(support_context, name="context_mask"),
+            "origin_mask": _array_sha256(support_origin, name="origin_mask"),
+            "score_eligible_mask": _array_sha256(
+                support_score,
+                name="score_eligible_mask",
+            ),
+            "target_mask": _array_sha256(support_mask, name="target_mask"),
+            "spot_bar_observed": _array_sha256(support_spot, name="spot_bar_observed"),
+        },
         "fits": records,
         "coverage": coverage,
     }
@@ -1356,6 +1418,10 @@ _TOP_LEVEL_FIELDS = frozenset(
         "target_mask",
         "binary_labels",
         "context_mask",
+        "origin_mask",
+        "score_eligible_mask",
+        "spot_bar_observed",
+        "mask_hashes",
         "fits",
         "coverage",
     }
@@ -1464,7 +1530,11 @@ def _validate_identity(
     header = artifact.get("header")
     if not isinstance(header, Mapping) or set(header) != _HEADER_FIELDS:
         raise P1ForecastError("forecast artifact header fields are not exact")
-    if header.get("artifact_type") != "p1_validation_forecast" or header.get("schema_id") != "p1-validation-forecast-v1" or header.get("schema_version") != 1:
+    if (
+        header.get("artifact_type") != "p1_validation_forecast"
+        or header.get("schema_id") != P1_FORECAST_SCHEMA_ID
+        or header.get("schema_version") != P1_FORECAST_FILE_VERSION
+    ):
         raise P1ForecastError("forecast artifact schema identity is unsupported")
     if (
         header.get("outer_report_only") is not True
@@ -1758,12 +1828,22 @@ def _validate_forecast_payload(
             raise P1ForecastError("forecast support length does not match the registered scenario")
         _validate_provenance(header, spec)
     timestamps = _decode_timestamps(artifact["support_timestamps"], expected_count=support_count)
-    returns = _decode_float_array(
-        artifact["realized_returns"],
+    spot_bar_observed = _decode_bool_array(
+        artifact["spot_bar_observed"],
         shape=(support_count,),
-        mask=np.ones(support_count, dtype=np.bool_),
-        name="realized_returns",
+        name="spot_bar_observed",
     )
+    try:
+        returns = np.asarray(artifact["realized_returns"], dtype=np.float64)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise P1ForecastError("realized_returns cannot be decoded as float64") from exc
+    if returns.shape != (support_count,) or np.isinf(returns).any():
+        raise P1ForecastError("realized_returns has invalid shape or infinity")
+    if np.any(spot_bar_observed & ~np.isfinite(returns)):
+        raise P1ForecastError(
+            "realized_returns may be non-finite only when spot_bar_observed is false"
+        )
+    returns = np.asarray(returns, dtype=np.float64)
     target_mask = _decode_bool_array(artifact["target_mask"], shape=(support_count, len(P1_FIXED_HORIZONS)), name="target_mask")
     targets = _decode_float_array(
         artifact["targets"],
@@ -1787,6 +1867,44 @@ def _validate_forecast_payload(
     if np.any(labels[~target_mask] != -1):
         raise P1ForecastError("binary labels must be -1 where the target mask is false")
     context_mask = _decode_bool_array(artifact["context_mask"], shape=(support_count,), name="context_mask")
+    origin_mask = _decode_bool_array(
+        artifact["origin_mask"],
+        shape=(support_count,),
+        name="origin_mask",
+    )
+    score_eligible_mask = _decode_bool_array(
+        artifact["score_eligible_mask"],
+        shape=(support_count,),
+        name="score_eligible_mask",
+    )
+    expected_origin_mask = context_mask & (
+        target_end[:, P1_FIXED_HORIZONS.index(4)] <= support_range[1]
+    )
+    expected_score_mask = expected_origin_mask & target_mask[:, P1_FIXED_HORIZONS.index(4)]
+    if not np.array_equal(origin_mask, expected_origin_mask):
+        raise P1ForecastError("origin_mask disagrees with causal context/range geometry")
+    if not np.array_equal(score_eligible_mask, expected_score_mask):
+        raise P1ForecastError("score_eligible_mask disagrees with origin and h4 target masks")
+    mask_hashes = artifact.get("mask_hashes")
+    if not isinstance(mask_hashes, Mapping) or set(mask_hashes) != {
+        "context_mask",
+        "origin_mask",
+        "score_eligible_mask",
+        "target_mask",
+        "spot_bar_observed",
+    }:
+        raise P1ForecastError("mask_hashes fields are not canonical")
+    decoded_masks = {
+        "context_mask": context_mask,
+        "origin_mask": origin_mask,
+        "score_eligible_mask": score_eligible_mask,
+        "target_mask": target_mask,
+        "spot_bar_observed": spot_bar_observed,
+    }
+    for name, value in mask_hashes.items():
+        _strict_sha256(value, name=f"mask_hashes.{name}")
+        if value != _array_sha256(decoded_masks[name], name=name):
+            raise P1ForecastError(f"mask_hashes.{name} does not match its mask")
     fits = artifact.get("fits")
     if not isinstance(fits, list) or len(fits) != len(P1_FIXED_HORIZONS) * len(P1_ALLOWED_MODEL_TASK_KEYS):
         raise P1ForecastError("forecast artifact must contain every fixed horizon/model/task fit")
@@ -1819,7 +1937,10 @@ def _validate_forecast_payload(
         train_mask = _decode_bool_array(record.get("train_mask"), shape=(support_count,), name=f"fits[{index}].train_mask")
         eligible_mask = _decode_bool_array(record.get("eligible_mask"), shape=(support_count,), name=f"fits[{index}].eligible_mask")
         prediction_mask = _decode_bool_array(record.get("prediction_mask"), shape=(support_count,), name=f"fits[{index}].prediction_mask")
-        expected_eligible = context_mask & target_mask[:, P1_FIXED_HORIZONS.index(horizon)] & (target_end[:, P1_FIXED_HORIZONS.index(horizon)] <= support_range[1])
+        expected_inference = context_mask & (
+            target_end[:, P1_FIXED_HORIZONS.index(horizon)] <= support_range[1]
+        )
+        expected_eligible = expected_inference & target_mask[:, P1_FIXED_HORIZONS.index(horizon)]
         if not np.array_equal(eligible_mask, expected_eligible):
             raise P1ForecastError(f"forecast fit row {index} eligible_mask disagrees with support masks")
         if np.any(train_mask):
@@ -1833,8 +1954,15 @@ def _validate_forecast_payload(
         )
         if status == "N/A" and np.any(prediction_mask):
             raise P1ForecastError(f"N/A forecast fit row {index} contains predictions")
-        if status == "ok" and not np.array_equal(prediction_mask, np.asarray(record["eligible_mask"], dtype=np.bool_)):
-            raise P1ForecastError(f"successful forecast fit row {index} does not cover every eligible row")
+        if status == "ok":
+            if not np.array_equal(prediction_mask, expected_inference):
+                raise P1ForecastError(
+                    f"successful forecast fit row {index} does not cover every causal inference row"
+                )
+            if np.any(eligible_mask & ~prediction_mask):
+                raise P1ForecastError(
+                    f"forecast fit row {index} score eligibility exceeds causal inference rows"
+                )
         decoded_fits[key] = record
     expected_keys = {(h, model, task) for h in P1_FIXED_HORIZONS for model, task in P1_ALLOWED_MODEL_TASK_KEYS}
     if seen != expected_keys:
@@ -1882,9 +2010,12 @@ def _validate_forecast_payload(
             "support_count": support_count,
             "timestamps": timestamps,
             "realized_returns": returns,
+            "spot_bar_observed": spot_bar_observed,
             "targets": targets,
             "target_mask": target_mask,
             "context_mask": context_mask,
+            "origin_mask": origin_mask,
+            "score_eligible_mask": score_eligible_mask,
             "fits": MappingProxyType(decoded_fits),
             "coverage": coverage,
         }
@@ -1993,6 +2124,14 @@ class ForecastActionSource:
     promotion_allowed: bool = False
     _production_seal: object | None = field(default=None, repr=False, compare=False)
     binding_sha256: str = ""
+    # Explicit source masks are retained separately from forecast/score
+    # masks so downstream fill/outcome logic never treats a target gap as an
+    # unavailable decision origin.  They are optional only for compatibility
+    # with direct, unauthenticated fixture construction; authenticated loads
+    # always populate them.
+    context_mask: np.ndarray | None = field(default=None, repr=False, compare=False)
+    target_h4_mask: np.ndarray | None = field(default=None, repr=False, compare=False)
+    spot_bar_observed: np.ndarray | None = field(default=None, repr=False, compare=False)
 
     @property
     def is_authenticated(self) -> bool:
@@ -2018,12 +2157,42 @@ class ForecastActionSource:
         return self.origin_mask
 
     @property
+    def context_eligible(self) -> np.ndarray:
+        if self.context_mask is None:
+            raise P1ForecastError("forecast action source lacks context mask")
+        return self.context_mask
+
+    @property
+    def target_complete(self) -> np.ndarray:
+        if self.target_h4_mask is None:
+            raise P1ForecastError("forecast action source lacks h4 target mask")
+        return self.target_h4_mask
+
+    @property
     def score_eligible(self) -> np.ndarray:
+        raise P1ForecastError(
+            "score_eligible is ambiguous at the action boundary; use "
+            "action_score_mask for forecasted-action scoring or bar_available "
+            "for fill/outcome availability"
+        )
+
+    @property
+    def action_score_mask(self) -> np.ndarray:
+        """Rows where the selected finite forecast action is scoreable."""
+
         return self.score_mask
 
     @property
     def common_eligible(self) -> np.ndarray:
         return self.common_mask
+
+    @property
+    def bar_available(self) -> np.ndarray:
+        """Spot-bar availability for fill/outcome handling."""
+
+        if self.spot_bar_observed is None:
+            raise P1ForecastError("forecast action source lacks spot-bar availability")
+        return self.spot_bar_observed
 
 
 class _ForecastActionSourceSeal:
@@ -2037,6 +2206,12 @@ _AUTHENTICATED_FORECAST_SOURCES: weakref.WeakKeyDictionary[ForecastActionSource,
 
 
 def _action_source_binding_sha256(value: ForecastActionSource) -> str:
+    if (
+        value.context_mask is None
+        or value.target_h4_mask is None
+        or value.spot_bar_observed is None
+    ):
+        raise P1ForecastError("forecast action source is missing explicit source masks")
     payload = {
         "scenario_id": value.scenario_id,
         "arm": value.arm,
@@ -2056,9 +2231,15 @@ def _action_source_binding_sha256(value: ForecastActionSource) -> str:
             "realized_returns": _array_sha256(value.realized_returns, name="realized_returns"),
             "forecast_h4": _array_sha256(value.forecast_h4, name="forecast_h4"),
             "forecast_h4_mask": _array_sha256(value.forecast_h4_mask, name="forecast_h4_mask"),
+            "context_mask": _array_sha256(value.context_mask, name="context_mask"),
+            "target_h4_mask": _array_sha256(value.target_h4_mask, name="target_h4_mask"),
             "origin_mask": _array_sha256(value.origin_mask, name="origin_mask"),
             "score_mask": _array_sha256(value.score_mask, name="score_mask"),
             "common_mask": _array_sha256(value.common_mask, name="common_mask"),
+            "spot_bar_observed": _array_sha256(
+                value.spot_bar_observed,
+                name="spot_bar_observed",
+            ),
         },
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
@@ -2102,9 +2283,21 @@ def _capability_from_loaded(
     forecast = np.asarray(h4_record["predictions"], dtype=np.float64)
     forecast_mask = np.asarray(h4_record["prediction_mask"], dtype=np.bool_)
     context_mask = np.asarray(validation["context_mask"], dtype=np.bool_)
-    target_mask = np.asarray(artifact["target_mask"], dtype=np.bool_)[:, 1]
-    origin_mask = context_mask & target_mask
-    score_mask = origin_mask & forecast_mask
+    target_h4_mask = np.asarray(artifact["target_mask"], dtype=np.bool_)[:, 1]
+    origin_mask = np.asarray(validation["origin_mask"], dtype=np.bool_)
+    score_mask = origin_mask & forecast_mask & target_h4_mask
+    declared_score_eligible_mask = np.asarray(
+        validation["score_eligible_mask"],
+        dtype=np.bool_,
+    )
+    if not np.array_equal(
+        declared_score_eligible_mask,
+        origin_mask & target_h4_mask,
+    ):
+        raise P1ForecastError(
+            "loaded capability score eligibility disagrees with persisted h4 masks"
+        )
+    spot_bar_observed = np.asarray(validation["spot_bar_observed"], dtype=np.bool_)
     common_mask = score_mask.copy()
     timestamps = np.asarray(validation["timestamps"], dtype=np.dtype("datetime64[ns]"))
     realized = np.asarray(validation["realized_returns"], dtype=np.float64)
@@ -2117,9 +2310,19 @@ def _capability_from_loaded(
         "realized_returns_sha256": _array_sha256(realized, name="realized_returns"),
         "forecast_h4_sha256": _array_sha256(forecast, name="forecast_h4"),
         "forecast_h4_mask_sha256": _array_sha256(forecast_mask, name="forecast_h4_mask"),
+        "context_mask_sha256": _array_sha256(context_mask, name="context_mask"),
+        "target_h4_mask_sha256": _array_sha256(target_h4_mask, name="target_h4_mask"),
+        "score_eligible_mask_sha256": _array_sha256(
+            declared_score_eligible_mask,
+            name="score_eligible_mask",
+        ),
         "origin_mask_sha256": _array_sha256(origin_mask, name="origin_mask"),
         "score_mask_sha256": _array_sha256(score_mask, name="score_mask"),
         "common_mask_sha256": _array_sha256(common_mask, name="common_mask"),
+        "spot_bar_observed_sha256": _array_sha256(
+            spot_bar_observed,
+            name="spot_bar_observed",
+        ),
     }
     body_provenance = header.get("body_provenance")
     if isinstance(body_provenance, Mapping):
@@ -2153,6 +2356,9 @@ def _capability_from_loaded(
         validation_status=str(validation["status"]),
         promotion_allowed=bool(validation["promotion_allowed"]),
         _production_seal=_FORECAST_ACTION_SOURCE_SEAL if sealed else None,
+        context_mask=_read_only(context_mask, dtype=np.bool_),
+        target_h4_mask=_read_only(target_h4_mask, dtype=np.bool_),
+        spot_bar_observed=_read_only(spot_bar_observed, dtype=np.bool_),
     )
     capability = replace(capability, binding_sha256=_action_source_binding_sha256(capability))
     if sealed:
@@ -2328,6 +2534,9 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
             value.origin_mask,
             value.score_mask,
             value.common_mask,
+            value.context_mask,
+            value.target_h4_mask,
+            value.spot_bar_observed,
         )
     ):
         raise P1ForecastError("forecast action source arrays are not support aligned")
@@ -2338,16 +2547,27 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         ("origin_mask", value.origin_mask),
         ("score_mask", value.score_mask),
         ("common_mask", value.common_mask),
+        ("context_mask", value.context_mask),
+        ("target_h4_mask", value.target_h4_mask),
+        ("spot_bar_observed", value.spot_bar_observed),
     ):
         if np.asarray(array).dtype != np.dtype(np.bool_):
             raise P1ForecastError(f"forecast action source {name} must be bool")
     if np.asarray(value.realized_returns).dtype != np.dtype(np.float64) or np.asarray(value.forecast_h4).dtype != np.dtype(np.float64):
         raise P1ForecastError("forecast action source values must be float64")
-    if not np.isfinite(value.realized_returns).all():
-        raise P1ForecastError("forecast action source realized returns must be finite")
+    if np.isinf(value.realized_returns).any():
+        raise P1ForecastError("forecast action source realized returns must not contain infinity")
+    if np.any(value.spot_bar_observed & ~np.isfinite(value.realized_returns)):
+        raise P1ForecastError(
+            "forecast action source realized returns may be non-finite only on unavailable Spot bars"
+        )
     if not np.array_equal(np.isfinite(value.forecast_h4), value.forecast_h4_mask):
         raise P1ForecastError("forecast action source forecast mask is inconsistent")
-    if not np.array_equal(value.score_mask, value.origin_mask & value.forecast_h4_mask):
+    support_rows = np.arange(value.support_range[0], value.support_range[1], dtype=np.int64)
+    expected_origin = value.context_mask & (support_rows + 4 + 1 <= value.support_range[1])
+    if not np.array_equal(value.origin_mask, expected_origin):
+        raise P1ForecastError("forecast action source origin mask is not causal context plus split-tail boundary")
+    if not np.array_equal(value.score_mask, value.origin_mask & value.forecast_h4_mask & value.target_h4_mask):
         raise P1ForecastError("forecast action source score mask is inconsistent")
     if not np.array_equal(value.common_mask, value.score_mask):
         raise P1ForecastError("forecast action source common mask must equal its score mask")
@@ -2368,9 +2588,13 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         "realized_returns_sha256",
         "forecast_h4_sha256",
         "forecast_h4_mask_sha256",
+        "context_mask_sha256",
+        "target_h4_mask_sha256",
+        "score_eligible_mask_sha256",
         "origin_mask_sha256",
         "score_mask_sha256",
         "common_mask_sha256",
+        "spot_bar_observed_sha256",
         *body_names,
     }
     if value.scenario_id == "S3":
@@ -2387,9 +2611,19 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         "realized_returns_sha256": _array_sha256(value.realized_returns, name="realized_returns"),
         "forecast_h4_sha256": _array_sha256(value.forecast_h4, name="forecast_h4"),
         "forecast_h4_mask_sha256": _array_sha256(value.forecast_h4_mask, name="forecast_h4_mask"),
+        "context_mask_sha256": _array_sha256(value.context_mask, name="context_mask"),
+        "target_h4_mask_sha256": _array_sha256(value.target_h4_mask, name="target_h4_mask"),
+        "score_eligible_mask_sha256": _array_sha256(
+            value.origin_mask & value.target_h4_mask,
+            name="score_eligible_mask",
+        ),
         "origin_mask_sha256": _array_sha256(value.origin_mask, name="origin_mask"),
         "score_mask_sha256": _array_sha256(value.score_mask, name="score_mask"),
         "common_mask_sha256": _array_sha256(value.common_mask, name="common_mask"),
+        "spot_bar_observed_sha256": _array_sha256(
+            value.spot_bar_observed,
+            name="spot_bar_observed",
+        ),
     }
     for name, digest in expected_hashes.items():
         if value.source_hashes.get(name) != digest:
@@ -2425,6 +2659,7 @@ __all__ = [
     "P1_FIXED_HORIZONS",
     "P1_FORECAST_FILE_FORMAT",
     "P1_FORECAST_FILE_MAX_BYTES",
+    "P1_FORECAST_SCHEMA_ID",
     "P1_FORECAST_FILE_VERSION",
     "P1_S3_FIT_RANGE",
     "P1_S3_ORIGIN",
