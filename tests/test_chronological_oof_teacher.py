@@ -193,6 +193,69 @@ class ChronologicalOOFTeacherTest(unittest.TestCase):
                     with self.assertRaises(ChronologicalOOFError):
                         validate_oof_result(candidate)
 
+    def test_oof_validator_binds_aliases_origins_and_persisted_target_end(self) -> None:
+        base = chronological_oof_predict(
+            np.arange(5, dtype=np.float64).reshape(-1, 1),
+            np.arange(5, dtype=np.float64),
+            fit_predict=self._fit_predict,
+            min_train_size=1,
+        )
+        first_prediction = int(np.flatnonzero(base["prediction_mask"])[0])
+
+        equal_alias = dict(base)
+        equal_alias["oof_mask"] = base["prediction_mask"].copy()
+        validate_oof_result(equal_alias)
+
+        mismatched_alias = dict(base)
+        mismatched_alias["oof_mask"] = base["prediction_mask"].copy()
+        mismatched_alias["oof_mask"][first_prediction] = False
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(mismatched_alias)
+
+        invalid_alias = dict(base)
+        invalid_alias["oof_mask"] = base["prediction_mask"].astype(np.int64)
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(invalid_alias)
+
+        missing_target_end = dict(base)
+        missing_target_end.pop("target_end_exclusive")
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(missing_target_end)
+
+        incomplete_target_end = dict(base)
+        incomplete_target_end["target_end_exclusive"] = base[
+            "target_end_exclusive"
+        ].copy()
+        # The first origin trains on row 0, whose persisted label end must be
+        # <= the origin cutoff.  No external target_end is supplied here.
+        incomplete_target_end["target_end_exclusive"][0] = first_prediction + 1
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(incomplete_target_end)
+
+        duplicate_origin = dict(base)
+        duplicate_origin["origins"] = list(base["origins"]) + [
+            dict(base["origins"][0])
+        ]
+        duplicate_origin["provenance"] = dict(base["provenance"])
+        duplicate_origin["provenance"]["n_origins_called"] = len(
+            duplicate_origin["origins"]
+        )
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(duplicate_origin)
+
+        missing_origin = dict(base)
+        missing_origin["origins"] = [
+            origin
+            for origin in base["origins"]
+            if origin["prediction_index"] != first_prediction
+        ]
+        missing_origin["provenance"] = dict(base["provenance"])
+        missing_origin["provenance"]["n_origins_called"] = len(
+            missing_origin["origins"]
+        )
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(missing_origin)
+
     def test_horizon_and_purge_exclude_incomplete_or_overlapping_labels(self) -> None:
         features = np.arange(20, dtype=np.float64).reshape(-1, 1)
         labels = np.arange(20, dtype=np.float64)
@@ -311,6 +374,15 @@ class ChronologicalOOFTeacherTest(unittest.TestCase):
         self.assertEqual(
             first["provenance"]["row_eligibility_provenance"]["source"],
             "p0_a_availability",
+        )
+        # Availability gaps are valid: the producer records a sparse,
+        # strictly increasing training subset rather than pretending it is a
+        # contiguous range.
+        self.assertTrue(
+            any(
+                np.any(np.diff(origin["train_indices"]) > 1)
+                for origin in first["origins"]
+            )
         )
 
         perturbed = labels.copy()

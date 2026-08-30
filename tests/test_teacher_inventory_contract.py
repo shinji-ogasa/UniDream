@@ -33,6 +33,7 @@ class TeacherInventoryContractTest(unittest.TestCase):
         bundle = dict(raw)
         for split in ("train", "val", "test"):
             bundle[split] = raw["predictions"].copy()
+            bundle[f"{split}_row_indices"] = np.arange(3, dtype=np.int64)
             bundle[f"{split}_mask"] = raw["prediction_mask"].copy()
             bundle[f"{split}_prediction_eligibility_mask"] = raw[
                 "prediction_eligibility_mask"
@@ -207,6 +208,9 @@ class TeacherInventoryContractTest(unittest.TestCase):
                 "train_training_label_eligibility_mask",
                 "val_training_label_eligibility_mask",
                 "test_training_label_eligibility_mask",
+                "train_row_indices",
+                "val_row_indices",
+                "test_row_indices",
                 "provenance",
             )
         }
@@ -245,6 +249,78 @@ class TeacherInventoryContractTest(unittest.TestCase):
                         log_ts=lambda: "00:00:00",
                         oof_bundle=bundle,
                     )
+
+    def test_conditional_split_views_must_match_indexed_raw_oof_rows(self) -> None:
+        accepted = self._complete_oof_bundle()
+        accepted_result = build_wm_predictive_state_bundle(
+            wm_trainer=object(),
+            wfo_dataset=object(),
+            z_train=np.zeros((3, 1), dtype=np.float32),
+            h_train=np.zeros((3, 1), dtype=np.float32),
+            seq_len=1,
+            ac_cfg={"conditional_oracle_path": True},
+            log_ts=lambda: "00:00:00",
+            oof_bundle=accepted,
+        )
+        np.testing.assert_array_equal(accepted_result["val_row_indices"], [0, 1, 2])
+
+        transformed_metadata = self._complete_oof_bundle()
+        transformed_metadata["mean"] = np.zeros((1, 1), dtype=np.float64)
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((3, 1), dtype=np.float32),
+                h_train=np.zeros((3, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=transformed_metadata,
+            )
+
+        bundle = self._complete_oof_bundle()
+        bundle["val"] = bundle["val"].copy()
+        valid_row = int(np.flatnonzero(bundle["val_mask"])[0])
+        bundle["val"][valid_row, 0] += 1.0
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((3, 1), dtype=np.float32),
+                h_train=np.zeros((3, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=bundle,
+            )
+
+        bad_row_mapping = self._complete_oof_bundle()
+        bad_row_mapping["val_row_indices"] = np.asarray([0, 2, 1], dtype=np.int64)
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((3, 1), dtype=np.float32),
+                h_train=np.zeros((3, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=bad_row_mapping,
+            )
+
+        missing_indices = self._complete_oof_bundle()
+        missing_indices.pop("test_row_indices")
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((3, 1), dtype=np.float32),
+                h_train=np.zeros((3, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=missing_indices,
+            )
 
     def test_conditional_fold_input_builder_blocks_before_hindsight_dp(self) -> None:
         with self.assertRaises(ConditionalPathBlocked):

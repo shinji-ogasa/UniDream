@@ -422,6 +422,7 @@ def chronological_oof_predict(
         "predictions": predictions,
         "prediction_mask": prediction_mask,
         "oof_mask": prediction_mask.copy(),
+        "target_end_exclusive": label_end.copy(),
         "train_count": train_count,
         "origins": origin_records,
         "metadata_by_row": metadata_by_row,
@@ -463,12 +464,34 @@ def validate_oof_result(
     *,
     target_end: np.ndarray | None = None,
 ) -> None:
-    """Validate OOF values, full eligibility masks, provenance, and prefixes."""
+    """Validate OOF values, masks, fit provenance, and label-complete prefixes.
+
+    ``target_end_exclusive`` is persisted by the producer and is mandatory at
+    this consumer boundary.  Supplying ``target_end`` is only an optional
+    cross-check; it cannot replace the persisted vector.  Thus a consumer that
+    calls this validator without labels or an external cutoff still checks
+    every recorded training index against the producer's label-completeness
+    contract.
+    """
     predictions = np.asarray(result.get("predictions"))
+    prediction_mask_present = "prediction_mask" in result
+    oof_mask_present = "oof_mask" in result
+    if not prediction_mask_present and not oof_mask_present:
+        raise ChronologicalOOFError(
+            "OOF result requires prediction_mask or oof_mask"
+        )
     mask = strict_bool_array(
-        result.get("prediction_mask", result.get("oof_mask")),
+        result["prediction_mask"]
+        if prediction_mask_present
+        else result["oof_mask"],
         name="prediction_mask",
     )
+    if prediction_mask_present and oof_mask_present:
+        oof_mask = strict_bool_array(result["oof_mask"], name="oof_mask")
+        if oof_mask.shape != mask.shape or not np.array_equal(oof_mask, mask):
+            raise ChronologicalOOFError(
+                "prediction_mask and oof_mask aliases must be strict-bool and equal"
+            )
     if predictions.ndim != 2 or mask.ndim != 1 or predictions.shape[0] != mask.shape[0]:
         raise ChronologicalOOFError("OOF predictions/mask have incompatible shapes")
     try:
@@ -510,12 +533,55 @@ def validate_oof_result(
     provenance = result.get("provenance", {})
     if not isinstance(provenance, Mapping):
         raise ChronologicalOOFError("OOF provenance must be a mapping")
+    fit_scheme = provenance.get("fit_scheme")
+    if not isinstance(fit_scheme, str) or fit_scheme.strip().lower() not in {
+        "chronological_oof",
+        "expanding_origin",
+        "rolling_origin",
+    }:
+        raise ChronologicalOOFError(
+            "OOF provenance.fit_scheme must identify chronological OOF"
+        )
     if "in_sample" not in provenance:
         raise ChronologicalOOFError(
             "OOF provenance.in_sample must be explicitly false"
         )
     if strict_bool_value(provenance["in_sample"], name="provenance.in_sample"):
         raise ChronologicalOOFError("OOF result is marked in_sample")
+
+    persisted_target_end = result.get("target_end_exclusive")
+    if target_end is None:
+        if persisted_target_end is None:
+            raise ChronologicalOOFError(
+                "OOF result is missing required target_end_exclusive"
+            )
+        ends = strict_integer_array(
+            persisted_target_end,
+            name="target_end_exclusive",
+        )
+    else:
+        ends = strict_integer_array(target_end, name="target_end")
+        if persisted_target_end is None:
+            raise ChronologicalOOFError(
+                "OOF result is missing required target_end_exclusive"
+            )
+        persisted_ends = strict_integer_array(
+            persisted_target_end,
+            name="target_end_exclusive",
+        )
+        if persisted_ends.shape != ends.shape or not np.array_equal(
+            persisted_ends,
+            ends,
+        ):
+            raise ChronologicalOOFError(
+                "target_end_exclusive does not match the supplied target_end"
+            )
+    if ends.ndim != 1 or len(ends) != n_rows:
+        raise ChronologicalOOFError(
+            "target_end_exclusive must have one exclusive index per row"
+        )
+    if np.any(ends < 0):
+        raise ChronologicalOOFError("target_end_exclusive cannot contain negative indices")
 
     def validate_eligibility_detail(
         name: str,
@@ -554,63 +620,160 @@ def validate_oof_result(
             provenance.get(name),
             detail_mask,
         )
-    purge = strict_integer_value(provenance.get("purge", 0), name="provenance.purge")
-    for field in ("horizon", "min_train_size", "step"):
-        if field in provenance:
-            strict_integer_value(provenance[field], name=f"provenance.{field}")
-    if "train_window" in provenance and provenance["train_window"] is not None:
+    for field, expected in (
+        ("n_rows", n_rows),
+        ("n_predictions", int(mask.sum())),
+    ):
+        if field not in provenance:
+            raise ChronologicalOOFError(f"OOF provenance is missing {field}")
+        actual = strict_integer_value(
+            provenance[field],
+            name=f"provenance.{field}",
+        )
+        if actual != expected:
+            raise ChronologicalOOFError(
+                f"provenance.{field}={actual} does not match expected {expected}"
+            )
+    for field in ("horizon", "purge", "min_train_size", "step"):
+        if field not in provenance:
+            raise ChronologicalOOFError(f"OOF provenance is missing {field}")
+        strict_integer_value(provenance[field], name=f"provenance.{field}")
+    horizon = int(provenance["horizon"])
+    purge = int(provenance["purge"])
+    min_train_size = int(provenance["min_train_size"])
+    step = int(provenance["step"])
+    if horizon < 1:
+        raise ChronologicalOOFError("provenance.horizon must be >= 1")
+    if purge < 0:
+        raise ChronologicalOOFError("provenance.purge must be >= 0")
+    if min_train_size < 1:
+        raise ChronologicalOOFError("provenance.min_train_size must be >= 1")
+    if step < 1:
+        raise ChronologicalOOFError("provenance.step must be >= 1")
+    if "train_window" not in provenance:
+        raise ChronologicalOOFError("OOF provenance is missing train_window")
+    if provenance["train_window"] is not None:
         strict_integer_value(provenance["train_window"], name="provenance.train_window")
+        if int(provenance["train_window"]) < min_train_size:
+            raise ChronologicalOOFError(
+                "provenance.train_window must be >= min_train_size"
+            )
+    if "n_origins_called" not in provenance:
+        raise ChronologicalOOFError("OOF provenance is missing n_origins_called")
+    n_origins_called = strict_integer_value(
+        provenance["n_origins_called"],
+        name="provenance.n_origins_called",
+    )
+    if "origins" not in result:
+        raise ChronologicalOOFError("OOF result is missing origin records")
     if not isinstance(origins, (list, tuple)):
         raise ChronologicalOOFError("OOF origins must be a list or tuple")
+    if n_origins_called != len(origins):
+        raise ChronologicalOOFError(
+            "provenance.n_origins_called does not match origin records"
+        )
+    origin_indices: list[int] = []
     for origin in origins:
         if not isinstance(origin, Mapping):
             raise ChronologicalOOFError("OOF origin must be a mapping")
-        for field in (
+        required_origin_fields = (
             "prediction_index",
             "train_start",
             "train_end_exclusive",
             "label_cutoff_exclusive",
             "n_train",
-        ):
-            if field in origin:
-                strict_integer_value(origin[field], name=f"origin.{field}")
-    if target_end is not None:
-        ends = strict_integer_array(target_end, name="target_end")
-        if ends.ndim != 1 or len(ends) != len(predictions):
-            raise ChronologicalOOFError("target_end must have one exclusive index per row")
-        for origin in origins:
-            try:
-                t = strict_integer_value(
-                    origin["prediction_index"],
-                    name="origin.prediction_index",
-                )
-            except (KeyError, TypeError) as exc:
-                raise ChronologicalOOFError("OOF origin is missing prediction_index") from exc
-            cutoff = t - purge
-            indices = origin.get("train_indices")
-            if indices is None:
-                try:
-                    start = strict_integer_value(origin["train_start"], name="origin.train_start")
-                    end = strict_integer_value(
-                        origin["train_end_exclusive"],
-                        name="origin.train_end_exclusive",
-                    )
-                except (KeyError, TypeError) as exc:
-                    raise ChronologicalOOFError(
-                        "OOF origin is missing train range"
-                    ) from exc
-                indices = np.arange(start, end, dtype=np.int64)
-            else:
-                indices = strict_integer_array(indices, name="origin.train_indices")
-            if indices.ndim != 1:
-                raise ChronologicalOOFError("origin.train_indices must be 1-D")
-            if np.any(indices < 0) or np.any(indices >= len(ends)):
-                raise ChronologicalOOFError("origin.train_indices are out of range")
-            train_end = ends[indices]
-            if len(train_end) and int(np.max(train_end)) > cutoff:
+        )
+        for field in required_origin_fields:
+            if field not in origin:
+                raise ChronologicalOOFError(f"OOF origin is missing {field}")
+        t = strict_integer_value(
+            origin["prediction_index"],
+            name="origin.prediction_index",
+        )
+        if t < 0 or t >= n_rows:
+            raise ChronologicalOOFError("OOF origin prediction_index is out of range")
+        if not prediction_eligibility[t]:
+            raise ChronologicalOOFError(
+                f"OOF origin {t} is outside prediction_eligibility_mask"
+            )
+        origin_indices.append(t)
+        label_cutoff = strict_integer_value(
+            origin["label_cutoff_exclusive"],
+            name="origin.label_cutoff_exclusive",
+        )
+        expected_cutoff = t - purge
+        if label_cutoff != expected_cutoff:
+            raise ChronologicalOOFError(
+                f"OOF origin {t} label_cutoff_exclusive={label_cutoff} "
+                f"does not match purge cutoff {expected_cutoff}"
+            )
+        n_train = strict_integer_value(origin["n_train"], name="origin.n_train")
+        if n_train < min_train_size:
+            raise ChronologicalOOFError(
+                f"OOF origin {t} n_train={n_train} is below min_train_size={min_train_size}"
+            )
+        start = strict_integer_value(origin["train_start"], name="origin.train_start")
+        end = strict_integer_value(
+            origin["train_end_exclusive"],
+            name="origin.train_end_exclusive",
+        )
+        indices_value = origin.get("train_indices")
+        if indices_value is None:
+            if end < start:
                 raise ChronologicalOOFError(
-                    f"OOF origin {t} includes a future/incomplete label: max_end={int(np.max(train_end))} cutoff={cutoff}"
+                    f"OOF origin {t} train range is not right-exclusive"
                 )
+            indices = np.arange(start, end, dtype=np.int64)
+        else:
+            indices = strict_integer_array(
+                indices_value,
+                name="origin.train_indices",
+            )
+        if indices.ndim != 1:
+            raise ChronologicalOOFError("origin.train_indices must be 1-D")
+        if np.any(indices < 0) or np.any(indices >= len(ends)):
+            raise ChronologicalOOFError("OOF origin.train_indices are out of range")
+        if len(indices) and np.any(np.diff(indices) <= 0):
+            raise ChronologicalOOFError(
+                f"OOF origin {t} train_indices must be strictly increasing and unique"
+            )
+        if len(indices):
+            if start != int(indices[0]) or end != int(indices[-1]) + 1:
+                raise ChronologicalOOFError(
+                    f"OOF origin {t} train range does not bound train_indices"
+                )
+        elif start != end:
+            raise ChronologicalOOFError(
+                f"OOF origin {t} empty train_indices require equal range bounds"
+            )
+        if n_train != len(indices):
+            raise ChronologicalOOFError(
+                f"OOF origin {t} n_train does not match train_indices"
+            )
+        if np.any(indices >= t):
+            raise ChronologicalOOFError(
+                f"OOF origin {t} includes its own/future row in the training prefix"
+            )
+        if len(indices) and np.any(~training_eligibility[indices]):
+            raise ChronologicalOOFError(
+                f"OOF origin {t} includes a row outside training_label_eligibility_mask"
+            )
+        cutoff = label_cutoff
+        train_end = ends[indices]
+        if len(train_end) and int(np.max(train_end)) > cutoff:
+            raise ChronologicalOOFError(
+                f"OOF origin {t} includes a future/incomplete label: max_end={int(np.max(train_end))} cutoff={cutoff}"
+            )
+    if len(origin_indices) != len(set(origin_indices)):
+        raise ChronologicalOOFError("OOF origins contain duplicate prediction_index records")
+    missing_origin_indices = np.flatnonzero(
+        mask & ~np.isin(np.arange(n_rows), origin_indices)
+    )
+    if len(missing_origin_indices):
+        raise ChronologicalOOFError(
+            "OOF origins are missing records for prediction_mask rows: "
+            f"{missing_origin_indices.astype(int).tolist()}"
+        )
 
 
 def chronological_oof_standardize(

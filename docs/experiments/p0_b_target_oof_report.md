@@ -88,10 +88,24 @@ no sidecar is auto-zero-filled.
 The OOF validator requires both full-row eligibility masks, their count and
 provenance details, and an explicit `provenance.in_sample: false`; it also
 rejects prediction/training masks that fall outside origin eligibility.  The
-conditional boundary requires this raw validated OOF result in addition to
-the train/val/test state views.  Split-only state masks therefore cannot
-bypass raw OOF provenance; each split view must carry its own origin and
-training-label eligibility masks.
+producer persists the exact per-row `target_end_exclusive` vector.  Consumers
+must validate that vector (and may only supply an identical external vector as
+a cross-check), then automatically check every origin's strictly increasing,
+unique training indices for `idx < t`, `training_label_eligibility_mask`, and
+`target_end_exclusive[idx] <= t - purge`.  Origin records are required for
+every finite `prediction_mask` row, with unique prediction indices and aligned
+counts, so a fabricated finite state without fit provenance cannot pass.
+P1 callers must make the explicit `target_end=t+h+1` construction part of
+their producer manifest; this implementation still records the equivalent
+default vector for the model-agnostic helper.
+The conditional boundary requires this raw validated OOF result in addition
+to the train/val/test state views.  Split-only state masks therefore cannot
+bypass raw OOF provenance.  Each split must carry strict increasing integer
+`{train,val,test}_row_indices`; its values, state mask, and both eligibility
+masks must equal the corresponding indexed rows of the raw OOF result.  The
+current safe contract accepts raw views only; transformed/standardized state
+is blocked until an explicit causal transform artifact and input-row mapping
+are implemented.
 Horizon, purge, train-size/window, step, target-end cutoff, and standardizer
 history options require actual integer types; bool, fractional, and string
 coercion are rejected. Conditional flags and mapping `enabled` values likewise
@@ -125,10 +139,12 @@ per-head step coverage, coverage-gate blocking/markers, run/fold/phase
 context, strict mask and integer types, same-row future-label perturbation,
 explicit origin/window eligibility, horizon/purge eligibility, no early-row
 fill, partial-finite values outside an OOF mask, missing eligibility/in-sample
-provenance, split-only conditional bundles, and hindsight inventory rejection.
+provenance, alias consistency, origin/target-cutoff integrity, exact indexed
+split-view matching, split-only conditional bundles, and hindsight inventory
+rejection.
 
-Observed result: 24 scoped contract tests passed.  The complete repository
-suite passed (147 tests).
+Observed result: 26 scoped contract tests passed.  The complete repository
+suite passed (149 tests).
 
 The full suite is required before promotion:
 

@@ -9,6 +9,7 @@ from .chronological_oof import (
     require_conditional_oof_inputs,
     strict_bool_array,
     strict_bool_value,
+    strict_integer_array,
     validate_oof_result,
 )
 
@@ -37,9 +38,13 @@ def _conditional_oof_state_bundle(
 
     Full WM fold re-training is deliberately not hidden behind this adapter.
     The caller must provide the complete raw chronological OOF result (including
-    eligibility masks/provenance), plus aligned, masked OOF state views and
-    eligibility masks for every split; early rows remain NaN and are exposed
-    through ``*_mask`` for a later stage to exclude explicitly.
+    eligibility masks/provenance), plus exact raw-prediction views for every
+    split.  Each view must carry strict, increasing ``*_row_indices`` and its
+    values, state mask, and both eligibility masks must equal the corresponding
+    rows of the validated raw result.  Transformed/standardized views are
+    blocked until a causal transform artifact and input-row mapping exist;
+    early rows remain NaN and are exposed through ``*_mask`` for a later stage
+    to exclude explicitly.
     """
     # Validate the raw producer result before inspecting any split view.  A
     # split-only caller must never be able to bypass the eligibility and
@@ -48,19 +53,77 @@ def _conditional_oof_state_bundle(
         validate_oof_result(oof_bundle)
     except ChronologicalOOFError as exc:
         raise ConditionalPathBlocked(str(exc)) from exc
+    raw_predictions = np.asarray(oof_bundle["predictions"])
+    raw_prediction_mask = strict_bool_array(
+        oof_bundle["prediction_mask"]
+        if "prediction_mask" in oof_bundle
+        else oof_bundle["oof_mask"],
+        name="conditional OOF prediction_mask",
+    )
+    raw_prediction_eligibility = strict_bool_array(
+        oof_bundle["prediction_eligibility_mask"],
+        name="conditional OOF prediction_eligibility_mask",
+    )
+    raw_training_eligibility = strict_bool_array(
+        oof_bundle["training_label_eligibility_mask"],
+        name="conditional OOF training_label_eligibility_mask",
+    )
+    for statistic in ("mean", "std"):
+        if statistic not in oof_bundle:
+            continue
+        if np.asarray(oof_bundle[statistic]).size:
+            raise ConditionalPathBlocked(
+                f"conditional OOF {statistic} would imply a transformed state; "
+                "causal transform artifacts are not accepted until their row mapping is implemented"
+            )
     provenance = dict(oof_bundle.get("provenance") or {})
     names = list(oof_bundle.get("names", []))
     splits: dict[str, np.ndarray] = {}
     masks: dict[str, np.ndarray] = {}
     split_masks: dict[str, np.ndarray] = {}
+    split_row_indices: dict[str, np.ndarray] = {}
     for split in ("train", "val", "test"):
         if split not in oof_bundle:
             raise ConditionalPathBlocked(
                 f"conditional OOF bundle is missing {split!r} state; no in-sample fallback is allowed"
             )
-        values = np.asarray(oof_bundle[split], dtype=np.float32)
+        values = np.asarray(oof_bundle[split])
         if values.ndim != 2:
             raise ConditionalPathBlocked(f"conditional OOF {split} state must be 2-D")
+        row_indices_value = oof_bundle.get(f"{split}_row_indices")
+        if row_indices_value is None:
+            raise ConditionalPathBlocked(
+                f"conditional OOF bundle is missing {split}_row_indices; "
+                "split state cannot be mapped to the validated raw OOF rows"
+            )
+        try:
+            row_indices = strict_integer_array(
+                row_indices_value,
+                name=f"conditional OOF {split}_row_indices",
+            )
+        except ChronologicalOOFError as exc:
+            raise ConditionalPathBlocked(str(exc)) from exc
+        if row_indices.ndim != 1 or len(row_indices) != len(values):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_row_indices must be a 1-D row-aligned array"
+            )
+        if len(row_indices) > 1 and np.any(np.diff(row_indices) <= 0):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_row_indices must be strictly increasing and unique"
+            )
+        if np.any(row_indices < 0) or np.any(row_indices >= len(raw_predictions)):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_row_indices are outside raw OOF rows"
+            )
+        if values.shape[1] != raw_predictions.shape[1]:
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} state width does not match raw predictions"
+            )
+        if values.dtype != raw_predictions.dtype:
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} must be an exact raw OOF view; "
+                "transformed state requires an explicit causal transform artifact"
+            )
         mask_value = oof_bundle.get(f"{split}_mask")
         if mask_value is None:
             raise ConditionalPathBlocked(
@@ -72,10 +135,16 @@ def _conditional_oof_state_bundle(
             raise ConditionalPathBlocked(str(exc)) from exc
         if mask.ndim != 1 or len(mask) != len(values):
             raise ConditionalPathBlocked(f"conditional OOF {split}_mask is not row-aligned")
-        if np.any(mask & ~np.isfinite(values).all(axis=1)):
+        try:
+            finite_values = np.isfinite(values)
+        except (TypeError, ValueError) as exc:
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} state must contain numeric values"
+            ) from exc
+        if np.any(mask & ~finite_values.all(axis=1)):
             raise ConditionalPathBlocked(f"conditional OOF {split} contains a non-finite usable row")
         # A finite state without a mask would be an implicit in-sample fill.
-        if np.any(~mask & np.isfinite(values).any(axis=1)):
+        if np.any(~mask & finite_values.any(axis=1)):
             raise ConditionalPathBlocked(
                 f"conditional OOF {split} has finite or partially finite values outside its OOF mask"
             )
@@ -120,8 +189,34 @@ def _conditional_oof_state_bundle(
             raise ConditionalPathBlocked(
                 f"conditional OOF {split}_training_label_eligibility_mask contains a row outside its prediction eligibility"
             )
+        expected_values = raw_predictions[row_indices]
+        if not np.array_equal(values, expected_values, equal_nan=True):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} values do not equal the indexed raw OOF predictions"
+            )
+        if not np.array_equal(mask, raw_prediction_mask[row_indices]):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_mask does not equal the indexed raw OOF prediction_mask"
+            )
+        if not np.array_equal(
+            split_prediction_eligibility,
+            raw_prediction_eligibility[row_indices],
+        ):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_prediction_eligibility_mask does not equal "
+                "the indexed raw origin eligibility mask"
+            )
+        if not np.array_equal(
+            split_training_eligibility,
+            raw_training_eligibility[row_indices],
+        ):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_training_label_eligibility_mask does not equal "
+                "the indexed raw training-label eligibility mask"
+            )
         splits[split] = values
         masks[split] = mask
+        split_row_indices[split] = row_indices
         # Keep split-level origin/training provenance alongside the state mask;
         # neither can be inferred from a split-only state view.
         split_masks[f"{split}_prediction_eligibility_mask"] = split_prediction_eligibility
@@ -167,12 +262,28 @@ def _conditional_oof_state_bundle(
                 f"conditional OOF {component} fit_scheme must be chronological OOF"
             )
     result = {
+        # Retain the validated raw contract alongside split views so a later
+        # consumer does not lose the target-cutoff and origin provenance that
+        # justified accepting these states.
+        "predictions": np.array(raw_predictions, copy=True),
+        "prediction_mask": raw_prediction_mask.copy(),
+        "prediction_eligibility_mask": raw_prediction_eligibility.copy(),
+        "training_label_eligibility_mask": raw_training_eligibility.copy(),
+        "target_end_exclusive": np.array(
+            oof_bundle["target_end_exclusive"],
+            dtype=np.int64,
+            copy=True,
+        ),
+        "origins": [dict(origin) for origin in oof_bundle["origins"]],
         "train": splits["train"],
         "val": splits["val"],
         "test": splits["test"],
         "train_mask": masks["train"],
         "val_mask": masks["val"],
         "test_mask": masks["test"],
+        "train_row_indices": split_row_indices["train"],
+        "val_row_indices": split_row_indices["val"],
+        "test_row_indices": split_row_indices["test"],
         "train_prediction_eligibility_mask": split_masks[
             "train_prediction_eligibility_mask"
         ],
