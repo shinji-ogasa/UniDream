@@ -12,7 +12,9 @@ The contract is spot-only and intentionally small:
 The final block is scored only when all four returns are present.  A trajectory
 contains full-length diagnostic arrays, plus an explicit ``scored_mask``; the
 Backtest adapter trims to that mask before computing metrics.  The same
-replay is used by conditional teachers and by the upper-bound diagnostic.
+replay geometry is used by conditional teachers and by the upper-bound
+diagnostic, while their selectors remain separate: the teacher is causal and
+U0 is hindsight-only.
 """
 from __future__ import annotations
 

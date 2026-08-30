@@ -2,7 +2,7 @@
 
 Status: implemented as an explicit opt-in path; no existing Plan011 run is
 silently migrated. This report describes the implementation at commit
-`2e11cb9` on branch `exp/p0-c-action-execution-20260830`.
+`fe0b3f4` on branch `exp/p0-c-action-execution-20260830`.
 
 ## Canonical contract
 
@@ -61,19 +61,31 @@ unsupported delta, or unsupported semantic field raises.
 `replay_action_path()` returns decision, fill, effective-position, countdown,
 cost, gross-PnL, net-PnL, and `scored_mask` arrays. This makes boundary
 handling inspectable rather than implicit. `select_block_decisions()` uses the
-same feasible grid and replay geometry for a forecast-score teacher or the
-realized-future U0 diagnostic.
+same feasible grid and replay geometry for the causal forecast-score teacher.
+It scores only the current delayed block and advances inventory sequentially;
+future forecast blocks cannot change an earlier teacher decision. U0 is kept
+separate through `select_hindsight_block_decisions()`, an iterative
+bottom-up DP that may inspect all realized complete blocks for an
+upper-bound-only diagnostic. Both paths share bounds, delay, commitment, cost,
+tail mask, and replay geometry, but action equality is not a contract.
+After a fill, `effective_positions` retains the live inventory through an
+unscored incomplete tail; the tail contributes zero PnL via `scored_mask`.
 
 ## Oracle and Backtest integration
 
 - [`unidream/data/oracle.py`](../../unidream/data/oracle.py) adds
   `conditional_oracle_teacher_path()` and `hindsight_upper_bound_path()`.
-  Both call the shared block selector; U0 is explicitly diagnostic-only and
-  must not feed a training feature, weight, threshold, or target.
+  The teacher calls the causal local selector, while U0 calls the separate
+  iterative hindsight selector. U0 is explicitly diagnostic-only and must not
+  feed a training feature, weight, threshold, or target.
 - [`unidream/eval/backtest.py`](../../unidream/eval/backtest.py) adds
   `ActionExecutionBacktest`. The existing `Backtest` is unchanged unless an
   explicit `action_execution_contract` is supplied. Contract metrics are
   computed only over the shared scored mask and record the contract hash.
+  When the contract is supplied, `action_positions_are_deltas` must be
+  explicitly `True` or `False`; no value-based delta/absolute inference is
+  permitted. `True` denotes decision deltas and `False` denotes a strict
+  absolute committed-position path.
   `run_contract_backtest()` converts an absolute actor path strictly into
   contract deltas before invoking the opt-in Backtest.
 - [`unidream/experiments/transition_advantage.py`](../../unidream/experiments/transition_advantage.py)
@@ -101,24 +113,30 @@ They cover:
 - clip-then-unique candidate positions and bounds;
 - one-bar fill alignment and four-bar countdown;
 - blocked-bar immutability and incomplete-tail exclusion;
+- live inventory retention through an unscored incomplete tail;
 - all-in cost arithmetic and additive-log-return PnL;
 - immutable/hashable round trip and missing-config fail-closed behavior;
 - unsupported funding/partial/simple-return semantics;
-- absolute-position adapter and explicit delta path;
-- U0/teacher/Backtest trajectory parity;
+- strict explicit delta/absolute Backtest modes and the absolute-position
+  adapter;
+- causal teacher invariance to future-block score perturbations;
+- separate iterative hindsight U0 and causal-teacher masks/constraints;
+- U0 long-window replay without recursive stack growth;
+- U0/teacher/Backtest replay geometry parity;
+- transition-advantage sequential current-state validation and replay parity;
 - transition-advantage contract rows and legacy-cost non-inheritance.
 
 Commands run in the worktree:
 
 ```text
 uv run python -m unittest tests.test_action_execution_contract -v
-Ran 11 tests ... OK
+Ran 15 tests ... OK
 
 uv run python -m unittest tests.test_action_execution_contract tests.test_backtest_final_excess tests.test_leak_discipline -v
-Ran 20 tests ... OK
+Ran 24 tests ... OK
 
 uv run python -m unittest discover -s tests -v
-Ran 134 tests ... OK
+Ran 138 tests ... OK
 
 git diff --check
 OK
@@ -126,7 +144,7 @@ OK
 
 The full suite includes pre-existing data-quality diagnostics that print a
 failed availability gate for their intentional negative fixtures; the unittest
-result itself is `OK` (134/134).
+result itself is `OK` (138/138).
 
 ## Boundary and non-goals
 
