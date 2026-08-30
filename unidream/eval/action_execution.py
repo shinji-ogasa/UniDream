@@ -78,20 +78,35 @@ def _mapping_section(config: Mapping[str, Any]) -> Mapping[str, Any]:
     missing new-path contract must fail closed instead of silently inheriting
     the old 5/2/0.0004 defaults.
     """
-    for key in ("action_execution_contract", "action_execution"):
-        value = config.get(key)
-        if value is not None:
-            if not isinstance(value, Mapping):
-                raise ValueError(f"{key} must be a mapping")
-            return value
+    direct_keys = [
+        key
+        for key in ("action_execution_contract", "action_execution")
+        if config.get(key) is not None
+    ]
+    if len(direct_keys) > 1:
+        raise ValueError("action execution config contains duplicate contract sections")
     conditional = config.get("conditional_oracle")
     if isinstance(conditional, Mapping):
-        for key in ("action_execution_contract", "action_execution"):
-            value = conditional.get(key)
-            if value is not None:
-                if not isinstance(value, Mapping):
-                    raise ValueError(f"conditional_oracle.{key} must be a mapping")
-                return value
+        conditional_keys = [
+            key
+            for key in ("action_execution_contract", "action_execution")
+            if conditional.get(key) is not None
+        ]
+        if len(conditional_keys) > 1 or (direct_keys and conditional_keys):
+            raise ValueError("action execution config contains duplicate contract sections")
+        if conditional_keys:
+            key = conditional_keys[0]
+            value = conditional[key]
+            if not isinstance(value, Mapping):
+                raise ValueError(f"conditional_oracle.{key} must be a mapping")
+            return value
+    if direct_keys:
+        key = direct_keys[0]
+        value = config[key]
+        if not isinstance(value, Mapping):
+            raise ValueError(f"{key} must be a mapping")
+        return value
+    if isinstance(conditional, Mapping):
         return conditional
     raise ValueError(
         "new action-execution path requires an explicit action_execution_contract"
@@ -452,12 +467,30 @@ class ActionExecutionContract:
             "max_position": "position_max",
             "delay": "execution_delay_bars",
             "countdown_reset": "commitment_bars",
-            "commitment_countdown_decrement": "countdown_decrement",
         }
+        if any(not isinstance(key, str) for key in section):
+            raise ValueError("action execution contract keys must be strings")
+        derived_fields = {
+            "commitment_countdown_reset",
+            "commitment_countdown_decrement",
+            "spread_side",
+            "transition_cost_rate",
+        }
+        allowed = required | set(aliases) | derived_fields
+        unknown = sorted(set(section) - allowed)
+        if unknown:
+            raise ValueError(
+                "action execution contract contains unknown fields: "
+                + ", ".join(unknown)
+            )
         normalized = dict(section)
         for source, target in aliases.items():
-            if target not in normalized and source in normalized:
-                normalized[target] = normalized[source]
+            if source in normalized and target in normalized:
+                raise ValueError(
+                    f"action execution contract contains duplicate alias fields {source}/{target}"
+                )
+            if source in normalized:
+                normalized[target] = normalized.pop(source)
         missing = sorted(key for key in required if key not in normalized)
         if missing:
             raise ValueError(
@@ -488,6 +521,34 @@ class ActionExecutionContract:
             execution_skip_policy=normalized["execution_skip_policy"],
             eligibility_masks_required=normalized["eligibility_masks_required"],
         )
+        derived_expected = {
+            "commitment_countdown_reset": int(contract.commitment_bars),
+            "commitment_countdown_decrement": int(contract.countdown_decrement),
+            "spread_side": "half_transition",
+            "transition_cost_rate": float(contract.transition_cost_rate),
+        }
+        for field_name, expected in derived_expected.items():
+            if field_name not in section:
+                continue
+            actual = section[field_name]
+            if isinstance(expected, float):
+                try:
+                    equal = bool(
+                        np.isclose(
+                            _as_real(actual, name=field_name),
+                            expected,
+                            atol=_FLOAT_TOL,
+                            rtol=0.0,
+                        )
+                    )
+                except ValueError:
+                    equal = False
+            else:
+                equal = actual == expected and type(actual) is type(expected)
+            if not equal:
+                raise ValueError(
+                    f"action execution contract derived field {field_name} must equal {expected!r}"
+                )
         if require_canonical:
             canonical = cls.canonical()
             fields = (

@@ -705,7 +705,10 @@ def _run_contract_backtest(
     final_excess = total_return - benchmark_total_return
     period_bars = max(int(round(ann_factor / 12)), 1)
     position_path = trajectory.scored_positions
-    n_trades = int(np.count_nonzero(trajectory.transition_costs[trajectory.scored_mask] > 0.0))
+    # Count actual position-changing fills, not positive fees.  Cost-off uses
+    # the same execution path and must not report zero trades merely because
+    # its transition cost is intentionally zero.
+    n_trades = trajectory.n_filled_blocks
 
     return BacktestMetrics(
         sharpe=sharpe,

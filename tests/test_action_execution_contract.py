@@ -59,7 +59,7 @@ class ActionExecutionContractTest(unittest.TestCase):
         with self.assertRaises(dataclasses.FrozenInstanceError):
             self.contract.p_start = 0.5
 
-        with self.assertRaisesRegex(ValueError, "missing required fields"):
+        with self.assertRaisesRegex(ValueError, "unknown fields"):
             configured_action_execution_contract(
                 {
                     "use_action_execution_contract": True,
@@ -105,6 +105,37 @@ class ActionExecutionContractTest(unittest.TestCase):
                 {
                     "use_action_execution_contract": "false",
                     "action_execution_contract": self.contract.to_dict(),
+                }
+            )
+
+    def test_contract_rejects_unknown_duplicate_alias_and_derived_overrides(self) -> None:
+        unknown = self.contract.to_dict()
+        unknown["future_override"] = 1
+        with self.assertRaisesRegex(ValueError, "unknown fields"):
+            ActionExecutionContract.from_config(unknown)
+
+        duplicate_alias = self.contract.to_dict()
+        duplicate_alias["delay"] = duplicate_alias["execution_delay_bars"]
+        with self.assertRaisesRegex(ValueError, "duplicate alias"):
+            ActionExecutionContract.from_config(duplicate_alias)
+
+        for field, value in (
+            ("commitment_countdown_reset", 99),
+            ("commitment_countdown_decrement", 2),
+            ("spread_side", "full_transition"),
+            ("transition_cost_rate", 0.0),
+        ):
+            with self.subTest(field=field):
+                overridden = self.contract.to_dict()
+                overridden[field] = value
+                with self.assertRaisesRegex(ValueError, "derived field"):
+                    ActionExecutionContract.from_config(overridden)
+
+        with self.assertRaisesRegex(ValueError, "duplicate contract sections"):
+            ActionExecutionContract.from_config(
+                {
+                    "action_execution_contract": self.contract.to_dict(),
+                    "action_execution": self.contract.to_dict(),
                 }
             )
 
@@ -606,6 +637,27 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(metrics.scorable_blocks, 3)
         self.assertEqual(metrics.execution_skipped_blocks, 1)
         self.assertEqual(metrics.excluded_blocks, 0)
+
+    def test_cost_off_backtest_counts_position_changing_fills(self) -> None:
+        artifact = Path(__file__).parents[1] / "docs" / "experiments" / "action_execution_contract_cost_off.json"
+        cost_off = ActionExecutionContract.from_config(
+            json.loads(artifact.read_text(encoding="utf-8")),
+            require_canonical=False,
+        )
+        returns = np.zeros(5, dtype=np.float64)
+        deltas = np.zeros(5, dtype=np.float64)
+        deltas[0] = -0.08
+        decision_eligible, score_eligible = self._all_masks(5)
+        metrics = ActionExecutionBacktest(
+            returns,
+            deltas,
+            contract=cost_off,
+            benchmark_decision_deltas=np.zeros(5, dtype=np.float64),
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        ).run()
+        self.assertEqual(metrics.n_trades, 1)
+        self.assertEqual(metrics.filled_blocks, 1)
 
     def test_teacher_and_u0_share_skip_vs_exclusion_classification(self) -> None:
         n_bars = 13
