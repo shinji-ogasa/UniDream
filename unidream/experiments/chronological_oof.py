@@ -445,6 +445,10 @@ def _canonical_action_contract_payload(contract: Any) -> dict[str, Any]:
             "action_execution_contract must contain canonical semantic fields"
         )
     if isinstance(contract, Mapping):
+        if any(not isinstance(key, str) for key in contract):
+            raise ConditionalOOFArtifactError(
+                "action_execution_contract mapping keys must be strings"
+            )
         raw = {str(key): value for key, value in contract.items()}
         if set(raw) != set(payload) or _artifact_json_value(raw) != _artifact_json_value(payload):
             unknown = sorted(set(raw) - set(payload))
@@ -728,8 +732,8 @@ def _coverage_rows(
                     raise ConditionalOOFArtifactError(
                         "coverage.target_coverage must be zero when total_target_slots is zero"
                     )
-            elif "target_coverage" in row and not np.isclose(
-                row["target_coverage"], row["target_count"] / total, atol=1e-12, rtol=0.0
+            elif "target_coverage" in row and (
+                row["target_coverage"] != row["target_count"] / total
             ):
                 raise ConditionalOOFArtifactError(
                     "coverage.target_coverage does not match target_count/total_target_slots"
@@ -765,8 +769,8 @@ def _coverage_rows(
             raise ConditionalOOFArtifactError(
                 "coverage.gradient_coverage must be zero when gradient_steps is zero"
             )
-        if gradients and "gradient_coverage" in row and nonzero is not None and not np.isclose(
-            row["gradient_coverage"], nonzero / gradients, atol=1e-12, rtol=0.0
+        if gradients and "gradient_coverage" in row and nonzero is not None and (
+            row["gradient_coverage"] != nonzero / gradients
         ):
             raise ConditionalOOFArtifactError(
                 "coverage.gradient_coverage does not match nonzero_gradient_steps/gradient_steps"
@@ -1223,6 +1227,7 @@ def validate_conditional_oof_artifact(
         raise ConditionalOOFArtifactError("ActionExecutionContract hash aliases do not match")
     contract_mapping = provenance.get("action_execution_contract")
     root_contract_mapping = artifact.get("action_execution_contract")
+    artifact_contract_payload: dict[str, Any] | None = None
     if contract_mapping is None and root_contract_mapping is None:
         if require_nonzero_coverage:
             raise ConditionalOOFArtifactError(
@@ -1252,7 +1257,13 @@ def validate_conditional_oof_artifact(
             raise ConditionalOOFArtifactError(
                 "ActionExecutionContract mappings differ between artifact root and provenance"
             )
+        artifact_contract_payload = canonical_payload
     if expected_action_execution_contract is not None or expected_action_execution_contract_hash is not None:
+        expected_contract_payload = (
+            _canonical_action_contract_payload(expected_action_execution_contract)
+            if isinstance(expected_action_execution_contract, Mapping)
+            else None
+        )
         expected_contract_hash = _contract_digest(
             expected_action_execution_contract,
             explicit_hash=expected_action_execution_contract_hash,
@@ -1264,6 +1275,14 @@ def validate_conditional_oof_artifact(
         if expected_contract_hash != contract_hash:
             raise ConditionalOOFArtifactError(
                 "ActionExecutionContract hash mismatch"
+            )
+        if (
+            expected_contract_payload is not None
+            and artifact_contract_payload is not None
+            and expected_contract_payload != artifact_contract_payload
+        ):
+            raise ConditionalOOFArtifactError(
+                "ActionExecutionContract mapping differs from external expectation"
             )
     if expected_hashes is not None:
         if not isinstance(expected_hashes, Mapping):
