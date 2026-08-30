@@ -1,5 +1,37 @@
 from __future__ import annotations
 
+from unidream.eval.action_execution import (
+    configured_action_execution_contract,
+    replay_contract_absolute_path,
+    run_contract_backtest,
+)
+
+
+def _run_selector_backtest(
+    *,
+    backtest_cls,
+    returns,
+    positions,
+    benchmark_positions,
+    contract,
+    **kwargs,
+):
+    if contract is not None:
+        return run_contract_backtest(
+            backtest_cls,
+            returns,
+            positions,
+            benchmark_positions=benchmark_positions,
+            contract=contract,
+            **kwargs,
+        ).run()
+    return backtest_cls(
+        returns,
+        positions,
+        benchmark_positions=benchmark_positions,
+        **kwargs,
+    ).run()
+
 
 def run_val_selector_stage(
     *,
@@ -22,6 +54,7 @@ def run_val_selector_stage(
     benchmark_positions_fn,
     benchmark_position: float,
 ):
+    action_contract = configured_action_execution_contract(cfg)
     default_selection = {
         "source": "config_default",
         "adjust_rate_scale": float(getattr(actor, "infer_adjust_rate_scale", 1.0)),
@@ -59,16 +92,26 @@ def run_val_selector_stage(
                 device=device,
             )
             t_min = min(len(val_returns_arr), len(pos))
-            metrics = backtest_cls(
-                val_returns_arr[:t_min],
-                pos[:t_min],
+            metrics = _run_selector_backtest(
+                backtest_cls=backtest_cls,
+                returns=val_returns_arr[:t_min],
+                positions=pos[:t_min],
+                benchmark_positions=benchmark_positions_fn(t_min),
+                contract=action_contract,
                 spread_bps=costs_cfg.get("spread_bps", 5.0),
                 fee_rate=costs_cfg.get("fee_rate", 0.0004),
                 slippage_bps=costs_cfg.get("slippage_bps", 2.0),
                 interval=cfg.get("data", {}).get("interval", "15m"),
-                benchmark_positions=benchmark_positions_fn(t_min),
-            ).run()
-            stats = action_stats_fn(pos[:t_min], benchmark_position=benchmark_position)
+            )
+            if action_contract is not None:
+                stats = action_stats_fn(
+                    replay_contract_absolute_path(
+                        val_returns_arr[:t_min], pos[:t_min], action_contract
+                    ).scored_positions,
+                    benchmark_position=benchmark_position,
+                )
+            else:
+                stats = action_stats_fn(pos[:t_min], benchmark_position=benchmark_position)
             candidate_key = {"scale": float(candidate), "adv": float(adv_level)}
             candidate_rec = selector_candidate_fn(
                 candidate_key,

@@ -5,12 +5,44 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from unidream.eval.action_execution import (
+    contract_pnl_attribution,
+    configured_action_execution_contract,
+    replay_contract_absolute_path,
+    run_contract_backtest,
+)
 from unidream.eval.backtest import compute_pnl
 from unidream.experiments.policy_fire import predict_with_policy_flags as _predict_with_policy_flags
 
 
 ROUTE_NAMES = ("neutral", "de_risk", "recovery", "overweight")
 EXPOSURE_ROUTE_NAMES = ("neutral", "de_risk", "overweight")
+
+
+def _run_stage_backtest(
+    *,
+    backtest_cls,
+    returns,
+    positions,
+    benchmark_positions,
+    contract,
+    **kwargs,
+):
+    if contract is not None:
+        return run_contract_backtest(
+            backtest_cls,
+            returns,
+            positions,
+            benchmark_positions=benchmark_positions,
+            contract=contract,
+            **kwargs,
+        ).run()
+    return backtest_cls(
+        returns,
+        positions,
+        benchmark_positions=benchmark_positions,
+        **kwargs,
+    ).run()
 
 
 def _load_external_policy_positions(cfg: dict, fold_idx: int | None, split: str) -> np.ndarray | None:
@@ -103,6 +135,11 @@ def _component_diagnostics(
     backtest_cls,
     action_stats_fn,
 ) -> dict:
+    action_contract = configured_action_execution_contract(cfg)
+    if action_contract is not None:
+        # Component variants use historical every-bar PnL helpers and cannot
+        # be compared under the delayed/committed contract.
+        return {}
     use_floor = bool(getattr(actor, "use_benchmark_exposure_floor", False))
     use_adapter = bool(getattr(actor, "use_benchmark_overweight_adapter", False))
     if not (use_floor or use_adapter):
@@ -184,15 +221,17 @@ def _component_diagnostics(
     result = {}
     for name, pos in variants.items():
         t = min(len(test_returns), len(pos))
-        metrics = backtest_cls(
-            test_returns[:t],
-            pos[:t],
+        metrics = _run_stage_backtest(
+            backtest_cls=backtest_cls,
+            returns=test_returns[:t],
+            positions=pos[:t],
+            benchmark_positions=benchmark_positions_fn(t),
+            contract=action_contract,
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
             interval=cfg.get("data", {}).get("interval", "15m"),
-            benchmark_positions=benchmark_positions_fn(t),
-        ).run()
+        )
         stats = action_stats_fn(pos[:t], benchmark_position=benchmark_position)
         result[name] = {
             "alpha_excess_pt": 100.0 * float(metrics.alpha_excess or 0.0),
@@ -285,6 +324,7 @@ def run_test_stage(
     override_policy_name: str | None = None,
 ) -> dict:
     print(f"\n[{log_ts()}] [Step 5] Test Backtest...")
+    action_contract = configured_action_execution_contract(cfg)
     test_features = wfo_dataset.test_dataset().features.numpy()
     test_returns = wfo_dataset.test_returns
 
@@ -374,24 +414,38 @@ def run_test_stage(
                     )
 
     t_min = min(len(test_returns), len(positions))
-    metrics = backtest_cls(
-        test_returns[:t_min],
-        positions[:t_min],
+    metrics = _run_stage_backtest(
+        backtest_cls=backtest_cls,
+        returns=test_returns[:t_min],
+        positions=positions[:t_min],
+        benchmark_positions=benchmark_positions_fn(t_min),
+        contract=action_contract,
         spread_bps=costs_cfg.get("spread_bps", 5.0),
         fee_rate=costs_cfg.get("fee_rate", 0.0004),
         slippage_bps=costs_cfg.get("slippage_bps", 2.0),
         interval=cfg.get("data", {}).get("interval", "15m"),
-        benchmark_positions=benchmark_positions_fn(t_min),
-    ).run()
-
-    test_attr = pnl_attribution_fn(
-        test_returns[:t_min],
-        positions[:t_min],
-        spread_bps=costs_cfg.get("spread_bps", 5.0),
-        fee_rate=costs_cfg.get("fee_rate", 0.0004),
-        slippage_bps=costs_cfg.get("slippage_bps", 2.0),
     )
-    test_stats = action_stats_fn(positions[:t_min], benchmark_position=benchmark_position)
+
+    if action_contract is not None:
+        test_attr = contract_pnl_attribution(
+            test_returns[:t_min], positions[:t_min], action_contract
+        )
+        test_trajectory = replay_contract_absolute_path(
+            test_returns[:t_min], positions[:t_min], action_contract
+        )
+        test_stats = action_stats_fn(
+            test_trajectory.scored_positions,
+            benchmark_position=benchmark_position,
+        )
+    else:
+        test_attr = pnl_attribution_fn(
+            test_returns[:t_min],
+            positions[:t_min],
+            spread_bps=costs_cfg.get("spread_bps", 5.0),
+            fee_rate=costs_cfg.get("fee_rate", 0.0004),
+            slippage_bps=costs_cfg.get("slippage_bps", 2.0),
+        )
+        test_stats = action_stats_fn(positions[:t_min], benchmark_position=benchmark_position)
     test_scorecard = m2_scorecard_fn(metrics, test_stats, cfg)
     policy_diagnostics = {}
     if not use_external_policy:

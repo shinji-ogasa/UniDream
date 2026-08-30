@@ -8,6 +8,7 @@ from unidream.world_model.train_wm import (
     build_ensemble,
     world_model_uses_dataset_actions,
 )
+from .chronological_oof import ConditionalPathBlocked, conditional_path_enabled
 
 
 def prepare_world_model_stage(
@@ -25,6 +26,11 @@ def prepare_world_model_stage(
     checkpoint_metadata: dict | None = None,
     log_ts,
 ) -> tuple:
+    if conditional_path_enabled(cfg):
+        raise ConditionalPathBlocked(
+            "prepare_world_model_stage cannot construct a conditional teacher: full "
+            "chronological OOF WM retraining is not wired into this stage"
+        )
     cfg_local = deepcopy(cfg)
     if train_regime_probs is not None:
         cfg_local.setdefault("world_model", {})["regime_dim"] = int(train_regime_probs.shape[1])

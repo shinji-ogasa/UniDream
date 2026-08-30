@@ -4,6 +4,7 @@ from unidream.data.oracle import ACTIONS as DEFAULT_ACTIONS
 from unidream.data.oracle import feature_stress_teacher
 from unidream.data.oracle import smooth_aim_positions
 
+from .chronological_oof import ConditionalPathBlocked, conditional_path_enabled
 from .oracle_post import apply_oracle_postprocess
 from .oracle_stage import compute_base_oracle
 from .oracle_teacher import compute_teacher_oracle
@@ -16,6 +17,120 @@ from .transition_advantage import (
     summarize_route_targets,
     summarize_transition_advantage,
 )
+
+
+_ALLOWED_INVENTORY_SOURCES = frozenset(
+    {"actual_replay", "benchmark_replay", "policy_replay"}
+)
+_INVENTORY_SOURCE_ALIASES = {
+    "actual": "actual_replay",
+    "actual_path": "actual_replay",
+    "benchmark": "benchmark_replay",
+    "benchmark_path": "benchmark_replay",
+    "policy": "policy_replay",
+    "policy_path": "policy_replay",
+}
+
+
+class TeacherInventoryContractError(ValueError):
+    """Raised when hindsight/teacher values are used as current inventory."""
+
+
+def validate_current_inventory_source(
+    source: str,
+    *,
+    provenance: dict | None = None,
+) -> str:
+    """Validate the only inventory producers allowed by the new contract.
+
+    A source label is required because an arbitrary position array cannot prove
+    whether it came from a teacher or from replay.  Explicitly reject common
+    hindsight aliases even when a caller tries to hide them in provenance.
+    """
+    raw = str(source).strip().lower().replace("-", "_").replace(" ", "_")
+    normalized = _INVENTORY_SOURCE_ALIASES.get(raw, raw)
+    if normalized not in _ALLOWED_INVENTORY_SOURCES:
+        raise TeacherInventoryContractError(
+            f"current inventory source {source!r} is forbidden; use actual_replay, "
+            "benchmark_replay, or policy_replay"
+        )
+    if isinstance(provenance, dict):
+        tokens = " ".join(
+            str(provenance.get(key, "")).strip().lower()
+            for key in ("source", "producer", "path", "teacher_mode", "kind")
+        )
+        if any(token in tokens for token in ("hindsight", "teacher", "oracle", "signal_aim")):
+            raise TeacherInventoryContractError(
+                "current inventory provenance identifies a hindsight/teacher producer"
+            )
+    return normalized
+
+
+def current_inventory_from_replay(
+    *,
+    source: str,
+    length: int | None = None,
+    positions: np.ndarray | None = None,
+    benchmark_position: float,
+    initial_position: float | None = None,
+    provenance: dict | None = None,
+) -> np.ndarray:
+    """Return ``p[t-1]`` from an allowed actual/benchmark/policy replay.
+
+    ``positions`` is the replayed path ``p[t]``.  The first decision uses an
+    explicit initial position and never an implicit Backtest default.  A
+    benchmark replay is generated from its scalar benchmark state and rejects
+    a supplied teacher-shaped array to keep accidental cycles visible.
+    """
+    kind = validate_current_inventory_source(source, provenance=provenance)
+    if kind == "benchmark_replay":
+        if positions is not None:
+            raise TeacherInventoryContractError(
+                "benchmark_replay takes no position path; supplied values could be teacher inventory"
+            )
+        if length is None or int(length) < 0:
+            raise TeacherInventoryContractError(
+                "benchmark_replay requires a non-negative explicit length"
+            )
+        return np.full(int(length), float(benchmark_position), dtype=np.float32)
+
+    if initial_position is None:
+        raise TeacherInventoryContractError(
+            f"{kind} requires an explicit initial_position; no Backtest default is allowed"
+        )
+    if positions is None:
+        raise TeacherInventoryContractError(f"{kind} requires an explicit replay position path")
+    path = np.asarray(positions, dtype=np.float32)
+    if path.ndim != 1:
+        raise TeacherInventoryContractError("replay position path must be one-dimensional")
+    if length is not None and int(length) != len(path):
+        raise TeacherInventoryContractError(
+            f"replay path length {len(path)} does not match requested length {int(length)}"
+        )
+    if not np.isfinite(path).all():
+        raise TeacherInventoryContractError("replay position path contains non-finite values")
+    current = np.empty_like(path, dtype=np.float32)
+    if len(current):
+        current[0] = np.float32(initial_position)
+        if len(current) > 1:
+            current[1:] = path[:-1]
+    return current
+
+
+def require_allowed_current_inventory(
+    *,
+    source: str,
+    provenance: dict | None = None,
+) -> str:
+    """Named guard for conditional Oracle callers and tests."""
+    return validate_current_inventory_source(source, provenance=provenance)
+
+
+# Compatibility names for callers that describe the same replay contract with
+# "positions" rather than "inventory".  They deliberately point to the same
+# fail-closed implementation.
+current_positions_from_replay = current_inventory_from_replay
+assert_allowed_inventory_source = validate_current_inventory_source
 
 
 def _stress_teacher_kwargs(
@@ -195,6 +310,12 @@ def prepare_fold_inputs(
     forward_window_stats_fn,
     log_ts,
 ):
+    if conditional_path_enabled(cfg):
+        raise ConditionalPathBlocked(
+            "prepare_fold_inputs is the legacy hindsight input path and is blocked for "
+            "conditional Oracle experiments; supply a chronological OOF outcome/teacher "
+            "bundle instead"
+        )
     print(f"\n[{log_ts()}] [Step 1] Hindsight Oracle DP...")
     train_returns = wfo_dataset.train_returns
     oracle_cfg = cfg.get("oracle", {})
