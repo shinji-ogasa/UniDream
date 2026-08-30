@@ -5,11 +5,19 @@
   "status": "preregistered",
   "registered_date": "2026-08-30",
   "base_revision": "881e5e08e9b413b51b0a2faf5c49592ce13329d1",
-  "manifest_sha256": "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d",
+  "amends_manifest_sha256": "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d",
+  "amendment_reason": "pre-execution independent audit",
+  "results_observed": false,
+  "manifest_sha256": "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc",
   "critical_field_paths": [
     "common.data_frequency",
     "common.return_unit",
     "common.feature_columns",
+    "common.model_input_rule",
+    "common.binary_label_rule",
+    "common.learned_fit_contract",
+    "common.split_end_rule",
+    "common.evaluation_split_state_policy",
     "common.forecast_horizons",
     "common.target_end_formula",
     "common.oof",
@@ -18,6 +26,7 @@
     "common.models",
     "common.cost_modes",
     "common.metrics",
+    "common.metrics.primary_support_policy",
     "common.gates",
     "common.runner_contract",
     "common.action_execution_contract_reference",
@@ -26,6 +35,9 @@
     "common.primary_comparison_registry",
     "common.cost_mode_contracts",
     "common.v4_load_contract",
+    "amends_manifest_sha256",
+    "amendment_reason",
+    "results_observed",
     "scenarios.S0",
     "scenarios.S1",
     "scenarios.S2",
@@ -63,6 +75,18 @@
       "target_end_formula": "target_end[t,h] = t + h + 1 (exclusive)",
     "target_definition": "y[t,h] = sum(return[t+1 : t+h+1])",
     "target_end_is_exclusive": true,
+    "binary_label_rule": "label[t,h] = 1 iff y[t,h] > 0; exact y[t,h] == 0 maps to class 0",
+    "binary_probability_clip_eps": 1e-6,
+    "model_input_rule": "X[t] is exactly the canonical current-row 17-feature vector; the 64-bar context is used only for context/availability eligibility and is never flattened or augmented with lagged or rolling features",
+    "split_end_rule": "for every evaluation split, potential origins, target labels, fills, and four-bar outcomes must remain within that split's right-exclusive end; incomplete cross-boundary tails are excluded from the split score",
+    "evaluation_split_state_policy": "reset each independent diagnostic, primary-validation, and outer-report split to p_start=1.0, commitment countdown=0, and position=1.0; carry policy inventory only across non-overlapping batches within that split; reset separately for model, seed, cost mode, and injected/control arm",
+    "learned_fit_contract": {
+      "train_mask": "context_eligible AND target_complete[h] AND target_end <= origin - purge_bars AND row < origin",
+      "feature_scaler": "sklearn.preprocessing.StandardScaler(with_mean=True, with_std=True) fit separately for each origin and horizon using only train_mask rows; sklearn ddof=0; zero-variance scale is 1; transform-only on evaluation rows",
+      "target_scaling": "none",
+      "baseline_scaling": "none",
+      "one_class_rule": "a LogisticRegression prefix with one observed class is N/A for that origin and horizon, is not repaired or oversampled, and cannot promote"
+    },
     "action_contract_horizon": 4,
     "q_backtest_horizon": 4,
     "q_action_horizons": [4],
@@ -82,18 +106,40 @@
         "origins": [20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000],
         "batch_span": 10000
       },
-      "batch_fit_policy": "eight chronological batches; batch k predicts the next fixed 10000-row interval using one model fit at origin[k] and its admissible prefix; no later origin label can enter an earlier batch",
+      "batch_fit_policy": "seven chronological OOF-development batches at origins 20000..80000 plus one validation batch at origin 90000; each batch predicts only its next fixed 10000-row interval using one model fit at its origin and its admissible prefix; no later origin label can enter an earlier batch",
+      "oof_development_origins": [20000, 30000, 40000, 50000, 60000, 70000, 80000],
+      "validation_origin": 90000,
       "min_history_rows": 16384,
       "train_window_rows": null,
       "train_window_rule": "expanding eligible prefix with no cap",
       "purge_bars": 16,
       "train_prefix_rule": "target_end <= origin - purge_bars and label row < origin",
       "target_mask_rule": "all target bars t+1..t+h must have spot_bar_observed=true, a finite return, and contiguous 15m timestamps; future funding/mark masks do not invalidate a return label",
-      "feature_scaling": "fit on eligible prefix rows u < origin only; no global or split-wide fit",
+      "feature_scaling": "for Ridge/Logistic, fit StandardScaler(with_mean=True,with_std=True) on train_mask rows for each origin×horizon only (sklearn ddof=0, zero-variance scale=1), then transform-only; baselines are unscaled",
       "s3_signal_scaling_min_history_rows": 256,
       "random_kfold": false,
       "early_rows": "remain false/NaN; no zero fill, interpolation, or row compaction",
-      "same_row_future_perturbation": "must not change that row's OOF state; it may change later admissible prefixes"
+      "same_row_future_perturbation": "must not change that row's OOF state; it may change later admissible prefixes",
+      "primary_inferential_support": {
+        "support_id": "synthetic_validation",
+        "split": "validation",
+        "origin": 90000,
+        "fit_prefix_range": [0, 90000],
+        "prediction_range": [90000, 100000],
+        "fit_rule": "one fit at origin 90000 using admissible prefix [0,90000) filtered by the train mask; score only the next validation interval [90000,100000)",
+        "oof_development_role": "diagnostic_only",
+        "outer_test_role": "report_only"
+      },
+      "outer_report_operation": {
+        "origin": 100000,
+        "fit_prefix_range": [0, 100000],
+        "fit_rule": "after every threshold and manifest field is fixed, fit exactly once at origin 100000 on the admissible prefix [0,100000) with target_end <= origin - purge_bars and label row < origin",
+        "prediction_range": [100000, 120000],
+        "refit_origins": [],
+        "role": "report_only",
+        "selection_allowed": false,
+        "threshold_revision_allowed": false
+      }
     },
     "availability": {
       "required_columns": [
@@ -112,6 +158,9 @@
       "position_range": [0.5, 1.0],
       "delta_grid": [-0.08, -0.04, 0.0, 0.04, 0.08],
       "candidate_rule": "clip(previous_position + delta, 0.5, 1.0), deduplicate after clipping",
+      "candidate_dedup_rule": "canonical candidate_positions clips current_position + each candidate delta to [0.5,1.0], rounds to 12 decimal places, and applies np.unique; action selection still evaluates the canonical delta list",
+      "argmax_selector": "unidream.eval.action_execution.select_block_decisions",
+      "argmax_tie_rule": "max(value, -abs(delta), -delta): maximize value, then choose the smallest absolute delta, then the more-negative delta",
       "delay_bars": 1,
       "commitment_bars": 4,
       "execution_rule": "decision t -> full fill t+1 -> fixed position returns t+1..t+4",
@@ -134,7 +183,10 @@
       "student_or_policy_inventory": "previous realized policy position from the same replay, never teacher or hindsight inventory",
       "clairvoyant_state_policy": "at every scored origin, use the same current inventory p_{t-1} carried by the forecast policy; never source inventory from hindsight, U0 global DP, or a teacher trajectory",
       "action_agreement_definition": "compare forecast-optimal next position and realized four-bar one-block optimal next position from the same p_{t-1} and feasible action set",
-      "regret_definition": "realized best four-bar utility minus chosen utility from the same p_{t-1}; opportunity denominator is realized clairvoyant utility minus hold utility from that same p_{t-1}",
+      "regret_definition": "realized best four-bar utility minus chosen utility from the same p_{t-1}; opportunity denominator is realized clairvoyant utility minus same_state_local_hold utility from that same p_{t-1}",
+      "benchmark_hold_path": "independent benchmark replay reset to p_start=1.0, commitment countdown=0, and position=1.0; delta=0/position=1.0 throughout; use the same score mask and cost-free transition semantics",
+      "same_state_local_hold_path": "for regret/opportunity only, evaluate delta=0 from each candidate policy's own carried p_{t-1}; do not substitute the independent benchmark hold path",
+      "s3_did_hold_path": "S3 timing DID subtracts each injected/control candidate's independent benchmark_hold_path; local same-state hold is reserved for that candidate's regret/opportunity",
       "inventory_transition_rule": "only the chosen policy action advances that policy's p_{t-1} to the next block; clairvoyant/U0 paths never feed back into policy inventory",
       "u0_global_dp_role": "report-only upper bound; it cannot define per-row clairvoyant state, action agreement, regret, or policy inventory"
     },
@@ -247,13 +299,13 @@
       "zero_return": {
         "kind": "fixed_baseline",
         "continuous_prediction": "zero cumulative return for every horizon h",
-        "binary_prediction": "0.5 probability for every horizon",
+        "binary_prediction": "class-1 probability 0.5 for every horizon",
         "action_role": "fixed non-learned comparator; h4 action uses the same Q mapper"
       },
       "persistence_last_observed": {
         "kind": "fixed_baseline",
         "continuous_prediction": "h * return[t] where return[t] is the last observed one-bar log return at decision t",
-        "binary_prediction": "clip(1 - 1e-6, 1e-6) for nonnegative return[t], otherwise clip(1e-6)",
+        "binary_prediction": "class-1 probability 1-eps when return[t] > 0, otherwise eps, with eps=1e-6; exact zero is class 0",
         "action_role": "fixed non-learned comparator; h4 action uses the same Q mapper"
       },
       "ridge": {
@@ -297,14 +349,45 @@
         "finite_oof_prediction_fraction",
         "scored_action_fraction"
       ],
+      "coverage_definitions": {
+        "potential_origin_rule": "within each right-exclusive prediction support, an origin with 64-bar history and a target tail t+1..t+h fully inside that split end; no cross-split tail is potential",
+        "context_fraction": "context_complete / potential_origins",
+        "label_fraction": "target_complete[h] / potential_origins for each h",
+        "eligible_fraction": "context_complete AND target_complete[h] / potential_origins for each h",
+        "finite_prediction_fraction": "finite model prediction / eligible context-and-target origins for each h",
+        "scored_action_fraction": "scheduled complete canonical four-bar blocks with eligible origin, finite h4 forecast, and complete realized four-bar outcome / all scheduled complete canonical four-bar blocks inside the split",
+        "split_end_rule": "exclude any target, fill, or outcome crossing the split's right-exclusive end; preserve full row grid and masks",
+        "reporting_scope": "echo every required horizon, model, seed, cost mode, and injected/control arm before applying thresholds; undefined or N/A coverage blocks promotion"
+      },
       "reporting_rule": "report point estimate, denominator, and interval; undefined metrics are N/A and cannot promote",
+      "primary_support_policy": {
+        "synthetic": {
+          "support_id": "synthetic_validation",
+          "split": "validation",
+          "fit_prefix_range": [0, 90000],
+          "prediction_range": [90000, 100000],
+          "origin": 90000,
+          "role": "primary_inferential_gate"
+        },
+        "s3": {
+          "support_id": "s3_validation",
+          "split": "validation",
+          "fit_raw_range": [52492, 104528],
+          "prediction_range_raw": [104528, 139568],
+          "origin_raw": 104528,
+          "role": "primary_inferential_gate"
+        },
+        "oof_development_role": "diagnostic_only",
+        "outer_test_role": "report_only; never a gate, selection, or tuning support"
+      },
       "sign_accuracy_only": "diagnostic; never a promotion gate",
       "primary_metric_formulas": {
         "forecast_mse_skill": "1 - MSE(model, y_h4) / MSE(zero_return, y_h4), evaluated on the same complete-target rows",
-        "normalized_action_regret": "per seed and bootstrap replicate, sum(action_regret_vs_clairvoyant) / sum(clairvoyant_net_utility - hold_net_utility) using the same current inventory p_{t-1} for every action; require a strictly positive aggregate opportunity denominator",
-        "s2_timing_net_utility_delta": "mean over scored rows of [Ridge policy net utility - hold net utility] at each SNR level, with the policy's own carried p_{t-1}",
+        "normalized_action_regret": "per seed and bootstrap replicate, sum(action_regret_vs_clairvoyant) / sum(clairvoyant_net_utility - same_state_local_hold_net_utility) using the same current inventory p_{t-1} for every action; require a strictly positive aggregate opportunity denominator",
+        "s2_timing_net_utility_delta": "mean over scored rows of [Ridge policy net utility - independent benchmark_hold_path net utility] at each SNR level, with the policy's own carried p_{t-1}; benchmark hold is reset p=1 and cost-free",
         "s3_mse_skill_difference_in_differences": "skill(injected Ridge vs injected zero) - skill(control Ridge vs control zero), where skill(A vs B)=1-MSE(A)/MSE(B), on identical timestamps",
-        "s3_timing_net_utility_difference_in_differences": "[Ridge-minus-hold net utility]_injected - [Ridge-minus-hold net utility]_control using each pair's same carried p_{t-1} and identical scored timestamps",
+        "s3_timing_net_utility_difference_in_differences": "[Ridge-minus-independent-benchmark_hold_path net utility]_injected - [Ridge-minus-independent-benchmark_hold_path net utility]_control using only a common timestamp score mask; injected/control candidate inventories reset and carry independently, and local same-state hold is only for each candidate's regret/opportunity",
+        "benchmark_hold_utility_delta": "candidate net utility minus an independent p_start=1, position=1, delta=0, cost-free benchmark hold on the same score mask",
         "s2_shared_randomness": "S2 high, medium, and low use identical base features, return-noise draws, sidecar gap masks, seeds, and row support; only beta changes"
       }
     },
@@ -316,11 +399,37 @@
       "block_bootstrap": {
         "method": "moving_block",
         "replicates": 2000,
-        "primary_block_length": 16,
-        "sensitivity_block_lengths": [8, 16, 32],
-        "seed": 20260830,
-        "resampling_unit": "contiguous blocks within each seed/split; same sampled indices for candidate and paired baseline",
-        "paired_delta_formula": "d_i = candidate_i - baseline_i on the same scored row; each replicate resamples contiguous blocks of d_i and reports mean(d_i)",
+      "primary_block_length": 16,
+      "sensitivity_block_lengths": [8, 16, 32],
+      "seed": 20260830,
+      "forecast_primitive_grid": "the complete validation-split time-series row grid in original order; N/A/missing rows remain in place and are never compressed",
+      "action_primitive_grid": "one record per canonical non-overlapping complete four-bar scheduled decision block; no overlapping or incomplete block is a primitive",
+      "primitive_unit_for_L": "each moving-block length L is measured in the applicable primitive records, not compacted valid rows",
+      "resampling_unit": "contiguous non-circular blocks within each seed/split primitive grid; same sampled indices for candidate and paired baseline",
+      "non_circular_mbb": "require n >= L; for each replicate draw ceil(n/L) iid start integers uniformly from [0,n-L], concatenate each start:start+L range, and truncate to the first n primitive records; no circular wrap and no gap compression",
+      "rng_seed_formula": "20260830 + 100000*unit_code + 1000*L + seed_ordinal",
+      "rng_unit_codes": {
+        "synthetic_forecast": 1,
+        "synthetic_action": 2,
+        "s3_forecast": 3,
+        "s3_action": 4
+      },
+      "rng_seed_ordinal": "synthetic uses the fixed seed-list ordinal 0..9; S3 uses ordinal 0",
+      "index_reuse": "within a fixed unit/support/seed/L, reuse identical sampled primitive indices for every arm and comparison; seed derivation is independent of loop order",
+      "paired_common_mask": "for every paired arm/comparison, use the fixed intersection eligible mask on the full primitive grid; non-common or N/A records stay present with false mask and are excluded only by metric masking",
+      "paired_delta_formula": "d_i = candidate_i - baseline_i on the same primitive record; each replicate resamples the full primitive arrays and recomputes the declared metric before forming its paired contrast",
+      "replicate_metric_recomputation": {
+        "mse_delta": "mean(SE_candidate)-mean(SE_baseline) on the retained full grid mask",
+        "skill": "1-sum(SE_model)/sum(SE_zero) on the retained full grid mask",
+        "logloss": "mean per-record log loss and paired contrast on the retained full grid mask",
+        "agreement": "mean agreement indicator and paired contrast on the retained full grid mask",
+        "policy_utility_delta": "mean(candidate_net_utility-independent_benchmark_hold_net_utility) using the same primitive action records",
+        "s2_contrast": "recompute each level's metric, then form the registry-directed adjacent level contrast",
+        "normalized_regret": "recompute sum(regret)/sum(opportunity) separately at each level, require positive aggregate opportunity, then form the registry-directed contrast",
+        "s3_skill_did": "recompute skill(injected Ridge vs injected zero)-skill(control Ridge vs control zero)",
+        "s3_utility_did": "recompute mean(candidate-independent_benchmark_hold) in injected minus the same mean in control"
+      },
+      "invalid_replicate_policy": "keep the fixed full-grid common eligible mask; sampled N/A records remain mask-out and are not dropped or compacted; N/A the entire comparison only when n<L, valid primitive count is zero, an arm's required metric is unavailable, or a denominator is zero/nonpositive",
         "seed_aggregation": "for synthetic comparisons, independently resample blocks within each seed and compute that seed's mean; aggregate the ten seed means with equal 1/10 weight, never row-count weighting; S3 is one timestamp stratum",
         "interval_formula": "two-sided percentile interval [quantile_0.025, quantile_0.975] for each fixed block length over exactly 2000 fixed-seed replicates; intervals are diagnostic only",
         "sensitivity_conservative_rule": "for each comparison, raw_p = max(p_block_length_8, p_block_length_16, p_block_length_32); use this intersection-union conservative p as the sole input to Holm; each block-length interval remains diagnostic",
@@ -336,11 +445,11 @@
         "s0_adjusted_lower_bound": "after conservative raw_p ordering assigns rank r, alpha_r=familywise_alpha/(family_size-r+1); for each L, lower_bound_L is quantile_alpha_r(T_b,L) for the positive-edge contrast, and S0 passes only when every lower_bound_L <= 0",
         "ci_role": "two-sided percentile intervals at L in {8,16,32} are fixed reporting diagnostics; only conservative raw_p=max(p_8,p_16,p_32) enters Holm for non-S0 contrasts, with no post-output choice of tail or block length"
       },
-      "wilson": {
+    "wilson": {
         "confidence_level": 0.95,
         "z": 1.959963984540054,
         "formula": "phat=x/n; center=(phat+z^2/(2n))/(1+z^2/n); half=z*sqrt(phat*(1-phat)/n+z^2/(4n^2))/(1+z^2/n); interval=[center-half,center+half]; no normal approximation",
-        "action_agreement_gate": "high-SNR S1/S2 point agreement >= 0.90 on every seed and pooled Wilson lower bound >= 0.90",
+      "action_agreement_gate": "S1 Ridge cost-on only: point agreement >= 0.90 on every seed and pooled Wilson lower bound >= 0.90 on synthetic_validation; S2-high is evaluated only by its S2 monotonic registry comparisons",
         "coverage_gate": "all required coverage fractions must meet their fixed scenario threshold"
       },
       "coverage_thresholds": {
@@ -352,8 +461,8 @@
         "target_gradient_min_if_neural_head_enabled": 1.0,
         "zero_valid_target_or_gradient": "contract failure/N/A, never model accuracy"
       },
-      "monotonicity": {
-        "scope": "S2 high, medium, low SNR, evaluated on the same seed and row support",
+    "monotonicity": {
+      "scope": "S2 high, medium, low SNR, evaluated on the same seed and synthetic_validation row support [90000,100000)",
         "required_order": {
           "forecast_mse_skill": "high >= medium >= low",
           "forecast_log_loss": "high <= medium <= low",
@@ -361,27 +470,31 @@
           "timing_net_utility_delta": "high >= medium >= low",
           "action_agreement": "high >= medium >= low"
         },
-        "aggregation": "within each seed compute the metric on its common support, then compare the ten seed metrics with equal 1/10 weight; block bootstrap also aggregates ten seed means equally (S3 has one timestamp stratum)",
+      "point_estimate": "display the median of the ten per-seed metric values; adjacent point contrasts use the median contrast",
+      "point_gate": "both adjacent registry-directed median contrasts and their 1e-12 tie-tolerance direction conditions must pass; point direction and Holm-adjusted p are jointly required",
+      "aggregation": "within each seed compute the metric on its common support, then the bootstrap statistic equal-weights the ten seed metric values at 1/10; point reporting/gating uses their median, never row-count weighting; S3 has one timestamp stratum",
         "tie_tolerance": 1e-12,
         "decision_formula": "for an ordered triple (high,medium,low), pass iff each adjacent inequality holds after adding tie_tolerance to the right-hand side for <= or subtracting it for >=",
         "violation_policy": "record violation and fail the monotonicity gate; no post-output tuning or scenario deletion"
       },
-      "zero_signal": {
-        "scope": "S0 for every fixed model and cost mode",
-        "promotion_rule": "no candidate may pass the positive utility or high-agreement gate; any apparent pass is a preregistration/implementation failure",
-        "utility_rule": "for each L in {8,16,32}, the Holm-rank-adjusted positive-direction lower percentile for candidate-minus-hold net utility must be <= 0 and the positive-edge Holm rejection must be false; this is a safety gate, not evidence that the true edge is negative",
+    "zero_signal": {
+      "scope": "S0 action-capable Ridge and persistence only, cost-on; zero_return is the hold baseline, Logistic action is N/A, and cost-off is diagnostic-only",
+      "promotion_rule": "no candidate may pass the positive utility or high-agreement gate; any apparent pass is a preregistration/implementation failure",
+      "utility_rule": "for each L in {8,16,32}, the Holm-rank-adjusted positive-direction lower percentile for candidate-minus-independent-benchmark_hold_path net utility must be <= 0 and the positive-edge Holm rejection must be false; this is a safety gate, not evidence that the true edge is negative",
         "agreement_rule": "pooled Wilson lower bound must remain below 0.90"
       },
-      "high_snr_recovery": {
-        "scope": "S1 and S2-high, ten seeds",
-        "action_agreement_point_min": 0.9,
-        "action_agreement_pooled_wilson_lower_min": 0.9,
-        "utility_rule": "Holm-adjusted one-sided p from conservative raw_p <= 0.05 and favorable point delta > 0 for OOF-minus-hold net utility under cost-on; cost-off is a paired diagnostic",
-        "clairvoyant_rule": "clairvoyant action value must exceed OOF action value on the same support; this is an upper-bound sanity check, not a selection target"
+    "high_snr_recovery": {
+      "scope": "S1 Ridge cost-on on synthetic_validation, ten seeds; S2-high is handled by the fixed S2 monotonic comparisons",
+      "action_agreement_point_min": 0.9,
+      "action_agreement_pooled_wilson_lower_min": 0.9,
+      "agreement_per_seed_rule": "all ten S1 Ridge cost-on validation seed-level feasible-action agreement point estimates must be >= 0.90 and non-N/A",
+      "utility_rule": "all ten S1 Ridge cost-on validation seed-level candidate-minus-independent-benchmark-hold utility deltas must be strictly > 0, and the aggregate must also pass Holm-adjusted one-sided p from conservative raw_p <= 0.05 with favorable point delta; cost-off is a paired diagnostic",
+      "utility_per_seed_rule": "for every seed in common.seeds, validation utility delta > 0 on the fixed synthetic_validation support; any N/A or nonpositive seed fails promotion",
+      "clairvoyant_rule": "for every seed on the same synthetic_validation support, realized same-state clairvoyant action value must be strictly greater than the S1 Ridge validation action value; any N/A or non-strict comparison fails; this is an upper-bound sanity check, not a selection target"
       },
-      "s3_injected_signal": {
-        "scope": "injected BTC versus same-row zero-injection parent control",
-        "utility_rule": "Holm-adjusted one-sided p from conservative raw_p <= 0.05 and favorable point delta > 0 for the injected-control timing net-utility difference-in-differences",
+    "s3_injected_signal": {
+      "scope": "injected BTC versus same-row zero-injection parent control on s3_validation [104528,139568), with one deterministic validation fit and independent benchmark hold paths",
+      "utility_rule": "Holm-adjusted one-sided p from conservative raw_p <= 0.05 and favorable point delta > 0 for the injected-control timing net-utility difference-in-differences using independent benchmark_hold_path in both arms",
         "forecast_rule": "Holm-adjusted one-sided p from conservative raw_p <= 0.05 and favorable point delta > 0 for h4 MSE-skill difference-in-differences",
         "prefix_invariance_rule": "future perturbation after origin cannot alter any earlier OOF prediction, mask, or fitted-prefix digest"
       }
@@ -397,12 +510,12 @@
     },
     "primary_comparison_registry": {
       "path": "docs/experiments/p1_recovery_primary_comparisons.jsonl",
-      "sha256": "353ec3e92a2100094e9bd59d29e5fffa90127c34b870cf7536275a1ac6c81465",
+      "sha256": "68ab248314ddbd2bd7a53677ebec61b5a390688acfa9ef50c5cfaa027f4c6d0c",
       "hash_method": "SHA-256 of exact UTF-8 JSONL bytes",
       "record_type": "primary_paired_comparison",
       "family_size": 16,
       "family_size_rule": "count of JSONL records with primary=true; this count is the sole Holm-Bonferroni family size",
-      "required_fields": ["comparison_id", "candidate_id", "baseline_id", "metric", "horizon", "cost_mode", "direction", "gate"]
+      "required_fields": ["comparison_id", "candidate_id", "baseline_id", "metric", "horizon", "cost_mode", "direction", "gate", "support_id", "support_range", "support_role"]
     },
     "runner_contract": {
       "manifest_is_input": true,
@@ -416,7 +529,7 @@
       "outer_test_rows": "report-only; never tune, select, or revise thresholds",
       "post_output_tuning_allowed": false,
       "missing_artifact_policy": "fail closed with N/A/blocked status",
-      "result_must_echo": ["manifest_id", "manifest_sha256", "base_revision", "scenario_id", "seed", "cost_mode", "cost_contract_hash", "model_id", "comparison_registry_sha256", "v4_feature_path", "v4_returns_path", "v4_availability_path", "v4_frozen_metadata_path", "v4_frozen_metadata_sha256", "v4_frozen_source_provenance_digest", "v4_cache_local_metadata_path", "v4_cache_local_metadata_sha256", "v4_cache_local_source_provenance_digest", "v4_cache_local_schema_digest", "v4_cache_local_content_digests", "v4_cache_local_row_counts"],
+      "result_must_echo": ["manifest_id", "manifest_sha256", "base_revision", "scenario_id", "seed", "split_id", "support_id", "support_range", "fit_origin", "cost_mode", "cost_contract_hash", "model_id", "comparison_registry_sha256", "coverage_by_horizon_model_seed", "v4_feature_path", "v4_returns_path", "v4_availability_path", "v4_frozen_metadata_path", "v4_frozen_metadata_sha256", "v4_frozen_source_provenance_digest", "v4_cache_local_metadata_path", "v4_cache_local_metadata_sha256", "v4_cache_local_source_provenance_digest", "v4_cache_local_schema_digest", "v4_cache_local_content_digests", "v4_cache_local_row_counts"],
       "cost_contract_consistency": "optimizer, teacher, student replay, U0, Q, and Backtest must all verify the mode-specific contract hash before scoring; a missing or mismatched hash fails closed",
       "inventory_consistency": "agreement and regret use each forecast policy's own carried p_{t-1}; U0/global hindsight inventory cannot enter row scoring or update policy state",
       "unknown_or_overridden_field_policy": "reject before fitting"
@@ -424,6 +537,8 @@
   },
   "synthetic_contract": {
     "n_rows": 120000,
+    "raw_n_rows": 120512,
+    "output_slice": "raw rows [512,120512) become output rows [0,120000); discard the first burn_in_rows from features and returns",
     "burn_in_rows": 512,
     "feature_dimension": 17,
     "signal_feature_index": 0,
@@ -431,12 +546,25 @@
     "innovation_std": "sqrt(1 - ar_rho^2)",
     "return_noise_std": 0.001,
     "return_mean": 0.0,
-    "state_formula": "z[0] ~ N(0,1); z[t] = ar_rho*z[t-1] + sqrt(1-ar_rho^2)*xi[t]",
-    "observed_features_formula": "x[t,0] = z[t]; x[t,j] = N(0,1) for j=1..16, all generated before target",
-    "return_formula": "r[t+1] = return_mean + beta*z[t] + return_noise_std*epsilon[t+1]",
-    "target_formula": "y[t,h] = sum(r[t+1:t+h+1]) for h in common.forecast_horizons",
+    "state_formula": "draw z0 as one scalar; draw xi with shape (120511,), then z_raw[0]=z0 and z_raw[k]=ar_rho*z_raw[k-1]+sqrt(1-ar_rho^2)*xi[k-1] for k=1..120511",
+    "observed_features_formula": "x_raw[k,0] = z_raw[k]; x_raw[k,j] = noise_features[k,j-1] for j=1..16, with noise_features drawn before epsilon and all features generated before target; output x[t] = x_raw[t+512]",
+    "return_formula": "r_raw[0] = return_noise_std*epsilon[0] (beta-independent sentinel); r_raw[k+1] = beta*z_raw[k] + return_noise_std*epsilon[k+1] for k=0..120510",
+    "target_formula": "y[t,h] = sum(r[t+1:t+h+1]) for h in common.forecast_horizons after raw burn-in slicing",
     "snr_definition": "abs(beta) * std(z) / return_noise_std",
     "base_seed_formula": "np.random.default_rng(seed + 100)",
+    "draw_order": [
+      "z0 scalar",
+      "xi shape (120511,)",
+      "noise_features shape (120512,16) in C order",
+      "epsilon shape (120512,)"
+    ],
+    "raw_array_shapes": {
+      "z_raw": [120512],
+      "xi": [120511],
+      "noise_features": [120512, 16],
+      "epsilon": [120512]
+    },
+    "base_array_reuse": "z_raw, noise_features, epsilon, and availability starts are identical for every beta; only the beta term in r_raw[k+1] changes",
     "scenario_seed_policy": "draw z, all 16 noise features, return-noise epsilon, and availability starts once per seed; reuse those arrays for S0, S1, S2-high, S2-medium, and S2-low, changing only beta",
     "future_perturbation_test": "add a fixed delta to returns strictly after an origin's target_end and assert all earlier predictions/masks are unchanged",
     "availability": {
@@ -449,8 +577,8 @@
         "funding_rate_available": 23,
         "mark_close_available": 37
       },
-      "start_range": "without-replacement starts in [burn_in_rows, n_rows-gap_block_length_bars)",
-      "false_range": "[start, start + gap_block_length_bars)",
+      "start_range": "without-replacement starts in output-index range [burn_in_rows, n_rows-gap_block_length_bars) = [512,119998), applied after raw burn-in slicing",
+      "false_range": "output indices [start, start + gap_block_length_bars); preserve those output rows and set only the sidecar flag false",
       "required_for_all_scenarios": true,
       "shared_across_s2_levels": true
     },
@@ -460,8 +588,19 @@
       "validation": [90000, 100000],
       "outer_test": [100000, 120000]
     },
+    "outer_report_operation": {
+      "origin": 100000,
+      "fit_prefix_range": [0, 100000],
+      "fit_rule": "after every threshold and manifest field is fixed, fit exactly once at origin 100000 on the admissible prefix [0,100000) with target_end <= origin - purge_bars and label row < origin",
+      "prediction_range": [100000, 120000],
+      "refit_origins": [],
+      "role": "report_only",
+      "selection_allowed": false,
+      "threshold_revision_allowed": false
+    },
     "mask_only_sanity": {
       "n_rows": 120000,
+      "raw_n_rows": 120512,
       "burn_in_rows": 512,
       "context_bars": 64,
       "max_target_horizon": 16,
@@ -553,15 +692,17 @@
         "generated_latent": false,
         "observable_at": "decision timestamp t after the close of bar t",
         "prefix_scaling": true,
-        "prefix_scaling_formula": "z[t] = (close_ret[t] - mean(close_ret[u] for eligible u<t)) / max(std(close_ret[u] for eligible u<t), 1e-12)",
+        "prefix_scaling_formula": "z[t] = (close_ret[t] - mean(close_ret[u] for context_eligible[u] and u<t)) / max(std(close_ret[u] for context_eligible[u] and u<t, ddof=0), 1e-12)",
+        "prefix_eligibility": "context_eligible[u] only; target_complete and any future target/return mask are never inspected for prefix scaling",
         "prefix_rows_min": 256,
         "future_target_never_used_for_scaling": true,
-        "injection_formula": "returns_injected[t+1] = returns_v4[t+1] + 0.0005*z[t]",
+        "injection_formula": "only when context_eligible[t], t+1 is inside the feature body, t+1 is contiguous with t, and spot_bar_observed[t+1] is true: returns_injected[t+1] = returns_v4[t+1] + 0.0005*z[t]",
         "zero_injection_control_formula": "returns_control[t+1] = returns_v4[t+1]",
         "injection_beta": 0.0005,
         "control_beta": 0.0,
-        "apply_only_to": "eligible decision origins; invalid/gapped rows remain false and are not repaired",
-        "hidden_state_policy": "no generated z or latent column may be passed to the model; z is recomputable from the named v4 feature and prefix fit record"
+        "apply_only_to": "context-eligible decision origins with an in-body, contiguous, spot-observed t+1 bar; invalid/gapped rows remain false and are not repaired",
+        "features_recomputed": false,
+        "hidden_state_policy": "no generated z or latent column may be passed to the model; z is recomputable from the original named v4 close_ret feature and prefix fit record"
       },
       "v4_row_alignment": "use feature-body rows in their original order; sidecar lookup is exact timestamp membership; any non-15m adjacency or false sidecar value invalidates the complete window without compaction",
       "common_row_definition": "decision origins whose 64-bar context has finite canonical 17 features and all three v4 availability masks true, and whose target window has finite spot returns with contiguous 15m timestamps; funding/mark masks are not required on future label bars",
@@ -579,19 +720,36 @@
         "2024-01-01T00:00:00Z": 173111
       },
       "common_row_index_definition": "sorted raw feature-body indices with a complete 64-bar all-three-mask context and complete h16 spot-return target, after exact timestamp join; future funding/mark gaps alone do not remove a label",
-      "dev_raw_range": [52492, 139568],
+      "dev_raw_range": [52492, 104528],
       "fit_raw_range": [52492, 104528],
       "validation_raw_range": [104528, 139568],
       "outer_test_raw_range": [139568, 173111],
-      "dev_origin_raw_indices": [72492, 82492, 92492, 102492, 112492, 122492, 132492],
-      "dev_batch_spans_raw": [[72492, 82492], [82492, 92492], [92492, 102492], [102492, 112492], [112492, 122492], [122492, 132492], [132492, 139568]],
+      "oof_development_raw_range": [72492, 104528],
+      "dev_origin_raw_indices": [72492, 82492, 92492, 102492],
+      "dev_batch_spans_raw": [[72492, 82492], [82492, 92492], [92492, 102492], [102492, 104528]],
+      "primary_inferential_operation": {
+        "support_id": "s3_validation",
+        "origin_raw_index": 104528,
+        "fit_raw_range": [52492, 104528],
+        "prediction_raw_range": [104528, 139568],
+        "fit_rule": "one fixed fit at the validation boundary using only admissible pre-validation rows with target_end <= origin - purge_bars; no validation or outer target enters the fit",
+        "refit_origins": [],
+        "role": "primary_inferential_gate",
+        "oof_development_role": "diagnostic_only",
+        "outer_test_role": "report_only",
+        "selection_allowed": false,
+        "threshold_revision_allowed": false
+      },
       "excluded_common_schedule_origin_raw_index": 142492,
       "excluded_common_schedule_origin_reason": "the eighth synthetic-relative origin would fall inside the sealed 2023-01-01 outer-test range after timestamp alignment",
       "outer_report_origin_raw_index": 139568,
-      "outer_report_fit_rule": "single report-only fit using the admissible prefix before raw index 139568 and one prediction pass over raw [139568,173111); outer rows cannot tune, select, or change any development decision",
-      "raw_index_boundary_note": "the common schedule is resolved after timestamp join; raw body thirds are forbidden, and the final development batch is truncated at the 2023-01-01 outer-test boundary",
+      "outer_report_fit_raw_range": [52492, 139568],
+      "outer_report_prediction_raw_range": [139568, 173111],
+      "outer_report_refit_origins": [],
+      "outer_report_fit_rule": "single report-only fit at raw index 139568 using the admissible prefix before that index and one prediction pass over raw [139568,173111); outer rows cannot tune, select, or change any development decision",
+      "raw_index_boundary_note": "resolve the four OOF-development origins after timestamp join, truncate the final development span at validation raw index 104528, fit validation once at raw 104528, and reserve raw [139568,173111) for the single report-only outer pass; raw body thirds are forbidden",
       "split_resolution": "resolve each timestamp range against the immutable v4 body/sidecar join, preserve original row indices, and apply the common-row mask; never substitute raw body thirds",
-      "origin_resolution": "apply the common chronological origin schedule after the timestamp join; record each resolved timestamp and ordinal before fitting",
+      "origin_resolution": "after the timestamp join, record OOF-development origins [72492,82492,92492,102492], validation origin 104528, and outer report origin 139568 with their resolved timestamps before fitting",
       "seeds": [20260830],
       "seed_policy": "one deterministic S3 run; uncertainty comes from the fixed paired moving-block bootstrap rather than pseudo-replicate seeds",
       "outer_test_is_report_only": true,

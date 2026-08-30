@@ -69,23 +69,55 @@ class P1PreregistrationTests(unittest.TestCase):
         with self.assertRaises(P1PreregistrationError):
             _review_manifest(missing)
 
+        for field in ("amends_manifest_sha256", "amendment_reason", "results_observed"):
+            missing = copy.deepcopy(base)
+            del missing[field]
+            with self.subTest(missing=field):
+                with self.assertRaises(P1PreregistrationError):
+                    _review_manifest(missing)
+
         mutations = {
+            "amends_manifest_sha256": "wrong-prior-digest",
+            "amendment_reason": "post-result revision",
+            "results_observed": True,
             "common.target_end_formula": "target_end[t,h] = t + h",
             "common.sequence_context_bars": 32,
+            "common.model_input_rule": "flatten the 64-bar context",
+            "common.binary_label_rule": "label=1 for y>=0",
+            "common.learned_fit_contract.feature_scaler": "global scaler",
+            "common.split_end_rule": "allow target tails to cross split boundary",
+            "common.evaluation_split_state_policy": "carry inventory across all splits",
             "common.oof.min_history_rows": 2048,
             "common.oof.origin_schedule.step": 512,
+            "common.oof.primary_inferential_support.fit_prefix_range": [0, 89999],
+            "common.oof.primary_inferential_support.prediction_range": [80000, 90000],
+            "common.oof.outer_report_operation.origin": 110000,
             "common.availability.outcome_label_row_rule": "all three sidecar flags are required on target bars",
             "common.action_contract.commitment_bars": 8,
+            "common.action_contract.argmax_selector": "other.selector",
+            "common.action_contract.argmax_tie_rule": "first candidate wins",
+            "common.action_contract.benchmark_hold_path": "candidate-local hold",
             "common.v4_load_contract.feature_path": "checkpoints/data_cache/other_features.parquet",
             "common.v4_load_contract.metadata_path": "checkpoints/data_cache/local_metadata.json",
             "common.v4_load_contract.require_explicit_paths": False,
             "common.v4_load_contract.known_cache_local_snapshot.source_provenance_digest": "wrong-revision",
             "common.runner_contract.outer_test_selection_allowed": True,
+            "common.models.ridge.solver": "auto",
+            "common.metrics.coverage_definitions.context_fraction": "context_complete / all_rows",
+            "common.gates.block_bootstrap.invalid_replicate_policy": "drop N/A rows and compact",
+            "common.gates.high_snr_recovery.utility_per_seed_rule": "aggregate only",
+            "common.gates.high_snr_recovery.clairvoyant_rule": "clairvoyant is report-only",
             "synthetic_contract.n_rows": 20000,
+            "synthetic_contract.raw_n_rows": 120000,
+            "synthetic_contract.draw_order": ["epsilon first"],
             "synthetic_contract.availability.gap_block_count": 100,
+            "synthetic_contract.outer_report_operation.refit_origins": [110000],
+            "common.metrics.primary_support_policy.s3.origin_raw": 104529,
             "scenarios.S3.signal.source_feature": "hidden_z",
+            "scenarios.S3.signal.prefix_eligibility": "target rows only",
             "scenarios.S3.seeds": [20260830, 20260831],
             "scenarios.S3.raw_body_indices.2023-01-01T00:00:00Z": 142491,
+            "scenarios.S3.primary_inferential_operation.prediction_raw_range": [102492, 139568],
             "scenarios.S3.excluded_common_schedule_origin_raw_index": 142493,
             "provenance.v4_parent.feature_rows": 173110,
         }
@@ -121,11 +153,23 @@ class P1PreregistrationTests(unittest.TestCase):
         path = ROOT / ref["path"]
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
         required = set(ref["required_fields"])
+        self.assertTrue({"support_id", "support_range", "support_role"} <= required)
         self.assertEqual(len(rows), ref["family_size"])
         self.assertEqual(exact_file_sha256(path), ref["sha256"])
         self.assertEqual(len({row["comparison_id"] for row in rows}), ref["family_size"])
         self.assertTrue(all(row["primary"] is True for row in rows))
         self.assertTrue(all(required <= set(row) for row in rows))
+        expected_support = {
+            "S0": ("synthetic_validation", [90000, 100000]),
+            "S1": ("synthetic_validation", [90000, 100000]),
+            "S2": ("synthetic_validation", [90000, 100000]),
+            "S3": ("s3_validation", [104528, 139568]),
+        }
+        self.assertTrue(all(
+            (row["support_id"], row["support_range"], row["support_role"])
+            == (*expected_support[row["scenario_id"]], "primary_inferential_gate")
+            for row in rows
+        ))
         self.assertTrue(all(row["horizon"] == 4 for row in rows))
         self.assertTrue(all(row["cost_mode"] in {"off", "on"} for row in rows))
         arm_path = ROOT / manifest["common"]["trial_registry"]["path"]
@@ -135,7 +179,10 @@ class P1PreregistrationTests(unittest.TestCase):
         }
         self.assertTrue(all(
             row["candidate_id"] in arm_ids
-            and (row["baseline_id"] in arm_ids or row["baseline_id"].endswith("__hold__on"))
+            and (
+                row["baseline_id"] in arm_ids
+                or row["baseline_id"].endswith("__benchmark_hold__off")
+            )
             for row in rows
         ))
 
@@ -170,6 +217,24 @@ class P1PreregistrationTests(unittest.TestCase):
             {key: contract[key] for key in contract if key not in cost_only},
         )
         self.assertTrue(all(off[key] == 0.0 for key in cost_only))
+
+    def test_s1_recovery_registry_requires_each_seed_and_clairvoyant_sanity(self) -> None:
+        manifest = _read_manifest()
+        path = ROOT / manifest["common"]["primary_comparison_registry"]["path"]
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        row = next(
+            item for item in rows
+            if item["comparison_id"] == "S1__ridge__utility_vs_hold__cost_on"
+        )
+        self.assertEqual(row["candidate_id"], "S1__ridge__on")
+        self.assertEqual(row["baseline_id"], "S1__benchmark_hold__off")
+        self.assertEqual(row["support_id"], "synthetic_validation")
+        self.assertEqual(row["support_range"], [90000, 100000])
+        self.assertIn("all ten seed-level validation utility deltas > 0", row["gate"])
+        self.assertIn("every seed clairvoyant value > Ridge value", row["gate"])
+        high_snr = manifest["common"]["gates"]["high_snr_recovery"]
+        self.assertIn("every seed", high_snr["utility_per_seed_rule"])
+        self.assertIn("strictly greater", high_snr["clairvoyant_rule"])
 
     def test_v4_loader_requires_explicit_bodies_and_frozen_metadata(self) -> None:
         manifest = _read_manifest()
@@ -213,7 +278,7 @@ class P1PreregistrationTests(unittest.TestCase):
 
     def test_production_loader_succeeds_and_freezes_pinned_manifest(self) -> None:
         manifest = load_fixed_manifest()
-        self.assertEqual(manifest["manifest_sha256"], "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d")
+        self.assertEqual(manifest["manifest_sha256"], "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc")
         with self.assertRaises(TypeError):
             manifest["common"] = {}  # type: ignore[index]
 
