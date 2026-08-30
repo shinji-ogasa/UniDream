@@ -1949,54 +1949,28 @@ def paired_bootstrap_mean_delta(
         baseline_mask,
         artifact,
     )
-    observed_values = candidate[common_mask] - baseline[common_mask]
-    if not np.isfinite(observed_values).all():
-        raise P1MBBError("paired P1 MBB observed contrast is non-finite")
-    point_delta = float(np.mean(observed_values))
-    try:
-        samples = np.empty(artifact.replicates, dtype="<f8")
-    except (MemoryError, OverflowError) as exc:
-        raise P1MBBError("paired P1 MBB result cannot be allocated") from exc
-    for replicate in range(artifact.replicates):
-        indices = artifact.indices_for(replicate)
-        sampled_mask = common_mask[indices]
-        if not sampled_mask.any():
-            raise P1MBBError(
-                f"paired P1 MBB replicate {replicate} is N/A: zero valid primitive records"
-            )
-        values = candidate[indices][sampled_mask] - baseline[indices][sampled_mask]
-        if not np.isfinite(values).all():
-            raise P1MBBError(
-                f"paired P1 MBB replicate {replicate} is N/A: non-finite metric"
-            )
-        samples[replicate] = float(np.mean(values))
-    lower = float(np.quantile(samples, 0.025, method="linear"))
-    upper = float(np.quantile(samples, 0.975, method="linear"))
-    return {
-        "status": "ok",
-        "metric": metric_name,
-        "direction": direction_name,
-        "unit": artifact.unit,
-        "support_id": artifact.support_id,
-        "seed_ordinal": artifact.seed_ordinal,
-        "block_length": artifact.block_length,
-        "replicates": artifact.replicates,
-        "point_delta": point_delta,
-        "favorable_point_delta": point_delta if direction_name == "positive" else -point_delta,
-        "ci": {
-            "lower": lower,
-            "upper": upper,
-            "method": "np.quantile(values, q, method='linear')",
-            "confidence_level": 0.95,
-        },
-        "p_value": _p_value(samples, direction=direction_name),
-        "p_value_formula": (
-            "(1 + count(samples <= 0))/(B+1)" if direction_name == "positive"
-            else "(1 + count(samples >= 0))/(B+1)"
+    array_names: Mapping[str, tuple[str, str]] = {
+        "mse_delta": ("candidate_se", "baseline_se"),
+        "logloss": ("candidate_logloss", "baseline_logloss"),
+        "agreement": ("candidate_agreement", "baseline_agreement"),
+        "policy_utility_delta": (
+            "candidate_utility",
+            "benchmark_hold_utility",
         ),
-        "index_artifact_sha256": artifact.artifact_sha256,
-        "bootstrap_values": np.array(samples, dtype="<f8", copy=True),
     }
+    candidate_name, baseline_name = array_names[metric_name]
+    result = bootstrap_p1_metric(
+        metric_name,
+        artifact=artifact,
+        mask=common_mask,
+        direction=direction_name,
+        candidate_mask=candidate_mask,
+        baseline_mask=baseline_mask,
+        **{candidate_name: candidate, baseline_name: baseline},
+    )
+    result["point_delta"] = result["point_estimate"]
+    result["favorable_point_delta"] = result["favorable_point_estimate"]
+    return result
 
 
 def paired_bootstrap_mean_delta_sensitivity(
