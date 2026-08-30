@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import json
 import tempfile
 import unittest
 import zipfile
+from argparse import Namespace
+from collections import Counter
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -14,6 +19,7 @@ import pandas as pd
 from unidream.data.d1_signed_flow import (
     D1_AVAILABILITY_COLUMNS,
     D1_FEATURE_COLUMNS,
+    _parse_kline_archive_bytes,
     aggtrade_archive_url,
     build_d1_features,
     classify_archive_revisions,
@@ -21,6 +27,44 @@ from unidream.data.d1_signed_flow import (
     estimate_aggtrade_archive_storage,
 )
 from unidream.data.official_v4_sources import official_archive_url
+from unidream.cli.acquire_d1_signed_flow import run_pilot
+
+
+def _pilot_args(tmp: str | Path) -> Namespace:
+    root = Path(tmp)
+    return Namespace(
+        months=["2024-01"],
+        symbol="BTCUSDT",
+        interval="15m",
+        raw_dir=None,
+        timeout=1.0,
+        ledger=root / "ledger.jsonl",
+        capacity_start="2024-01",
+        capacity_end="2024-02",
+        features=root / "features.csv",
+        availability=root / "availability.csv",
+        capacity_json=root / "capacity.json",
+        report=root / "report.md",
+    )
+
+
+def _source_record(source: str, *, error: str | None = None) -> dict[str, object]:
+    record: dict[str, object] = {
+        "record_type": "d1_archive_download",
+        "source": source,
+        "symbol": "BTCUSDT",
+        "interval": "15m",
+        "month": "2024-01",
+        "archive_revision_id": "a" * 64,
+        "checksum_verified": True,
+        "archive_published_ts": None,
+        "collector_observed_ts": None,
+        "exchange_available_ts": None,
+        "live_causal_eligible": False,
+    }
+    if error:
+        record["error"] = error
+    return record
 
 
 def _zip_csv(name: str, rows: list[list[str]]) -> bytes:
@@ -113,8 +157,9 @@ class D1SignedFlowTest(unittest.TestCase):
 
     def test_download_verifies_checksum_and_keeps_archive_live_times_separate(self) -> None:
         archive_url = official_archive_url("spot_klines", "BTCUSDT", "15m", "2024-01")
-        payload = _zip_csv("BTCUSDT-15m-2024-01.csv", [_kline_row(0, 100.0)])
-        digest = __import__("hashlib").sha256(payload).hexdigest()
+        open_ms = int(pd.Timestamp("2024-01-01", tz="UTC").timestamp() * 1000)
+        payload = _zip_csv("BTCUSDT-15m-2024-01.csv", [_kline_row(open_ms, 100.0)])
+        digest = hashlib.sha256(payload).hexdigest()
         checksum = f"{digest}  {Path(archive_url).name}\n".encode("utf-8")
         session = _Session(
             {
@@ -132,10 +177,10 @@ class D1SignedFlowTest(unittest.TestCase):
                 session=session,
             )
             self.assertEqual(len(frame), 1)
-            self.assertEqual(frame.index[0], pd.Timestamp("1970-01-01 00:00:00", tz="UTC"))
+            self.assertEqual(frame.index[0], pd.Timestamp("2024-01-01 00:00:00", tz="UTC"))
             self.assertEqual(
                 frame.iloc[0]["bar_close_ts"],
-                pd.Timestamp("1970-01-01 00:14:59.999000", tz="UTC"),
+                pd.Timestamp("2024-01-01 00:14:59.999000", tz="UTC"),
             )
             self.assertTrue(record["checksum_verified"])
             self.assertEqual(record["archive_revision_id"], digest)
@@ -194,13 +239,173 @@ class D1SignedFlowTest(unittest.TestCase):
         self.assertFalse(availability.iloc[1]["perp_bar_observed"])
         self.assertFalse(availability.iloc[1]["d1_features_available"])
 
+    def test_parser_rejects_invalid_member_range_grid_and_numeric_integrity(self) -> None:
+        jan_open_ms = int(pd.Timestamp("2024-01-01", tz="UTC").timestamp() * 1000)
+        valid = _kline_row(jan_open_ms, 100.0)
+        cases = {
+            "member_name": ("unexpected.csv", [valid]),
+            "month_range": (
+                "BTCUSDT-15m-2024-01.csv",
+                [_kline_row(int(pd.Timestamp("2023-12-31 23:45", tz="UTC").timestamp() * 1000), 100.0)],
+            ),
+            "grid_alignment": (
+                "BTCUSDT-15m-2024-01.csv",
+                [_kline_row(int(pd.Timestamp("2024-01-01 00:01", tz="UTC").timestamp() * 1000), 100.0)],
+            ),
+            "non_finite": (
+                "BTCUSDT-15m-2024-01.csv",
+                [[*valid[:5], "nan", *valid[6:]]],
+            ),
+            "negative_volume": (
+                "BTCUSDT-15m-2024-01.csv",
+                [[*valid[:5], "-1", *valid[6:]]],
+            ),
+            "non_positive_price": (
+                "BTCUSDT-15m-2024-01.csv",
+                [[*valid[:4], "0", *valid[5:]]],
+            ),
+            "ohlc_consistency": (
+                "BTCUSDT-15m-2024-01.csv",
+                [[*valid[:2], "50", *valid[3:]]],
+            ),
+            "fractional_trade_count": (
+                "BTCUSDT-15m-2024-01.csv",
+                [[*valid[:8], "7.5", *valid[9:]]],
+            ),
+            "taker_buy_exceeds_volume": (
+                "BTCUSDT-15m-2024-01.csv",
+                [[*valid[:9], "11", *valid[10:]]],
+            ),
+        }
+        for name, (member, rows) in cases.items():
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    _parse_kline_archive_bytes(
+                        _zip_csv(member, rows),
+                        source="spot_klines",
+                        symbol="BTCUSDT",
+                        interval="15m",
+                        month="2024-01",
+                    )
+
+    def test_pilot_writes_independent_availability_hash_and_all_ledger_record_types(self) -> None:
+        capacity = {
+            "method": "HTTP HEAD Content-Length; no aggregate-trade payload downloaded",
+            "estimated_compressed_bytes_known": 0,
+            "sources": {
+                source: {
+                    "months_requested": 1,
+                    "http_200_count": 0,
+                    "http_404_count": 1,
+                    "known_size_months": 0,
+                    "unknown_size_months": 1,
+                    "estimated_compressed_bytes": 0,
+                    "records": [
+                        {
+                            "record_type": "d1_aggtrade_head_probe",
+                            "source": source,
+                            "month": "2024-01",
+                            "http_status": 404,
+                            "content_length_bytes": 999,
+                            "known_size": False,
+                            "payload_downloaded": False,
+                        }
+                    ],
+                }
+                for source in ("spot_aggTrades", "um_aggTrades")
+            },
+            "records": [
+                {
+                    "record_type": "d1_aggtrade_head_probe",
+                    "source": "spot_aggTrades",
+                    "month": "2024-01",
+                    "http_status": 404,
+                    "content_length_bytes": 999,
+                    "known_size": False,
+                    "payload_downloaded": False,
+                },
+                {
+                    "record_type": "d1_aggtrade_head_probe",
+                    "source": "um_aggTrades",
+                    "month": "2024-01",
+                    "http_status": 404,
+                    "content_length_bytes": 999,
+                    "known_size": False,
+                    "payload_downloaded": False,
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            args = _pilot_args(tmp)
+            with patch(
+                "unidream.cli.acquire_d1_signed_flow.download_d1_kline_month",
+                side_effect=[
+                    (_frame([100.0, 101.0, 102.0]), _source_record("spot_klines")),
+                    (_frame([100.5, 101.5, 103.0]), _source_record("um_klines")),
+                ],
+            ), patch(
+                "unidream.cli.acquire_d1_signed_flow.estimate_aggtrade_archive_storage",
+                return_value=capacity,
+            ):
+                result = run_pilot(args)
+            availability_path = Path(result["availability"])
+            self.assertTrue(availability_path.exists())
+            availability_sha = hashlib.sha256(availability_path.read_bytes()).hexdigest()
+            records = [
+                json.loads(line)
+                for line in Path(result["ledger"]).read_text(encoding="utf-8").splitlines()
+            ]
+            run_record = records[0]
+            self.assertEqual(run_record["availability_sha256"], availability_sha)
+            self.assertEqual(run_record["availability_path"], str(availability_path))
+            self.assertEqual(
+                Counter(record["record_type"] for record in records),
+                Counter(run_record["ledger_record_counts"]),
+            )
+            self.assertEqual(
+                run_record["ledger_record_counts"]["d1_aggtrade_head_probe"],
+                2,
+            )
+            self.assertIn(availability_sha, Path(result["report"]).read_text(encoding="utf-8"))
+            self.assertIn("HTTP 404", Path(result["report"]).read_text(encoding="utf-8"))
+
+    def test_download_failure_is_appended_before_pilot_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            args = _pilot_args(tmp)
+            with patch(
+                "unidream.cli.acquire_d1_signed_flow.download_d1_kline_month",
+                side_effect=[
+                    (pd.DataFrame(), _source_record("spot_klines", error="checksum mismatch")),
+                    (_frame([100.5, 101.5, 103.0]), _source_record("um_klines")),
+                ],
+            ):
+                with self.assertRaisesRegex(RuntimeError, "checksum mismatch"):
+                    run_pilot(args)
+            records = [
+                json.loads(line)
+                for line in Path(args.ledger).read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(records), 2)
+            self.assertEqual(
+                [record["source"] for record in records],
+                ["spot_klines", "um_klines"],
+            )
+            self.assertEqual(records[0]["revision_status"], "initial")
+            self.assertEqual(records[0]["error"], "checksum mismatch")
+
     def test_capacity_probe_uses_head_only_and_sums_known_lengths(self) -> None:
         start, end = "2024-01", "2024-03"
         responses: dict[str, _Response] = {}
         for source in ("spot_aggTrades", "um_aggTrades"):
             for month, size in (("2024-01", 100), ("2024-02", 200)):
                 url = aggtrade_archive_url(source, "BTCUSDT", month)
-                responses[url] = _Response(b"", url=url, headers={"Content-Length": str(size)})
+                status = 404 if source == "um_aggTrades" and month == "2024-02" else 200
+                responses[url] = _Response(
+                    b"",
+                    url=url,
+                    status_code=status,
+                    headers={"Content-Length": str(size)},
+                )
         session = _Session({}, responses)
         report = estimate_aggtrade_archive_storage(
             symbol="BTCUSDT",
@@ -208,10 +413,15 @@ class D1SignedFlowTest(unittest.TestCase):
             end=end,
             session=session,
         )
-        self.assertEqual(report["estimated_compressed_bytes_known"], 600)
+        self.assertEqual(report["estimated_compressed_bytes_known"], 400)
         self.assertEqual(len(session.head_calls), 4)
         self.assertTrue(all(not call[0].endswith(".CHECKSUM") for call in session.head_calls))
         self.assertTrue(all(not call[0].startswith("https://data-api") for call in session.head_calls))
+        rejected = report["sources"]["um_aggTrades"]["records"][1]
+        self.assertEqual(rejected["http_status"], 404)
+        self.assertEqual(rejected["content_length_bytes"], 200)
+        self.assertFalse(rejected["known_size"])
+        self.assertEqual(report["sources"]["um_aggTrades"]["unknown_size_months"], 1)
 
     def test_revision_classification_preserves_replacement(self) -> None:
         record = {
@@ -233,8 +443,6 @@ class D1SignedFlowTest(unittest.TestCase):
 
 
 def json_line(value: dict) -> str:
-    import json
-
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 

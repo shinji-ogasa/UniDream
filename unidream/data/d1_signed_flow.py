@@ -197,16 +197,22 @@ def _parse_kline_archive_bytes(
     payload: bytes,
     *,
     source: str,
+    symbol: str,
     interval: str,
+    month: str | pd.Timestamp,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     delta = _interval_delta(interval)
+    month_value = _archive_month(month)
+    expected_member_name = (
+        f"{symbol}-{interval}-{month_value.year:04d}-{month_value.month:02d}.csv"
+    )
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             names = archive.namelist()
             csv_names = [name for name in names if name.lower().endswith(".csv")]
-            if len(names) != 1 or len(csv_names) != 1:
+            if names != [expected_member_name] or csv_names != [expected_member_name]:
                 raise OfficialSourceError(f"expected one CSV member, found {names}")
-            member_name = csv_names[0]
+            member_name = expected_member_name
             raw_csv = archive.read(member_name)
     except (OSError, zipfile.BadZipFile) as exc:
         raise OfficialSourceError(f"{source} archive is not a valid zip: {exc}") from exc
@@ -215,7 +221,7 @@ def _parse_kline_archive_bytes(
         rows = list(csv.reader(io.StringIO(raw_csv.decode("utf-8"))))
     except (UnicodeDecodeError, csv.Error) as exc:
         raise OfficialSourceError(f"{source} archive CSV is invalid: {exc}") from exc
-    if not rows:
+    if not rows or not rows[0]:
         raise OfficialSourceError(f"{source} archive CSV is empty")
     header_present = not rows[0][0].lstrip("+-").isdigit()
     data_rows = rows[1:] if header_present else rows
@@ -236,7 +242,7 @@ def _parse_kline_archive_bytes(
                     float(row[5]),
                     int(row[6]),
                     float(row[7]),
-                    int(float(row[8])),
+                    float(row[8]),
                     float(row[9]),
                     float(row[10]),
                 ]
@@ -262,17 +268,49 @@ def _parse_kline_archive_bytes(
         "taker_buy_quote",
     ]
     frame = pd.DataFrame(parsed, columns=columns)
-    frame["bar_open_ts"] = pd.to_datetime(frame.pop("bar_open_ms"), unit="ms", utc=True)
-    frame["bar_close_ts"] = pd.to_datetime(frame.pop("bar_close_ms"), unit="ms", utc=True)
+    try:
+        frame["bar_open_ts"] = pd.to_datetime(frame.pop("bar_open_ms"), unit="ms", utc=True)
+        frame["bar_close_ts"] = pd.to_datetime(frame.pop("bar_close_ms"), unit="ms", utc=True)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise OfficialSourceError(f"{source} archive has invalid timestamps: {exc}") from exc
     frame = frame.set_index("bar_open_ts")
     if not frame.index.is_unique or not frame.index.is_monotonic_increasing:
         raise OfficialSourceError(f"{source} archive timestamps are not sorted and unique")
+    month_end = (month_value + pd.offsets.MonthBegin(1)).normalize()
+    if ((frame.index < month_value) | (frame.index >= month_end)).any():
+        raise OfficialSourceError(
+            f"{source} archive contains bar_open_ts outside requested month {month_value:%Y-%m}"
+        )
+    epoch = pd.Timestamp("1970-01-01", tz="UTC")
+    if ((frame.index - epoch) % delta != pd.Timedelta(0)).any():
+        raise OfficialSourceError(f"{source} archive bar_open_ts is not aligned to {interval}")
     expected_close = frame.index + delta - pd.Timedelta(milliseconds=1)
     if not frame["bar_close_ts"].equals(pd.Series(expected_close, index=frame.index, name="bar_close_ts")):
         mismatched = int((frame["bar_close_ts"] != expected_close).sum())
         raise OfficialSourceError(
             f"{source} archive has {mismatched} rows whose close timestamp does not match {interval}"
         )
+    numeric = frame[list(_KLINE_FIELD_COLUMNS)].to_numpy(dtype=float)
+    if not np.isfinite(numeric).all():
+        raise OfficialSourceError(f"{source} archive contains non-finite kline fields")
+    if (numeric < 0).any():
+        raise OfficialSourceError(f"{source} archive contains negative kline fields")
+    price_values = frame[["open", "high", "low", "close"]].to_numpy(dtype=float)
+    if (price_values <= 0).any():
+        raise OfficialSourceError(f"{source} archive contains non-positive OHLC prices")
+    invalid_ohlc = (
+        (frame["high"] < frame[["open", "close", "low"]].max(axis=1))
+        | (frame["low"] > frame[["open", "close", "high"]].min(axis=1))
+    )
+    if invalid_ohlc.any():
+        raise OfficialSourceError(f"{source} archive violates basic OHLC consistency")
+    trades = frame["n_trades"].to_numpy(dtype=float)
+    if not np.equal(trades, np.floor(trades)).all():
+        raise OfficialSourceError(f"{source} archive trade count is not integral")
+    if (frame["taker_buy_base"] > frame["volume"]).any():
+        raise OfficialSourceError(f"{source} archive taker-buy base exceeds volume")
+    if (frame["taker_buy_quote"] > frame["quote_volume"]).any():
+        raise OfficialSourceError(f"{source} archive taker-buy quote exceeds quote volume")
     frame = frame[
         [
             "open",
@@ -400,7 +438,9 @@ def download_d1_kline_month(
         frame, parsed = _parse_kline_archive_bytes(
             response.content,
             source=source,
+            symbol=symbol,
             interval=interval,
+            month=month_value,
         )
         record.update(parsed)
         return frame, record
@@ -459,7 +499,10 @@ def estimate_aggtrade_archive_storage(
                     assert_official_url(item["final_url"], archive=True)
                     item["http_status"] = int(response.status_code)
                     item["content_length_bytes"] = _head_content_length(response)
-                    item["known_size"] = item["content_length_bytes"] is not None
+                    item["known_size"] = (
+                        item["http_status"] == 200
+                        and item["content_length_bytes"] is not None
+                    )
                 except (OSError, requests.RequestException, OfficialSourceError) as exc:
                     item["http_status"] = None
                     item["content_length_bytes"] = None
