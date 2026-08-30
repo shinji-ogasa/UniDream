@@ -680,9 +680,11 @@ def _coverage_rows(
             if not isinstance(row, Mapping):
                 raise ConditionalOOFArtifactError("coverage mapping values must be mappings")
             item = dict(row)
-            if isinstance(key, tuple) and len(key) == 2:
+            if isinstance(key, tuple) and len(key) in {2, 3}:
                 item.setdefault("head", key[0])
                 item.setdefault("horizon", key[1])
+                if len(key) == 3:
+                    item.setdefault("output_index", key[2])
             rows.append(item)
         value = rows
     if not isinstance(value, (list, tuple)) or not value:
@@ -1833,6 +1835,74 @@ def _looks_like_conditional_oof_artifact_mapping(value: Any) -> bool:
     )
 
 
+def _contains_embedded_conditional_oof_artifact(
+    value: Any,
+    *,
+    _depth: int = 0,
+    _active: set[int] | None = None,
+    _nodes: list[int] | None = None,
+) -> bool:
+    """Find a full artifact nested under an otherwise harmless config key."""
+    if _depth > _MAX_ARTIFACT_JSON_DEPTH:
+        raise ConditionalOOFArtifactError(
+            "strict conditional config exceeds artifact-source nesting depth"
+        )
+    if _active is None:
+        _active = set()
+    if _nodes is None:
+        _nodes = [0]
+    if isinstance(value, Mapping):
+        object_id = id(value)
+        if object_id in _active:
+            raise ConditionalOOFArtifactError(
+                "strict conditional config contains a reference cycle"
+            )
+        if value.get("schema") == OOF_ARTIFACT_SCHEMA:
+            return True
+        _active.add(object_id)
+        try:
+            for item in value.values():
+                _nodes[0] += 1
+                if _nodes[0] > _MAX_ARTIFACT_JSON_NODES:
+                    raise ConditionalOOFArtifactError(
+                        "strict conditional config exceeds artifact-source node budget"
+                    )
+                if _contains_embedded_conditional_oof_artifact(
+                    item,
+                    _depth=_depth + 1,
+                    _active=_active,
+                    _nodes=_nodes,
+                ):
+                    return True
+        finally:
+            _active.remove(object_id)
+        return False
+    if isinstance(value, (list, tuple)):
+        object_id = id(value)
+        if object_id in _active:
+            raise ConditionalOOFArtifactError(
+                "strict conditional config contains a reference cycle"
+            )
+        _active.add(object_id)
+        try:
+            for item in value:
+                _nodes[0] += 1
+                if _nodes[0] > _MAX_ARTIFACT_JSON_NODES:
+                    raise ConditionalOOFArtifactError(
+                        "strict conditional config exceeds artifact-source node budget"
+                    )
+                if _contains_embedded_conditional_oof_artifact(
+                    item,
+                    _depth=_depth + 1,
+                    _active=_active,
+                    _nodes=_nodes,
+                ):
+                    return True
+        finally:
+            _active.remove(object_id)
+    return False
+
+
 def _reject_artifact_self_binding_sources(config: Mapping[str, Any]) -> None:
     """Reject artifact payloads masquerading as strict external config.
 
@@ -1862,6 +1932,11 @@ def _reject_artifact_self_binding_sources(config: Mapping[str, Any]) -> None:
                 f"strict conditional config section {section_name!r} contains "
                 "conditional OOF artifact core keys; external bindings must be "
                 "independent of the artifact"
+            )
+        if _contains_embedded_conditional_oof_artifact(section):
+            raise ConditionalOOFArtifactError(
+                f"strict conditional config section {section_name!r} embeds "
+                "a conditional OOF artifact; external bindings must be independent"
             )
         for envelope_key in _CONDITIONAL_OOF_ENVELOPE_KEYS:
             candidate = section.get(envelope_key)
