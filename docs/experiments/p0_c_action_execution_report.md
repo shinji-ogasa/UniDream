@@ -2,7 +2,7 @@
 
 Status: implemented as an explicit opt-in path; no existing Plan011 run is
 silently migrated. This report describes the implementation at commit
-`fe0b3f4` on branch `exp/p0-c-action-execution-20260830`.
+`60300c8` on branch `exp/p0-c-action-execution-20260830`.
 
 ## Canonical contract
 
@@ -14,6 +14,9 @@ revision is:
 ```text
 26ac8e44fac6de2ad55f83179acc3d2033cc943a1edeff498f92f9174b19015b
 ```
+
+The selector-input clarification changes no contract field, so this hash is
+unchanged.
 
 The canonical fields are:
 
@@ -62,14 +65,19 @@ unsupported delta, or unsupported semantic field raises.
 cost, gross-PnL, net-PnL, and `scored_mask` arrays. This makes boundary
 handling inspectable rather than implicit. `select_block_decisions()` uses the
 same feasible grid and replay geometry for the causal forecast-score teacher.
-It scores only the current delayed block and advances inventory sequentially;
-future forecast blocks cannot change an earlier teacher decision. U0 is kept
-separate through `select_hindsight_block_decisions()`, an iterative
-bottom-up DP that may inspect all realized complete blocks for an
-upper-bound-only diagnostic. Both paths share bounds, delay, commitment, cost,
-tail mask, and replay geometry, but action equality is not a contract.
+Its full-length `decision_block_scores` input contains one scalar cumulative
+4-bar forecast at each complete decision start `t`; only that start cell is
+read. Blocked/outcome-bar cells are ignored, so future per-bar features cannot
+change an earlier teacher decision. U0 is kept separate through
+`select_hindsight_block_decisions()`, an iterative bottom-up DP that may
+inspect all realized complete bars for an upper-bound-only diagnostic. Both
+paths share bounds, delay, commitment, cost, tail mask, and replay geometry,
+but action equality is not a contract.
 After a fill, `effective_positions` retains the live inventory through an
 unscored incomplete tail; the tail contributes zero PnL via `scored_mask`.
+For teacher diagnostics, replay expands each decision-start scalar evenly
+across its four scored bars only to populate trajectory utility arrays; the
+scalar itself remains the selector's sole forecast input.
 
 ## Oracle and Backtest integration
 
@@ -120,6 +128,7 @@ They cover:
 - strict explicit delta/absolute Backtest modes and the absolute-position
   adapter;
 - causal teacher invariance to future-block score perturbations;
+- cumulative decision-start score API, including ignored blocked/outcome cells;
 - separate iterative hindsight U0 and causal-teacher masks/constraints;
 - U0 long-window replay without recursive stack growth;
 - U0/teacher/Backtest replay geometry parity;
