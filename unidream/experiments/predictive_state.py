@@ -5,7 +5,10 @@ import numpy as np
 from .chronological_oof import (
     ChronologicalOOFError,
     ConditionalPathBlocked,
-    conditional_path_enabled,
+    ConditionalOOFArtifactError,
+    _conditional_oof_artifact_envelope,
+    conditional_path_or_artifact_enabled,
+    conditional_runtime_config,
     require_conditional_oof_inputs,
     strict_bool_array,
     strict_bool_value,
@@ -49,11 +52,24 @@ def _conditional_oof_state_bundle(
     # Validate the raw producer result before inspecting any split view.  A
     # split-only caller must never be able to bypass the eligibility and
     # in-sample provenance contract by supplying plausible state masks.
+    # A persisted artifact may be supplied as an envelope together with the
+    # split views.  Unwrap it only after the outer conditional gate has
+    # validated its schema/content hash; no legacy WM state is synthesized.
+    try:
+        selected_artifact, oof_bundle = _conditional_oof_artifact_envelope(oof_bundle)
+    except ConditionalOOFArtifactError as exc:
+        raise ConditionalPathBlocked(str(exc)) from exc
     try:
         validate_oof_result(oof_bundle)
     except ChronologicalOOFError as exc:
         raise ConditionalPathBlocked(str(exc)) from exc
     raw_predictions = np.asarray(oof_bundle["predictions"])
+    if raw_predictions.ndim != 2:
+        raise ConditionalPathBlocked("conditional OOF predictions must be 2-D")
+    if raw_predictions.shape[0] <= 0 or raw_predictions.shape[1] <= 0:
+        raise ConditionalPathBlocked(
+            "conditional OOF predictions must have positive rows and outputs"
+        )
     raw_prediction_mask = strict_bool_array(
         oof_bundle["prediction_mask"]
         if "prediction_mask" in oof_bundle
@@ -90,6 +106,10 @@ def _conditional_oof_state_bundle(
         values = np.asarray(oof_bundle[split])
         if values.ndim != 2:
             raise ConditionalPathBlocked(f"conditional OOF {split} state must be 2-D")
+        if values.shape[0] <= 0 or values.shape[1] <= 0:
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} state must have positive rows and outputs"
+            )
         row_indices_value = oof_bundle.get(f"{split}_row_indices")
         if row_indices_value is None:
             raise ConditionalPathBlocked(
@@ -144,7 +164,7 @@ def _conditional_oof_state_bundle(
         if np.any(mask & ~finite_values.all(axis=1)):
             raise ConditionalPathBlocked(f"conditional OOF {split} contains a non-finite usable row")
         # A finite state without a mask would be an implicit in-sample fill.
-        if np.any(~mask & finite_values.any(axis=1)):
+        if np.any(~mask & ~np.isnan(values).all(axis=1)):
             raise ConditionalPathBlocked(
                 f"conditional OOF {split} has finite or partially finite values outside its OOF mask"
             )
@@ -214,6 +234,10 @@ def _conditional_oof_state_bundle(
                 f"conditional OOF {split}_training_label_eligibility_mask does not equal "
                 "the indexed raw training-label eligibility mask"
             )
+        if len(values) == 0 or not bool(mask.any()):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} prediction view has no usable rows"
+            )
         splits[split] = values
         masks[split] = mask
         split_row_indices[split] = row_indices
@@ -225,6 +249,21 @@ def _conditional_oof_state_bundle(
             names = [f"wm_oof_state_{i}" for i in range(values.shape[1])]
         if len(names) != values.shape[1]:
             raise ConditionalPathBlocked(f"conditional OOF {split} names do not match state width")
+
+    # A row may belong to exactly one state view.  Reusing the same rows as
+    # train/validation/test would make downstream metrics and calibration
+    # appear out-of-sample while sharing the same future-derived prediction.
+    split_names = tuple(split_row_indices)
+    for index, left in enumerate(split_names):
+        for right in split_names[index + 1 :]:
+            if np.intersect1d(
+                split_row_indices[left],
+                split_row_indices[right],
+                assume_unique=True,
+            ).size:
+                raise ConditionalPathBlocked(
+                    f"conditional OOF split row indices overlap: {left}/{right}"
+                )
 
     normalizer = provenance.get("normalizer", "")
     normalizer_name = (
@@ -327,16 +366,25 @@ def build_wm_predictive_state_bundle(
     log_ts,
     oof_bundle: dict | None = None,
 ) -> dict | None:
-    if conditional_path_enabled(ac_cfg):
+    try:
+        # ``ac_cfg`` is usually stage-local.  The shared helper keeps a
+        # propagated top-level strict request visible at this boundary.
+        effective_ac_cfg = conditional_runtime_config(ac_cfg)
+        conditional_enabled = conditional_path_or_artifact_enabled(effective_ac_cfg)
+    except (OverflowError, ChronologicalOOFError, ValueError, TypeError) as exc:
+        raise ConditionalPathBlocked(
+            f"conditional predictive state config is invalid ({exc})"
+        ) from exc
+    if conditional_enabled:
         require_conditional_oof_inputs(
-            config=ac_cfg,
+            config=effective_ac_cfg,
             oof_bundle=oof_bundle,
             caller="build_wm_predictive_state_bundle",
         )
         if oof_bundle is not None:
             return _conditional_oof_state_bundle(
                 oof_bundle=oof_bundle,
-                ac_cfg=ac_cfg,
+                ac_cfg=effective_ac_cfg,
                 log_ts=log_ts,
             )
         raise ConditionalPathBlocked(
