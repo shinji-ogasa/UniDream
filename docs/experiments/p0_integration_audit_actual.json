@@ -1,0 +1,70 @@
+{
+  "audit_date": "2026-08-30",
+  "cache": {
+    "cache_dir": "/tmp/unidream-v4-p0-20260830",
+    "cache_tag": "BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official",
+    "schema_version": 4,
+    "schema_digest": "1c1c41a9aca3e8af22b357a8483ea6419745ee4b24c10c09c47289df3744c616",
+    "metadata_file_sha256": "bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450",
+    "source_provenance_digest": "1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db",
+    "content_digests": {
+      "features": "8a7aad5809c7a21e614da7d836629309cda9c2de74553bf1fbc6934f7b07f5e2",
+      "returns": "c33a00cac4cf169f01e3ba5823a3f6d9bae17da5add5f8d5a3538d4142a0fabb",
+      "availability": "630de125ae9bc04cd0376404c7cff07f8e7d06c3bec2eece1b546e05959e292f"
+    },
+    "feature_body_rows": 173111,
+    "feature_columns": 17,
+    "sidecar_grid_rows": 210336,
+    "sidecar_gap_groups": 30
+  },
+  "p0_a": {
+    "body_row_eligible": 119849,
+    "context_bars": 64,
+    "decision_eligible_rows": 118652,
+    "score_eligible_rows": 173111,
+    "score_policy": "spot_observed_and_finite_return_with_15m_continuity"
+  },
+  "p0_c": {
+    "contract_hash": "6f5beb7865fceac5ecbcfbb31dd11e8fdada02e1841fecac1c17e22377bb624f",
+    "eligibility_mask_hash": "1d4c8cca449b63f4f23b249f83b644fc3e1980ce2d02ed0c0f42d8618b3fa69d",
+    "scheduled_decisions": 52583,
+    "scorable_blocks": 43255,
+    "eligible_blocks": 29650,
+    "execution_skipped_blocks": 13605,
+    "excluded_blocks": 9328,
+    "scored_bars": 173020,
+    "filled_blocks": {
+      "strategy": 20077,
+      "benchmark": 0,
+      "u0": 21113,
+      "causal_teacher": 20077
+    },
+    "same_scored_mask": true,
+    "same_contract_hash": true,
+    "same_eligibility_mask_hash": true,
+    "timeline": "decision_t_to_fill_t_plus_1_to_returns_t_plus_1_through_t_plus_4",
+    "timeline_ok": true,
+    "u0_run": true
+  },
+  "p0_b": {
+    "status": "partial",
+    "same_row_future_perturbation_guard": "passed_in_fixture",
+    "hindsight_inventory_guard": "passed_in_fixture",
+    "legacy_full_wm_chronological_oof_runner": "not_connected"
+  },
+  "frozen_metadata_validation": {
+    "status": "v4_verified",
+    "metadata_path": "docs/data_quality_v4_rebuild_2018_2024_metadata.json",
+    "metadata_file_sha256": "2c9db28deebe7e6b08f4ffedf65c3cdb51a78cfd7ee7d6580f76a62cc424bdcb",
+    "source_provenance_digest": "aa320222dca0a46b2a0730f17bb1665f31a70074aa3bafcc6bff58ca21618fad",
+    "content_digests_equal_to_cache_local": true,
+    "body_and_sidecar_rows_equal_to_cache_local": true,
+    "source_provenance_digest_equal_to_cache_local": false,
+    "metadata_file_sha256_equal_to_cache_local": false
+  },
+  "status": {
+    "p0_a": "passed",
+    "p0_b": "partial",
+    "p0_c": "passed"
+  }
+}
