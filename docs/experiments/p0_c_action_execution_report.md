@@ -2,8 +2,9 @@
 
 Status: implemented as an explicit opt-in path; no existing Plan011 run is
 silently migrated. This report describes the mask-aware implementation from
-code commit `0055f5e` on branch `exp/p0-c-action-execution-20260830`; the
-documentation commit is pushed separately.
+code commits `7a04e1b`, `0d2333a`, and `1b650b9` (latest) on branch
+`exp/p0-c-action-execution-20260830`; the documentation commit is pushed
+separately.
 
 ## Canonical contract
 
@@ -13,12 +14,15 @@ is the source of truth. Its deterministic SHA-256 contract hash in this
 revision is:
 
 ```text
-feb04fba4ce65fabb3966ec0fd54eb32391742b6b9b31728f267a86cd138e69c
+6f5beb7865fceac5ecbcfbb31dd11e8fdada02e1841fecac1c17e22377bb624f
 ```
 
-The availability/skip policy is part of the hashed contract. This prevents a
-consumer from treating a missing feature block as a silently held or zero-filled
-observation under a different runtime contract.
+The tracked machine-readable artifact is
+[`action_execution_contract.json`](action_execution_contract.json). The
+availability/skip policies are part of the hashed contract: a missing decision
+feature is an explicit scored hold commitment, while a missing delayed
+score/outcome excludes the complete block. This prevents a consumer from
+treating either case as an implicit legacy fallback.
 
 The canonical fields are:
 
@@ -44,11 +48,17 @@ The canonical fields are:
   "initial_countdown": 0,
   "countdown_decrement": 1,
   "boundary_cost_policy": "fill_only",
-  "feature_unavailable_policy": "exclude_block",
+  "feature_unavailable_policy": "hold_and_score_commitment",
+  "outcome_unavailable_policy": "exclude_block",
   "execution_skip_policy": "hold_commitment",
   "eligibility_masks_required": true
 }
 ```
+
+The JSON artifact also records the derived `transition_cost_rate`,
+`commitment_countdown_reset`, `commitment_countdown_decrement`, and
+`spread_side` values; `from_config()` ignores only these derivable fields and
+recomputes the hash from the semantic contract.
 
 `spread_bps=3` is the full quoted spread, therefore each transition charges
 half-spread `1.5 bps`, slippage `1 bp`, and fee `3 bps`. The resulting cost is
@@ -81,15 +91,27 @@ paths share bounds, delay, commitment, cost, tail mask, and replay geometry,
 but action equality is not a contract.
 
 The new path also requires full-length boolean `decision_eligible[T]` and
-`score_eligible[T]` masks. A scheduled start is block-eligible only when its
-decision cell is eligible and every delayed score cell in `t+1:t+5` is
-eligible. A gap excludes that complete block as a whole; the schedule is not
-compressed, no fill/cost/inventory mutation occurs, and the next scheduled
-start remains `t+4`. Ineligible score/return cells are not read, while finite
-values remain mandatory on every scored block. The trajectory exposes
-`scheduled_decision_mask`, both input masks, `eligible_decision_mask`,
-`block_eligible_mask`, `scored_mask`, count properties, and an
-`eligibility_mask_hash`.
+`score_eligible[T]` masks. A scheduled start is outcome/scoring-eligible when
+every delayed score cell in `t+1:t+5` is eligible. If its decision feature is
+unavailable, `execution_skip_policy=hold_commitment` keeps the current
+inventory, performs no fill/cost, and still scores the finite four-bar
+outcome; the next scheduled start remains `t+4`. If any delayed score/outcome
+cell is unavailable, `outcome_unavailable_policy=exclude_block` excludes the
+whole block from PnL without reading its returns, changes no inventory, and
+also keeps the next start at `t+4`. Finite values are mandatory on every
+scored block. The trajectory exposes `scheduled_decision_mask`, both input
+masks, `eligible_decision_mask`, `block_eligible_mask`,
+`score_block_eligible_mask`, `execution_skipped_mask`, `scored_mask`, count
+properties, and an `eligibility_mask_hash`.
+
+Counts are intentionally distinct: `scheduled_decisions` is the fixed
+schedule, `eligible_decisions` is the decision-feature count,
+`eligible_blocks` is the executable count, `scorable_blocks`/`complete_blocks`
+are the outcome denominator, `filled_blocks` counts non-zero fills,
+`execution_skipped_blocks` counts scored hold commitments, and
+`excluded_blocks` counts outcome gaps. Metrics are conditional on the shared
+scored bars; excluded wall-clock gaps are not silently treated as zero-return
+observations.
 After a fill, `effective_positions` retains the live inventory through an
 unscored incomplete tail; the tail contributes zero PnL via `scored_mask`.
 For teacher diagnostics, replay expands each decision-start scalar evenly
@@ -114,11 +136,19 @@ scalar itself remains the selector's sole forecast input.
   permitted. `True` denotes decision deltas and `False` denotes a strict
   absolute committed-position path.
   `run_contract_backtest()` converts an absolute actor path strictly into
-  contract deltas before invoking the opt-in Backtest.
+  contract deltas before invoking the opt-in Backtest and rejects any
+  explicitly supplied legacy spread/fee/slippage/delay/initial-position
+  override instead of silently dropping it.
 - [`unidream/experiments/transition_advantage.py`](../../unidream/experiments/transition_advantage.py)
-  has a separate contract branch. It uses delayed four-bar block utility and
-  does not call legacy min-hold smoothing, same-bar reward, or the historical
-  action grid. Missing contract fields fail before computation.
+  has a separate contract branch. The generic `compute_transition_advantage()`
+  rejects a contract because its realized-return computation is not a causal
+  teacher. `compute_hindsight_transition_advantage()` is an explicit,
+  `diagnostic_only=True` row-wise diagnostic that requires an independently
+  supplied benchmark/causal-policy inventory trace and returns
+  `future_derived=true`, `training_eligible=false`, and `replayable=false`.
+  Sequential realized-future selection belongs only to U0's iterative DP;
+  neither diagnostic output may be used as a teacher. Missing contract fields
+  fail before computation.
 - Validation/test/AC stage adapters use the contract branch only when the
   manifest explicitly includes `action_execution_contract` (or explicitly
   opts into the contract path). The historical `policy_fire` every-bar
@@ -154,23 +184,29 @@ They cover:
 - separate iterative hindsight U0 and causal-teacher masks/constraints;
 - U0 long-window replay without recursive stack growth;
 - U0/teacher/Backtest replay geometry parity;
-- transition-advantage sequential current-state validation and replay parity;
-- transition-advantage contract rows and legacy-cost non-inheritance;
-- full-length availability masks: required/strict-boolean validation, gap
-  exclusion without schedule compression or inventory mutation, strategy/U0/
-  teacher/benchmark parity, mask counts/hash, and fail-closed stage adaptation.
+- row-wise hindsight transition diagnostics that require explicit opt-in and
+  persist future-derived/non-training provenance;
+- sequential U0 inventory persistence across excluded schedules and iterative
+  replay without recursive stack growth;
+- full-length availability masks: required/strict-boolean validation,
+  decision-feature hold commitments versus outcome-gap exclusion without
+  schedule compression, strategy/U0/teacher/benchmark parity, mask
+  counts/hash, and fail-closed stage adaptation;
+- strict rejection of legacy adapter overrides, strict numeric/boolean/config
+  validation, canonical non-cost geometry, and a tracked JSON contract
+  artifact that round-trips to the canonical hash.
 
 Commands run in the worktree:
 
 ```text
 uv run python -m unittest tests.test_action_execution_contract -v
-Ran 21 tests ... OK
-
-uv run python -m unittest tests.test_action_execution_contract tests.test_backtest_final_excess tests.test_leak_discipline -v
 Ran 30 tests ... OK
 
-uv run python -m unittest discover -s tests -v
-Ran 144 tests ... OK
+uv run python -m unittest tests.test_action_execution_contract tests.test_backtest_final_excess tests.test_leak_discipline -v
+Ran 39 tests ... OK
+
+uv run python -m unittest discover -s tests -q
+Ran 153 tests ... OK
 
 git diff --check
 OK
@@ -178,7 +214,7 @@ OK
 
 The full suite includes pre-existing data-quality diagnostics that print a
 failed availability gate for their intentional negative fixtures; the unittest
-result itself is `OK` (144/144).
+result itself is `OK` (153/153).
 
 ## Boundary and non-goals
 
@@ -190,8 +226,10 @@ result itself is `OK` (144/144).
   contract; they reject unsupported per-bar changes instead of silently
   clipping them. A future student should emit contract deltas directly or
   call the strict absolute-path adapter.
-- Availability/missing-feature skip policy is explicit in the contract:
-  `exclude_block` plus `hold_commitment`. The canonical path requires both
+- Availability policy is explicit in the contract:
+  `feature_unavailable_policy=hold_and_score_commitment`,
+  `outcome_unavailable_policy=exclude_block`, and
+  `execution_skip_policy=hold_commitment`. The canonical path requires both
   full-length masks and rejects missing/non-boolean/incorrect-length inputs.
   Existing stage adapters do not yet produce those masks, so their contract
   opt-in is intentionally blocked until a P0-A sidecar is wired in.
