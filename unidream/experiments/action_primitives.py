@@ -5,6 +5,9 @@ inputs under the registered h4 action/execution contract.  It does not fit a
 model, create a teacher, run a hindsight policy, or bootstrap records.  The
 moving-block runner remains a separate boundary.  Invalid or gapped scheduled
 rows are retained with false masks and are never compressed before hashing.
+An eligible causal decision is separated from its delayed execution and from
+the later outcome score: an outcome gap cannot erase an already executed
+action or its carried state.
 """
 from __future__ import annotations
 
@@ -81,6 +84,9 @@ ACTION_PRIMITIVE_HASH_FIELDS: tuple[str, ...] = (
     "action_primitive_schema_sha256",
     "action_primitive_content_sha256",
 )
+# Compatibility name for legacy storage-envelope callers.  This field is not
+# part of ACTION_PRIMITIVE_HASH_FIELDS, canonical artifact headers, or the
+# immutable production output contract.
 ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD = "action_primitive_envelope_sha256"
 ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH = (
     "docs/experiments/action_primitive_schema.json"
@@ -221,6 +227,21 @@ ACTION_PRIMITIVE_METRIC_FIELDS: tuple[str, ...] = (
     "opportunity",
     "agreement",
 )
+ACTION_PRIMITIVE_UTILITY_FIELDS: tuple[str, ...] = (
+    "candidate_utility",
+    "benchmark_hold_utility",
+    "same_state_local_hold_utility",
+)
+ACTION_PRIMITIVE_ACTION_METRIC_FIELDS: tuple[str, ...] = (
+    "clairvoyant_utility",
+    "regret",
+    "opportunity",
+    "agreement",
+)
+ACTION_PRIMITIVE_METRIC_MASK_REGISTRY: dict[str, str] = {
+    "utility_metrics": "outcome_complete_mask AND common_mask",
+    "action_metrics": "scored_action_mask AND common_mask",
+}
 ACTION_PRIMITIVE_STATE_FIELDS: tuple[str, ...] = (
     "previous_position",
     "selected_delta",
@@ -233,8 +254,12 @@ _ACTION_PRIMITIVE_MASK_LOGIC = {
     "forecast_finite_mask": "the scalar forecast at t is finite",
     "fill_complete_mask": "the delayed fill bar t+1 is available",
     "outcome_complete_mask": "all realized return bars t+1..t+4 are finite and available",
-    "scored_action_mask": "origin_eligible AND forecast_finite AND fill_complete AND outcome_complete",
-    "common_mask": "scored_action AND optional paired common mask",
+    "decision_block": "origin_eligible AND forecast_finite",
+    "executed_block": "decision_block AND fill_complete",
+    "scored_action_mask": "executed_block AND outcome_complete",
+    "utility_metric_mask": "outcome_complete AND common_mask",
+    "action_metric_mask": "scored_action AND common_mask",
+    "common_mask": "optional paired common mask (metric domains apply separately)",
 }
 
 _MAGIC_CONTENT = b"UNIDREAM-P1-ACTION-PRIMITIVE-CONTENT\x00"
@@ -1305,6 +1330,15 @@ def produce_action_primitive_grid(
     selected deltas may be full bar-length vectors (only scheduled starts are
     read) or one value per scheduled block.  Explicit masks may use either
     representation; all output rows are always the complete scheduled grid.
+
+    The causal masks are derived in order: ``decision = origin & finite
+    forecast``, ``executed = decision & fill_complete``, and
+    ``scored_action = executed & outcome_complete``.  A fill gap emits a
+    zero effective delta and holds state.  An outcome gap emits the already
+    executed effective delta/state but sets all outcome-dependent fields to
+    NaN.  Utility fields use the outcome-complete domain; action-comparison
+    fields additionally require ``scored_action``.  ``common_mask`` is the
+    fixed paired-grid mask and is not a substitute for either metric domain.
     """
     if require_production:
         raise ActionPrimitiveContractError(
@@ -1501,7 +1535,12 @@ def produce_action_primitive_grid(
         raise ActionPrimitiveContractError(
             "outcome_complete_mask must equal the complete delayed score/return window"
         )
-    scored_block = origin_block & forecast_block & fill_block & outcome_block
+    # Keep the causal decision, delayed execution, and retrospective outcome
+    # masks separate.  In particular, an outcome gap is not a reason to erase
+    # a decision that was already executed at t+1.
+    decision_block = origin_block & forecast_block
+    executed_block = decision_block & fill_block
+    scored_block = executed_block & outcome_block
 
     paired_input = _resolve_alias(
         paired_common_mask,
@@ -1523,7 +1562,13 @@ def produce_action_primitive_grid(
             commitment_bars=contract_obj.commitment_bars,
         )
         assert paired_block is not None
-    common_block = scored_block & paired_block
+    # ``common_mask`` is the fixed paired-grid mask, independent of which
+    # metric is currently being reduced.  Utility fields use
+    # ``outcome_complete_mask & common_mask`` so a finite active-hold utility
+    # row is not discarded; action-agreement/regret fields additionally use
+    # ``scored_action_mask``.  Reusing one scored mask for every metric would
+    # silently drop valid hold PnL during downstream bootstrap reduction.
+    common_block = paired_block.copy()
 
     metric_overrides: dict[str, np.ndarray] = {}
     if metrics is not None:
@@ -1553,37 +1598,61 @@ def produce_action_primitive_grid(
         fill_index = support_start_int + local_fill
         end_index = support_start_int + local_end - 1
         previous_position = current
+        decision = bool(decision_block[row_index])
+        executed = bool(executed_block[row_index])
         scored = bool(scored_block[row_index])
-        if scored:
+
+        # Materialise the causal action before checking whether the delayed
+        # fill exists.  A valid decision with a fill gap is retained as a
+        # no-fill hold; it must not manufacture a position change.  Conversely
+        # an executed action remains in state even when its future outcome is
+        # unavailable and therefore unscored.
+        intended_delta = 0.0
+        if decision:
             if delta_block is not None:
-                chosen_delta = float(delta_block[row_index])
-                if not np.isfinite(chosen_delta):
+                intended_delta = float(delta_block[row_index])
+                if not np.isfinite(intended_delta):
                     raise ActionPrimitiveContractError(
-                        f"decision_deltas[{row_index}] must be finite on a scored block"
+                        f"decision_deltas[{row_index}] must be finite on a decision block"
                     )
                 if not any(
-                    np.isclose(chosen_delta, allowed, atol=1e-9, rtol=0.0)
+                    np.isclose(intended_delta, allowed, atol=1e-9, rtol=0.0)
                     for allowed in contract_obj.candidate_deltas
                 ):
                     raise ActionPrimitiveContractError(
                         f"decision_deltas[{row_index}] is outside the canonical action grid"
                     )
-                if score_block is not None:
-                    expected_delta, _ = _choose_forecast_delta(
-                        previous_position,
-                        float(score_block[row_index]),
-                        contract_obj,
-                    )
-                    if not np.isclose(chosen_delta, expected_delta, atol=1e-9, rtol=0.0):
-                        raise ActionPrimitiveContractError(
-                            f"decision_deltas[{row_index}] disagrees with the deterministic score mapper"
-                        )
             else:
-                chosen_delta, _ = _choose_forecast_delta(
+                # ``decision_block_scores`` is required whenever direct
+                # deltas are absent, so this branch is only reachable after
+                # the input checks above have been bypassed by a future caller.
+                if score_block is None:
+                    raise ActionPrimitiveContractError(
+                        f"decision_block_scores[{row_index}] is required on a decision block"
+                    )
+                intended_delta, _ = _choose_forecast_delta(
                     previous_position,
                     float(score_block[row_index]),
                     contract_obj,
                 )
+            if score_block is not None:
+                expected_delta, _ = _choose_forecast_delta(
+                    previous_position,
+                    float(score_block[row_index]),
+                    contract_obj,
+                )
+                if not np.isclose(intended_delta, expected_delta, atol=1e-9, rtol=0.0):
+                    raise ActionPrimitiveContractError(
+                        f"decision_deltas[{row_index}] disagrees with the deterministic score mapper"
+                    )
+        elif delta_block is not None and np.isfinite(delta_block[row_index]):
+            if not np.isclose(delta_block[row_index], 0.0, atol=1e-9, rtol=0.0):
+                raise ActionPrimitiveContractError(
+                    f"decision_deltas[{row_index}] must be zero on an ineligible block"
+                )
+
+        if executed:
+            chosen_delta = float(intended_delta)
             selected_position = _canonical_position(
                 previous_position,
                 chosen_delta,
@@ -1591,57 +1660,46 @@ def produce_action_primitive_grid(
             )
             current = selected_position
         else:
-            if delta_block is not None and np.isfinite(delta_block[row_index]):
-                if not np.isclose(delta_block[row_index], 0.0, atol=1e-9, rtol=0.0):
-                    raise ActionPrimitiveContractError(
-                        f"decision_deltas[{row_index}] must be zero on an ineligible block"
-                    )
             chosen_delta = 0.0
             selected_position = previous_position
         turnover = float(abs(selected_position - previous_position))
         active_indicator = float(turnover > 1e-9)
 
-        if common_block[row_index]:
-            if returns_arr is not None:
-                expected_metrics = _expected_block_metrics(
-                    previous_position=previous_position,
-                    selected_position=selected_position,
-                    returns=returns_arr,
-                    fill=local_fill,
-                    end=local_end,
-                    contract=contract_obj,
-                )
-            else:
-                expected_metrics = {}
-                for field in ACTION_PRIMITIVE_METRIC_FIELDS:
-                    if field not in metric_overrides:
+        utility_metric_eligible = bool(outcome_block[row_index] and paired_block[row_index])
+        action_metric_eligible = bool(scored and paired_block[row_index])
+        expected_metrics: dict[str, float] = {}
+        if returns_arr is not None and utility_metric_eligible:
+            expected_metrics = _expected_block_metrics(
+                previous_position=previous_position,
+                selected_position=selected_position,
+                returns=returns_arr,
+                fill=local_fill,
+                end=local_end,
+                contract=contract_obj,
+            )
+
+        metric_values: dict[str, float] = {}
+        for field in ACTION_PRIMITIVE_METRIC_FIELDS:
+            metric_eligible = (
+                utility_metric_eligible
+                if field in ACTION_PRIMITIVE_UTILITY_FIELDS
+                else action_metric_eligible
+            )
+            override = metric_overrides.get(field)
+            if metric_eligible:
+                if returns_arr is not None:
+                    expected = expected_metrics[field]
+                else:
+                    if override is None:
+                        domain = "outcome-complete" if field in ACTION_PRIMITIVE_UTILITY_FIELDS else "scored"
                         raise ActionPrimitiveContractError(
-                            f"{field} metrics are required when returns are absent"
+                            f"{field} metrics are required on a {domain} block when returns are absent"
                         )
-                    value = float(metric_overrides[field][row_index])
-                    if not np.isfinite(value):
+                    expected = float(override[row_index])
+                    if not np.isfinite(expected):
                         raise ActionPrimitiveContractError(
-                            f"{field} must be finite on a common block"
+                            f"{field} must be finite on its metric domain"
                         )
-                    expected_metrics[field] = value
-                if not np.isclose(
-                    expected_metrics["regret"],
-                    expected_metrics["clairvoyant_utility"]
-                    - expected_metrics["candidate_utility"],
-                    atol=1e-9,
-                    rtol=0.0,
-                ) or not np.isclose(
-                    expected_metrics["opportunity"],
-                    expected_metrics["clairvoyant_utility"]
-                    - expected_metrics["same_state_local_hold_utility"],
-                    atol=1e-9,
-                    rtol=0.0,
-                ):
-                    raise ActionPrimitiveContractError(
-                        f"metrics at row {row_index} violate regret/opportunity identities"
-                    )
-            for field, expected in expected_metrics.items():
-                override = metric_overrides.get(field)
                 if override is not None:
                     _compare_metric_values(
                         float(override[row_index]),
@@ -1649,14 +1707,44 @@ def produce_action_primitive_grid(
                         field=field,
                         row_index=row_index,
                     )
-            metric_values = {field: float(expected_metrics[field]) for field in ACTION_PRIMITIVE_METRIC_FIELDS}
-        else:
-            metric_values = {field: float("nan") for field in ACTION_PRIMITIVE_METRIC_FIELDS}
-            for field, override in metric_overrides.items():
-                if not np.isnan(override[row_index]):
+                metric_values[field] = float(expected)
+            else:
+                metric_values[field] = float("nan")
+                if override is not None and not np.isnan(override[row_index]):
                     raise ActionPrimitiveContractError(
-                        f"{field} must be NaN outside the common mask at row {row_index}"
+                        f"{field} must be NaN outside its metric mask at row {row_index}"
                     )
+
+        # A no-decision block is an active hold for outcome/PnL purposes, not
+        # an action-agreement observation.  With caller-supplied metrics the
+        # deterministic hold identity is still enforceable without returns.
+        if utility_metric_eligible and not action_metric_eligible:
+            if not np.isclose(
+                metric_values["candidate_utility"],
+                metric_values["same_state_local_hold_utility"],
+                atol=1e-9,
+                rtol=0.0,
+            ):
+                raise ActionPrimitiveContractError(
+                    f"metrics at row {row_index} violate the no-action hold utility identity"
+                )
+        if action_metric_eligible:
+            if not np.isclose(
+                metric_values["regret"],
+                metric_values["clairvoyant_utility"]
+                - metric_values["candidate_utility"],
+                atol=1e-9,
+                rtol=0.0,
+            ) or not np.isclose(
+                metric_values["opportunity"],
+                metric_values["clairvoyant_utility"]
+                - metric_values["same_state_local_hold_utility"],
+                atol=1e-9,
+                rtol=0.0,
+            ):
+                raise ActionPrimitiveContractError(
+                    f"metrics at row {row_index} violate regret/opportunity identities"
+                )
 
         record: dict[str, Any] = {
             "primitive_index": int(row_index),
@@ -1701,6 +1789,7 @@ def produce_action_primitive_grid(
         "cost": _header_cost(contract_obj),
         "schedule": _header_schedule(contract_obj, support_start=support_start_int),
         "mask_logic": dict(_ACTION_PRIMITIVE_MASK_LOGIC),
+        "metric_mask_registry": dict(ACTION_PRIMITIVE_METRIC_MASK_REGISTRY),
         "paired_common_mask_supplied": bool(paired_supplied),
         "paired_common_mask": paired_common_header,
         "arm_metadata": dict(arm),
@@ -1831,7 +1920,10 @@ def validate_action_primitive_semantics(
     action, fill geometry, cost-aware deterministic metrics, and arm binding.
     Optional source arrays allow a caller to rederive finite/availability and
     forecast/action semantics; without them, the persisted row-level
-    invariants are still checked.
+    invariants are still checked.  Decision and execution are validated
+    independently from outcome scoring, and metric fields are checked against
+    their registered domains (outcome-complete utility versus scored-action
+    comparison metrics).
     """
     if require_production:
         # The sealed ForecastActionSource and its runtime/source-specific
@@ -1971,6 +2063,7 @@ def validate_action_primitive_semantics(
         ("cost", _header_cost(contract_obj)),
         ("schedule", _header_schedule(contract_obj, support_start=support_start_int)),
         ("mask_logic", _ACTION_PRIMITIVE_MASK_LOGIC),
+        ("metric_mask_registry", ACTION_PRIMITIVE_METRIC_MASK_REGISTRY),
     ):
         if header.get(field) != expected_value:
             raise ActionPrimitiveContractError(f"header.{field} does not match the contract")
@@ -2136,45 +2229,26 @@ def validate_action_primitive_semantics(
             raise ActionPrimitiveContractError(
                 f"row {row_index} previous_position breaks chronological replay state"
             )
-        for allowed in contract_obj.candidate_deltas:
-            if np.isclose(chosen_delta, allowed, atol=1e-9, rtol=0.0):
-                break
-        else:
-            raise ActionPrimitiveContractError(
-                f"row {row_index} selected_delta is outside the canonical action grid"
-            )
-        if not contract_obj.position_min - 1e-9 <= selected <= contract_obj.position_max + 1e-9:
-            raise ActionPrimitiveContractError(f"row {row_index} selected_position is outside bounds")
-        expected_selected = _canonical_position(
-            previous,
-            chosen_delta,
-            contract_obj,
-        )
-        if not np.isclose(selected, expected_selected, atol=1e-9, rtol=0.0):
-            raise ActionPrimitiveContractError(
-                f"row {row_index} selected_position is not clipped from previous+selected_delta"
-            )
-        expected_turnover = abs(selected - previous)
-        if not np.isclose(turnover, expected_turnover, atol=1e-9, rtol=0.0):
-            raise ActionPrimitiveContractError(f"row {row_index} turnover is not abs(position delta)")
-        expected_active = float(expected_turnover > 1e-9)
-        if not np.isclose(active, expected_active, atol=1e-9, rtol=0.0) or active not in (0.0, 1.0):
-            raise ActionPrimitiveContractError(f"row {row_index} active_indicator is inconsistent")
-
         origin = _strict_bool(record["origin_eligible_mask"], field="origin_eligible_mask")
         forecast_finite = _strict_bool(record["forecast_finite_mask"], field="forecast_finite_mask")
         fill_complete = _strict_bool(record["fill_complete_mask"], field="fill_complete_mask")
         outcome_complete = _strict_bool(record["outcome_complete_mask"], field="outcome_complete_mask")
         scored = _strict_bool(record["scored_action_mask"], field="scored_action_mask")
         common = _strict_bool(record["common_mask"], field="common_mask")
-        expected_scored = origin and forecast_finite and fill_complete and outcome_complete
+        decision = origin and forecast_finite
+        executed = decision and fill_complete
+        expected_scored = executed and outcome_complete
         if scored != expected_scored:
             raise ActionPrimitiveContractError(
-                f"row {row_index} scored_action_mask is not the component-mask intersection"
+                f"row {row_index} scored_action_mask is not executed AND outcome_complete"
             )
-        if common != (scored and bool(paired_block[row_index])):
+        if outcome_complete and not fill_complete:
             raise ActionPrimitiveContractError(
-                f"row {row_index} common_mask is not scored AND paired common"
+                f"row {row_index} outcome_complete_mask requires a complete delayed fill"
+            )
+        if common != bool(paired_block[row_index]):
+            raise ActionPrimitiveContractError(
+                f"row {row_index} common_mask is not the fixed paired common mask"
             )
         if origin_expected is not None and origin != bool(origin_expected[row_index]):
             raise ActionPrimitiveContractError(f"row {row_index} origin mask disagrees with source mask")
@@ -2195,39 +2269,140 @@ def validate_action_primitive_semantics(
         if expected_common_block is not None and common != bool(expected_common_block[row_index]):
             raise ActionPrimitiveContractError(f"row {row_index} common mask disagrees with expected mask")
 
-        if delta_block is not None:
-            supplied_delta = float(delta_block[row_index])
-            if scored:
-                if not np.isfinite(supplied_delta) or not np.isclose(
-                    chosen_delta,
-                    supplied_delta,
-                    atol=1e-9,
-                    rtol=0.0,
+        # The persisted delta/position pair describes the effective fill, not
+        # an unfilled intent.  Validate the causal intent separately so a
+        # forecast decision remains auditable even when its delayed fill is
+        # unavailable.
+        intended_delta = 0.0
+        if decision:
+            if delta_block is not None:
+                supplied_delta = float(delta_block[row_index])
+                if not np.isfinite(supplied_delta):
+                    raise ActionPrimitiveContractError(
+                        f"row {row_index} stored action is not finite on a decision block"
+                    )
+                if not any(
+                    np.isclose(supplied_delta, allowed, atol=1e-9, rtol=0.0)
+                    for allowed in contract_obj.candidate_deltas
                 ):
-                    raise ActionPrimitiveContractError(f"row {row_index} selected action disagrees with stored action input")
-            elif np.isfinite(supplied_delta) and not np.isclose(supplied_delta, 0.0, atol=1e-9, rtol=0.0):
-                raise ActionPrimitiveContractError(f"row {row_index} has a non-zero action on an ineligible block")
-        if score_block is not None and scored:
-            expected_delta, _ = _choose_forecast_delta(
-                previous,
-                float(score_block[row_index]),
-                contract_obj,
+                    raise ActionPrimitiveContractError(
+                        f"row {row_index} stored action is outside the canonical action grid"
+                    )
+                intended_delta = supplied_delta
+            elif score_block is not None:
+                intended_delta, _ = _choose_forecast_delta(
+                    previous,
+                    float(score_block[row_index]),
+                    contract_obj,
+                )
+            else:
+                # Source scores/actions are optional at validation time.  In
+                # that mode the persisted effective action is the only
+                # available causal witness; the stronger mapper check runs
+                # whenever a source score is supplied.
+                intended_delta = chosen_delta if executed else 0.0
+            if score_block is not None:
+                expected_delta, _ = _choose_forecast_delta(
+                    previous,
+                    float(score_block[row_index]),
+                    contract_obj,
+                )
+                if not np.isclose(intended_delta, expected_delta, atol=1e-9, rtol=0.0):
+                    raise ActionPrimitiveContractError(
+                        f"row {row_index} action does not match deterministic score mapping"
+                    )
+        elif delta_block is not None and np.isfinite(delta_block[row_index]) and not np.isclose(
+            delta_block[row_index],
+            0.0,
+            atol=1e-9,
+            rtol=0.0,
+        ):
+            raise ActionPrimitiveContractError(f"row {row_index} has a non-zero action on an ineligible block")
+
+        expected_delta = intended_delta if executed else 0.0
+        if not any(
+            np.isclose(chosen_delta, allowed, atol=1e-9, rtol=0.0)
+            for allowed in contract_obj.candidate_deltas
+        ):
+            raise ActionPrimitiveContractError(
+                f"row {row_index} selected_delta is outside the canonical action grid"
             )
-            if not np.isclose(chosen_delta, expected_delta, atol=1e-9, rtol=0.0):
-                raise ActionPrimitiveContractError(f"row {row_index} action does not match deterministic score mapping")
-        if scored:
+        if not np.isclose(chosen_delta, expected_delta, atol=1e-9, rtol=0.0):
+            raise ActionPrimitiveContractError(
+                f"row {row_index} selected action does not match its execution mask"
+            )
+        if not contract_obj.position_min - 1e-9 <= selected <= contract_obj.position_max + 1e-9:
+            raise ActionPrimitiveContractError(f"row {row_index} selected_position is outside bounds")
+        expected_selected = _canonical_position(
+            previous,
+            chosen_delta,
+            contract_obj,
+        )
+        if not np.isclose(selected, expected_selected, atol=1e-9, rtol=0.0):
+            raise ActionPrimitiveContractError(
+                f"row {row_index} selected_position is not clipped from previous+selected_delta"
+            )
+        expected_turnover = abs(selected - previous)
+        if not np.isclose(turnover, expected_turnover, atol=1e-9, rtol=0.0):
+            raise ActionPrimitiveContractError(f"row {row_index} turnover is not abs(position delta)")
+        expected_active = float(expected_turnover > 1e-9)
+        if not np.isclose(active, expected_active, atol=1e-9, rtol=0.0) or active not in (0.0, 1.0):
+            raise ActionPrimitiveContractError(f"row {row_index} active_indicator is inconsistent")
+
+        if executed:
             current = selected
         elif not np.isclose(chosen_delta, 0.0, atol=1e-9, rtol=0.0):
-            raise ActionPrimitiveContractError(f"row {row_index} ineligible action must be zero")
+            raise ActionPrimitiveContractError(f"row {row_index} unexecuted action must be zero")
         elif not np.isclose(selected, previous, atol=1e-9, rtol=0.0):
-            raise ActionPrimitiveContractError(f"row {row_index} ineligible block must hold inventory")
+            raise ActionPrimitiveContractError(f"row {row_index} unexecuted block must hold inventory")
 
         metric_values: dict[str, float] = {}
         for field in ACTION_PRIMITIVE_METRIC_FIELDS:
             metric_values[field] = _strict_float(record[field], field=field)
-        if common:
-            if any(not np.isfinite(value) for value in metric_values.values()):
-                raise ActionPrimitiveContractError(f"row {row_index} common metrics must be finite")
+        utility_metric_eligible = bool(outcome_complete and paired_block[row_index])
+        action_metric_eligible = bool(scored and paired_block[row_index])
+        expected_metrics: dict[str, float] = {}
+        if returns_arr is not None and utility_metric_eligible:
+            expected_metrics = _expected_block_metrics(
+                previous_position=previous,
+                selected_position=selected,
+                returns=returns_arr,
+                fill=local_fill,
+                end=local_end,
+                contract=contract_obj,
+            )
+        for field, actual in metric_values.items():
+            metric_eligible = (
+                utility_metric_eligible
+                if field in ACTION_PRIMITIVE_UTILITY_FIELDS
+                else action_metric_eligible
+            )
+            if metric_eligible:
+                if not np.isfinite(actual):
+                    raise ActionPrimitiveContractError(
+                        f"row {row_index} {field} must be finite on its metric domain"
+                    )
+                if returns_arr is not None:
+                    _compare_metric_values(
+                        actual,
+                        expected_metrics[field],
+                        field=field,
+                        row_index=row_index,
+                    )
+            elif not np.isnan(actual):
+                raise ActionPrimitiveContractError(
+                    f"row {row_index} {field} must be NaN outside its metric mask"
+                )
+        if utility_metric_eligible and not action_metric_eligible and not np.isclose(
+            metric_values["candidate_utility"],
+            metric_values["same_state_local_hold_utility"],
+            atol=1e-9,
+            rtol=0.0,
+        ):
+            raise ActionPrimitiveContractError(
+                f"metrics at row {row_index} violate the no-action hold utility identity"
+            )
+        if action_metric_eligible:
             if not np.isclose(
                 metric_values["regret"],
                 metric_values["clairvoyant_utility"] - metric_values["candidate_utility"],
@@ -2245,26 +2420,6 @@ def validate_action_primitive_semantics(
                 raise ActionPrimitiveContractError(f"row {row_index} opportunity identity mismatch")
             if metric_values["agreement"] not in (0.0, 1.0):
                 raise ActionPrimitiveContractError(f"row {row_index} agreement must be 0 or 1")
-            if returns_arr is not None:
-                expected_metrics = _expected_block_metrics(
-                    previous_position=previous,
-                    selected_position=selected,
-                    returns=returns_arr,
-                    fill=local_fill,
-                    end=local_end,
-                    contract=contract_obj,
-                )
-                for field in ACTION_PRIMITIVE_METRIC_FIELDS:
-                    _compare_metric_values(
-                        metric_values[field],
-                        expected_metrics[field],
-                        field=field,
-                        row_index=row_index,
-                    )
-        elif any(not np.isnan(value) for value in metric_values.values()):
-            raise ActionPrimitiveContractError(
-                f"row {row_index} metrics must be NaN outside common_mask"
-            )
 
     return {
         **hash_result,
@@ -2319,11 +2474,14 @@ __all__ = [
     "ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256",
     "ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD",
     "ACTION_PRIMITIVE_HASH_FIELDS",
+    "ACTION_PRIMITIVE_ACTION_METRIC_FIELDS",
     "ACTION_PRIMITIVE_INTEGER_ARM_FIELDS",
     "ACTION_PRIMITIVE_INDEX_FIELDS",
     "ACTION_PRIMITIVE_MASK_FIELDS",
+    "ACTION_PRIMITIVE_METRIC_MASK_REGISTRY",
     "ACTION_PRIMITIVE_RECORD_FIELDS",
     "ACTION_PRIMITIVE_STRING_ARM_FIELDS",
+    "ACTION_PRIMITIVE_UTILITY_FIELDS",
     "ACTION_PRIMITIVE_VALUE_FIELDS",
     "ActionPrimitiveContractError",
     "ActionPrimitiveImplementationBlocked",
