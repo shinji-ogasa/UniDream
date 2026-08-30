@@ -53,10 +53,10 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertEqual(payload["status"], "preregistered")
         self.assertEqual(
             payload["amends_manifest_sha256"],
-            "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc",
+            "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485",
         )
-        self.assertEqual(payload["amendment_reason"], "second pre-execution independent audit")
-        self.assertEqual(len(payload["amendment_history"]), 2)
+        self.assertEqual(payload["amendment_reason"], "third pre-execution independent audit")
+        self.assertEqual(len(payload["amendment_history"]), 3)
         self.assertFalse(payload["results_observed"])
         self.assertEqual(payload["common"]["feature_columns"], [
             "open_ret", "high_ret", "low_ret", "close_ret", "vol_ret",
@@ -212,7 +212,6 @@ class P1PreregistrationTests(unittest.TestCase):
             "S2__medium_vs_low__ridge__normalized_regret__cost_on",
             "S2__medium_vs_low__ridge__utility__cost_on",
             "S2__medium_vs_low__ridge__agreement__cost_on",
-            "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
             "S3__injected_vs_control__ridge__utility__cost_on",
         }
         replay = "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence"
@@ -288,7 +287,6 @@ class P1PreregistrationTests(unittest.TestCase):
             "S2__medium_vs_low__ridge__normalized_regret__cost_on",
             "S2__medium_vs_low__ridge__utility__cost_on",
             "S2__medium_vs_low__ridge__agreement__cost_on",
-            "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
             "S3__injected_vs_control__ridge__utility__cost_on",
         }
         replay = "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence"
@@ -346,6 +344,12 @@ class P1PreregistrationTests(unittest.TestCase):
             "z0, xi, noise_features, and epsilon are mutually independent; entries within each vector or matrix are iid",
         )
         self.assertEqual(synthetic["random_dtype"], "float64")
+        self.assertEqual(
+            synthetic["availability"]["start_sampling_api"],
+            "rng=np.random.default_rng(seed+50000+source_offset); relative=rng.choice(119998-512,size=40,replace=False,shuffle=True); starts=np.asarray(relative,dtype=np.int64)+512",
+        )
+        self.assertIn("never sort", synthetic["availability"]["start_order_policy"])
+        self.assertIn("union", synthetic["availability"]["interval_union_policy"])
         bootstrap = manifest["common"]["gates"]["block_bootstrap"]
         self.assertEqual(
             bootstrap["action_bootstrap_replay_policy"],
@@ -363,6 +367,24 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertEqual(bootstrap["replicate_order"], "b=0,1,...,1999 in ascending order")
         self.assertEqual(bootstrap["quantile_method"], "np.quantile(values, q, method='linear')")
         self.assertIn("denominator is zero or nonpositive", bootstrap["denominator_policy"])
+        self.assertEqual(
+            bootstrap["mbb_draw_api"],
+            "starts=rng.integers(low=0,high=n-L+1,size=ceil(n/L),endpoint=False,dtype=np.int64)",
+        )
+        self.assertEqual(
+            bootstrap["mbb_index_materialization"],
+            "indices = starts[:,None] + np.arange(L,dtype=np.int64); flatten in C order and take the first n indices",
+        )
+        schema = bootstrap["action_primitive_schema"]
+        self.assertEqual(schema["index_dtype"], "int64")
+        self.assertEqual(schema["mask_dtype"], "bool")
+        self.assertEqual(schema["value_dtype"], "float64")
+        self.assertEqual(
+            schema["index_fields"],
+            ["primitive_index", "decision_index", "fill_index", "end_index"],
+        )
+        self.assertIn("cost_contract_hash", schema["arm_id_fields"])
+        self.assertIn("action_primitive_payload_sha256", schema["hash_fields"])
 
     def test_ranges_history_and_v4_runtime_policy_are_pinned(self) -> None:
         manifest = _read_manifest()
@@ -379,6 +401,25 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertIn("content/schema/cache-tag/row-count", v4["source_provenance_difference_policy"])
         self.assertIn("blocks S3", v4["missing_unknown_mismatch_policy"])
         self.assertTrue(v4["promotion_disposition_required"])
+        self.assertEqual(
+            v4["runtime_validation_entrypoint"],
+            "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        )
+        self.assertTrue(v4["runtime_validation_required_before_fit_or_score"])
+        self.assertEqual(
+            v4["runtime_disposition_fields"],
+            ["status", "reason", "body_match", "source_provenance_match"],
+        )
+
+    def test_exact_availability_coordinates_and_window_edges_are_pinned(self) -> None:
+        manifest = _read_manifest()
+        availability = manifest["common"]["availability"]
+        self.assertIn("t >= 63", availability["context_window_rule"])
+        self.assertIn("[t-63,t]", availability["context_window_rule"])
+        self.assertIn("only X[t]", availability["context_window_rule"])
+        self.assertIn("t+h-1->t+h", availability["target_window_rule"])
+        self.assertIn("t+h->t+h+1 is not required", availability["target_window_rule"])
+        self.assertIn("target_end=t+h+1 is exclusive", availability["target_window_rule"])
 
     def test_s1_recovery_registry_requires_each_seed_and_clairvoyant_sanity(self) -> None:
         manifest = _read_manifest()
@@ -443,7 +484,7 @@ class P1PreregistrationTests(unittest.TestCase):
 
     def test_production_loader_succeeds_and_freezes_pinned_manifest(self) -> None:
         manifest = load_fixed_manifest()
-        self.assertEqual(manifest["manifest_sha256"], "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485")
+        self.assertEqual(manifest["manifest_sha256"], "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481")
         with self.assertRaises(TypeError):
             manifest["common"] = {}  # type: ignore[index]
 

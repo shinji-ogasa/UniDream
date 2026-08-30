@@ -30,7 +30,7 @@ DEFAULT_MANIFEST_PATH = (
 # Filled from the committed manifest after its canonical JSON digest is
 # calculated.  Keeping this independently pinned is what makes an edited
 # ``manifest_sha256`` field fail closed as well.
-REGISTERED_MANIFEST_SHA256 = "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485"
+REGISTERED_MANIFEST_SHA256 = "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481"
 REGISTERED_BASE_REVISION = "881e5e08e9b413b51b0a2faf5c49592ce13329d1"
 
 REQUIRED_TOP_LEVEL_FIELDS = (
@@ -183,6 +183,11 @@ def validate_pinned_artifacts(
         "source_provenance_difference_policy": "a known source-provenance-only difference is recorded separately and permits the run only when body content/schema/cache-tag/row-count checks match; promotion requires an explicit disposition field",
         "missing_unknown_mismatch_policy": "absent or unknown provenance, missing body, or any body content/schema/cache-tag/row-count mismatch blocks S3 before fitting or scoring",
         "promotion_disposition_required": True,
+        "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        "runtime_validation_required_before_fit_or_score": True,
+        "runtime_path_override_policy": "path_overrides may replace the four explicit body paths only as a complete set; cache_dir/cache_tag-only lookup is forbidden",
+        "runtime_disposition_fields": ["status", "reason", "body_match", "source_provenance_match"],
+        "runtime_disposition_statuses": ["absent", "identical", "source_provenance_only_difference"],
     }
     if any(v4_load.get(field) != value for field, value in expected_v4_runtime_policy.items()):
         raise P1PreregistrationError("v4 body/provenance runtime policy is immutable")
@@ -199,6 +204,12 @@ def validate_pinned_artifacts(
         "v4_cache_local_schema_digest",
         "v4_cache_local_content_digests",
         "v4_cache_local_row_counts",
+        "v4_runtime_validation_status",
+        "v4_runtime_provenance_disposition",
+        "v4_runtime_body_match",
+        "v4_runtime_source_provenance_match",
+        "v4_runtime_frozen_metadata_sha256",
+        "v4_runtime_cache_local_metadata_sha256",
     }
     if not required_echoes.issubset(set(v4_load.get("artifact_echo_fields", []))):
         raise P1PreregistrationError("v4 provenance echo fields are incomplete")
@@ -397,7 +408,6 @@ def validate_pinned_artifacts(
         "S2__medium_vs_low__ridge__normalized_regret__cost_on",
         "S2__medium_vs_low__ridge__utility__cost_on",
         "S2__medium_vs_low__ridge__agreement__cost_on",
-        "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
         "S3__injected_vs_control__ridge__utility__cost_on",
     }
     expected_action_replay = (
@@ -507,10 +517,10 @@ def validate_fixed_manifest(
     if manifest["base_revision"] != REGISTERED_BASE_REVISION:
         raise P1PreregistrationError("base_revision differs from registered origin/main")
     if manifest["amends_manifest_sha256"] != (
-        "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc"
+        "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485"
     ):
         raise P1PreregistrationError("amended manifest digest is not pinned")
-    if manifest["amendment_reason"] != "second pre-execution independent audit":
+    if manifest["amendment_reason"] != "third pre-execution independent audit":
         raise P1PreregistrationError("amendment reason is not pinned")
     if manifest["amendment_history"] != [
         {
@@ -521,6 +531,11 @@ def validate_fixed_manifest(
         {
             "manifest_sha256": "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc",
             "reason": "first pre-execution independent audit predecessor",
+            "results_observed": False,
+        },
+        {
+            "manifest_sha256": "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485",
+            "reason": "second pre-execution independent audit predecessor",
             "results_observed": False,
         },
     ]:
@@ -649,6 +664,11 @@ def validate_fixed_manifest(
         "source_provenance_difference_policy": "a known source-provenance-only difference is recorded separately and permits the run only when body content/schema/cache-tag/row-count checks match; promotion requires an explicit disposition field",
         "missing_unknown_mismatch_policy": "absent or unknown provenance, missing body, or any body content/schema/cache-tag/row-count mismatch blocks S3 before fitting or scoring",
         "promotion_disposition_required": True,
+        "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        "runtime_validation_required_before_fit_or_score": True,
+        "runtime_path_override_policy": "path_overrides may replace the four explicit body paths only as a complete set; cache_dir/cache_tag-only lookup is forbidden",
+        "runtime_disposition_fields": ["status", "reason", "body_match", "source_provenance_match"],
+        "runtime_disposition_statuses": ["absent", "identical", "source_provenance_only_difference"],
     }
     if any(v4_load.get(field) != value for field, value in expected_v4_runtime_policy.items()):
         raise P1PreregistrationError("v4 body/provenance runtime policy is immutable")
@@ -665,6 +685,12 @@ def validate_fixed_manifest(
         "v4_cache_local_schema_digest",
         "v4_cache_local_content_digests",
         "v4_cache_local_row_counts",
+        "v4_runtime_validation_status",
+        "v4_runtime_provenance_disposition",
+        "v4_runtime_body_match",
+        "v4_runtime_source_provenance_match",
+        "v4_runtime_frozen_metadata_sha256",
+        "v4_runtime_cache_local_metadata_sha256",
     }.issubset(set(v4_load.get("artifact_echo_fields", []))):
         raise P1PreregistrationError("v4 provenance echo fields are incomplete")
     if common.get("data_frequency") != "15m":
@@ -829,6 +855,8 @@ def validate_fixed_manifest(
         ],
         "origin_context_row_rule": "decision origin/context row requires spot_bar_observed, funding_rate_available, mark_close_available, and all 17 model features finite",
         "outcome_label_row_rule": "each target bar t+1..t+h requires spot_bar_observed, a finite return, and contiguous 15m adjacency; funding_rate_available and mark_close_available are not required for a return label",
+        "context_window_rule": "for output-coordinate decision t, require t >= 63 and every current-inclusive index in [t-63,t] (64 rows) to have consecutive 15m timestamps, finite canonical 17 features, and spot_bar_observed=true, funding_rate_available=true, and mark_close_available=true; apply after the raw burn-in slice and pass only X[t] to the model",
+        "target_window_rule": "for output-coordinate decision t and horizon h, require decision row t plus target rows [t+1,...,t+h] and all h consecutive 15m edges t->t+1 through t+h-1->t+h; returns and spot masks are required only on t+1..t+h, edge t+h->t+h+1 is not required, and target_end=t+h+1 is exclusive",
         "window_rule": "one false/missing/non-contiguous required row invalidates the corresponding context or target window; required masks are not interchangeable",
         "mask_dtype": "strict bool only",
         "missing_policy": "fail closed",
@@ -849,6 +877,8 @@ def validate_fixed_manifest(
         "outer_test_rows": "report-only; never tune, select, or revise thresholds",
         "post_output_tuning_allowed": False,
         "missing_artifact_policy": "fail closed with N/A/blocked status",
+        "v4_runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        "v4_runtime_validation_required_before_fit_or_score": True,
         "cost_contract_consistency": "optimizer, teacher, student replay, U0, Q, and Backtest must all verify the mode-specific contract hash before scoring; a missing or mismatched hash fails closed",
         "inventory_consistency": "agreement and regret use each forecast policy's own carried p_{t-1}; U0/global hindsight inventory cannot enter row scoring or update policy state",
         "unknown_or_overridden_field_policy": "reject before fitting",
@@ -870,6 +900,12 @@ def validate_fixed_manifest(
         "model_id",
         "comparison_registry_sha256",
         "coverage_by_horizon_model_seed",
+        "v4_runtime_validation_status",
+        "v4_runtime_provenance_disposition",
+        "v4_runtime_body_match",
+        "v4_runtime_source_provenance_match",
+        "v4_runtime_frozen_metadata_sha256",
+        "v4_runtime_cache_local_metadata_sha256",
         "v4_feature_path",
         "v4_returns_path",
         "v4_availability_path",
@@ -882,6 +918,9 @@ def validate_fixed_manifest(
         "v4_cache_local_schema_digest",
         "v4_cache_local_content_digests",
         "v4_cache_local_row_counts",
+        "action_primitive_payload_sha256",
+        "action_primitive_schema_sha256",
+        "action_primitive_content_sha256",
     }
     if not required_result_echoes.issubset(set(runner.get("result_must_echo", []))):
         raise P1PreregistrationError("runner provenance/result echoes are incomplete")
@@ -1052,13 +1091,27 @@ def validate_fixed_manifest(
         "sensitivity_block_lengths": [8, 16, 32],
         "seed": 20260830,
         "forecast_primitive_grid": "the complete validation-split time-series row grid in original order; N/A/missing rows remain in place and are never compressed",
-        "action_primitive_grid": "all structurally complete scheduled non-overlapping four-bar blocks inside the split, one record per block in original chronological order; outcome/forecast gaps remain false-mask N/A records and are never compressed",
-        "action_primitive_record_fields": "each action record stores candidate utility, independent benchmark_hold utility, same-state local hold utility, realized same-state clairvoyant utility, regret, opportunity, agreement, selected_delta, selected_position, previous_position, turnover, active_indicator, and fixed common masks produced by one chronological validation replay from p_start=1/countdown=0; selected_delta is the canonical chosen delta, selected_position is the clipped/deduplicated chosen position, previous_position is the policy state before the block, turnover=abs(selected_position-previous_position), and active_indicator=1 iff turnover>0",
+        "action_primitive_grid": "all structurally complete scheduled non-overlapping four-bar blocks inside the split, one record per block in original chronological order; split-local scheduled starts are 0,4,... from canonical complete_decision_starts; outcome/forecast gaps remain false-mask N/A records and are never compressed",
+        "action_primitive_record_fields": "each action record stores primitive_index, decision_index, fill_index, end_index, previous_position, selected_delta, selected_position, candidate_utility, benchmark_hold_utility, same_state_local_hold_utility, clairvoyant_utility, regret, opportunity, agreement, turnover, active_indicator, origin_eligible_mask, forecast_finite_mask, fill_complete_mask, outcome_complete_mask, scored_action_mask, scenario_id, seed, split_id, support_id, model_id, cost_mode, and cost_contract_hash; selected_delta is the canonical chosen delta, selected_position is the clipped/deduplicated chosen position, previous_position is the policy state before the block, turnover=abs(selected_position-previous_position), and active_indicator=1 iff turnover>0",
+        "action_primitive_schema": {
+            "schedule_rule": "split-local scheduled starts are 0,4,... from canonical complete_decision_starts; global decision index = support_start + local decision index; one record per scheduled non-overlapping four-bar block in original order",
+            "index_fields": ["primitive_index", "decision_index", "fill_index", "end_index"],
+            "index_dtype": "int64",
+            "value_fields": ["previous_position", "selected_delta", "selected_position", "candidate_utility", "benchmark_hold_utility", "same_state_local_hold_utility", "clairvoyant_utility", "regret", "opportunity", "agreement", "turnover", "active_indicator"],
+            "value_dtype": "float64",
+            "mask_fields": ["origin_eligible_mask", "forecast_finite_mask", "fill_complete_mask", "outcome_complete_mask", "scored_action_mask", "common_mask"],
+            "mask_dtype": "bool",
+            "arm_id_fields": ["scenario_id", "seed", "split_id", "support_id", "model_id", "cost_mode", "cost_contract_hash"],
+            "hash_fields": ["action_primitive_payload_sha256", "action_primitive_schema_sha256", "action_primitive_content_sha256"],
+            "gap_policy": "retain every scheduled primitive record in original order; mask forecast/outcome gaps false and exclude them from metric denominators without dropping or compressing records",
+        },
         "action_bootstrap_replay_policy": "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence",
         "action_inventory_boundary_policy": "inventory and state are fixed inside each stored block record; bootstrap block boundaries and duplicate sampled records never carry or replay inventory state",
         "primitive_unit_for_L": "each moving-block length L is measured in the applicable primitive records, not compacted valid rows",
         "resampling_unit": "contiguous non-circular blocks within each seed/split primitive grid; same sampled indices for candidate and paired baseline",
-        "non_circular_mbb": "require n >= L; for each replicate draw ceil(n/L) iid start integers uniformly from [0,n-L], concatenate each start:start+L range, and truncate to the first n primitive records; no circular wrap and no gap compression",
+        "non_circular_mbb": "require n >= L; for each replicate draw starts=rng.integers(low=0, high=n-L+1, size=ceil(n/L), endpoint=False, dtype=np.int64), materialize indices=starts[:,None]+np.arange(L,dtype=np.int64) in C-order, flatten and truncate to the first n primitive records; no circular wrap and no gap compression",
+        "mbb_draw_api": "starts=rng.integers(low=0,high=n-L+1,size=ceil(n/L),endpoint=False,dtype=np.int64)",
+        "mbb_index_materialization": "indices = starts[:,None] + np.arange(L,dtype=np.int64); flatten in C order and take the first n indices",
         "rng_seed_formula": "20260830 + 100000*unit_code + 1000*L + seed_ordinal",
         "rng_lifecycle": "for each unit/support/seed/L create np.random.default_rng(derived_seed) exactly once, then draw all replicate starts in replicate order b=0..1999; do not reinitialize per replicate, arm, or comparison",
         "replicate_order": "b=0,1,...,1999 in ascending order",
@@ -1224,12 +1277,22 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("synthetic gap schedule is immutable")
     if availability.get("start_rng_formula") != "np.random.default_rng(seed + 50000 + source_offset)" or availability.get("shared_across_s2_levels") is not True:
         raise P1PreregistrationError("synthetic availability pairing is immutable")
+    if availability.get("start_sampling_api") != (
+        "rng=np.random.default_rng(seed+50000+source_offset); relative=rng.choice(119998-512,size=40,replace=False,shuffle=True); starts=np.asarray(relative,dtype=np.int64)+512"
+    ):
+        raise P1PreregistrationError("synthetic gap choice API is immutable")
+    if availability.get("start_coordinate_system") != (
+        "starts are output-coordinate indices after the raw burn-in slice; valid start values are [512,119998) and are not raw pre-slice indices"
+    ):
+        raise P1PreregistrationError("synthetic gap coordinate system is immutable")
     if availability.get("start_range") != (
-        "without-replacement starts in output-index range [burn_in_rows, n_rows-gap_block_length_bars) = [512,119998), applied after raw burn-in slicing"
+        "without-replacement starts in output-index range [512,119998) after raw burn-in slicing; the integer population passed to choice is 119998-512"
     ) or availability.get("false_range") != (
         "output indices [start, start + gap_block_length_bars); preserve those output rows and set only the sidecar flag false"
     ):
         raise P1PreregistrationError("synthetic gap mask range/preservation is immutable")
+    if availability.get("start_order_policy") != "retain the returned choice order in the artifact exactly; never sort the starts" or availability.get("interval_union_policy") != "for each source, false_mask is the union of half-open output intervals [start,start+2); starts are unique but adjacent starts may overlap bars and the union is applied":
+        raise P1PreregistrationError("synthetic gap ordering/union semantics are immutable")
     sanity = _require_mapping(synthetic, "mask_only_sanity")
     if sanity.get("minimum_eligible_fraction_across_fixed_seeds") != 0.9245 or sanity.get("gate") != ">= 0.90":
         raise P1PreregistrationError("mask-only coverage derivation is immutable")
