@@ -138,7 +138,7 @@ def require_conditional_oof_inputs(
     oof_bundle: Mapping[str, Any] | None,
     caller: str,
 ) -> None:
-    """Fail closed unless a caller supplies an explicitly OOF state bundle."""
+    """Fail closed unless a caller supplies a complete raw OOF result bundle."""
     if not conditional_path_enabled(config):
         return
     if not isinstance(oof_bundle, Mapping):
@@ -147,6 +147,19 @@ def require_conditional_oof_inputs(
             "OOF WM retraining/state provenance is not supplied; legacy in-sample "
             "future-target state cannot cross this boundary"
         )
+    if "predictions" not in oof_bundle:
+        raise ConditionalPathBlocked(
+            f"{caller} is blocked for conditional Oracle: split-only/raw state "
+            "views must carry the complete chronological OOF result, including "
+            "predictions, eligibility masks, and provenance"
+        )
+    try:
+        validate_oof_result(oof_bundle)
+    except ChronologicalOOFError as exc:
+        raise ConditionalPathBlocked(
+            f"{caller} is blocked for conditional Oracle: complete OOF "
+            f"eligibility contract is invalid ({exc})"
+        ) from exc
     provenance = oof_bundle.get("provenance")
     if not isinstance(provenance, Mapping):
         raise ConditionalPathBlocked(
@@ -160,9 +173,7 @@ def require_conditional_oof_inputs(
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: fit_scheme must be chronological OOF"
         )
-    if "in_sample" in provenance and strict_bool_value(
-        provenance["in_sample"], name="oof_bundle.provenance.in_sample"
-    ):
+    if strict_bool_value(provenance["in_sample"], name="oof_bundle.provenance.in_sample"):
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: in-sample state is forbidden"
         )
@@ -452,7 +463,7 @@ def validate_oof_result(
     *,
     target_end: np.ndarray | None = None,
 ) -> None:
-    """Validate NaN/availability and prefix invariants of an OOF result."""
+    """Validate OOF values, full eligibility masks, provenance, and prefixes."""
     predictions = np.asarray(result.get("predictions"))
     mask = strict_bool_array(
         result.get("prediction_mask", result.get("oof_mask")),
@@ -470,10 +481,79 @@ def validate_oof_result(
         raise ChronologicalOOFError(
             "finite OOF state exists outside the prediction mask; refusing a partial fill"
         )
+    n_rows = predictions.shape[0]
+    eligibility_masks: dict[str, np.ndarray] = {}
+    for name in (
+        "prediction_eligibility_mask",
+        "training_label_eligibility_mask",
+    ):
+        if name not in result:
+            raise ChronologicalOOFError(f"OOF result is missing required {name}")
+        eligibility = strict_bool_array(result[name], name=name)
+        if eligibility.ndim != 1 or eligibility.shape != (n_rows,):
+            raise ChronologicalOOFError(
+                f"{name} must be a 1-D full-row mask with shape ({n_rows},), "
+                f"got {eligibility.shape}"
+            )
+        eligibility_masks[name] = eligibility
+    prediction_eligibility = eligibility_masks["prediction_eligibility_mask"]
+    training_eligibility = eligibility_masks["training_label_eligibility_mask"]
+    if np.any(mask & ~prediction_eligibility):
+        raise ChronologicalOOFError(
+            "prediction_mask contains a row outside prediction_eligibility_mask"
+        )
+    if np.any(training_eligibility & ~prediction_eligibility):
+        raise ChronologicalOOFError(
+            "training_label_eligibility_mask contains a row outside prediction_eligibility_mask"
+        )
     origins = result.get("origins", [])
     provenance = result.get("provenance", {})
     if not isinstance(provenance, Mapping):
         raise ChronologicalOOFError("OOF provenance must be a mapping")
+    if "in_sample" not in provenance:
+        raise ChronologicalOOFError(
+            "OOF provenance.in_sample must be explicitly false"
+        )
+    if strict_bool_value(provenance["in_sample"], name="provenance.in_sample"):
+        raise ChronologicalOOFError("OOF result is marked in_sample")
+
+    def validate_eligibility_detail(
+        name: str,
+        detail: Any,
+        mask_value: np.ndarray,
+    ) -> None:
+        if not isinstance(detail, Mapping):
+            raise ChronologicalOOFError(
+                f"OOF {name} count/provenance detail is missing or not a mapping"
+            )
+        expected_count = int(mask_value.sum())
+        for field in ("count", "eligible_rows", "n_rows"):
+            if field not in detail:
+                raise ChronologicalOOFError(
+                    f"OOF {name} provenance is missing {field}"
+                )
+            actual = strict_integer_value(detail[field], name=f"{name}.{field}")
+            expected = n_rows if field == "n_rows" else expected_count
+            if actual != expected:
+                raise ChronologicalOOFError(
+                    f"OOF {name}.{field}={actual} does not match expected {expected}"
+                )
+        if not isinstance(detail.get("provenance"), Mapping):
+            raise ChronologicalOOFError(
+                f"OOF {name}.provenance must be a mapping"
+            )
+
+    detail_masks = {
+        "prediction_eligibility": prediction_eligibility,
+        "training_label_eligibility": training_eligibility,
+    }
+    for name, detail_mask in detail_masks.items():
+        validate_eligibility_detail(name, result.get(name), detail_mask)
+        validate_eligibility_detail(
+            f"provenance.{name}",
+            provenance.get(name),
+            detail_mask,
+        )
     purge = strict_integer_value(provenance.get("purge", 0), name="provenance.purge")
     for field in ("horizon", "min_train_size", "step"):
         if field in provenance:
@@ -531,10 +611,6 @@ def validate_oof_result(
                 raise ChronologicalOOFError(
                     f"OOF origin {t} includes a future/incomplete label: max_end={int(np.max(train_end))} cutoff={cutoff}"
                 )
-    if "in_sample" in provenance and strict_bool_value(
-        provenance["in_sample"], name="provenance.in_sample"
-    ):
-        raise ChronologicalOOFError("OOF result is marked in_sample")
 
 
 def chronological_oof_standardize(

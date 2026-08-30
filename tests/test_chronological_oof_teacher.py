@@ -134,6 +134,65 @@ class ChronologicalOOFTeacherTest(unittest.TestCase):
         self.assertTrue(incomplete_tail["prediction_eligibility_mask"][-1])
         self.assertTrue(incomplete_tail["prediction_mask"][-1])
 
+    def test_oof_validator_requires_explicit_eligibility_and_in_sample_provenance(self) -> None:
+        base = chronological_oof_predict(
+            np.arange(5, dtype=np.float64).reshape(-1, 1),
+            np.arange(5, dtype=np.float64),
+            fit_predict=self._fit_predict,
+            min_train_size=1,
+        )
+        for missing in (
+            "prediction_eligibility_mask",
+            "training_label_eligibility_mask",
+        ):
+            with self.subTest(missing=missing):
+                candidate = dict(base)
+                candidate.pop(missing)
+                with self.assertRaises(ChronologicalOOFError):
+                    validate_oof_result(candidate)
+
+        candidate = dict(base)
+        candidate["provenance"] = dict(base["provenance"])
+        candidate["provenance"].pop("in_sample")
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(candidate)
+
+        bad_prediction_subset = dict(base)
+        bad_prediction_subset["prediction_eligibility_mask"] = base[
+            "prediction_eligibility_mask"
+        ].copy()
+        first_prediction = int(np.flatnonzero(base["prediction_mask"])[0])
+        bad_prediction_subset["prediction_eligibility_mask"][first_prediction] = False
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(bad_prediction_subset)
+
+        bad_training_subset = dict(base)
+        bad_training_subset["prediction_eligibility_mask"] = base[
+            "prediction_eligibility_mask"
+        ].copy()
+        bad_training_subset["training_label_eligibility_mask"] = base[
+            "training_label_eligibility_mask"
+        ].copy()
+        bad_training_subset["prediction_eligibility_mask"][0] = False
+        bad_training_subset["training_label_eligibility_mask"][0] = True
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(bad_training_subset)
+
+        for name in (
+            "prediction_eligibility_mask",
+            "training_label_eligibility_mask",
+        ):
+            for invalid in (
+                np.ones(5, dtype=np.int64),
+                np.ones((1, 5), dtype=bool),
+                np.ones(4, dtype=bool),
+            ):
+                with self.subTest(mask=name, shape=invalid.shape, dtype=invalid.dtype):
+                    candidate = dict(base)
+                    candidate[name] = invalid
+                    with self.assertRaises(ChronologicalOOFError):
+                        validate_oof_result(candidate)
+
     def test_horizon_and_purge_exclude_incomplete_or_overlapping_labels(self) -> None:
         features = np.arange(20, dtype=np.float64).reshape(-1, 1)
         labels = np.arange(20, dtype=np.float64)

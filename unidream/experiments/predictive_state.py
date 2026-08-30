@@ -36,13 +36,23 @@ def _conditional_oof_state_bundle(
     """Validate and return a precomputed chronological OOF state bundle.
 
     Full WM fold re-training is deliberately not hidden behind this adapter.
-    The caller must provide aligned, masked OOF states and provenance for every
-    split; early rows remain NaN and are exposed through ``*_mask`` for a later
-    stage to exclude explicitly.
+    The caller must provide the complete raw chronological OOF result (including
+    eligibility masks/provenance), plus aligned, masked OOF state views and
+    eligibility masks for every split; early rows remain NaN and are exposed
+    through ``*_mask`` for a later stage to exclude explicitly.
     """
+    # Validate the raw producer result before inspecting any split view.  A
+    # split-only caller must never be able to bypass the eligibility and
+    # in-sample provenance contract by supplying plausible state masks.
+    try:
+        validate_oof_result(oof_bundle)
+    except ChronologicalOOFError as exc:
+        raise ConditionalPathBlocked(str(exc)) from exc
+    provenance = dict(oof_bundle.get("provenance") or {})
     names = list(oof_bundle.get("names", []))
     splits: dict[str, np.ndarray] = {}
     masks: dict[str, np.ndarray] = {}
+    split_masks: dict[str, np.ndarray] = {}
     for split in ("train", "val", "test"):
         if split not in oof_bundle:
             raise ConditionalPathBlocked(
@@ -51,7 +61,7 @@ def _conditional_oof_state_bundle(
         values = np.asarray(oof_bundle[split], dtype=np.float32)
         if values.ndim != 2:
             raise ConditionalPathBlocked(f"conditional OOF {split} state must be 2-D")
-        mask_value = oof_bundle.get(f"{split}_mask", oof_bundle.get("prediction_mask"))
+        mask_value = oof_bundle.get(f"{split}_mask")
         if mask_value is None:
             raise ConditionalPathBlocked(
                 f"conditional OOF bundle is missing {split}_mask; early rows cannot be inferred"
@@ -69,18 +79,58 @@ def _conditional_oof_state_bundle(
             raise ConditionalPathBlocked(
                 f"conditional OOF {split} has finite or partially finite values outside its OOF mask"
             )
+        split_prediction_eligibility_value = oof_bundle.get(
+            f"{split}_prediction_eligibility_mask"
+        )
+        split_training_eligibility_value = oof_bundle.get(
+            f"{split}_training_label_eligibility_mask"
+        )
+        if split_prediction_eligibility_value is None:
+            raise ConditionalPathBlocked(
+                f"conditional OOF bundle is missing {split}_prediction_eligibility_mask"
+            )
+        if split_training_eligibility_value is None:
+            raise ConditionalPathBlocked(
+                f"conditional OOF bundle is missing {split}_training_label_eligibility_mask"
+            )
+        try:
+            split_prediction_eligibility = strict_bool_array(
+                split_prediction_eligibility_value,
+                name=f"conditional OOF {split}_prediction_eligibility_mask",
+            )
+            split_training_eligibility = strict_bool_array(
+                split_training_eligibility_value,
+                name=f"conditional OOF {split}_training_label_eligibility_mask",
+            )
+        except ChronologicalOOFError as exc:
+            raise ConditionalPathBlocked(str(exc)) from exc
+        for name, eligibility in (
+            ("prediction", split_prediction_eligibility),
+            ("training_label", split_training_eligibility),
+        ):
+            if eligibility.ndim != 1 or len(eligibility) != len(values):
+                raise ConditionalPathBlocked(
+                    f"conditional OOF {split}_{name}_eligibility_mask is not row-aligned"
+                )
+        if np.any(mask & ~split_prediction_eligibility):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_mask contains a row outside its prediction eligibility"
+            )
+        if np.any(split_training_eligibility & ~split_prediction_eligibility):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split}_training_label_eligibility_mask contains a row outside its prediction eligibility"
+            )
         splits[split] = values
         masks[split] = mask
+        # Keep split-level origin/training provenance alongside the state mask;
+        # neither can be inferred from a split-only state view.
+        split_masks[f"{split}_prediction_eligibility_mask"] = split_prediction_eligibility
+        split_masks[f"{split}_training_label_eligibility_mask"] = split_training_eligibility
         if not names:
             names = [f"wm_oof_state_{i}" for i in range(values.shape[1])]
         if len(names) != values.shape[1]:
             raise ConditionalPathBlocked(f"conditional OOF {split} names do not match state width")
 
-    provenance = dict(oof_bundle.get("provenance") or {})
-    # ``validate_oof_result`` is also applied when the producer supplied raw
-    # prediction/origin fields.  It catches accidental in-sample metadata.
-    if "predictions" in oof_bundle:
-        validate_oof_result(oof_bundle)
     normalizer = provenance.get("normalizer", "")
     normalizer_name = (
         str(normalizer).strip().lower() if not isinstance(normalizer, dict) else ""
@@ -123,6 +173,24 @@ def _conditional_oof_state_bundle(
         "train_mask": masks["train"],
         "val_mask": masks["val"],
         "test_mask": masks["test"],
+        "train_prediction_eligibility_mask": split_masks[
+            "train_prediction_eligibility_mask"
+        ],
+        "val_prediction_eligibility_mask": split_masks[
+            "val_prediction_eligibility_mask"
+        ],
+        "test_prediction_eligibility_mask": split_masks[
+            "test_prediction_eligibility_mask"
+        ],
+        "train_training_label_eligibility_mask": split_masks[
+            "train_training_label_eligibility_mask"
+        ],
+        "val_training_label_eligibility_mask": split_masks[
+            "val_training_label_eligibility_mask"
+        ],
+        "test_training_label_eligibility_mask": split_masks[
+            "test_training_label_eligibility_mask"
+        ],
         "mean": np.asarray(oof_bundle.get("mean", []), dtype=np.float32),
         "std": np.asarray(oof_bundle.get("std", []), dtype=np.float32),
         "names": names,

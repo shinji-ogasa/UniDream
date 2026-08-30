@@ -85,6 +85,13 @@ label-completeness mask rather than reusing the target-training mask.  Its
 caller-supplied provenance is retained in the OOF result.  For
 window/sequence inputs, the caller must pass one eligibility value per window;
 no sidecar is auto-zero-filled.
+The OOF validator requires both full-row eligibility masks, their count and
+provenance details, and an explicit `provenance.in_sample: false`; it also
+rejects prediction/training masks that fall outside origin eligibility.  The
+conditional boundary requires this raw validated OOF result in addition to
+the train/val/test state views.  Split-only state masks therefore cannot
+bypass raw OOF provenance; each split view must carry its own origin and
+training-label eligibility masks.
 Horizon, purge, train-size/window, step, target-end cutoff, and standardizer
 history options require actual integer types; bool, fractional, and string
 coercion are rejected. Conditional flags and mapping `enabled` values likewise
@@ -117,11 +124,11 @@ The new tests cover h64 zero target/gradient detection, output-specific and
 per-head step coverage, coverage-gate blocking/markers, run/fold/phase
 context, strict mask and integer types, same-row future-label perturbation,
 explicit origin/window eligibility, horizon/purge eligibility, no early-row
-fill, partial-finite values outside an OOF mask, and hindsight inventory
-rejection.
+fill, partial-finite values outside an OOF mask, missing eligibility/in-sample
+provenance, split-only conditional bundles, and hindsight inventory rejection.
 
-Observed result: 20 scoped contract tests passed.  The complete repository
-suite passed (143 tests).
+Observed result: 24 scoped contract tests passed.  The complete repository
+suite passed (147 tests).
 
 The full suite is required before promotion:
 
