@@ -49,6 +49,30 @@ def _conditional_oof_state_bundle(
     # Validate the raw producer result before inspecting any split view.  A
     # split-only caller must never be able to bypass the eligibility and
     # in-sample provenance contract by supplying plausible state masks.
+    # A persisted artifact may be supplied as an envelope together with the
+    # split views.  Unwrap it only after the outer conditional gate has
+    # validated its schema/content hash; no legacy WM state is synthesized.
+    selected_artifact = None
+    if isinstance(oof_bundle, dict) and oof_bundle.get("schema") == "unidream.conditional_oof":
+        selected_artifact = oof_bundle
+    elif isinstance(oof_bundle, dict):
+        for key in ("conditional_oof_artifact", "oof_artifact", "artifact"):
+            candidate = oof_bundle.get(key)
+            if isinstance(candidate, dict) and candidate.get("schema") == "unidream.conditional_oof":
+                selected_artifact = candidate
+                break
+    if selected_artifact is not None and selected_artifact is not oof_bundle:
+        merged_bundle = dict(selected_artifact)
+        # Split views are deliberately supplied by the caller; the artifact
+        # contains only the raw chronological OOF result and provenance.
+        merged_bundle.update(
+            {
+                key: value
+                for key, value in oof_bundle.items()
+                if key not in {"conditional_oof_artifact", "oof_artifact", "artifact"}
+            }
+        )
+        oof_bundle = merged_bundle
     try:
         validate_oof_result(oof_bundle)
     except ChronologicalOOFError as exc:

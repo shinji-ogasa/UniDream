@@ -227,34 +227,46 @@ def _origin_digest(origins: Any) -> str:
 
 def _contract_digest(contract: Any, *, explicit_hash: str | None = None) -> str:
     """Resolve an ActionExecutionContract object/mapping to its hash."""
+    resolved_from_contract: str | None = None
+    if contract is not None and not isinstance(contract, str):
+        if hasattr(contract, "contract_hash"):
+            resolved_from_contract = _sha256_text(
+                getattr(contract, "contract_hash"),
+                name="action_execution_contract_sha256",
+            )
+        elif isinstance(contract, Mapping):
+            supplied = contract.get(
+                "contract_hash",
+                contract.get("action_execution_contract_hash"),
+            )
+            if supplied is not None:
+                resolved_from_contract = _sha256_text(
+                    supplied,
+                    name="action_execution_contract_sha256",
+                )
+            else:
+                try:
+                    from unidream.eval.action_execution import ActionExecutionContract
+
+                    resolved_from_contract = ActionExecutionContract.from_config(contract).contract_hash
+                except (ImportError, TypeError, ValueError) as exc:
+                    raise ConditionalOOFArtifactError(
+                        "action_execution_contract must expose a canonical contract hash"
+                    ) from exc
     if explicit_hash is not None:
         resolved = _sha256_text(
             explicit_hash,
             name="action_execution_contract_sha256",
         )
+        if resolved_from_contract is not None and resolved != resolved_from_contract:
+            raise ConditionalOOFArtifactError(
+                "action_execution_contract hash does not match the explicit hash"
+            )
+        return resolved
     elif isinstance(contract, str):
         resolved = _sha256_text(contract, name="action_execution_contract_sha256")
-    elif hasattr(contract, "contract_hash"):
-        resolved = _sha256_text(
-            getattr(contract, "contract_hash"),
-            name="action_execution_contract_sha256",
-        )
-    elif isinstance(contract, Mapping):
-        supplied = contract.get("contract_hash", contract.get("action_execution_contract_hash"))
-        if supplied is not None:
-            resolved = _sha256_text(
-                supplied,
-                name="action_execution_contract_sha256",
-            )
-        else:
-            try:
-                from unidream.eval.action_execution import ActionExecutionContract
-
-                resolved = ActionExecutionContract.from_config(contract).contract_hash
-            except (ImportError, TypeError, ValueError) as exc:
-                raise ConditionalOOFArtifactError(
-                    "action_execution_contract must expose a canonical contract hash"
-                ) from exc
+    elif resolved_from_contract is not None:
+        resolved = resolved_from_contract
     else:
         raise ConditionalOOFArtifactError(
             "action_execution_contract or action_execution_contract_hash is required"
@@ -860,6 +872,11 @@ def _conditional_artifact_required(config: Mapping[str, Any] | None) -> bool:
     return any(values)
 
 
+def conditional_oof_artifact_required(config: Mapping[str, Any] | None) -> bool:
+    """Return whether the new conditional config explicitly requires an artifact."""
+    return _conditional_artifact_required(config)
+
+
 def require_conditional_oof_artifact(
     *,
     config: Mapping[str, Any] | None,
@@ -899,6 +916,12 @@ def require_conditional_oof_artifact(
             f"{caller} is blocked for conditional Oracle: OOF artifact contract "
             f"is invalid ({exc})"
         ) from exc
+
+
+# Short aliases make the contract easy to discover from experiment code while
+# retaining the descriptive names used in the reports.
+conditional_oof_artifact_hash = hash_conditional_oof_artifact
+OOFArtifactError = ConditionalOOFArtifactError
 
 
 def _finite_rows(array: np.ndarray, *, name: str) -> np.ndarray:
@@ -1707,6 +1730,7 @@ __all__ = [
     "ChronologicalOOFError",
     "ConditionalPathBlocked",
     "ConditionalOOFArtifactError",
+    "OOFArtifactError",
     "OOF_ARTIFACT_SCHEMA",
     "OOF_ARTIFACT_SCHEMA_VERSION",
     "OOFOrigin",
@@ -1716,6 +1740,8 @@ __all__ = [
     "chronological_oof_predict",
     "chronological_oof_standardize",
     "conditional_path_enabled",
+    "conditional_oof_artifact_hash",
+    "conditional_oof_artifact_required",
     "hash_conditional_oof_artifact",
     "load_conditional_oof_artifact",
     "require_conditional_oof_artifact",
