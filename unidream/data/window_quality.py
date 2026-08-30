@@ -2,16 +2,21 @@
 
 The training pipeline historically receives a dense ``ndarray`` and therefore
 cannot tell whether adjacent rows are adjacent market bars.  These helpers
-accept the original timestamp index (and, optionally, the v4 spot-observation
-mask) and return only windows whose rows are all observed and contiguous.  No
-rows are sorted, dropped, or filled here.
+accept the original timestamp index and, optionally, the v4 availability
+sidecar.  They return only windows whose rows are all required-source
+observed and contiguous.  No rows are sorted, dropped, or filled here.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
+
+from .availability_contract import (
+    AvailabilityContractError,
+    validate_availability,
+)
 
 
 class WindowQualityError(ValueError):
@@ -55,21 +60,56 @@ def valid_sequence_starts(
     *,
     interval: str = "15m",
     spot_bar_observed: np.ndarray | pd.Series | None = None,
+    availability: pd.DataFrame | Mapping[str, Any] | None = None,
+    include_funding: bool = True,
+    include_mark: bool = True,
 ) -> np.ndarray:
     """Return row offsets whose full sequence is gap-free and observed.
 
     A start is valid only when every adjacent pair in the ``seq_len`` rows is
     exactly one configured interval apart.  If ``spot_bar_observed`` is
     supplied it must align one-for-one with ``index`` and every row in the
-    window must be ``True``.  The returned offsets index the caller's original
-    rows, so no hidden reindexing or compaction occurs.
+    window must be ``True``.  ``availability`` applies the same rule to the
+    required Spot/funding/mark sidecar columns.  The returned offsets index the
+    caller's original rows, so no hidden reindexing or compaction occurs.
     """
     if not isinstance(seq_len, (int, np.integer)) or isinstance(seq_len, bool) or seq_len <= 0:
         raise WindowQualityError(f"seq_len must be a positive integer, got {seq_len!r}")
     timestamps = _validate_index(index)
     delta = _interval_delta(interval)
     row_count = len(timestamps)
-    if spot_bar_observed is not None:
+    if availability is not None:
+        try:
+            selected = validate_availability(
+                availability,
+                timestamps,
+                include_funding=include_funding,
+                include_mark=include_mark,
+            )
+        except AvailabilityContractError as exc:
+            raise WindowQualityError(str(exc)) from exc
+        observed = selected.row_eligible
+        if spot_bar_observed is not None:
+            explicit_spot = np.asarray(spot_bar_observed)
+            if explicit_spot.ndim != 1 or len(explicit_spot) != row_count:
+                raise WindowQualityError(
+                    "spot_bar_observed must be a one-dimensional mask aligned to timestamps"
+                )
+            if explicit_spot.dtype != np.bool_:
+                raise WindowQualityError("spot_bar_observed must have boolean dtype")
+            # A caller may pass the historical standalone mask together with a
+            # sidecar, but contradictory values are a contract violation.
+            sidecar_spot = validate_availability(
+                availability,
+                timestamps,
+                include_funding=False,
+                include_mark=False,
+            ).row_eligible
+            if not np.array_equal(explicit_spot, sidecar_spot):
+                raise WindowQualityError(
+                    "spot_bar_observed conflicts with availability sidecar"
+                )
+    elif spot_bar_observed is not None:
         observed = np.asarray(spot_bar_observed)
         if observed.ndim != 1 or len(observed) != row_count:
             raise WindowQualityError(
@@ -105,6 +145,9 @@ def window_is_gap_free(
     *,
     interval: str = "15m",
     spot_bar_observed: np.ndarray | pd.Series | None = None,
+    availability: pd.DataFrame | Mapping[str, Any] | None = None,
+    include_funding: bool = True,
+    include_mark: bool = True,
 ) -> bool:
     """Check one sequence start using the same fail-closed contract."""
     if not isinstance(start, (int, np.integer)) or isinstance(start, bool):
@@ -115,6 +158,9 @@ def window_is_gap_free(
             seq_len,
             interval=interval,
             spot_bar_observed=spot_bar_observed,
+            availability=availability,
+            include_funding=include_funding,
+            include_mark=include_mark,
         ).tolist()
     )
 

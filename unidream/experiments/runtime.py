@@ -11,6 +11,10 @@ import pandas as pd
 import torch
 import yaml
 
+from unidream.data.availability_contract import (
+    AvailabilityContractError,
+    validate_availability,
+)
 from unidream.data.cache_v4 import CacheV4Error, cache_v4_paths, load_cache_v4
 from unidream.data.download import (
     fetch_binance_ohlcv,
@@ -38,6 +42,72 @@ _BASE_FEATURE_COLUMNS = {
     "rv_16",
     "rv_96",
 }
+
+
+def _attach_availability_metadata(
+    features_df: pd.DataFrame,
+    raw_returns: pd.Series,
+    availability: pd.DataFrame,
+    *,
+    include_funding: bool,
+    include_mark: bool,
+    interval: str,
+) -> pd.DataFrame:
+    """Validate a v4 sidecar and attach it without changing model columns.
+
+    Existing callers intentionally continue to unpack ``(features, returns)``.
+    The sidecar travels through pandas attrs and is consumed by ``WFODataset``
+    and ``SequenceDataset``; an optional runtime return flag below is available
+    for new callers that want the explicit third value.
+    """
+    try:
+        selected = validate_availability(
+            availability,
+            features_df.index,
+            include_funding=include_funding,
+            include_mark=include_mark,
+        )
+    except AvailabilityContractError as exc:
+        raise ValueError(f"availability sidecar failed training eligibility validation: {exc}") from exc
+    attrs = dict(features_df.attrs)
+    attrs.update(
+        {
+            "availability": selected.sidecar,
+            "availability_interval": str(interval),
+            "availability_include_funding": bool(include_funding),
+            "availability_include_mark": bool(include_mark),
+            "availability_required_columns": list(selected.required_columns),
+            "availability_row_eligible": selected.row_eligible.copy(),
+            "availability_status": "v4_verified",
+        }
+    )
+    features_df.attrs = attrs
+    returns_attrs = dict(raw_returns.attrs)
+    returns_attrs.update(
+        {
+            "availability": selected.sidecar,
+            "availability_interval": str(interval),
+            "availability_include_funding": bool(include_funding),
+            "availability_include_mark": bool(include_mark),
+            "availability_required_columns": list(selected.required_columns),
+            "availability_row_eligible": selected.row_eligible.copy(),
+            "availability_status": "v4_verified",
+        }
+    )
+    raw_returns.attrs = returns_attrs
+    return selected.sidecar
+
+
+def _return_training_frames(
+    features_df: pd.DataFrame,
+    raw_returns: pd.Series,
+    availability: pd.DataFrame | None,
+    *,
+    return_availability: bool,
+):
+    if return_availability:
+        return features_df, raw_returns, availability
+    return features_df, raw_returns
 
 
 def resolve_cache_pair(cache_dir: str, cache_tag: str) -> tuple[str, str]:
@@ -264,7 +334,15 @@ def load_training_features(
     include_oi: bool = True,
     include_mark: bool = True,
     require_v4_cache: bool = False,
-) -> tuple[pd.DataFrame, pd.Series]:
+    return_availability: bool = False,
+):
+    """Load training frames and, for v4, propagate eligibility metadata.
+
+    The default two-value return preserves the public v3 API.  New callers can
+    request ``return_availability=True`` for an explicit third sidecar value;
+    both forms carry the same validated sidecar through ``DataFrame.attrs`` so
+    existing training stage boundaries remain compatible.
+    """
     features_cache, returns_cache = resolve_cache_pair(cache_dir, cache_tag)
     v4_paths = cache_v4_paths(cache_dir, cache_tag)
     metadata_path = _cache_metadata_path(cache_dir, cache_tag)
@@ -306,7 +384,7 @@ def load_training_features(
         print("\n[Data] Loading cached features...")
         if v4_sidecar_exists or v4_declared or require_v4_cache:
             try:
-                features_df, raw_returns, _availability, v4_metadata = load_cache_v4(
+                features_df, raw_returns, availability, v4_metadata = load_cache_v4(
                     cache_dir,
                     cache_tag,
                 )
@@ -321,19 +399,26 @@ def load_training_features(
                 cached_parameters = v4_metadata.get("parameters")
                 if cached_parameters is not None and cached_parameters != parameters:
                     raise ValueError("cache v4 parameters do not match the requested config")
-                if include_funding or include_mark:
-                    raise ValueError(
-                        "full17 v4 training promotion blocked: "
-                        "load_training_features cannot propagate availability sidecar into "
-                        "SequenceDataset/WFODataset; use an availability-aware training path"
-                    )
+                _attach_availability_metadata(
+                    features_df,
+                    raw_returns,
+                    availability,
+                    include_funding=include_funding,
+                    include_mark=include_mark,
+                    interval=interval,
+                )
             except (CacheV4Error, ValueError) as exc:
                 raise ValueError(f"cache {cache_tag} failed v4 validation: {exc}") from exc
             print(
                 f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]} "
                 "| quality_status=v4_verified"
             )
-            return features_df, raw_returns
+            return _return_training_frames(
+                features_df,
+                raw_returns,
+                availability,
+                return_availability=return_availability,
+            )
         try:
             features_df = read_optional_parquet(features_cache)
             returns_frame = read_optional_parquet(returns_cache)
@@ -380,9 +465,25 @@ def load_training_features(
                 f"  Cached: {features_df.shape} | obs_dim={features_df.shape[1]} "
                 "| quality_status=legacy_v3_unverified"
             )
-            return features_df, raw_returns
+            return _return_training_frames(
+                features_df,
+                raw_returns,
+                None,
+                return_availability=return_availability,
+            )
         except Exception as exc:
             print(f"  Cache invalid; rebuilding from raw data: {exc}")
+
+    # A v4 request may never silently fall back to the legacy raw downloader:
+    # that path has no point-in-time sidecar and would make zero/missing values
+    # indistinguishable.  The official v4 rebuild CLI must create all four
+    # artifacts before this runtime can consume them.
+    if require_v4_cache or v4_declared or v4_sidecar_exists:
+        raise ValueError(
+            "v4 cache is required for training but no complete validated cache exists; "
+            "run the official v4 rebuild to create the feature, returns, availability, "
+            "and metadata artifacts"
+        )
 
     df = read_optional_parquet(ohlcv_cache)
     if df is not None:
@@ -487,4 +588,9 @@ def load_training_features(
     )
     print(f"  Features: {features_df.shape} | obs_dim={features_df.shape[1]}")
     print(f"  Saved cache: {features_cache}")
-    return features_df, raw_returns
+    return _return_training_frames(
+        features_df,
+        raw_returns,
+        None,
+        return_availability=return_availability,
+    )
