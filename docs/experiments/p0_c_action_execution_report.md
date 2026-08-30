@@ -1,8 +1,9 @@
 # P0-C action/execution contract
 
 Status: implemented as an explicit opt-in path; no existing Plan011 run is
-silently migrated. This report describes the implementation at commit
-`60300c8` on branch `exp/p0-c-action-execution-20260830`.
+silently migrated. This report describes the mask-aware implementation from
+code commit `0055f5e` on branch `exp/p0-c-action-execution-20260830`; the
+documentation commit is pushed separately.
 
 ## Canonical contract
 
@@ -12,11 +13,12 @@ is the source of truth. Its deterministic SHA-256 contract hash in this
 revision is:
 
 ```text
-26ac8e44fac6de2ad55f83179acc3d2033cc943a1edeff498f92f9174b19015b
+feb04fba4ce65fabb3966ec0fd54eb32391742b6b9b31728f267a86cd138e69c
 ```
 
-The selector-input clarification changes no contract field, so this hash is
-unchanged.
+The availability/skip policy is part of the hashed contract. This prevents a
+consumer from treating a missing feature block as a silently held or zero-filled
+observation under a different runtime contract.
 
 The canonical fields are:
 
@@ -41,7 +43,10 @@ The canonical fields are:
   "p_start": 1.0,
   "initial_countdown": 0,
   "countdown_decrement": 1,
-  "boundary_cost_policy": "fill_only"
+  "boundary_cost_policy": "fill_only",
+  "feature_unavailable_policy": "exclude_block",
+  "execution_skip_policy": "hold_commitment",
+  "eligibility_masks_required": true
 }
 ```
 
@@ -58,8 +63,9 @@ deduplicates the resulting absolute positions. A decision is accepted only at
 the start of a complete four-bar block. During the block the feasible position
 is unchanged. The first bar before the delayed fill and any incomplete final
 block are outside the scored mask; candidate and benchmark paths use the same
-mask. Cost is charged once at the fill bar. A partial fill, non-finite input,
-unsupported delta, or unsupported semantic field raises.
+mask. Cost is charged once at the fill bar. A partial fill, non-finite scored
+input, unsupported delta, or unsupported semantic field raises; non-finite
+cells outside an eligible block are ignored under the explicit masks.
 
 `replay_action_path()` returns decision, fill, effective-position, countdown,
 cost, gross-PnL, net-PnL, and `scored_mask` arrays. This makes boundary
@@ -73,6 +79,17 @@ change an earlier teacher decision. U0 is kept separate through
 inspect all realized complete bars for an upper-bound-only diagnostic. Both
 paths share bounds, delay, commitment, cost, tail mask, and replay geometry,
 but action equality is not a contract.
+
+The new path also requires full-length boolean `decision_eligible[T]` and
+`score_eligible[T]` masks. A scheduled start is block-eligible only when its
+decision cell is eligible and every delayed score cell in `t+1:t+5` is
+eligible. A gap excludes that complete block as a whole; the schedule is not
+compressed, no fill/cost/inventory mutation occurs, and the next scheduled
+start remains `t+4`. Ineligible score/return cells are not read, while finite
+values remain mandatory on every scored block. The trajectory exposes
+`scheduled_decision_mask`, both input masks, `eligible_decision_mask`,
+`block_eligible_mask`, `scored_mask`, count properties, and an
+`eligibility_mask_hash`.
 After a fill, `effective_positions` retains the live inventory through an
 unscored incomplete tail; the tail contributes zero PnL via `scored_mask`.
 For teacher diagnostics, replay expands each decision-start scalar evenly
@@ -89,7 +106,9 @@ scalar itself remains the selector's sole forecast input.
 - [`unidream/eval/backtest.py`](../../unidream/eval/backtest.py) adds
   `ActionExecutionBacktest`. The existing `Backtest` is unchanged unless an
   explicit `action_execution_contract` is supplied. Contract metrics are
-  computed only over the shared scored mask and record the contract hash.
+  computed only over the shared scored mask and record both the contract and
+  eligibility-mask hashes/counts. Contract mode requires both masks and passes
+  the same masks to strategy and benchmark replay.
   When the contract is supplied, `action_positions_are_deltas` must be
   explicitly `True` or `False`; no value-based delta/absolute inference is
   permitted. `True` denotes decision deltas and `False` denotes a strict
@@ -105,6 +124,9 @@ scalar itself remains the selector's sole forecast input.
   opts into the contract path). The historical `policy_fire` every-bar
   evaluator is disabled for this path rather than being allowed to select an
   AC checkpoint under legacy geometry.
+
+The stage adapter also requires both masks; stage callers that do not yet have
+the availability sidecar fail closed instead of entering a legacy replay.
 
 The conditional path does not infer costs from the historical `costs` section.
 `ActionExecutionContract.from_config()` requires the complete semantic field
@@ -133,19 +155,22 @@ They cover:
 - U0 long-window replay without recursive stack growth;
 - U0/teacher/Backtest replay geometry parity;
 - transition-advantage sequential current-state validation and replay parity;
-- transition-advantage contract rows and legacy-cost non-inheritance.
+- transition-advantage contract rows and legacy-cost non-inheritance;
+- full-length availability masks: required/strict-boolean validation, gap
+  exclusion without schedule compression or inventory mutation, strategy/U0/
+  teacher/benchmark parity, mask counts/hash, and fail-closed stage adaptation.
 
 Commands run in the worktree:
 
 ```text
 uv run python -m unittest tests.test_action_execution_contract -v
-Ran 15 tests ... OK
+Ran 21 tests ... OK
 
 uv run python -m unittest tests.test_action_execution_contract tests.test_backtest_final_excess tests.test_leak_discipline -v
-Ran 24 tests ... OK
+Ran 30 tests ... OK
 
 uv run python -m unittest discover -s tests -v
-Ran 138 tests ... OK
+Ran 144 tests ... OK
 
 git diff --check
 OK
@@ -153,7 +178,7 @@ OK
 
 The full suite includes pre-existing data-quality diagnostics that print a
 failed availability gate for their intentional negative fixtures; the unittest
-result itself is `OK` (138/138).
+result itself is `OK` (144/144).
 
 ## Boundary and non-goals
 
@@ -165,9 +190,13 @@ result itself is `OK` (138/138).
   contract; they reject unsupported per-bar changes instead of silently
   clipping them. A future student should emit contract deltas directly or
   call the strict absolute-path adapter.
-- Availability/missing-feature skip policy is outside this action replay
-  module. Non-finite returns fail closed; data eligibility must be established
-  before replay.
+- Availability/missing-feature skip policy is explicit in the contract:
+  `exclude_block` plus `hold_commitment`. The canonical path requires both
+  full-length masks and rejects missing/non-boolean/incorrect-length inputs.
+  Existing stage adapters do not yet produce those masks, so their contract
+  opt-in is intentionally blocked until a P0-A sidecar is wired in.
+- Legacy direct encoding and legacy every-bar paths are not integrated with
+  this mask-aware contract and are blocked from being used as its adapter.
 - No production Supabase/Space deployment, live execution, funding cash flow,
   borrow cost, partial fill, or database transaction was changed or verified.
 - Existing historical APIs retain their legacy defaults for reproducibility;
