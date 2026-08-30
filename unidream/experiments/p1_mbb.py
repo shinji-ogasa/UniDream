@@ -157,6 +157,10 @@ _P1_INDEX_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024
 _P1_INDEX_ARTIFACT_MAX_STARTS = 100_000_000
 _P1_INDEX_METADATA_MAX_BYTES = 8 * 1024 * 1024
 P1_REGRET_DOMAIN_TOL = 1e-12
+P1_MBB_RESULT_SCHEMA = "unidream.p1.moving_block_result"
+P1_MBB_RESULT_SCHEMA_VERSION = 1
+_P1_RESULT_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024
+_P1_RESULT_METADATA_MAX_BYTES = 8 * 1024 * 1024
 
 
 def _strict_int(value: Any, *, name: str, minimum: int | None = None) -> int:
@@ -2052,6 +2056,511 @@ def _metric_result(
     return result
 
 
+def _result_values_digest(values: np.ndarray) -> str:
+    return hashlib.sha256(values.tobytes(order="C")).hexdigest()
+
+
+def _result_json_value(value: Any, *, field: str) -> Any:
+    """Convert result metadata to a typed, finite JSON representation."""
+    if isinstance(value, P1MBBIndexArtifact):
+        return value.artifact_sha256
+    if isinstance(value, (str, bool)) or value is None:
+        return value
+    if isinstance(value, (int, np.integer)) and not isinstance(value, (bool, np.bool_)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        result = float(value)
+        if not np.isfinite(result):
+            raise P1MBBError(f"result metadata {field} is non-finite")
+        return result
+    if isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return _result_json_value(value.item(), field=field)
+        raise P1MBBError(
+            f"result metadata {field} contains an untyped array; persist typed values separately"
+        )
+    if isinstance(value, Mapping):
+        converted: dict[str, Any] = {}
+        for raw_key, raw_value in value.items():
+            if raw_key in {"bootstrap_values", "result_sha256"}:
+                continue
+            if not isinstance(raw_key, (str, int, np.integer)):
+                raise P1MBBError(f"result metadata {field} has a non-scalar key")
+            key = str(int(raw_key)) if isinstance(raw_key, (int, np.integer)) else raw_key
+            if key == "index_artifacts":
+                if not isinstance(raw_value, Mapping):
+                    raise P1MBBError(f"result metadata {field}.index_artifacts must be a mapping")
+                converted[key] = {
+                    str(ordinal): _result_json_value(
+                        artifact,
+                        field=f"{field}.{key}.{ordinal}",
+                    )
+                    for ordinal, artifact in raw_value.items()
+                }
+                continue
+            converted[key] = _result_json_value(raw_value, field=f"{field}.{key}")
+        return converted
+    if isinstance(value, (list, tuple)):
+        return [
+            _result_json_value(item, field=f"{field}[{index}]")
+            for index, item in enumerate(value)
+        ]
+    raise P1MBBError(f"result metadata {field} has unsupported type {type(value).__name__}")
+
+
+def _result_metadata_from_result(result: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(result, Mapping):
+        raise P1MBBError("P1 result must be a mapping")
+    if result.get("status") != "ok":
+        raise P1MBBError("only an ok P1 result can be persisted")
+    metadata: dict[str, Any] = {}
+    for raw_key, raw_value in result.items():
+        key = str(raw_key)
+        if key in {"bootstrap_values", "result_sha256"}:
+            continue
+        if key == "index_artifacts":
+            if not isinstance(raw_value, Mapping):
+                raise P1MBBError("index_artifacts must be a mapping")
+            metadata[key] = {
+                str(ordinal): _result_json_value(artifact, field=f"{key}.{ordinal}")
+                for ordinal, artifact in raw_value.items()
+            }
+            continue
+        # Nested per-seed/per-block results retain scalar statistics and hashes;
+        # their replicate arrays remain in the top-level typed field only.
+        metadata[key] = _result_json_value(raw_value, field=key)
+    return metadata
+
+
+def _result_digest(metadata: Mapping[str, Any], values: np.ndarray) -> str:
+    return hashlib.sha256(
+        _metadata_bytes(metadata) + b"\0" + values.tobytes(order="C")
+    ).hexdigest()
+
+
+def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, production: bool) -> None:
+    if not production:
+        return
+    if "provenance" not in metadata and "provenance_by_seed" not in metadata:
+        raise P1MBBError(
+            "production P1 result persistence requires authenticated provenance"
+        )
+    provenance_items: list[Mapping[str, Any]] = []
+    if "provenance" in metadata:
+        provenance = metadata["provenance"]
+        if not isinstance(provenance, Mapping):
+            raise P1MBBError("production result provenance must be a mapping")
+        provenance_items.append(provenance)
+    if "provenance_by_seed" in metadata:
+        seed_provenance = metadata["provenance_by_seed"]
+        if not isinstance(seed_provenance, Mapping) or set(seed_provenance) != set(
+            str(index) for index in range(10)
+        ):
+            raise P1MBBError(
+                "production ten-seed result requires provenance for every seed 0..9"
+            )
+        for ordinal in range(10):
+            value = seed_provenance[str(ordinal)]
+            if not isinstance(value, Mapping):
+                raise P1MBBError(f"production result provenance for seed {ordinal} must be a mapping")
+            provenance_items.append(value)
+    for provenance in provenance_items:
+        kind = provenance.get("kind")
+        if kind not in {"action", "forecast"}:
+            raise P1MBBError("production result provenance kind is invalid")
+        _strict_sha256(
+            provenance.get("common_mask_sha256"),
+            name="result common_mask_sha256",
+        )
+        _strict_text(
+            provenance.get("common_mask_field"),
+            name="result common_mask_field",
+        )
+        if kind == "action":
+            for field in (
+                "action_primitive_payload_sha256",
+                "action_primitive_schema_sha256",
+                "action_primitive_content_sha256",
+                "source_result_sha256",
+            ):
+                _strict_sha256(provenance.get(field), name=f"result {field}")
+        else:
+            _strict_sha256(
+                provenance.get("forecast_artifact_sha256"),
+                name="result forecast_artifact_sha256",
+            )
+            _strict_sha256(
+                provenance.get("forecast_result_sha256"),
+                name="result forecast_result_sha256",
+            )
+
+
+@dataclass(frozen=True)
+class P1MBBResultArtifact:
+    """Typed, hash-bound result payload used by the production promotion gate."""
+
+    metadata: Mapping[str, Any]
+    bootstrap_values: np.ndarray
+    production: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.metadata, Mapping):
+            raise P1MBBError("P1 result metadata must be a mapping")
+        metadata = dict(self.metadata)
+        if metadata.get("schema") != P1_MBB_RESULT_SCHEMA:
+            raise P1MBBError("unsupported P1 result artifact schema")
+        if metadata.get("schema_version") != P1_MBB_RESULT_SCHEMA_VERSION:
+            raise P1MBBError("unsupported P1 result artifact schema version")
+        try:
+            values = np.asarray(self.bootstrap_values)
+        except (TypeError, ValueError, OverflowError, MemoryError) as exc:
+            raise P1MBBError("P1 result bootstrap_values are malformed") from exc
+        expected_shape = (P1_MBB_REPLICATES,)
+        if (
+            values.dtype != np.dtype("<f8")
+            or values.ndim != 1
+            or values.shape != expected_shape
+            or not values.flags.c_contiguous
+            or not np.isfinite(values).all()
+        ):
+            raise P1MBBError(
+                "P1 result bootstrap_values must be a finite C-order little-endian float64 vector of shape (2000,)"
+            )
+        values = np.array(values, dtype="<f8", copy=True, order="C")
+        values.setflags(write=False)
+        if metadata.get("bootstrap_values_dtype") != "<f8":
+            raise P1MBBError("P1 result metadata bootstrap_values_dtype must be '<f8'")
+        if metadata.get("bootstrap_values_shape") != [P1_MBB_REPLICATES]:
+            raise P1MBBError("P1 result metadata bootstrap_values_shape must be [2000]")
+        declared_values_digest = _strict_sha256(
+            metadata.get("bootstrap_values_sha256"),
+            name="bootstrap_values_sha256",
+        )
+        if declared_values_digest != _result_values_digest(values):
+            raise P1MBBError("P1 result bootstrap_values hash mismatch")
+        _validate_result_provenance_metadata(metadata, production=self.production)
+        object.__setattr__(self, "metadata", metadata)
+        object.__setattr__(self, "bootstrap_values", values)
+
+    @property
+    def result_sha256(self) -> str:
+        return _result_digest(self.metadata, self.bootstrap_values)
+
+    def to_dict(self, *, include_bootstrap_values: bool = False) -> dict[str, Any]:
+        payload = dict(self.metadata)
+        payload["result_sha256"] = self.result_sha256
+        if include_bootstrap_values:
+            payload["bootstrap_values"] = self.bootstrap_values.tolist()
+        return payload
+
+    @classmethod
+    def from_result(
+        cls,
+        result: Mapping[str, Any],
+        *,
+        production: bool = False,
+    ) -> "P1MBBResultArtifact":
+        try:
+            values = np.asarray(result["bootstrap_values"])
+        except (KeyError, TypeError, ValueError, OverflowError, MemoryError) as exc:
+            raise P1MBBError("P1 result is missing typed bootstrap_values") from exc
+        metadata = _result_metadata_from_result(result)
+        metadata.update(
+            {
+                "schema": P1_MBB_RESULT_SCHEMA,
+                "schema_version": P1_MBB_RESULT_SCHEMA_VERSION,
+                "bootstrap_values_dtype": "<f8",
+                "bootstrap_values_shape": [P1_MBB_REPLICATES],
+            }
+        )
+        if values.dtype != np.dtype("<f8") or values.shape != (P1_MBB_REPLICATES,):
+            raise P1MBBError(
+                "P1 result bootstrap_values must be a little-endian float64 vector of shape (2000,)"
+            )
+        values = np.array(values, dtype="<f8", copy=True, order="C")
+        if not np.isfinite(values).all():
+            raise P1MBBError("P1 result bootstrap_values must be finite")
+        metadata["bootstrap_values_sha256"] = _result_values_digest(values)
+        return cls(metadata, values, production=production)
+
+    @classmethod
+    def from_result_fixture(cls, result: Mapping[str, Any]) -> "P1MBBResultArtifact":
+        """Build a relaxed typed fixture artifact; it is not promotion eligible."""
+        return cls.from_result(result, production=False)
+
+    @classmethod
+    def from_result_production(cls, result: Mapping[str, Any]) -> "P1MBBResultArtifact":
+        """Build a production artifact only after provenance is present."""
+        return cls.from_result(result, production=True)
+
+    @classmethod
+    def _from_dict(
+        cls,
+        payload: Mapping[str, Any],
+        bootstrap_values: Any,
+        *,
+        expected_result_sha256: str | None,
+        production: bool,
+    ) -> "P1MBBResultArtifact":
+        if not isinstance(payload, Mapping):
+            raise P1MBBError("P1 result metadata must be a mapping")
+        metadata = dict(payload)
+        declared_result = metadata.pop("result_sha256", None)
+        if production and expected_result_sha256 is None:
+            raise P1MBBError(
+                "production P1 result loading requires an external expected_result_sha256"
+            )
+        artifact = cls(metadata, bootstrap_values, production=production)
+        actual = artifact.result_sha256
+        if declared_result is not None and _strict_sha256(
+            declared_result,
+            name="result_sha256",
+        ) != actual:
+            raise P1MBBError("P1 result artifact hash mismatch")
+        if production and _strict_sha256(
+            expected_result_sha256,
+            name="expected_result_sha256",
+        ) != actual:
+            raise P1MBBError(
+                "P1 result artifact does not match the independent expected_result_sha256"
+            )
+        return artifact
+
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Mapping[str, Any],
+        bootstrap_values: Any,
+        *,
+        expected_result_sha256: str | None = None,
+    ) -> "P1MBBResultArtifact":
+        return cls._from_dict(
+            payload,
+            bootstrap_values,
+            expected_result_sha256=expected_result_sha256,
+            production=True,
+        )
+
+    @classmethod
+    def from_dict_fixture(
+        cls,
+        payload: Mapping[str, Any],
+        bootstrap_values: Any,
+    ) -> "P1MBBResultArtifact":
+        return cls._from_dict(
+            payload,
+            bootstrap_values,
+            expected_result_sha256=None,
+            production=False,
+        )
+
+
+def save_p1_mbb_result_artifact(
+    path: str | Path,
+    artifact: P1MBBResultArtifact,
+) -> str:
+    """Atomically persist one typed result as a bounded NPZ archive."""
+    if not isinstance(artifact, P1MBBResultArtifact):
+        raise P1MBBError("save requires a P1MBBResultArtifact")
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    metadata = artifact.to_dict(include_bootstrap_values=False)
+    metadata.pop("result_sha256", None)
+    encoded_metadata = _metadata_bytes(metadata)
+    if len(encoded_metadata) > _P1_RESULT_METADATA_MAX_BYTES:
+        raise P1MBBError("P1 result metadata exceeds the byte limit")
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w+b",
+            dir=output.parent,
+            prefix=f".{output.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            np.savez_compressed(
+                handle,
+                bootstrap_values=artifact.bootstrap_values,
+                metadata=np.frombuffer(encoded_metadata, dtype=np.uint8),
+            )
+            handle.flush()
+            os.fsync(handle.fileno())
+        if temporary.stat().st_size > _P1_RESULT_ARTIFACT_MAX_BYTES:
+            raise P1MBBError("P1 result artifact exceeds the file-size limit")
+        temporary.replace(output)
+        temporary = None
+    except P1MBBError:
+        raise
+    except (OSError, TypeError, ValueError, OverflowError, MemoryError) as exc:
+        raise P1MBBError(f"could not persist P1 result artifact {output}") from exc
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return artifact.result_sha256
+
+
+def save_p1_mbb_result(
+    path: str | Path,
+    result: Mapping[str, Any],
+    *,
+    production: bool = False,
+) -> str:
+    """Typed result persistence; set production only for authenticated results."""
+    artifact = P1MBBResultArtifact.from_result(result, production=production)
+    return save_p1_mbb_result_artifact(path, artifact)
+
+
+def save_p1_mbb_result_production(path: str | Path, result: Mapping[str, Any]) -> str:
+    return save_p1_mbb_result(path, result, production=True)
+
+
+def save_p1_mbb_result_fixture(path: str | Path, result: Mapping[str, Any]) -> str:
+    return save_p1_mbb_result(path, result, production=False)
+
+
+def _inspect_result_archive(source: Any) -> tuple[zipfile.ZipInfo, zipfile.ZipInfo]:
+    try:
+        with zipfile.ZipFile(source, mode="r") as archive:
+            infos = archive.infolist()
+            if len(infos) != 2 or {info.filename for info in infos} != {
+                "bootstrap_values.npy",
+                "metadata.npy",
+            }:
+                raise P1MBBError("P1 result archive has unexpected members")
+            values_info = archive.getinfo("bootstrap_values.npy")
+            metadata_info = archive.getinfo("metadata.npy")
+            for info in (values_info, metadata_info):
+                if info.is_dir():
+                    raise P1MBBError("P1 result archive members must be regular files")
+                mode = (info.external_attr >> 16) & 0xFFFF
+                if stat.S_IFMT(mode) not in (0, stat.S_IFREG):
+                    raise P1MBBError("P1 result archive contains a non-regular member")
+            if values_info.file_size > _P1_RESULT_ARTIFACT_MAX_BYTES:
+                raise P1MBBError("P1 result values member exceeds the file-size limit")
+            if metadata_info.file_size > _P1_RESULT_METADATA_MAX_BYTES:
+                raise P1MBBError("P1 result metadata member exceeds the file-size limit")
+            if values_info.compress_size > _P1_RESULT_ARTIFACT_MAX_BYTES:
+                raise P1MBBError("P1 result compressed values member exceeds the file-size limit")
+            if metadata_info.compress_size > _P1_RESULT_METADATA_MAX_BYTES:
+                raise P1MBBError("P1 result compressed metadata member exceeds the file-size limit")
+            return values_info, metadata_info
+    except P1MBBError:
+        raise
+    except (OSError, RuntimeError, ValueError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+        raise P1MBBError("P1 result archive is malformed") from exc
+
+
+def _load_p1_mbb_result_artifact(
+    path: str | Path,
+    *,
+    expected_result_sha256: str | None,
+    production: bool,
+) -> P1MBBResultArtifact:
+    source = Path(path)
+    handle: Any = None
+    try:
+        handle, source_size, source_signature = _open_regular_index_artifact(source)
+        if source_size > _P1_RESULT_ARTIFACT_MAX_BYTES:
+            raise P1MBBError("P1 result artifact exceeds the file-size limit")
+        values_info, metadata_info = _inspect_result_archive(handle)
+        _assert_index_artifact_unchanged(handle, source_signature)
+        metadata_header_shape, metadata_payload_bytes = _inspect_npy_member_header(
+            handle,
+            "metadata.npy",
+            metadata_info,
+            expected_dtype="|u1",
+            expected_shape=None,
+            max_payload_bytes=_P1_RESULT_METADATA_MAX_BYTES,
+        )
+        if metadata_header_shape != (metadata_payload_bytes,):
+            raise P1MBBError("P1 result metadata header is inconsistent")
+        _assert_index_artifact_unchanged(handle, source_signature)
+        handle.seek(0)
+        with np.load(handle, allow_pickle=False) as archive:
+            if set(archive.files) != {"bootstrap_values", "metadata"}:
+                raise P1MBBError("P1 result archive has unexpected fields")
+            metadata_bytes = np.asarray(archive["metadata"])
+            if (
+                metadata_bytes.dtype != np.dtype("uint8")
+                or metadata_bytes.ndim != 1
+                or metadata_bytes.nbytes > _P1_RESULT_METADATA_MAX_BYTES
+                or metadata_bytes.shape != metadata_header_shape
+                or metadata_bytes.nbytes != metadata_payload_bytes
+            ):
+                raise P1MBBError("P1 result metadata bytes are malformed")
+            metadata_bytes = np.array(metadata_bytes, dtype=np.uint8, copy=True, order="C")
+        _assert_index_artifact_unchanged(handle, source_signature)
+        try:
+            metadata = json.loads(bytes(metadata_bytes).decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise P1MBBError("P1 result metadata JSON is malformed") from exc
+        if not isinstance(metadata, Mapping):
+            raise P1MBBError("P1 result metadata must be an object")
+        values_header_shape, values_payload_bytes = _inspect_npy_member_header(
+            handle,
+            "bootstrap_values.npy",
+            values_info,
+            expected_dtype="<f8",
+            expected_shape=(P1_MBB_REPLICATES,),
+            max_payload_bytes=P1_MBB_REPLICATES * np.dtype("<f8").itemsize,
+        )
+        if values_header_shape != (P1_MBB_REPLICATES,) or values_payload_bytes != P1_MBB_REPLICATES * 8:
+            raise P1MBBError("P1 result bootstrap values payload is malformed")
+        _assert_index_artifact_unchanged(handle, source_signature)
+        handle.seek(0)
+        with np.load(handle, allow_pickle=False) as archive:
+            values = np.asarray(archive["bootstrap_values"])
+        _assert_index_artifact_unchanged(handle, source_signature)
+        if production:
+            artifact = P1MBBResultArtifact.from_dict(
+                metadata,
+                values,
+                expected_result_sha256=expected_result_sha256,
+            )
+        else:
+            artifact = P1MBBResultArtifact.from_dict_fixture(metadata, values)
+        return artifact
+    except P1MBBError:
+        raise
+    except (OSError, ValueError, TypeError, OverflowError, MemoryError, EOFError, KeyError, json.JSONDecodeError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+        raise P1MBBError(f"could not load P1 result artifact {source}") from exc
+    finally:
+        if handle is not None:
+            try:
+                handle.close()
+            except OSError:
+                pass
+
+
+def load_p1_mbb_result(
+    path: str | Path,
+    *,
+    expected_result_sha256: str | None = None,
+) -> P1MBBResultArtifact:
+    """Load a stored production result; promotion must use this boundary."""
+    return _load_p1_mbb_result_artifact(
+        path,
+        expected_result_sha256=expected_result_sha256,
+        production=True,
+    )
+
+
+def load_p1_mbb_result_fixture(path: str | Path) -> P1MBBResultArtifact:
+    """Load a relaxed fixture result, explicitly outside promotion."""
+    return _load_p1_mbb_result_artifact(
+        path,
+        expected_result_sha256=None,
+        production=False,
+    )
+
+
+load_p1_mbb_result_production = load_p1_mbb_result
+
+
 def _bootstrap_p1_metric(
     metric: Any,
     *,
@@ -2798,6 +3307,15 @@ def run_p1_mbb(*args: Any, **kwargs: Any) -> dict[str, Any]:
         "artifact",
         "metric",
         "direction",
+        "provenance",
+        "expected_common_mask_sha256",
+        "expected_common_mask_field",
+        "expected_source_result_sha256",
+        "expected_action_primitive_payload_sha256",
+        "expected_action_primitive_schema_sha256",
+        "expected_action_primitive_content_sha256",
+        "expected_forecast_artifact_sha256",
+        "expected_forecast_result_sha256",
     }
     unexpected = set(kwargs) - allowed
     if unexpected:
@@ -2829,6 +3347,7 @@ __all__ = [
     "P1MBBError",
     "P1MBBImplementationBlocked",
     "P1MBBIndexArtifact",
+    "P1MBBResultArtifact",
     "build_p1_mbb_index_artifact",
     "bootstrap_p1_metric",
     "bootstrap_p1_metric_fixture",
@@ -2845,6 +3364,9 @@ __all__ = [
     "draw_non_circular_mbb_starts",
     "load_p1_mbb_index_artifact",
     "load_p1_mbb_index_artifact_fixture",
+    "load_p1_mbb_result",
+    "load_p1_mbb_result_fixture",
+    "load_p1_mbb_result_production",
     "materialize_non_circular_mbb_indices",
     "paired_bootstrap_mean_delta",
     "paired_bootstrap_mean_delta_fixture",
@@ -2868,4 +3390,8 @@ __all__ = [
     "reject_unpaired_or_generic_mbb",
     "run_p1_mbb",
     "save_p1_mbb_index_artifact",
+    "save_p1_mbb_result",
+    "save_p1_mbb_result_artifact",
+    "save_p1_mbb_result_fixture",
+    "save_p1_mbb_result_production",
 ]
