@@ -2,7 +2,7 @@
 
 Status: implemented as an explicit opt-in path; no existing Plan011 run is
 silently migrated. This report describes the implementation at commit
-`e31c8a5` on branch `exp/p0-c-action-execution-20260830`.
+`2e11cb9` on branch `exp/p0-c-action-execution-20260830`.
 
 ## Canonical contract
 
