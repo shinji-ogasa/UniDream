@@ -236,6 +236,9 @@ def compute_net_returns(
 def conditional_oracle_teacher_path(
     decision_block_scores: np.ndarray | pd.Series,
     contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | pd.Series | None = None,
+    score_eligible: np.ndarray | pd.Series | None = None,
 ) -> ActionExecutionTrajectory:
     """Build a contract-compliant teacher from cumulative block forecasts.
 
@@ -245,16 +248,26 @@ def conditional_oracle_teacher_path(
     the selector reads only complete decision-start cells.  It is intentionally
     not a realized-return label.  The optimizer uses the shared P0-C
     feasible-action/commitment/cost path and the resulting trajectory can be
-    replayed by the new Backtest without remapping actions.
+    replayed by the new Backtest without remapping actions.  Both eligibility
+    masks are required and the delayed four-bar score mask is applied as one
+    all-or-none block.
     """
     if not isinstance(contract, ActionExecutionContract):
         raise TypeError("contract must be an ActionExecutionContract")
-    return replay_selected_path(decision_block_scores, contract)
+    return replay_selected_path(
+        decision_block_scores,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
 
 
 def hindsight_upper_bound_path(
     realized_returns: np.ndarray | pd.Series,
     contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | pd.Series | None = None,
+    score_eligible: np.ndarray | pd.Series | None = None,
 ) -> ActionExecutionTrajectory:
     """Build U0 from realized returns using the shared contract trajectory.
 
@@ -264,10 +277,17 @@ def hindsight_upper_bound_path(
     Backtest makes opportunity/regret comparisons mechanically meaningful;
     its selector is intentionally hindsight-only and distinct from the
     causal teacher selector.
+    Ineligible scheduled blocks are skipped without reading their realized
+    values; the next scheduled boundary remains unchanged.
     """
     if not isinstance(contract, ActionExecutionContract):
         raise TypeError("contract must be an ActionExecutionContract")
-    return replay_hindsight_selected_path(realized_returns, contract)
+    return replay_hindsight_selected_path(
+        realized_returns,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
 
 
 # Short names used by experiment manifests.  They deliberately retain the

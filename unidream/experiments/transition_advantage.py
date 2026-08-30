@@ -11,6 +11,7 @@ from unidream.eval.action_execution import (
     complete_decision_starts,
     replay_action_path,
     transition_cost,
+    validate_eligibility_masks,
 )
 
 
@@ -308,9 +309,18 @@ def compute_transition_advantage(
     returns: np.ndarray,
     current_positions: np.ndarray,
     cfg: TransitionAdvantageConfig,
+    *,
+    decision_eligible: np.ndarray | list[bool] | None = None,
+    score_eligible: np.ndarray | list[bool] | None = None,
 ) -> dict:
     if cfg.action_execution_contract is not None:
-        return _compute_contract_transition_advantage(returns, current_positions, cfg)
+        return _compute_contract_transition_advantage(
+            returns,
+            current_positions,
+            cfg,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
     returns = np.asarray(returns, dtype=np.float64)
     current = np.asarray(current_positions, dtype=np.float64)
     T = min(len(returns), len(current))
@@ -400,6 +410,9 @@ def _compute_contract_transition_advantage(
     returns: np.ndarray,
     current_positions: np.ndarray,
     cfg: TransitionAdvantageConfig,
+    *,
+    decision_eligible: np.ndarray | list[bool] | None,
+    score_eligible: np.ndarray | list[bool] | None,
 ) -> dict:
     """Compute contract-compliant block utility without legacy relabeling.
 
@@ -416,13 +429,33 @@ def _compute_contract_transition_advantage(
     current = np.asarray(current_positions, dtype=np.float64).reshape(-1)
     if len(returns) != len(current):
         raise ValueError("returns and current_positions must have equal lengths")
-    if not np.all(np.isfinite(returns)) or not np.all(np.isfinite(current)):
-        raise ValueError("returns and current_positions must be finite")
+    if not np.all(np.isfinite(current)):
+        raise ValueError("current_positions must be finite")
     if len(current) and not np.isclose(current[0], contract.p_start, atol=1e-9, rtol=0.0):
         raise ValueError("contract transition path must start at contract p_start")
+    decision_eligible_arr, score_eligible_arr = validate_eligibility_masks(
+        decision_eligible,
+        score_eligible,
+        len(returns),
+    )
     starts = complete_decision_starts(len(returns), contract)
     if not starts:
         raise ValueError("contract transition advantage requires a complete decision block")
+    scheduled_decision_mask = np.zeros(len(returns), dtype=bool)
+    eligible_decision_mask = np.zeros(len(returns), dtype=bool)
+    block_eligible_mask = np.zeros(len(returns), dtype=bool)
+    for start in starts:
+        scheduled_decision_mask[start] = True
+        eligible_decision_mask[start] = decision_eligible_arr[start]
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        block_eligible_mask[start] = bool(
+            decision_eligible_arr[start] and score_eligible_arr[fill:end].all()
+        )
+        if block_eligible_mask[start] and not np.all(np.isfinite(returns[fill:end])):
+            raise ValueError(
+                f"returns must be finite on eligible score block {start}"
+            )
 
     actions = np.asarray(contract.candidate_deltas, dtype=np.float64)
     n_actions = len(actions)
@@ -449,6 +482,8 @@ def _compute_contract_transition_advantage(
                 f"at decision bar {start}: expected {previous:.12g}, got {supplied:.12g}"
             )
         current_at_decision[start] = previous
+        if not block_eligible_mask[start]:
+            continue
         feasible = candidate_positions(previous, contract)
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
@@ -481,16 +516,6 @@ def _compute_contract_transition_advantage(
     for index, start in enumerate(starts):
         stop = starts[index + 1] if index + 1 < len(starts) else len(returns)
         expected_current[start:stop] = current_at_decision[start]
-    target_positions = expected_current.copy()
-    for start in starts:
-        target_positions[start] = float(
-            np.clip(
-                current_at_decision[start] + actions[best_idx[start]],
-                contract.position_min,
-                contract.position_max,
-            )
-        )
-
     advantage_vs_neutral = values - values[:, neutral_idx, None]
     # The current position is the hold candidate in a canonical contract.  Use
     # actual current value rather than assuming the current value equals p_start.
@@ -512,8 +537,15 @@ def _compute_contract_transition_advantage(
 
     decision_deltas = np.zeros(len(returns), dtype=np.float64)
     for start in starts:
-        decision_deltas[start] = actions[best_idx[start]]
-    trajectory = replay_action_path(returns, decision_deltas, contract)
+        if block_eligible_mask[start]:
+            decision_deltas[start] = actions[best_idx[start]]
+    trajectory = replay_action_path(
+        returns,
+        decision_deltas,
+        contract,
+        decision_eligible=decision_eligible_arr,
+        score_eligible=score_eligible_arr,
+    )
     for start in starts:
         if not np.isclose(
             trajectory.decision_positions[start],
@@ -541,7 +573,8 @@ def _compute_contract_transition_advantage(
         )
     best_class = np.full(len(returns), "neutral", dtype=object)
     for start in starts:
-        best_class[start] = classes[start, best_idx[start]]
+        if block_eligible_mask[start]:
+            best_class[start] = classes[start, best_idx[start]]
     return {
         "actions": actions,
         "horizons": np.asarray([contract.h_decision], dtype=np.int64),
@@ -561,6 +594,16 @@ def _compute_contract_transition_advantage(
         "current_positions": expected_current.astype(np.float32),
         "trajectory": trajectory,
         "action_execution_contract_hash": contract.contract_hash,
+        "eligibility_mask_hash": trajectory.eligibility_mask_hash,
+        "decision_eligible": decision_eligible_arr,
+        "score_eligible": score_eligible_arr,
+        "scheduled_decision_mask": scheduled_decision_mask,
+        "eligible_decision_mask": eligible_decision_mask,
+        "block_eligible_mask": block_eligible_mask,
+        "scheduled_decisions": int(scheduled_decision_mask.sum()),
+        "eligible_decisions": int(eligible_decision_mask.sum()),
+        "eligible_blocks": int(block_eligible_mask.sum()),
+        "excluded_blocks": int(scheduled_decision_mask.sum() - block_eligible_mask.sum()),
     }
 
 

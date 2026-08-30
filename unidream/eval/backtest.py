@@ -16,6 +16,7 @@ from unidream.eval.action_execution import (
     ActionExecutionTrajectory,
     decision_deltas_from_positions,
     replay_action_path,
+    validate_eligibility_masks,
 )
 
 
@@ -119,8 +120,13 @@ class BacktestMetrics:
     downside_capture: float | None = None
     max_underperformance_streak: int | None = None
     action_execution_contract_hash: str | None = None
+    eligibility_mask_hash: str | None = None
     scored_bars: int | None = None
     complete_blocks: int | None = None
+    scheduled_decisions: int | None = None
+    eligible_decisions: int | None = None
+    eligible_blocks: int | None = None
+    excluded_blocks: int | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -147,8 +153,13 @@ class BacktestMetrics:
             "downside_capture": self.downside_capture,
             "max_underperformance_streak": self.max_underperformance_streak,
             "action_execution_contract_hash": self.action_execution_contract_hash,
+            "eligibility_mask_hash": self.eligibility_mask_hash,
             "scored_bars": self.scored_bars,
             "complete_blocks": self.complete_blocks,
+            "scheduled_decisions": self.scheduled_decisions,
+            "eligible_decisions": self.eligible_decisions,
+            "eligible_blocks": self.eligible_blocks,
+            "excluded_blocks": self.excluded_blocks,
         }
 
 
@@ -327,6 +338,8 @@ class Backtest:
         action_execution_contract: ActionExecutionContract | None = None,
         execution_contract: ActionExecutionContract | None = None,
         action_positions_are_deltas: bool | None = None,
+        decision_eligible: np.ndarray | list[bool] | None = None,
+        score_eligible: np.ndarray | list[bool] | None = None,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -353,6 +366,17 @@ class Backtest:
             raise ValueError(
                 "action_positions_are_deltas must be explicitly True or False "
                 "when an action execution contract is provided"
+            )
+        self.decision_eligible = None
+        self.score_eligible = None
+        if self.action_execution_contract is not None:
+            (
+                self.decision_eligible,
+                self.score_eligible,
+            ) = validate_eligibility_masks(
+                decision_eligible,
+                score_eligible,
+                len(self.returns),
             )
         if self.action_execution_contract is not None and self.execution_delay_bars != 0:
             raise ValueError(
@@ -404,12 +428,16 @@ class Backtest:
                 action_deltas = decision_deltas_from_positions(
                     self.positions,
                     self.action_execution_contract,
+                    decision_eligible=self.decision_eligible,
+                    score_eligible=self.score_eligible,
                 )
             benchmark_deltas = self.benchmark_positions
             if benchmark_deltas is not None and self.action_positions_are_deltas is False:
                 benchmark_deltas = decision_deltas_from_positions(
                     benchmark_deltas,
                     self.action_execution_contract,
+                    decision_eligible=self.decision_eligible,
+                    score_eligible=self.score_eligible,
                 )
             return _run_contract_backtest(
                 self.returns,
@@ -417,6 +445,8 @@ class Backtest:
                 benchmark_deltas,
                 self.action_execution_contract,
                 self.ann_factor,
+                decision_eligible=self.decision_eligible,
+                score_eligible=self.score_eligible,
             )
         returns, positions, benchmark_positions = align_execution_path(
             self.returns,
@@ -550,6 +580,8 @@ class ActionExecutionBacktest:
         contract: ActionExecutionContract,
         benchmark_decision_deltas: np.ndarray | None = None,
         interval: str = "15m",
+        decision_eligible: np.ndarray | list[bool] | None = None,
+        score_eligible: np.ndarray | list[bool] | None = None,
     ):
         if not isinstance(contract, ActionExecutionContract):
             raise TypeError("contract must be an ActionExecutionContract")
@@ -562,6 +594,11 @@ class ActionExecutionBacktest:
         )
         self.contract = contract
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
+        self.decision_eligible, self.score_eligible = validate_eligibility_masks(
+            decision_eligible,
+            score_eligible,
+            len(self.returns),
+        )
 
     def run(self) -> BacktestMetrics:
         return _run_contract_backtest(
@@ -570,6 +607,8 @@ class ActionExecutionBacktest:
             self.benchmark_decision_deltas,
             self.contract,
             self.ann_factor,
+            decision_eligible=self.decision_eligible,
+            score_eligible=self.score_eligible,
         )
 
 
@@ -594,9 +633,18 @@ def _run_contract_backtest(
     benchmark_decision_deltas: np.ndarray | None,
     contract: ActionExecutionContract,
     ann_factor: float,
+    *,
+    decision_eligible: np.ndarray | list[bool] | None,
+    score_eligible: np.ndarray | list[bool] | None,
 ) -> BacktestMetrics:
     """Build strategy/benchmark metrics from one shared contract replay."""
-    trajectory = replay_action_path(returns, decision_deltas, contract)
+    trajectory = replay_action_path(
+        returns,
+        decision_deltas,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
     if trajectory.n_scored_bars <= 0:
         raise ValueError(
             "action execution contract produced no complete decision block"
@@ -606,7 +654,13 @@ def _run_contract_backtest(
         if benchmark_decision_deltas is None
         else benchmark_decision_deltas
     )
-    benchmark = replay_action_path(trajectory.returns, benchmark_deltas, contract)
+    benchmark = replay_action_path(
+        trajectory.returns,
+        benchmark_deltas,
+        contract,
+        decision_eligible=trajectory.decision_eligible,
+        score_eligible=trajectory.score_eligible,
+    )
     if not np.array_equal(trajectory.scored_mask, benchmark.scored_mask):
         raise ValueError("strategy and benchmark action paths have different scored masks")
 
@@ -654,8 +708,13 @@ def _run_contract_backtest(
         equity_curve=equity,
         pnl_series=pnl,
         action_execution_contract_hash=contract.contract_hash,
+        eligibility_mask_hash=trajectory.eligibility_mask_hash,
         scored_bars=trajectory.n_scored_bars,
         complete_blocks=trajectory.n_complete_blocks,
+        scheduled_decisions=trajectory.n_scheduled_decisions,
+        eligible_decisions=trajectory.n_eligible_decisions,
+        eligible_blocks=trajectory.n_eligible_blocks,
+        excluded_blocks=trajectory.n_excluded_blocks,
     )
 
 

@@ -109,6 +109,9 @@ class ActionExecutionContract:
     initial_countdown: int = 0
     countdown_decrement: int = 1
     boundary_cost_policy: str = "fill_only"
+    feature_unavailable_policy: str = "exclude_block"
+    execution_skip_policy: str = "hold_commitment"
+    eligibility_masks_required: bool = True
 
     def __post_init__(self) -> None:
         numeric = {
@@ -144,6 +147,8 @@ class ActionExecutionContract:
             ("spread_convention", self.spread_convention),
             ("return_unit", self.return_unit),
             ("boundary_cost_policy", self.boundary_cost_policy),
+            ("feature_unavailable_policy", self.feature_unavailable_policy),
+            ("execution_skip_policy", self.execution_skip_policy),
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"{name} must be a non-empty string")
@@ -165,6 +170,14 @@ class ActionExecutionContract:
             raise ValueError("boundary_cost_policy must be fill_only")
         if self.countdown_decrement != 1:
             raise ValueError("countdown_decrement must be 1")
+        if self.feature_unavailable_policy != "exclude_block":
+            raise ValueError("feature_unavailable_policy must be exclude_block")
+        if self.execution_skip_policy != "hold_commitment":
+            raise ValueError("execution_skip_policy must be hold_commitment")
+        if not isinstance(self.eligibility_masks_required, (bool, np.bool_)):
+            raise ValueError("eligibility_masks_required must be a boolean")
+        if not bool(self.eligibility_masks_required):
+            raise ValueError("eligibility_masks_required must be true for the new path")
 
     @classmethod
     def canonical(cls) -> "ActionExecutionContract":
@@ -238,6 +251,9 @@ class ActionExecutionContract:
             "p_start": float(self.p_start),
             "initial_countdown": int(self.initial_countdown),
             "boundary_cost_policy": self.boundary_cost_policy,
+            "feature_unavailable_policy": self.feature_unavailable_policy,
+            "execution_skip_policy": self.execution_skip_policy,
+            "eligibility_masks_required": bool(self.eligibility_masks_required),
         }
 
     @property
@@ -272,21 +288,47 @@ class ActionExecutionContract:
         self,
         returns: np.ndarray | Sequence[float],
         decision_deltas: np.ndarray | Sequence[float],
+        *,
+        decision_eligible: np.ndarray | Sequence[bool] | None = None,
+        score_eligible: np.ndarray | Sequence[bool] | None = None,
     ) -> "ActionExecutionTrajectory":
-        return replay_action_path(returns, decision_deltas, self)
+        return replay_action_path(
+            returns,
+            decision_deltas,
+            self,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
 
     def replay_absolute(
         self,
         returns: np.ndarray | Sequence[float],
         absolute_positions: np.ndarray | Sequence[float],
+        *,
+        decision_eligible: np.ndarray | Sequence[bool] | None = None,
+        score_eligible: np.ndarray | Sequence[bool] | None = None,
     ) -> "ActionExecutionTrajectory":
-        return replay_contract_absolute_path(returns, absolute_positions, self)
+        return replay_contract_absolute_path(
+            returns,
+            absolute_positions,
+            self,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
 
     def select_decisions(
         self,
         decision_block_scores: np.ndarray | Sequence[float],
+        *,
+        decision_eligible: np.ndarray | Sequence[bool] | None = None,
+        score_eligible: np.ndarray | Sequence[bool] | None = None,
     ) -> np.ndarray:
-        return select_block_decisions(decision_block_scores, self)
+        return select_block_decisions(
+            decision_block_scores,
+            self,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
 
     def __hash__(self) -> int:
         # Explicitly hash the canonical serialized contract so future additions
@@ -332,6 +374,9 @@ class ActionExecutionContract:
             "initial_countdown",
             "countdown_decrement",
             "boundary_cost_policy",
+            "feature_unavailable_policy",
+            "execution_skip_policy",
+            "eligibility_masks_required",
         }
         aliases = {
             "H_decision": "h_decision",
@@ -371,6 +416,9 @@ class ActionExecutionContract:
             initial_countdown=normalized["initial_countdown"],
             countdown_decrement=normalized.get("countdown_decrement", 1),
             boundary_cost_policy=normalized["boundary_cost_policy"],
+            feature_unavailable_policy=normalized["feature_unavailable_policy"],
+            execution_skip_policy=normalized["execution_skip_policy"],
+            eligibility_masks_required=normalized["eligibility_masks_required"],
         )
         if require_canonical:
             canonical = cls.canonical()
@@ -394,6 +442,9 @@ class ActionExecutionContract:
                 "initial_countdown",
                 "countdown_decrement",
                 "boundary_cost_policy",
+                "feature_unavailable_policy",
+                "execution_skip_policy",
+                "eligibility_masks_required",
             )
             for field_name in fields:
                 actual = getattr(contract, field_name)
@@ -472,6 +523,11 @@ class ActionExecutionTrajectory:
     fill_mask: np.ndarray = field(repr=False)
     scored_mask: np.ndarray = field(repr=False)
     commitment_countdown: np.ndarray = field(repr=False)
+    scheduled_decision_mask: np.ndarray = field(repr=False)
+    decision_eligible: np.ndarray = field(repr=False)
+    score_eligible: np.ndarray = field(repr=False)
+    eligible_decision_mask: np.ndarray = field(repr=False)
+    block_eligible_mask: np.ndarray = field(repr=False)
 
     @property
     def scored_indices(self) -> np.ndarray:
@@ -498,8 +554,52 @@ class ActionExecutionTrajectory:
         return int(np.count_nonzero(self.fill_mask))
 
     @property
+    def n_scheduled_decisions(self) -> int:
+        return int(np.count_nonzero(self.scheduled_decision_mask))
+
+    @property
+    def n_eligible_decisions(self) -> int:
+        return int(np.count_nonzero(self.eligible_decision_mask))
+
+    @property
+    def n_eligible_blocks(self) -> int:
+        return int(np.count_nonzero(self.block_eligible_mask))
+
+    @property
+    def n_excluded_blocks(self) -> int:
+        return self.n_scheduled_decisions - self.n_eligible_blocks
+
+    @property
     def n_scored_bars(self) -> int:
         return int(np.count_nonzero(self.scored_mask))
+
+    @property
+    def eligibility_counts(self) -> dict[str, int]:
+        """Stable mask counts for audit artifacts and parity checks."""
+        return {
+            "scheduled_decisions": self.n_scheduled_decisions,
+            "eligible_decisions": self.n_eligible_decisions,
+            "eligible_blocks": self.n_eligible_blocks,
+            "excluded_blocks": self.n_excluded_blocks,
+            "scored_bars": self.n_scored_bars,
+        }
+
+    @property
+    def eligibility_mask_hash(self) -> str:
+        """Hash the exact full-length eligibility inputs used for replay."""
+        payload = json.dumps(
+            {
+                "decision_eligible": self.decision_eligible.tolist(),
+                "score_eligible": self.score_eligible.tolist(),
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+    @property
+    def mask_hash(self) -> str:
+        """Short semantic alias for artifact consumers."""
+        return self.eligibility_mask_hash
 
 
 def _validate_series(values: np.ndarray | Sequence[float], *, name: str) -> np.ndarray:
@@ -509,29 +609,141 @@ def _validate_series(values: np.ndarray | Sequence[float], *, name: str) -> np.n
     return arr
 
 
+def _coerce_numeric_series(
+    values: np.ndarray | Sequence[float],
+    *,
+    name: str,
+) -> np.ndarray:
+    """Coerce a numeric path while preserving masked non-finite cells."""
+    try:
+        return np.asarray(values, dtype=np.float64).reshape(-1)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a numeric sequence") from exc
+
+
+def _strict_bool_mask(
+    values: np.ndarray | Sequence[bool] | None,
+    *,
+    name: str,
+    n_bars: int,
+) -> np.ndarray:
+    """Convert a mask without accepting truthy integers/strings."""
+    if values is None:
+        raise ValueError(f"{name} is required for the action execution contract")
+    try:
+        raw = np.asarray(values)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a one-dimensional boolean mask") from exc
+    if raw.ndim != 1 or len(raw) != n_bars:
+        raise ValueError(f"{name} must be a one-dimensional mask of length {n_bars}")
+    if not all(isinstance(value, (bool, np.bool_)) for value in raw.tolist()):
+        raise ValueError(f"{name} must contain only boolean values")
+    return raw.astype(bool, copy=True)
+
+
+def validate_eligibility_masks(
+    decision_eligible: np.ndarray | Sequence[bool] | None,
+    score_eligible: np.ndarray | Sequence[bool] | None,
+    n_bars: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Validate the two required full-length eligibility masks."""
+    if isinstance(n_bars, (bool, np.bool_)) or not isinstance(n_bars, (int, np.integer)):
+        raise ValueError("n_bars must be an integer")
+    n_bars = int(n_bars)
+    if n_bars < 0:
+        raise ValueError("n_bars must be non-negative")
+    return (
+        _strict_bool_mask(decision_eligible, name="decision_eligible", n_bars=n_bars),
+        _strict_bool_mask(score_eligible, name="score_eligible", n_bars=n_bars),
+    )
+
+
+def _contract_block_masks(
+    n_bars: int,
+    contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None,
+    score_eligible: np.ndarray | Sequence[bool] | None,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    tuple[int, ...],
+]:
+    decision_mask, score_mask = validate_eligibility_masks(
+        decision_eligible,
+        score_eligible,
+        n_bars,
+    )
+    starts = complete_decision_starts(n_bars, contract)
+    scheduled = np.zeros(n_bars, dtype=bool)
+    eligible_decision = np.zeros(n_bars, dtype=bool)
+    block_eligible = np.zeros(n_bars, dtype=bool)
+    for start in starts:
+        scheduled[start] = True
+        eligible_decision[start] = decision_mask[start]
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        block_eligible[start] = bool(
+            decision_mask[start] and score_mask[fill:end].all()
+        )
+    return decision_mask, score_mask, scheduled, eligible_decision, block_eligible, starts
+
+
 def _validate_decision_block_scores(
     values: np.ndarray | Sequence[float],
     contract: ActionExecutionContract,
-) -> tuple[np.ndarray, tuple[int, ...]]:
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None,
+    score_eligible: np.ndarray | Sequence[bool] | None,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    tuple[int, ...],
+]:
     """Validate only the scalar forecast available at each decision start.
 
     The full-length representation intentionally permits arbitrary/NaN values
     at blocked and outcome bars.  Those cells are not forecasts for the
     current decision and must never be inspected or used as a fallback.
     """
-    try:
-        arr = np.asarray(values, dtype=np.float64).reshape(-1)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("decision_block_scores must be a numeric sequence") from exc
-    starts = complete_decision_starts(len(arr), contract)
+    arr = _coerce_numeric_series(values, name="decision_block_scores")
+    (
+        decision_mask,
+        score_mask,
+        scheduled,
+        eligible_decision,
+        block_eligible,
+        starts,
+    ) = _contract_block_masks(
+        len(arr),
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
     if not starts:
         raise ValueError("decision_block_scores require at least one complete decision block")
     for start in starts:
-        if not np.isfinite(arr[start]):
+        if block_eligible[start] and not np.isfinite(arr[start]):
             raise ValueError(
                 f"decision_block_scores[{start}] must be a finite cumulative forecast"
             )
-    return arr, starts
+    return (
+        arr,
+        decision_mask,
+        score_mask,
+        scheduled,
+        eligible_decision,
+        block_eligible,
+        starts,
+    )
 
 
 def _validate_lengths(decision_deltas: np.ndarray, returns: np.ndarray) -> None:
@@ -606,18 +818,36 @@ def replay_action_path(
     returns: np.ndarray | Sequence[float],
     decision_deltas: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> ActionExecutionTrajectory:
     """Replay deltas under the fixed delay, commitment and fill contract.
 
-    ``decision_deltas[t]`` is read only at complete decision bars.  Values at
-    blocked bars are deliberately ignored; a caller that wants strict actor
-    validation should use :func:`decision_deltas_from_positions` first.
+    ``decision_deltas[t]`` is read only at eligible complete decision bars.
+    A scheduled block is excluded as a whole when its decision or any delayed
+    score bar is ineligible.  The schedule is not compressed: the next
+    decision remains at the next commitment boundary.  Both masks are strict,
+    full-length boolean arrays and are mandatory for the new contract path.
     """
     contract = contract or ActionExecutionContract.canonical()
-    returns_arr = _validate_series(returns, name="returns")
-    deltas_arr = _validate_series(decision_deltas, name="decision_deltas")
+    returns_arr = _coerce_numeric_series(returns, name="returns")
+    deltas_arr = _coerce_numeric_series(decision_deltas, name="decision_deltas")
     _validate_lengths(deltas_arr, returns_arr)
     n_bars = len(returns_arr)
+    (
+        decision_eligible_arr,
+        score_eligible_arr,
+        scheduled_decision_mask,
+        eligible_decision_mask,
+        block_eligible_mask,
+        starts,
+    ) = _contract_block_masks(
+        n_bars,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
     decision_deltas_out = np.zeros(n_bars, dtype=np.float64)
     decision_positions = np.full(n_bars, np.nan, dtype=np.float64)
     fill_positions = np.full(n_bars, np.nan, dtype=np.float64)
@@ -629,7 +859,22 @@ def replay_action_path(
     commitment_countdown = np.zeros(n_bars, dtype=np.int64)
 
     current = float(contract.p_start)
-    for start in complete_decision_starts(n_bars, contract):
+    for start in starts:
+        if not block_eligible_mask[start]:
+            # An excluded scheduled block cannot mutate inventory.  A caller
+            # may use NaN as its masked delta, but a supplied nonzero delta is
+            # an explicit contract violation rather than a silent fallback.
+            raw_delta = deltas_arr[start]
+            if np.isfinite(raw_delta) and not np.isclose(
+                raw_delta,
+                0.0,
+                atol=_FLOAT_TOL,
+                rtol=0.0,
+            ):
+                raise ValueError(
+                    f"decision delta at ineligible block {start} must be zero"
+                )
+            continue
         # A decision is made before the delayed fill.  The state remains the
         # previous position until the fill bar, then stays fixed for H bars.
         raw_delta = float(deltas_arr[start])
@@ -677,7 +922,10 @@ def replay_action_path(
             last_effective = fill_positions[bar]
         effective_positions[bar] = last_effective
 
-    gross_pnl = np.where(scored_mask, effective_positions * returns_arr, 0.0)
+    if np.any(scored_mask & ~np.isfinite(returns_arr)):
+        raise ValueError("returns must be finite on scored eligible bars")
+    scored_returns = np.where(scored_mask, returns_arr, 0.0)
+    gross_pnl = effective_positions * scored_returns
     net_pnl = np.where(scored_mask, gross_pnl - transition_costs, 0.0)
     return ActionExecutionTrajectory(
         contract_hash=contract.contract_hash,
@@ -693,6 +941,11 @@ def replay_action_path(
         fill_mask=fill_mask,
         scored_mask=scored_mask,
         commitment_countdown=commitment_countdown,
+        scheduled_decision_mask=scheduled_decision_mask,
+        decision_eligible=decision_eligible_arr,
+        score_eligible=score_eligible_arr,
+        eligible_decision_mask=eligible_decision_mask,
+        block_eligible_mask=block_eligible_mask,
     )
 
 
@@ -701,21 +954,47 @@ def decision_deltas_from_positions(
     contract: ActionExecutionContract | None = None,
     *,
     strict_blocked: bool = True,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> np.ndarray:
     """Convert an absolute policy path to contract deltas without fallback.
 
-    Only complete decision bars are allowed to change.  In strict mode every
-    blocked-bar target must equal the currently committed position, preventing
-    a legacy every-bar actor path from being silently clipped into the new
-    contract.
+    Only eligible complete decision bars are allowed to change.  In strict
+    mode every blocked-bar target, including an excluded scheduled block, must
+    equal the currently committed position, preventing a legacy every-bar
+    actor path from being silently clipped into the new contract.
     """
     contract = contract or ActionExecutionContract.canonical()
-    positions_arr = _validate_series(positions, name="positions")
+    positions_arr = _coerce_numeric_series(positions, name="positions")
     deltas = np.zeros(len(positions_arr), dtype=np.float64)
     current = float(contract.p_start)
-    starts = set(complete_decision_starts(len(positions_arr), contract))
+    (
+        _,
+        _,
+        _,
+        _,
+        block_eligible_mask,
+        starts_tuple,
+    ) = _contract_block_masks(
+        len(positions_arr),
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+    starts = set(starts_tuple)
     for bar, target in enumerate(positions_arr):
         if bar in starts:
+            if not block_eligible_mask[bar]:
+                if strict_blocked and not np.isclose(
+                    target,
+                    current,
+                    atol=_FLOAT_TOL,
+                    rtol=0.0,
+                ):
+                    raise ValueError(
+                        f"position path changes during ineligible block at bar {bar}"
+                    )
+                continue
             delta = float(target - current)
             if not any(np.isclose(delta, allowed, atol=_FLOAT_TOL, rtol=0.0) for allowed in contract.candidate_deltas):
                 raise ValueError(
@@ -738,6 +1017,9 @@ def decision_deltas_from_positions(
 def select_block_decisions(
     decision_block_scores: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> np.ndarray:
     """Select causal block actions from one scalar score per decision start.
 
@@ -749,11 +1031,26 @@ def select_block_decisions(
     realized per-bar returns.
     """
     contract = contract or ActionExecutionContract.canonical()
-    scores, starts = _validate_decision_block_scores(decision_block_scores, contract)
+    (
+        scores,
+        _,
+        _,
+        _,
+        _,
+        block_eligible,
+        starts,
+    ) = _validate_decision_block_scores(
+        decision_block_scores,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
 
     deltas = np.zeros(len(scores), dtype=np.float64)
     current = float(contract.p_start)
     for start in starts:
+        if not block_eligible[start]:
+            continue
         block_score = float(scores[start])
         candidates: list[tuple[float, float, float]] = []
         for delta in contract.candidate_deltas:
@@ -772,6 +1069,9 @@ def select_block_decisions(
 def select_hindsight_block_decisions(
     realized_returns: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> np.ndarray:
     """Select the realized-future U0 path with an iterative block DP.
 
@@ -781,16 +1081,41 @@ def select_hindsight_block_decisions(
     It is an upper-bound diagnostic only.
     """
     contract = contract or ActionExecutionContract.canonical()
-    scores = _validate_series(realized_returns, name="realized_returns")
-    starts = complete_decision_starts(len(scores), contract)
+    scores = _coerce_numeric_series(realized_returns, name="realized_returns")
+    (
+        _,
+        _,
+        _,
+        _,
+        block_eligible,
+        starts,
+    ) = _contract_block_masks(
+        len(scores),
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
     if not starts:
         raise ValueError("action path requires at least one complete decision block")
+
+    for start in starts:
+        if not block_eligible[start]:
+            continue
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        if not np.all(np.isfinite(scores[fill:end])):
+            raise ValueError(
+                f"realized_returns must be finite on eligible score block {start}"
+            )
 
     # Reachable states at each block boundary are finite because every action
     # is clipped to the bounded spot allocation interval.
     states: list[tuple[float, ...]] = [(float(contract.p_start),)]
-    for _ in starts:
+    for index, _ in enumerate(starts):
         previous_states = states[-1]
+        if not block_eligible[starts[index]]:
+            states.append(previous_states)
+            continue
         next_values = {
             round(_candidate_position(contract, current, delta), 12)
             for current in previous_states
@@ -802,6 +1127,16 @@ def select_hindsight_block_decisions(
     policy: list[dict[float, tuple[float, float]]] = [{} for _ in starts]
     for index in range(len(starts) - 1, -1, -1):
         start = starts[index]
+        if not block_eligible[start]:
+            value_next = {
+                round(current, 12): value_next[round(current, 12)]
+                for current in states[index]
+            }
+            policy[index] = {
+                round(current, 12): (0.0, current)
+                for current in states[index]
+            }
+            continue
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
         block_sum = float(scores[fill:end].sum())
@@ -838,6 +1173,9 @@ def select_hindsight_block_decisions(
 def replay_selected_path(
     decision_block_scores: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> ActionExecutionTrajectory:
     """Select/replay a causal teacher from cumulative block forecasts.
 
@@ -847,24 +1185,64 @@ def replay_selected_path(
     outcome-bar input cells are read.
     """
     contract = contract or ActionExecutionContract.canonical()
-    scores, starts = _validate_decision_block_scores(decision_block_scores, contract)
-    deltas = select_block_decisions(scores, contract)
+    (
+        scores,
+        _,
+        _,
+        _,
+        _,
+        block_eligible,
+        starts,
+    ) = _validate_decision_block_scores(
+        decision_block_scores,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+    deltas = select_block_decisions(
+        scores,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
     replay_returns = np.zeros(len(scores), dtype=np.float64)
     for start in starts:
+        if not block_eligible[start]:
+            continue
         fill = start + contract.execution_delay_bars
         end = fill + contract.h_decision
         replay_returns[fill:end] = float(scores[start]) / contract.h_decision
-    return replay_action_path(replay_returns, deltas, contract)
+    return replay_action_path(
+        replay_returns,
+        deltas,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
 
 
 def replay_hindsight_selected_path(
     realized_returns: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> ActionExecutionTrajectory:
     """Select and replay the realized-future U0 trajectory."""
     contract = contract or ActionExecutionContract.canonical()
-    deltas = select_hindsight_block_decisions(realized_returns, contract)
-    return replay_action_path(realized_returns, deltas, contract)
+    deltas = select_hindsight_block_decisions(
+        realized_returns,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+    return replay_action_path(
+        realized_returns,
+        deltas,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
 
 
 def run_contract_backtest(
@@ -874,6 +1252,8 @@ def run_contract_backtest(
     *,
     benchmark_positions: np.ndarray | Sequence[float] | None,
     contract: ActionExecutionContract,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
     **kwargs: Any,
 ):
     """Stage adapter: validate absolute policy paths, then invoke new Backtest.
@@ -882,11 +1262,26 @@ def run_contract_backtest(
     contract keyword is mandatory here; a class that does not support it fails
     loudly instead of falling back to historical delay/cost defaults.
     """
-    decision_deltas = decision_deltas_from_positions(absolute_positions, contract)
+    decision_eligible_arr, score_eligible_arr = validate_eligibility_masks(
+        decision_eligible,
+        score_eligible,
+        len(np.asarray(returns).reshape(-1)),
+    )
+    decision_deltas = decision_deltas_from_positions(
+        absolute_positions,
+        contract,
+        decision_eligible=decision_eligible_arr,
+        score_eligible=score_eligible_arr,
+    )
     benchmark_deltas = (
         np.zeros(len(decision_deltas), dtype=np.float64)
         if benchmark_positions is None
-        else decision_deltas_from_positions(benchmark_positions, contract)
+        else decision_deltas_from_positions(
+            benchmark_positions,
+            contract,
+            decision_eligible=decision_eligible_arr,
+            score_eligible=score_eligible_arr,
+        )
     )
     kwargs = dict(kwargs)
     # Do not even forward historical cost/delay knobs on the explicit path.
@@ -905,6 +1300,8 @@ def run_contract_backtest(
     kwargs["benchmark_positions"] = benchmark_deltas
     kwargs["action_execution_contract"] = contract
     kwargs["action_positions_are_deltas"] = True
+    kwargs["decision_eligible"] = decision_eligible_arr
+    kwargs["score_eligible"] = score_eligible_arr
     return backtest_cls(returns, decision_deltas, **kwargs)
 
 
@@ -912,19 +1309,42 @@ def replay_contract_absolute_path(
     returns: np.ndarray | Sequence[float],
     absolute_positions: np.ndarray | Sequence[float],
     contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> ActionExecutionTrajectory:
     """Strictly convert and replay an absolute policy path."""
-    deltas = decision_deltas_from_positions(absolute_positions, contract)
-    return replay_action_path(returns, deltas, contract)
+    deltas = decision_deltas_from_positions(
+        absolute_positions,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+    return replay_action_path(
+        returns,
+        deltas,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
 
 
 def contract_pnl_attribution(
     returns: np.ndarray | Sequence[float],
     absolute_positions: np.ndarray | Sequence[float],
     contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool] | None = None,
+    score_eligible: np.ndarray | Sequence[bool] | None = None,
 ) -> dict[str, float]:
     """Return long/short/cost attribution from the shared contract replay."""
-    trajectory = replay_contract_absolute_path(returns, absolute_positions, contract)
+    trajectory = replay_contract_absolute_path(
+        returns,
+        absolute_positions,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
     scored = trajectory.scored_mask
     gross = trajectory.gross_pnl[scored]
     positions = trajectory.effective_positions[scored]
