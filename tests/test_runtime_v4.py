@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from unittest import mock
@@ -22,6 +23,7 @@ from unidream.experiments.runtime import (
     validate_v4_runtime_inputs,
 )
 from unidream.experiments.train_app import resolve_training_cache_selection
+from unidream.experiments import runtime as runtime_module
 
 
 def _v4_fixture(root: Path, tag: str = "runtime-v4") -> tuple[dict, pd.DataFrame, pd.DataFrame]:
@@ -409,7 +411,7 @@ class RuntimeV4Test(unittest.TestCase):
             self.assertEqual(result["manifest_sha256"], "f" * 64)
 
     def test_authenticated_frozen_manifest_runs_real_body_validator(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir="/tmp") as temp_dir:
             root = Path(temp_dir)
             metadata, _, _ = _v4_fixture(root)
             candidate = _runtime_manifest(root, metadata)
@@ -439,6 +441,97 @@ class RuntimeV4Test(unittest.TestCase):
             self.assertEqual(result["v4_runtime_validation_status"], "passed")
             self.assertEqual(result["manifest_sha256"], "f" * 64)
             self.assertEqual(result["v4_runtime_provenance_disposition"]["status"], "absent")
+
+    def test_authenticated_p1_rejects_manifest_body_and_cache_local_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory(dir="/tmp") as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            candidate = _runtime_manifest(root, metadata)
+            candidate.update(
+                {
+                    "manifest_id": "fixture-p1",
+                    "manifest_sha256": "f" * 64,
+                    "base_revision": "b" * 40,
+                    "results_observed": False,
+                }
+            )
+            paths = cache_v4_paths(root, "runtime-v4")
+
+            manifest_link = root / "manifest-link.json"
+            os.symlink(paths["metadata"], manifest_link)
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=candidate,
+            ):
+                with self.assertRaisesRegex(V4RuntimeInputError, "manifest.*symlink"):
+                    validate_p1_v4_runtime_inputs(
+                        candidate,
+                        manifest_path=manifest_link,
+                        root=root,
+                    )
+
+            for field, source in paths.items():
+                link = root / f"{field}-link"
+                os.symlink(source, link)
+                explicit = dict(paths)
+                explicit[field] = link
+                with self.subTest(field=field), mock.patch(
+                    "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                    return_value=candidate,
+                ):
+                    with self.assertRaisesRegex(V4RuntimeInputError, "symlink"):
+                        validate_p1_v4_runtime_inputs(
+                            candidate,
+                            root=root,
+                            path_overrides=explicit,
+                        )
+
+            local_link = root / "cache-local-link.json"
+            os.symlink(paths["metadata"], local_link)
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=candidate,
+            ):
+                with self.assertRaisesRegex(V4RuntimeInputError, "cache_local_metadata.*symlink"):
+                    validate_p1_v4_runtime_inputs(
+                        candidate,
+                        root=root,
+                        cache_local_metadata_path=local_link,
+                    )
+
+    def test_authenticated_p1_rejects_body_replacement_during_load(self) -> None:
+        with tempfile.TemporaryDirectory(dir="/tmp") as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            candidate = _runtime_manifest(root, metadata)
+            candidate.update(
+                {
+                    "manifest_id": "fixture-p1",
+                    "manifest_sha256": "f" * 64,
+                    "base_revision": "b" * 40,
+                    "results_observed": False,
+                }
+            )
+            paths = cache_v4_paths(root, "runtime-v4")
+            target = paths["features"]
+            original_load = runtime_module.load_cache_v4
+
+            def load_then_replace(*args, **kwargs):
+                loaded = original_load(*args, **kwargs)
+                replacement = target.with_name("replacement_features.parquet")
+                replacement.write_bytes(target.read_bytes())
+                os.replace(replacement, target)
+                return loaded
+
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=candidate,
+            ), mock.patch(
+                "unidream.experiments.runtime.load_cache_v4",
+                side_effect=load_then_replace,
+            ):
+                with self.assertRaisesRegex(V4RuntimeInputError, "feature_path.*changed during validation"):
+                    validate_p1_v4_runtime_inputs(candidate, root=root)
 
     def test_legacy_v3_cache_is_explicitly_unverified(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

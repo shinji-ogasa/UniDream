@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import random
+import stat
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -243,6 +244,168 @@ def _v4_runtime_resolve_path(value: str | Path, root: Path) -> Path:
     return path
 
 
+def _v4_runtime_collect_body_paths(
+    contract: Mapping[str, Any],
+    root_path: Path,
+    *,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+) -> dict[str, Path]:
+    """Resolve the same complete explicit body path set used by the validator."""
+    merged_overrides: dict[str, str | Path] = {}
+    for source_name, source in (("path_overrides", path_overrides), ("paths", paths)):
+        if source is None:
+            continue
+        if not isinstance(source, Mapping):
+            raise V4RuntimeInputError(f"{source_name} must be an object")
+        for key, value in source.items():
+            if key in merged_overrides and merged_overrides[key] != value:
+                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
+            merged_overrides[str(key)] = value
+    keyword_overrides = {
+        "feature_path": feature_path,
+        "returns_path": returns_path,
+        "availability_path": availability_path,
+        "metadata_path": metadata_path,
+    }
+    for key, value in keyword_overrides.items():
+        if value is not None:
+            if key in merged_overrides and merged_overrides[key] != value:
+                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
+            merged_overrides[key] = value
+    aliases = {
+        "features": "feature_path",
+        "returns": "returns_path",
+        "availability": "availability_path",
+        "metadata": "metadata_path",
+    }
+    normalised_overrides: dict[str, str | Path] = {}
+    for key, value in merged_overrides.items():
+        canonical_key = aliases.get(key, key)
+        if canonical_key not in _V4_RUNTIME_BODY_FIELDS:
+            raise V4RuntimeInputError(f"unknown v4 path override: {key!r}")
+        if canonical_key in normalised_overrides and normalised_overrides[canonical_key] != value:
+            raise V4RuntimeInputError(f"conflicting v4 path override for {canonical_key!r}")
+        normalised_overrides[canonical_key] = value
+    if normalised_overrides and set(normalised_overrides) != set(_V4_RUNTIME_BODY_FIELDS):
+        missing = sorted(set(_V4_RUNTIME_BODY_FIELDS) - set(normalised_overrides))
+        raise V4RuntimeInputError(
+            "v4 path overrides must provide all explicit body paths: " + ", ".join(missing)
+        )
+
+    configured_paths = {
+        field: normalised_overrides.get(field, contract.get(field))
+        for field in _V4_RUNTIME_BODY_FIELDS
+    }
+    if any(value is None or not str(value) for value in configured_paths.values()):
+        raise V4RuntimeInputError("v4 manifest is missing an explicit body path")
+    return {
+        field: _v4_runtime_resolve_path(value, root_path)
+        for field, value in configured_paths.items()
+    }
+
+
+def _v4_runtime_collect_cache_local_path(
+    contract: Mapping[str, Any],
+    root_path: Path,
+    cache_local_metadata_path: str | Path | None,
+) -> Path | None:
+    value = cache_local_metadata_path
+    if value is None:
+        value = contract.get("cache_local_metadata_path")
+    if value is None or not str(value):
+        return None
+    return _v4_runtime_resolve_path(value, root_path)
+
+
+def _v4_runtime_path_snapshot(
+    path: Path,
+    label: str,
+    *,
+    allow_missing: bool,
+) -> tuple[int, int, int, int, int] | None:
+    """Capture a stable regular-file identity without following symlinks."""
+    try:
+        lstat_result = os.lstat(path)
+    except FileNotFoundError:
+        if allow_missing:
+            return None
+        raise V4RuntimeInputError(f"authenticated P1 {label} is missing: {path}") from None
+    except OSError as exc:
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} cannot be inspected: {path}"
+        ) from exc
+    if stat.S_ISLNK(lstat_result.st_mode):
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} must not be a symlink: {path}"
+        )
+    if not stat.S_ISREG(lstat_result.st_mode):
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} must be a regular file: {path}"
+        )
+    try:
+        stat_result = os.stat(path)
+    except OSError as exc:
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} changed during inspection: {path}"
+        ) from exc
+    if not stat.S_ISREG(stat_result.st_mode):
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} must be a regular file: {path}"
+        )
+    lstat_identity = (
+        lstat_result.st_dev,
+        lstat_result.st_ino,
+        lstat_result.st_size,
+        lstat_result.st_mtime_ns,
+        lstat_result.st_mode,
+    )
+    stat_identity = (
+        stat_result.st_dev,
+        stat_result.st_ino,
+        stat_result.st_size,
+        stat_result.st_mtime_ns,
+        stat_result.st_mode,
+    )
+    if lstat_identity != stat_identity:
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} changed during inspection: {path}"
+        )
+    return lstat_identity
+
+
+def _v4_runtime_snapshot_paths(
+    paths: Mapping[str, Path],
+    *,
+    allow_missing: bool,
+) -> dict[str, tuple[int, int, int, int, int] | None]:
+    return {
+        label: _v4_runtime_path_snapshot(path, label, allow_missing=allow_missing)
+        for label, path in paths.items()
+    }
+
+
+def _v4_runtime_verify_path_snapshots(
+    before: Mapping[str, tuple[int, int, int, int, int] | None],
+    paths: Mapping[str, Path],
+) -> None:
+    for label, path in paths.items():
+        try:
+            after = _v4_runtime_path_snapshot(path, label, allow_missing=True)
+        except V4RuntimeInputError as exc:
+            raise V4RuntimeInputError(
+                f"authenticated P1 {label} changed during validation: {path}"
+            ) from exc
+        if after != before.get(label):
+            raise V4RuntimeInputError(
+                f"authenticated P1 {label} changed during validation: {path}"
+            )
+
+
 def _v4_runtime_require_mapping(value: Any, label: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise V4RuntimeInputError(f"{label} must be an object")
@@ -371,53 +534,17 @@ def validate_v4_runtime_inputs(
     if disposition_statuses != _V4_RUNTIME_DISPOSITION_STATUSES:
         raise V4RuntimeInputError("v4 runtime disposition statuses are not pinned")
 
-    merged_overrides: dict[str, str | Path] = {}
-    for source_name, source in (("path_overrides", path_overrides), ("paths", paths)):
-        if source is None:
-            continue
-        if not isinstance(source, Mapping):
-            raise V4RuntimeInputError(f"{source_name} must be an object")
-        for key, value in source.items():
-            if key in merged_overrides and merged_overrides[key] != value:
-                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
-            merged_overrides[str(key)] = value
-    keyword_overrides = {
-        "feature_path": feature_path,
-        "returns_path": returns_path,
-        "availability_path": availability_path,
-        "metadata_path": metadata_path,
-    }
-    for key, value in keyword_overrides.items():
-        if value is not None:
-            if key in merged_overrides and merged_overrides[key] != value:
-                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
-            merged_overrides[key] = value
-    aliases = {"features": "feature_path", "returns": "returns_path", "availability": "availability_path", "metadata": "metadata_path"}
-    normalised_overrides: dict[str, str | Path] = {}
-    for key, value in merged_overrides.items():
-        canonical_key = aliases.get(key, key)
-        if canonical_key not in _V4_RUNTIME_BODY_FIELDS:
-            raise V4RuntimeInputError(f"unknown v4 path override: {key!r}")
-        if canonical_key in normalised_overrides and normalised_overrides[canonical_key] != value:
-            raise V4RuntimeInputError(f"conflicting v4 path override for {canonical_key!r}")
-        normalised_overrides[canonical_key] = value
-    if normalised_overrides and set(normalised_overrides) != set(_V4_RUNTIME_BODY_FIELDS):
-        missing = sorted(set(_V4_RUNTIME_BODY_FIELDS) - set(normalised_overrides))
-        raise V4RuntimeInputError(
-            "v4 path overrides must provide all explicit body paths: " + ", ".join(missing)
-        )
-
     root_path = Path(root) if root is not None else Path(__file__).resolve().parents[2]
-    configured_paths = {
-        field: normalised_overrides.get(field, contract.get(field))
-        for field in _V4_RUNTIME_BODY_FIELDS
-    }
-    if any(value is None or not str(value) for value in configured_paths.values()):
-        raise V4RuntimeInputError("v4 manifest is missing an explicit body path")
-    resolved_paths = {
-        field: _v4_runtime_resolve_path(value, root_path)
-        for field, value in configured_paths.items()
-    }
+    resolved_paths = _v4_runtime_collect_body_paths(
+        contract,
+        root_path,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+    )
     missing_paths = [str(path) for path in resolved_paths.values() if not path.is_file()]
     if missing_paths:
         raise V4RuntimeInputError("v4 runtime body is incomplete; missing files: " + ", ".join(missing_paths))
@@ -458,13 +585,10 @@ def validate_v4_runtime_inputs(
     if frozen_metadata_sha256 != parent.get("metadata_sha256"):
         raise V4RuntimeInputError("frozen v4 metadata file SHA-256 mismatch")
 
-    local_path_value = cache_local_metadata_path
-    if local_path_value is None:
-        local_path_value = contract.get("cache_local_metadata_path")
-    local_path = (
-        _v4_runtime_resolve_path(local_path_value, root_path)
-        if local_path_value is not None and str(local_path_value)
-        else None
+    local_path = _v4_runtime_collect_cache_local_path(
+        contract,
+        root_path,
+        cache_local_metadata_path,
     )
     local_metadata: Mapping[str, Any] | None = None
     local_sha256: str | None = None
@@ -645,6 +769,11 @@ def validate_p1_v4_runtime_inputs(
         )
     except (TypeError, ValueError) as exc:
         raise V4RuntimeInputError("P1 manifest path must be path-like") from exc
+    manifest_before = _v4_runtime_path_snapshot(
+        selected_manifest_path,
+        "manifest",
+        allow_missing=False,
+    )
     try:
         fixed_manifest = p1_recovery_prereg.load_fixed_manifest(selected_manifest_path)
     except (p1_recovery_prereg.P1PreregistrationError, OSError, TypeError, ValueError) as exc:
@@ -675,6 +804,43 @@ def validate_p1_v4_runtime_inputs(
     # mapping.  Body paths remain caller-supplied only as the complete explicit
     # set enforced by the generic validator; frozen metadata expectations come
     # from the authenticated manifest.
+    root_path = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    fixed_common = _v4_runtime_require_mapping(fixed_manifest.get("common"), "common")
+    fixed_contract = _v4_runtime_require_mapping(
+        fixed_common.get("v4_load_contract"),
+        "common.v4_load_contract",
+    )
+    resolved_paths = _v4_runtime_collect_body_paths(
+        fixed_contract,
+        root_path,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+    )
+    local_path = _v4_runtime_collect_cache_local_path(
+        fixed_contract,
+        root_path,
+        cache_local_metadata_path,
+    )
+    authenticated_paths: dict[str, Path] = {
+        "manifest": selected_manifest_path,
+        **resolved_paths,
+    }
+    if local_path is not None:
+        authenticated_paths["cache_local_metadata"] = local_path
+    before = {"manifest": manifest_before}
+    before.update(
+        _v4_runtime_snapshot_paths(resolved_paths, allow_missing=False)
+    )
+    if local_path is not None:
+        before["cache_local_metadata"] = _v4_runtime_path_snapshot(
+            local_path,
+            "cache_local_metadata",
+            allow_missing=True,
+        )
     result = validate_v4_runtime_inputs(
         fixed_manifest,
         root=root,
@@ -687,6 +853,7 @@ def validate_p1_v4_runtime_inputs(
         cache_local_metadata_path=cache_local_metadata_path,
         provenance_disposition=provenance_disposition,
     )
+    _v4_runtime_verify_path_snapshots(before, authenticated_paths)
     result.update(
         {
             "manifest_id": fixed_manifest.get("manifest_id"),

@@ -582,6 +582,13 @@ cache-tag, and row-count checks match, the run may proceed but must echo the
 `source_provenance_only_difference` disposition; an unknown source digest
 blocks it.  A cache-local file is audit-only and may be absent, in which case
 the disposition is `absent` and the frozen metadata remains authoritative.
+The authenticated wrapper snapshots the manifest, all four explicit body
+paths, and any existing cache-local path with `lstat`/`stat` identity
+(`dev`, `ino`, `size`, `mtime_ns`, regular-file mode) before and after the
+read/load/hash sequence; symlinks, non-regular files, and any identity change
+block the run.  Absolute paths are allowed when they resolve to regular files;
+the generic body validator retains its fixture-only API without this wrapper
+authentication.
 
 The `cache_dir`/`cache_tag`-only default lookup is forbidden for S3.  Any
 `path_overrides` supplied to the validator must provide the complete four-path
