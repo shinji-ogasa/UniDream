@@ -15,7 +15,6 @@ from unidream.experiments.action_primitives import (
     ActionPrimitiveContractError,
     ActionPrimitiveImplementationBlocked,
     action_primitive_content_sha256,
-    action_primitive_envelope_sha256,
     action_primitive_payload_sha256,
     build_action_primitive_grid,
     canonical_action_primitive_schema_sha256,
@@ -119,7 +118,6 @@ class ActionPrimitiveContractTests(unittest.TestCase):
                 "action_primitive_schema_sha256",
                 "action_primitive_content_sha256",
                 "action_primitive_payload_sha256",
-                "action_primitive_envelope_sha256",
             )
         }
         result = validate_action_primitive_semantics(
@@ -140,6 +138,27 @@ class ActionPrimitiveContractTests(unittest.TestCase):
                     realized_returns=self._fixture_returns(),
                     expected_output_hashes=incomplete,
                 )
+
+        # The external v1 schema has exactly three inferential hashes.  A
+        # storage/file envelope must not be promoted into this contract.
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "storage-only"):
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=self._fixture_returns(),
+                expected_output_hashes={
+                    **expected,
+                    "action_primitive_envelope_sha256": "a" * 64,
+                },
+            )
+        legacy = copy.deepcopy(artifact)
+        legacy_header = legacy["header"]
+        assert isinstance(legacy_header, dict)
+        legacy_header["action_primitive_envelope_sha256"] = "a" * 64
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "storage-only"):
+            validate_action_primitive_semantics(
+                legacy,
+                realized_returns=self._fixture_returns(),
+            )
 
     def test_missing_common_mask_and_bootstrap_are_blocked(self) -> None:
         broken = _record(0)
@@ -246,11 +265,8 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         )
         header["action_primitive_content_sha256"] = content
         header["action_primitive_payload_sha256"] = payload
-        envelope = action_primitive_envelope_sha256(records, header=header)
-        header["action_primitive_envelope_sha256"] = envelope
         artifact["action_primitive_content_sha256"] = content
         artifact["action_primitive_payload_sha256"] = payload
-        artifact["action_primitive_envelope_sha256"] = envelope
 
     def test_deterministic_producer_preserves_grid_masks_state_and_cost_off(self) -> None:
         artifact = self._fixture()

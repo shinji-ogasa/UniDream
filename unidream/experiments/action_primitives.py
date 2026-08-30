@@ -209,7 +209,6 @@ ACTION_PRIMITIVE_PRODUCTION_INPUT_EXPECTED_FIELDS: tuple[str, ...] = tuple(
 )
 ACTION_PRIMITIVE_PRODUCTION_OUTPUT_EXPECTED_FIELDS: tuple[str, ...] = (
     *ACTION_PRIMITIVE_HASH_FIELDS,
-    ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD,
 )
 # Compatibility name for callers that have not yet selected a source role.
 ACTION_PRIMITIVE_PRODUCTION_EXPECTED_FIELDS = ACTION_PRIMITIVE_PRODUCTION_INPUT_EXPECTED_FIELDS
@@ -528,12 +527,14 @@ def canonical_action_primitive_envelope_bytes(
     *,
     header: Mapping[str, Any],
 ) -> bytes:
-    """Serialize the complete non-self-referential header and record content.
+    """Serialize an optional, storage-only envelope for external callers.
 
-    The legacy payload hash binds only schema/content declarations.  This
-    separate envelope binds every production provenance field, including the
-    authenticated source and runtime echoes.  Only the payload and envelope
-    declarations themselves are excluded to avoid a hash cycle.
+    The canonical production artifact has exactly three inferential hashes:
+    schema, content, and payload.  A file/storage digest may be computed after
+    writing that artifact, but it is deliberately not part of the artifact
+    header or its expected-hash contract.  This legacy helper remains available
+    for callers that need a deterministic pre-write envelope input; callers
+    should prefer hashing the final written file bytes instead.
     """
     if not isinstance(header, Mapping):
         raise ActionPrimitiveContractError("action primitive envelope header must be an object")
@@ -557,6 +558,12 @@ def action_primitive_envelope_sha256(
     *,
     header: Mapping[str, Any],
 ) -> str:
+    """Return a non-canonical compatibility/storage envelope digest.
+
+    The result must never be inserted into a canonical action primitive
+    header, artifact, or inferential hash manifest.  Hash the post-write file
+    bytes for a storage envelope when a persisted-file identity is required.
+    """
     return hashlib.sha256(
         canonical_action_primitive_envelope_bytes(records, header=header)
     ).hexdigest()
@@ -1204,18 +1211,31 @@ def _normalise_output_hash_expectations(
     expected_payload_sha256: str | None = None,
     expected_envelope_sha256: str | None = None,
 ) -> dict[str, str] | None:
-    """Normalize post-materialisation hashes independently from producer inputs."""
+    """Normalize the exact three post-materialisation inferential hashes.
+
+    Schema, content, and payload are the only hashes in the external v1
+    contract.  ``expected_envelope_sha256`` is retained as a named argument so
+    an older caller fails with a useful contract error rather than silently
+    promoting a storage/file identity into an inferential hash.
+    """
+    if expected_envelope_sha256 is not None:
+        raise ActionPrimitiveContractError(
+            "action_primitive_envelope_sha256 is storage-only and is not a canonical output hash"
+        )
     values: dict[str, Any] = {
         "action_primitive_schema_sha256": expected_schema_sha256,
         "action_primitive_content_sha256": expected_content_sha256,
         "action_primitive_payload_sha256": expected_payload_sha256,
-        ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD: expected_envelope_sha256,
     }
     if expected_output_hashes is not None:
         if not isinstance(expected_output_hashes, Mapping):
             raise ActionPrimitiveContractError("expected output hashes must be a mapping")
         unknown = set(expected_output_hashes) - set(values)
         if unknown:
+            if ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD in unknown:
+                raise ActionPrimitiveContractError(
+                    "action_primitive_envelope_sha256 is storage-only and is not a canonical output hash"
+                )
             raise ActionPrimitiveContractError(
                 "expected output hashes contain unknown fields: "
                 + ", ".join(sorted(str(item) for item in unknown))
@@ -1717,17 +1737,12 @@ def produce_action_primitive_grid(
         schema_sha256=schema_sha256,
         content_sha256=header["action_primitive_content_sha256"],
     )
-    header[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD] = action_primitive_envelope_sha256(
-        records,
-        header=header,
-    )
     artifact = {
         "header": header,
         "records": records,
         "action_primitive_schema_sha256": header["action_primitive_schema_sha256"],
         "action_primitive_content_sha256": header["action_primitive_content_sha256"],
         "action_primitive_payload_sha256": header["action_primitive_payload_sha256"],
-        ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD: header[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD],
     }
     validate_action_primitive_semantics(
         artifact,
@@ -1842,8 +1857,16 @@ def validate_action_primitive_semantics(
         artifact_hashes = artifact_or_records
     else:
         records = artifact_or_records
+    if isinstance(artifact_hashes, Mapping) and ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD in artifact_hashes:
+        raise ActionPrimitiveContractError(
+            "action_primitive_envelope_sha256 is storage-only and cannot appear in a canonical artifact"
+        )
     if not isinstance(header, Mapping):
         raise ActionPrimitiveContractError("action primitive artifact header is required")
+    if ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD in header:
+        raise ActionPrimitiveContractError(
+            "action_primitive_envelope_sha256 is storage-only and cannot appear in a canonical header"
+        )
     if schema is None:
         schema = _load_external_action_schema()
     if not isinstance(schema, Mapping):
@@ -1887,32 +1910,6 @@ def validate_action_primitive_semantics(
             )
     if header_hashes["action_primitive_schema_sha256"] != schema_sha256:
         raise ActionPrimitiveContractError("header external schema SHA-256 mismatch")
-
-    envelope_value = header.get(ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD)
-    if envelope_value is not None:
-        envelope_value = _strict_sha256(
-            envelope_value,
-            field=f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD}",
-        )
-        if (
-            ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD in artifact_hashes
-            and artifact_hashes[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD] != envelope_value
-        ):
-            raise ActionPrimitiveContractError(
-                f"artifact {ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} does not match the header declaration"
-            )
-        if output_expected is not None and envelope_value != output_expected[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD]:
-            raise ActionPrimitiveContractError(
-                f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} does not match the external expected digest"
-            )
-        if envelope_value != action_primitive_envelope_sha256(records, header=header):
-            raise ActionPrimitiveContractError(
-                f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} does not match the complete header/content envelope"
-            )
-    elif output_expected is not None:
-        raise ActionPrimitiveContractError(
-            f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} is required with external output hashes"
-        )
 
     arm_mapping = header.get("arm_metadata")
     if not isinstance(arm_mapping, Mapping):
