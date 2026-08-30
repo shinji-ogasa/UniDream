@@ -1,0 +1,493 @@
+{
+  "manifest_id": "p2-d0-full17-vs-ohlcv13-preregister-20260831-v1",
+  "schema_version": 1,
+  "status": "preregistered",
+  "registered_date": "2026-08-31",
+  "base_revision": "01f79db3b624187a857eb0a4105d466281259490",
+  "amends_manifest_sha256": "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4",
+  "amendment_reason": "P2-D0 corrected full17 versus OHLCV13 availability-aware same-common-row preregistration boundary",
+  "amendment_history": [
+    {
+      "manifest_sha256": "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4",
+      "reason": "P1 recovery preregistration predecessor",
+      "results_observed": false
+    }
+  ],
+  "results_observed": false,
+  "manifest_sha256": "c4189c8cbf8e5d30a9606514b7706cd8d77bee492e831b8c80db83d3cc828285",
+  "critical_field_paths": [
+    "common.symbol",
+    "common.data_frequency",
+    "common.feature_arms",
+    "common.feature_arms.full17.columns",
+    "common.feature_arms.ohlcv13.columns",
+    "common.feature_arms.shared_common_row_rule",
+    "common.forecast_horizons",
+    "common.target_contract",
+    "common.context_contract",
+    "common.split_contract",
+    "common.models",
+    "common.candidate_families",
+    "common.seeds",
+    "common.runtime_contract",
+    "common.metrics",
+    "common.coverage_contract",
+    "common.statistical_contract",
+    "common.runner_contract",
+    "common.trial_registry",
+    "common.primary_comparison_registry",
+    "provenance.v4_parent"
+  ],
+  "common": {
+    "symbol": "BTCUSDT",
+    "data_frequency": "15m",
+    "timezone": "UTC",
+    "decision_timestamp": "decision row t is observed after the close of bar t",
+    "fill_timestamp": "action-capable h4 block fills at the close of bar t+1 after decision t",
+    "canonical_return_unit": "additive_log_return",
+    "canonical_return_definition": "log(close[t] / close[t-1])",
+    "feature_arms": {
+      "full17": {
+        "arm_id": "full17",
+        "description": "canonical v4 17-feature model input",
+        "columns": [
+          "open_ret",
+          "high_ret",
+          "low_ret",
+          "close_ret",
+          "vol_ret",
+          "RSI_14",
+          "macd",
+          "macd_signal",
+          "atr_norm_ret",
+          "atr",
+          "rv_4",
+          "rv_16",
+          "rv_96",
+          "funding_rate",
+          "basis",
+          "basis_mom",
+          "basis_abs"
+        ],
+        "input_shape": [17],
+        "source": "authenticated v4 feature body",
+        "missing_feature_policy": "fail closed; no zero fill, interpolation, or feature synthesis"
+      },
+      "ohlcv13": {
+        "arm_id": "ohlcv13",
+        "description": "the first 13 columns of canonical full17, with no reordering",
+        "columns": [
+          "open_ret",
+          "high_ret",
+          "low_ret",
+          "close_ret",
+          "vol_ret",
+          "RSI_14",
+          "macd",
+          "macd_signal",
+          "atr_norm_ret",
+          "atr",
+          "rv_4",
+          "rv_16",
+          "rv_96"
+        ],
+        "input_shape": [13],
+        "source": "canonical v4 feature body column projection only",
+        "missing_feature_policy": "the seven funding/basis columns are omitted by fixed projection, never zero-filled"
+      },
+      "shared_common_row_rule": "construct full17 context and target/availability eligibility first; the full17 and OHLCV13 arms use exactly the intersection of those eligible row masks, identical timestamp rows, identical horizon, split, purge, and finite-prediction support; neither arm may recover rows from the other or compact the grid",
+      "row_intersection_fields": [
+        "timestamp",
+        "context_eligible_full17",
+        "target_complete_h",
+        "spot_bar_observed",
+        "funding_rate_available",
+        "mark_close_available",
+        "finite_full17_features",
+        "finite_ohlcv13_features",
+        "finite_returns"
+      ],
+      "row_intersection_formula": "common_mask[t,h] = context_eligible_full17[t] AND target_complete_full17[t,h] AND finite_ohlcv13[t] AND finite_full17[t] AND finite_return_window[t,h]"
+    },
+    "forecast_horizons": [1, 4, 8, 16],
+    "forbidden_horizons": [64],
+    "action_horizon": 4,
+    "forecast_only_horizons": [1, 8, 16],
+    "utility_head": false,
+    "target_contract": {
+      "target_formula": "y[t,h] = sum(return[t+1:t+h+1])",
+      "target_end_formula": "target_end[t,h] = t + h + 1 (exclusive)",
+      "target_rows": "t+1 through t+h",
+      "required_edges": "every exact 15m edge t->t+1 through t+h-1->t+h",
+      "following_edge": "t+h->t+h+1 is not required",
+      "required_masks": ["spot_bar_observed", "finite_return"],
+      "excluded_masks": ["funding_rate_available", "mark_close_available"],
+      "zero_rule": "finite exact zero is a valid target and maps to binary class 0",
+      "gap_rule": "any missing, non-finite, or non-contiguous required target row invalidates the complete horizon and retains its timestamp and false mask"
+    },
+    "context_contract": {
+      "context_bars": 64,
+      "window": "current-inclusive [t-63,t]",
+      "required_rows": "every row in [t-63,t] has finite canonical full17 features and spot_bar_observed=true, funding_rate_available=true, mark_close_available=true",
+      "required_edges": "every exact 15m edge from t-63->t-62 through t-1->t",
+      "model_input": "pass only the arm's current-row feature vector at t; never flatten or append the context",
+      "gap_rule": "retain original timestamp rows and set context_eligible=false for every window crossing a timestamp gap"
+    },
+    "split_contract": {
+      "body_first_timestamp": "2018-01-19T17:00:00Z",
+      "body_last_timestamp": "2023-12-31T23:45:00Z",
+      "body_end_exclusive": "2024-01-01T00:00:00Z",
+      "timestamp_frequency": "exactly 15 minutes for each contiguous edge; timestamp gaps are retained and exclude crossing windows",
+      "range_semantics": "all timestamp ranges are UTC [start,end) right-exclusive; the end timestamp is excluded and no target, fill, or four-bar outcome may cross it",
+      "folds": {
+        "train": {
+          "split_id": "train_2018_2021",
+          "start": "2018-01-19T17:00:00Z",
+          "end": "2021-01-01T00:00:00Z",
+          "role": "fit_prefix"
+        },
+        "inner_calibration": {
+          "split_id": "inner_calibration_2021",
+          "start": "2021-01-01T00:00:00Z",
+          "end": "2022-01-01T00:00:00Z",
+          "role": "nested_calibration_only"
+        },
+        "outer_validation": {
+          "split_id": "outer_validation_2022",
+          "start": "2022-01-01T00:00:00Z",
+          "end": "2023-01-01T00:00:00Z",
+          "role": "primary_inferential_gate"
+        },
+        "historical_report_only": {
+          "split_id": "historical_report_2023",
+          "start": "2023-01-01T00:00:00Z",
+          "end": "2024-01-01T00:00:00Z",
+          "role": "report_only"
+        }
+      },
+      "purge_bars": 16,
+      "purge_rule": "fit rows must satisfy target_end <= the right-exclusive evaluation origin minus 16 bars and row < origin",
+      "right_exclusive_rule": "fit, calibration, validation, and report masks are applied before metrics; cross-boundary target/fill/outcome tails are false/N/A, never clipped or reassigned",
+      "nested_rule": "train fit precedes inner calibration; all calibration choices are frozen before outer validation; historical report-only rows cannot select, tune, calibrate, or gate"
+    },
+    "minimum_history_rows": 16384,
+    "minimum_history_rule": "count eligible context AND target AND purge AND row<origin train-mask rows separately for every feature arm, model, task, horizon, seed, and fit origin; if fewer than 16384, mark that fit N/A and do not promote",
+    "learned_fit_contract": {
+      "train_mask": "context_eligible AND target_complete[h] AND target_end <= origin - purge_bars AND row < origin, intersected with the fixed common-row mask",
+      "feature_scaler": "sklearn.preprocessing.StandardScaler(with_mean=True, with_std=True) fit separately for each arm, model, task, origin, and horizon using only train-mask rows; sklearn ddof=0; zero-variance scale is 1; transform-only thereafter",
+      "target_scaling": "none",
+      "baseline_scaling": "none",
+      "one_class_rule": "a LogisticRegression or HistGradientBoostingClassifier prefix with one observed class is N/A; never repair, oversample, or synthesize a class",
+      "future_target_rule": "outer-validation and report-only target rows cannot enter fit, scaler, calibration, or hyperparameter selection"
+    },
+    "models": {
+      "zero_return": {
+        "kind": "fixed_baseline",
+        "tasks": ["continuous", "binary"],
+        "continuous_prediction": "0.0 cumulative return",
+        "binary_prediction": "class-1 probability 0.5",
+        "action_role": "h4 fixed comparator only"
+      },
+      "persistence_last_observed": {
+        "kind": "fixed_baseline",
+        "tasks": ["continuous", "binary"],
+        "continuous_prediction": "h * return[t]",
+        "binary_prediction": "1-eps when return[t] > 0, otherwise eps, eps=1e-6",
+        "action_role": "h4 fixed comparator only"
+      },
+      "ridge": {
+        "kind": "sklearn.linear_model.Ridge",
+        "tasks": ["continuous"],
+        "alpha": 1.0,
+        "fit_intercept": true,
+        "solver": "lsqr",
+        "tol": 1e-12,
+        "max_iter": 10000,
+        "random_state": null,
+        "action_role": "h4 continuous action candidate; h1/h8/h16 forecast-only"
+      },
+      "logistic": {
+        "kind": "sklearn.linear_model.LogisticRegression",
+        "tasks": ["binary"],
+        "C": 1.0,
+        "penalty": "l2",
+        "solver": "lbfgs",
+        "tol": 1e-10,
+        "max_iter": 1000,
+        "class_weight": null,
+        "random_state": 0,
+        "action_role": "forecast-only proper-score diagnostic; no utility/action output"
+      },
+      "hist_gradient_boosting": {
+        "kind": "sklearn.ensemble.HistGradientBoostingRegressor_and_Classifier",
+        "tasks": ["continuous", "binary"],
+        "learning_rate": 0.05,
+        "max_iter": 200,
+        "max_leaf_nodes": 15,
+        "max_depth": 4,
+        "min_samples_leaf": 64,
+        "l2_regularization": 0.0,
+        "early_stopping": false,
+        "categorical_features": null,
+        "random_state": "seed",
+        "deep_model": false,
+        "action_role": "h4 continuous action candidate; h1/h8/h16 forecast-only"
+      }
+    },
+    "candidate_families": {
+      "fixed_baselines": ["zero_return", "persistence_last_observed"],
+      "linear": ["ridge"],
+      "tree": ["hist_gradient_boosting"],
+      "binary": ["logistic", "hist_gradient_boosting"],
+      "action_capable": ["zero_return", "persistence_last_observed", "ridge", "hist_gradient_boosting"],
+      "forbidden": ["MLP", "deep_neural_network", "transformer", "deep_boosting", "unregistered_model"],
+      "family_selection": "candidate family, feature arm, task, horizon, hyperparameters, and seed list are fixed before any output; no post-output family expansion or deletion"
+    },
+    "seeds": [
+      20260830,
+      20260831,
+      20260832,
+      20260833,
+      20260834,
+      20260835,
+      20260836,
+      20260837,
+      20260838,
+      20260839
+    ],
+    "seed_rule": "all feature arms for a seed share identical timestamp rows, availability masks, target masks, split boundaries, and causal fit schedule; only the fixed feature projection and model fit differ",
+    "calibration_contract": {
+      "inner_calibration_split": "inner_calibration_2021",
+      "method": "any probability calibration mapping, if used, is fit only on the fixed inner_calibration split after train fit and frozen before outer validation",
+      "binary_probability_clip_eps": 1e-6,
+      "outer_validation_never_used_for_calibration": true,
+      "historical_report_never_used_for_calibration": true,
+      "selection_after_outer": false
+    },
+    "action_contract": {
+      "decision_to_fill": "decision t -> fill t+1",
+      "commitment_bars": 4,
+      "action_horizon": 4,
+      "forecast_only_horizons": [1, 8, 16],
+      "position_range": [0.5, 1.0],
+      "delta_grid": [-0.08, -0.04, 0.0, 0.04, 0.08],
+      "candidate_rule": "clip(previous_position + delta, 0.5, 1.0), deduplicate after clipping",
+      "active_indicator": "1 iff turnover > 0",
+      "turnover": "abs(selected_position - previous_position)",
+      "common_action_mask": "same common full17/availability intersection for both feature arms",
+      "action_implementation_status": "blocked_not_implemented_until_canonical_action_primitive_producer_and_P1_specific_MBB_are_validated",
+      "generic_mbb_forbidden": true
+    },
+    "metrics": {
+      "proper_score_continuous": ["mse", "mae"],
+      "proper_score_binary": ["log_loss", "brier_score"],
+      "paired_utility": ["mean_net_log_utility", "paired_net_utility_delta_vs_hold"],
+      "action_diagnostics": ["active_rate", "turnover", "feasible_action_agreement", "action_regret_vs_clairvoyant"],
+      "coverage": ["context_complete_fraction", "label_complete_fraction", "common_row_fraction", "finite_prediction_fraction", "scored_action_fraction"],
+      "proper_score_rule": "each metric is computed on identical common timestamp rows for full17 and OHLCV13 at one horizon; N/A/undefined denominators block and are never converted to zero",
+      "paired_utility_rule": "h4 only; compare full17 and OHLCV13 on identical scored action rows with each policy's own carried inventory and an independent benchmark hold path",
+      "active_turnover_rule": "report active indicator and turnover on the complete scheduled h4 grid including false/N/A rows; metrics exclude only by the fixed scored_action_mask",
+      "no_accuracy_claim": "report-only historical rows and any observed 2023 result cannot be described as an untouched holdout or prospective accuracy claim"
+    },
+    "coverage_contract": {
+      "potential_origin_rule": "an origin is potential only when its 64-bar context and target tail t+1..t+h remain inside the same right-exclusive split",
+      "common_row_fraction": "common full17/availability-eligible rows divided by potential origins on the fixed split",
+      "context_complete_fraction": "complete common context rows divided by potential origins",
+      "label_complete_fraction": "complete target rows for h divided by potential origins",
+      "finite_prediction_fraction": "finite predictions divided by common eligible origins for each arm/model/task/horizon",
+      "scored_action_fraction": "scheduled complete four-bar blocks with common eligible origin, finite h4 forecast, complete fill, and complete outcome divided by all scheduled complete blocks",
+      "thresholds": {
+        "common_row_fraction_min": 0.9,
+        "context_complete_fraction_min": 0.9,
+        "label_complete_fraction_min": 0.9,
+        "finite_prediction_fraction_min": 0.95,
+        "scored_action_fraction_min": 0.8
+      },
+      "undefined_policy": "any missing arm/horizon/model/seed coverage field or non-finite denominator is N/A and blocks promotion"
+    },
+    "statistical_contract": {
+      "family_id": "p2_d0_full17_vs_ohlcv13_primary",
+      "family_size": 14,
+      "multiplicity_method": "Holm-Bonferroni",
+      "familywise_alpha": 0.05,
+      "confidence_level": 0.95,
+      "bootstrap": {
+        "method": "moving_block",
+        "replicates": 2000,
+        "block_lengths": [8, 16, 32],
+        "seed": 20260830,
+        "grid": "complete fixed timestamp row grid in original order; false/N/A rows remain physically present and are never compacted",
+        "pairing": "reuse identical sampled indices for full17 and OHLCV13 within every arm, seed, split, model, task, horizon, and block length",
+        "n_lt_block": "comparison N/A/blocked; never circular wrap, gap compression, or denominator repair"
+      },
+      "p_value": "one-sided paired bootstrap p=(1+count of non-favorable replicates)/(B+1) per block length; conservative raw_p=max(p_8,p_16,p_32); only raw_p enters Holm",
+      "holm_order": "sort raw p ascending and break ties by comparison_id lexicographic order; reject only under fixed step-down alpha/(m-r+1)",
+      "point_estimate": "median of ten per-seed metric values for synthetic-style repeated seeds; S3 is not part of this D0 operation",
+      "historical_report_role": "historical_report_2023 is diagnostic/report-only and never enters the Holm family"
+    },
+    "historical_boundary": {
+      "observed_data_policy": "the existing 2018-2024 v4 body is historical; if 2023 rows were already observed during development, they are not a true untouched holdout",
+      "historical_report_only": true,
+      "untouched_claim_forbidden": true,
+      "future_holdout_required": true,
+      "future_stop_condition": "stop before any promotion or prospective claim if no newly acquired, separately frozen, post-registration holdout exists; register its timestamps, source, content/schema hashes, and access boundary before use",
+      "2023_role": "report_only; never train, calibrate, select, gate, or count as an untouched holdout"
+    },
+    "runtime_contract": {
+      "loader": "unidream.data.cache_v4.load_cache_v4",
+      "p2_runtime_entrypoint": "unidream.experiments.p2_d0_prereg.load_authenticated_v4_runtime",
+      "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_p1_v4_runtime_inputs",
+      "runtime_body_validator_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+      "manifest_authentication": "load_fixed_manifest first; canonical registered digest, critical fields, and results_observed=false are authoritative",
+      "require_explicit_paths": true,
+      "cache_dir_cache_tag_fallback": "forbidden",
+      "metadata_authority": "repo_frozen_metadata",
+      "cache_tag": "BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official",
+      "feature_path": "checkpoints/data_cache/BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official_features.parquet",
+      "returns_path": "checkpoints/data_cache/BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official_returns.parquet",
+      "availability_path": "checkpoints/data_cache/BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official_availability.parquet",
+      "metadata_path": "docs/data_quality_v4_rebuild_2018_2024_metadata.json",
+      "cache_local_metadata_path": "checkpoints/data_cache/BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official_metadata.json",
+      "frozen_metadata_sha256": "2c9db28deebe7e6b08f4ffedf65c3cdb51a78cfd7ee7d6580f76a62cc424bdcb",
+      "frozen_source_provenance_digest": "aa320222dca0a46b2a0730f17bb1665f31a70074aa3bafcc6bff58ca21618fad",
+      "frozen_schema_digest": "1c1c41a9aca3e8af22b357a8483ea6419745ee4b24c10c09c47289df3744c616",
+      "frozen_content_digests": {
+        "features": "8a7aad5809c7a21e614da7d836629309cda9c2de74553bf1fbc6934f7b07f5e2",
+        "returns": "c33a00cac4cf169f01e3ba5823a3f6d9bae17da5add5f8d5a3538d4142a0fabb",
+        "availability": "630de125ae9bc04cd0376404c7cff07f8e7d06c3bec2eece1b546e05959e292f"
+      },
+      "frozen_rows": {
+        "features": 173111,
+        "availability": 210336
+      },
+      "artifact_echo_fields": [
+        "manifest_id",
+        "manifest_sha256",
+        "base_revision",
+        "results_observed",
+        "feature_arm",
+        "v4_runtime_validation_status",
+        "v4_runtime_provenance_disposition",
+        "v4_runtime_body_match",
+        "v4_runtime_source_provenance_match",
+        "v4_runtime_frozen_metadata_sha256",
+        "v4_feature_path",
+        "v4_returns_path",
+        "v4_availability_path",
+        "v4_frozen_metadata_path",
+        "v4_frozen_metadata_sha256",
+        "v4_frozen_source_provenance_digest",
+        "v4_cache_local_metadata_path",
+        "v4_cache_local_metadata_sha256",
+        "v4_cache_local_source_provenance_digest",
+        "v4_cache_local_schema_digest",
+        "v4_cache_local_content_digests",
+        "v4_cache_local_row_counts"
+      ],
+      "path_override_policy": "only a complete explicit four-file path set may be supplied to the authenticated wrapper; any missing, unknown, symlinked, changed, or hash-mismatched file blocks before fit or score",
+      "toctou_policy": "snapshot regular-file dev, inode, size, mtime_ns, and mode before and after load/hash; any change blocks",
+      "runtime_status_required": "passed",
+      "results_observed_required": false
+    },
+    "runner_contract": {
+      "production_entrypoint": "a future P2 runner must call validate_p1_v4_runtime_inputs and cannot call the generic body validator as its production boundary",
+      "generic_train_app_forbidden": "unidream.experiments.train_app.run_training_app is a legacy generic WM->BC->AC application and is not a P2-D0 research runner",
+      "d1_excluded": true,
+      "d1_policy": "D1 signed-flow acquisition is outside P2-D0 and must not be imported or executed",
+      "results_observed": false,
+      "fit_score_execution": "blocked in this preregistration-only module; no fit, score, accuracy result, or outer run may be started",
+      "outer_validation_selection_allowed": false,
+      "historical_report_selection_allowed": false,
+      "post_output_tuning_allowed": false,
+      "action_primitive_execution_status": "blocked_not_implemented",
+      "action_primitive_start_condition": "canonical action primitive producer and P1-specific MBB must be implemented and independently validated before h4 action utility is run; existing generic MBB is forbidden",
+      "required_result_identity": [
+        "manifest_id",
+        "manifest_sha256",
+        "base_revision",
+        "results_observed",
+        "feature_arm",
+        "model_id",
+        "task",
+        "horizon",
+        "split_id",
+        "support_start",
+        "support_end",
+        "comparison_registry_sha256",
+        "v4_runtime_validation_status",
+        "v4_frozen_metadata_sha256",
+        "v4_frozen_schema_digest",
+        "v4_frozen_content_digests"
+      ]
+    },
+    "trial_registry": {
+      "path": "docs/experiments/p2_d0_trial_registry.jsonl",
+      "sha256": "9dcf1e5e0d85ab845393fd8d4d048704dfa15d62ffb821067929af4855098984",
+      "record_count": 10,
+      "required_fields": [
+        "trial_id",
+        "feature_arm",
+        "model_id",
+        "tasks",
+        "horizons",
+        "seed_values",
+        "split_ids",
+        "status",
+        "results_observed"
+      ]
+    },
+    "primary_comparison_registry": {
+      "path": "docs/experiments/p2_d0_comparison_registry.jsonl",
+      "sha256": "85bf86923e81bd046ac33a69c284a5fae0fbd878339b822519a4bcc8d322c593",
+      "record_count": 14,
+      "family_id": "p2_d0_full17_vs_ohlcv13_primary",
+      "family_size": 14,
+      "required_fields": [
+        "comparison_id",
+        "candidate_id",
+        "baseline_id",
+        "metric",
+        "horizon",
+        "cost_mode",
+        "direction",
+        "gate",
+        "primary",
+        "support_id",
+        "support_start",
+        "support_end",
+        "support_range_semantics",
+        "support_role"
+      ],
+      "holms_family": "all rows with primary=true are one fixed Holm family; no row may be added, removed, reordered, or reclassified after output"
+    }
+  },
+  "provenance": {
+    "v4_parent": {
+      "metadata_path": "docs/data_quality_v4_rebuild_2018_2024_metadata.json",
+      "metadata_sha256": "2c9db28deebe7e6b08f4ffedf65c3cdb51a78cfd7ee7d6580f76a62cc424bdcb",
+      "cache_tag": "BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official",
+      "schema_version": 4,
+      "schema_digest": "1c1c41a9aca3e8af22b357a8483ea6419745ee4b24c10c09c47289df3744c616",
+      "source_provenance_digest": "aa320222dca0a46b2a0730f17bb1665f31a70074aa3bafcc6bff58ca21618fad",
+      "content_digests": {
+        "features": "8a7aad5809c7a21e614da7d836629309cda9c2de74553bf1fbc6934f7b07f5e2",
+        "returns": "c33a00cac4cf169f01e3ba5823a3f6d9bae17da5add5f8d5a3538d4142a0fabb",
+        "availability": "630de125ae9bc04cd0376404c7cff07f8e7d06c3bec2eece1b546e05959e292f"
+      },
+      "feature_rows": 173111,
+      "sidecar_rows": 210336,
+      "required_availability_columns": [
+        "spot_bar_observed",
+        "funding_rate_available",
+        "mark_close_available"
+      ],
+      "body_first_timestamp": "2018-01-19 17:00:00",
+      "body_last_timestamp": "2023-12-31 23:45:00",
+      "grid_first_timestamp": "2018-01-01 00:00:00",
+      "grid_last_timestamp": "2023-12-31 23:45:00",
+      "end_exclusive": "2024-01-01",
+      "immutable_input": true,
+      "results_or_metrics_included": false
+    }
+  }
+}
