@@ -37,6 +37,7 @@ from unidream.experiments.m2 import (
 )
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.fold_runtime import resolve_ac_max_steps
+from unidream.experiments.chronological_oof import ConditionalPathBlocked, conditional_path_enabled
 from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
@@ -72,6 +73,12 @@ def run_fold(
     reward_cfg = fold_cfg.get("reward", {})
     obs_dim = wfo_dataset.obs_dim
     seq_len = fold_cfg.get("data", {}).get("seq_len", 64)
+
+    if conditional_path_enabled(fold_cfg):
+        raise ConditionalPathBlocked(
+            "run_fold is blocked for conditional Oracle until chronological OOF WM "
+            "retraining, normalizer/calibrator provenance, and replay inventory are supplied"
+        )
 
     fold_ckpt_dir = os.path.join(checkpoint_dir, f"fold_{fold_idx}")
     os.makedirs(fold_ckpt_dir, exist_ok=True)

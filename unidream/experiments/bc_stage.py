@@ -11,6 +11,7 @@ from unidream.experiments.overlay_teacher import (
     benchmark_overlay_teacher_enabled,
     describe_benchmark_overlay_teacher,
 )
+from unidream.experiments.chronological_oof import ConditionalPathBlocked, conditional_path_enabled
 
 
 def build_bc_trainer(
@@ -180,6 +181,11 @@ def run_bc_stage(
     checkpoint_metadata: dict | None = None,
     log_ts,
 ):
+    if conditional_path_enabled(ac_cfg) or conditional_path_enabled(bc_cfg):
+        raise ConditionalPathBlocked(
+            "run_bc_stage cannot consume legacy oracle_positions for the conditional "
+            "Oracle path; pass a chronological OOF teacher bundle through the new stage"
+        )
     bc_trainer = build_bc_trainer(
         actor=actor,
         ensemble=ensemble,
