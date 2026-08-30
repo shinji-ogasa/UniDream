@@ -5,6 +5,8 @@ import numpy as np
 from .chronological_oof import (
     ChronologicalOOFError,
     ConditionalPathBlocked,
+    ConditionalOOFArtifactError,
+    _conditional_oof_artifact_envelope,
     conditional_path_enabled,
     require_conditional_oof_inputs,
     strict_bool_array,
@@ -52,27 +54,10 @@ def _conditional_oof_state_bundle(
     # A persisted artifact may be supplied as an envelope together with the
     # split views.  Unwrap it only after the outer conditional gate has
     # validated its schema/content hash; no legacy WM state is synthesized.
-    selected_artifact = None
-    if isinstance(oof_bundle, dict) and oof_bundle.get("schema") == "unidream.conditional_oof":
-        selected_artifact = oof_bundle
-    elif isinstance(oof_bundle, dict):
-        for key in ("conditional_oof_artifact", "oof_artifact", "artifact"):
-            candidate = oof_bundle.get(key)
-            if isinstance(candidate, dict) and candidate.get("schema") == "unidream.conditional_oof":
-                selected_artifact = candidate
-                break
-    if selected_artifact is not None and selected_artifact is not oof_bundle:
-        merged_bundle = dict(selected_artifact)
-        # Split views are deliberately supplied by the caller; the artifact
-        # contains only the raw chronological OOF result and provenance.
-        merged_bundle.update(
-            {
-                key: value
-                for key, value in oof_bundle.items()
-                if key not in {"conditional_oof_artifact", "oof_artifact", "artifact"}
-            }
-        )
-        oof_bundle = merged_bundle
+    try:
+        selected_artifact, oof_bundle = _conditional_oof_artifact_envelope(oof_bundle)
+    except ConditionalOOFArtifactError as exc:
+        raise ConditionalPathBlocked(str(exc)) from exc
     try:
         validate_oof_result(oof_bundle)
     except ChronologicalOOFError as exc:
@@ -168,7 +153,7 @@ def _conditional_oof_state_bundle(
         if np.any(mask & ~finite_values.all(axis=1)):
             raise ConditionalPathBlocked(f"conditional OOF {split} contains a non-finite usable row")
         # A finite state without a mask would be an implicit in-sample fill.
-        if np.any(~mask & finite_values.any(axis=1)):
+        if np.any(~mask & ~np.isnan(values).all(axis=1)):
             raise ConditionalPathBlocked(
                 f"conditional OOF {split} has finite or partially finite values outside its OOF mask"
             )
@@ -237,6 +222,10 @@ def _conditional_oof_state_bundle(
             raise ConditionalPathBlocked(
                 f"conditional OOF {split}_training_label_eligibility_mask does not equal "
                 "the indexed raw training-label eligibility mask"
+            )
+        if len(values) == 0 or not bool(mask.any()):
+            raise ConditionalPathBlocked(
+                f"conditional OOF {split} prediction view has no usable rows"
             )
         splits[split] = values
         masks[split] = mask

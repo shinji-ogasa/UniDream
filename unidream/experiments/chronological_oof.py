@@ -42,6 +42,31 @@ OOF_ARTIFACT_SCHEMA = "unidream.conditional_oof"
 OOF_ARTIFACT_SCHEMA_VERSION = 1
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ARTIFACT_DIGEST_FIELDS = {"artifact_sha256", "artifact_hash"}
+_CONDITIONAL_OOF_ENVELOPE_KEYS = frozenset(
+    {"conditional_oof_artifact", "oof_artifact", "artifact"}
+)
+# A nested artifact is immutable.  The only values an outer envelope may add
+# are the explicitly indexed split views; all core artifact fields (including
+# aliases and provenance) must come from the hashed artifact itself.
+_CONDITIONAL_OOF_SPLIT_VIEW_KEYS = frozenset(
+    {
+        "train",
+        "val",
+        "test",
+        "train_mask",
+        "val_mask",
+        "test_mask",
+        "train_row_indices",
+        "val_row_indices",
+        "test_row_indices",
+        "train_prediction_eligibility_mask",
+        "val_prediction_eligibility_mask",
+        "test_prediction_eligibility_mask",
+        "train_training_label_eligibility_mask",
+        "val_training_label_eligibility_mask",
+        "test_training_label_eligibility_mask",
+    }
+)
 _OOF_ARTIFACT_ARRAY_FIELDS = {
     "predictions",
     "prediction_mask",
@@ -51,6 +76,50 @@ _OOF_ARTIFACT_ARRAY_FIELDS = {
     "target_end_exclusive",
     "train_count",
 }
+
+
+def _conditional_oof_artifact_envelope(
+    bundle: Mapping[str, Any],
+) -> tuple[Mapping[str, Any] | None, Mapping[str, Any]]:
+    """Select a nested artifact without allowing core-key shadowing.
+
+    A split-view envelope is intentionally a very narrow transport wrapper.
+    In particular, a caller cannot put a second ``predictions`` array (or a
+    provenance/hash/schema alias) beside the artifact and have it override
+    the validated content.  This helper is shared by the strict gate and the
+    predictive-state consumer so the two boundaries cannot disagree.
+    """
+    if not isinstance(bundle, Mapping):
+        return None, bundle
+    if bundle.get("schema") == OOF_ARTIFACT_SCHEMA:
+        return bundle, bundle
+    present = [key for key in _CONDITIONAL_OOF_ENVELOPE_KEYS if key in bundle]
+    if not present:
+        return None, bundle
+    if len(present) != 1:
+        raise ConditionalOOFArtifactError(
+            "conditional OOF envelope must contain exactly one artifact key"
+        )
+    artifact_key = present[0]
+    candidate = bundle.get(artifact_key)
+    if not isinstance(candidate, Mapping):
+        raise ConditionalOOFArtifactError(
+            f"conditional OOF envelope {artifact_key!r} must contain a mapping"
+        )
+    outer_keys = set(bundle) - {artifact_key}
+    disallowed = sorted(
+        str(key)
+        for key in outer_keys
+        if key not in _CONDITIONAL_OOF_SPLIT_VIEW_KEYS
+    )
+    if disallowed:
+        raise ConditionalOOFArtifactError(
+            "conditional OOF envelope cannot override artifact core keys: "
+            + ", ".join(disallowed)
+        )
+    merged = dict(candidate)
+    merged.update({key: bundle[key] for key in outer_keys})
+    return candidate, merged
 
 
 @dataclass(frozen=True)
@@ -581,6 +650,31 @@ def validate_conditional_oof_artifact(
         raise ConditionalOOFArtifactError(f"raw OOF contract failed: {exc}") from exc
     predictions = np.asarray(artifact["predictions"])
     n_rows = len(predictions)
+    prediction_mask = strict_bool_array(
+        artifact.get("prediction_mask", artifact.get("oof_mask")),
+        name="artifact.prediction_mask",
+    )
+    if int(prediction_mask.sum()) <= 0:
+        raise ConditionalOOFArtifactError(
+            "conditional OOF artifact requires at least one usable prediction row"
+        )
+    try:
+        finite_predictions = np.isfinite(predictions)
+        nan_predictions = np.isnan(predictions)
+    except (TypeError, ValueError) as exc:
+        raise ConditionalOOFArtifactError(
+            "conditional OOF predictions must be numeric"
+        ) from exc
+    if np.any(prediction_mask & ~finite_predictions.all(axis=1)):
+        raise ConditionalOOFArtifactError(
+            "prediction_mask marks a non-finite prediction row"
+        )
+    # Every unavailable row must remain entirely NaN.  In particular, an
+    # all-infinity row must not pass merely because it contains no finite cell.
+    if np.any(~prediction_mask & ~nan_predictions.all(axis=1)):
+        raise ConditionalOOFArtifactError(
+            "prediction_mask=false rows must contain only NaN predictions"
+        )
     provenance = artifact.get("provenance")
     if not isinstance(provenance, Mapping):
         raise ConditionalOOFArtifactError("conditional OOF artifact provenance is missing")
@@ -612,7 +706,7 @@ def validate_conditional_oof_artifact(
         )
 
     origins = artifact.get("origins")
-    if not isinstance(origins, (list, tuple)):
+    if not isinstance(origins, (list, tuple)) or not origins:
         raise ConditionalOOFArtifactError("conditional OOF artifact requires origins")
     previous_t = -1
     for origin in origins:
@@ -625,6 +719,10 @@ def validate_conditional_oof_artifact(
             )
         previous_t = t
         indices = strict_integer_array(origin.get("train_indices", []), name="origin.train_indices")
+        if len(indices) == 0:
+            raise ConditionalOOFArtifactError(
+                f"origin {t} must contain a non-empty training prefix"
+            )
         purge = strict_integer_value(provenance.get("purge"), name="provenance.purge")
         if np.any(indices >= t):
             raise ConditionalOOFArtifactError(
@@ -996,15 +1094,12 @@ def require_conditional_oof_inputs(
     # an artifact envelope) must pass the content/hash/coverage validator
     # before the ordinary raw bundle checks below.
     strict_artifact = _conditional_artifact_required(config)
-    selected_artifact: Mapping[str, Any] | None = None
-    if "schema" in oof_bundle and oof_bundle.get("schema") == OOF_ARTIFACT_SCHEMA:
-        selected_artifact = oof_bundle
-    else:
-        for key in ("conditional_oof_artifact", "oof_artifact", "artifact"):
-            candidate = oof_bundle.get(key)
-            if isinstance(candidate, Mapping):
-                selected_artifact = candidate
-                break
+    try:
+        selected_artifact, validated_bundle = _conditional_oof_artifact_envelope(oof_bundle)
+    except ConditionalOOFArtifactError as exc:
+        raise ConditionalPathBlocked(
+            f"{caller} is blocked for conditional Oracle: {exc}"
+        ) from exc
     if strict_artifact or selected_artifact is not None:
         if selected_artifact is None:
             raise ConditionalPathBlocked(
@@ -1028,10 +1123,10 @@ def require_conditional_oof_inputs(
             expected_action_execution_contract=expected_contract,
             expected_action_execution_contract_hash=expected_contract_hash,
         )
-        # An artifact-only envelope is valid for this boundary; callers that
-        # need split state views still validate those views in predictive_state.
-        if selected_artifact is not oof_bundle and "predictions" not in oof_bundle:
-            oof_bundle = selected_artifact
+        # The helper has already rejected every non-split outer key.  Keep the
+        # immutable artifact core and add only the indexed views for the next
+        # raw-bundle check.
+        oof_bundle = validated_bundle
     if "predictions" not in oof_bundle:
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: split-only/raw state "

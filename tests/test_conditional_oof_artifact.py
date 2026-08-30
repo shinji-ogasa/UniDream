@@ -21,6 +21,7 @@ from unidream.experiments.chronological_oof import (
     validate_conditional_oof_artifact,
     write_conditional_oof_artifact,
 )
+from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 
 
 def _sha(label: str) -> str:
@@ -189,6 +190,34 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
             oof_bundle={"conditional_oof_artifact": artifact},
             caller="artifact-test",
         )
+
+    def test_nested_envelope_cannot_shadow_artifact_core_even_with_equal_value(self) -> None:
+        artifact = self._artifact()
+        envelope = {"conditional_oof_artifact": artifact}
+        for split in ("train", "val", "test"):
+            envelope[split] = artifact["predictions"].copy()
+            envelope[f"{split}_row_indices"] = np.arange(len(artifact["predictions"]), dtype=np.int64)
+            envelope[f"{split}_mask"] = artifact["prediction_mask"].copy()
+            envelope[f"{split}_prediction_eligibility_mask"] = artifact[
+                "prediction_eligibility_mask"
+            ].copy()
+            envelope[f"{split}_training_label_eligibility_mask"] = artifact[
+                "training_label_eligibility_mask"
+            ].copy()
+        # Equal values are still rejected: the outer envelope must not be able
+        # to become a second source of truth for any artifact core key.
+        envelope["predictions"] = artifact["predictions"].copy()
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((len(artifact["predictions"]), 1), dtype=np.float32),
+                h_train=np.zeros((len(artifact["predictions"]), 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=envelope,
+            )
 
 
 if __name__ == "__main__":
