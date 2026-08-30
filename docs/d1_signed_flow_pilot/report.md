@@ -6,9 +6,12 @@ This is a data-only pilot. No model, prediction result, or P2 tournament was run
 - Row semantics: `decision_ts = bar_open_ts + 15m`; each feature row covers Binance `[bar_open_ts, decision_ts)` with inclusive `close_time=decision_ts-1ms`.
 - Leakage rule: a bar is eligible only after its close; no next bar is read while constructing a row.
 - Feature artifact: `docs/d1_signed_flow_pilot/pilot_features.csv`
+- Availability artifact: `docs/d1_signed_flow_pilot/pilot_availability.csv`
 - Capacity artifact: `docs/d1_signed_flow_pilot/aggtrade_capacity.json`
 - Append-only ledger: `docs/d1_signed_flow_pilot/availability_revision_ledger.jsonl`
-- Acquisition code commit: `97bb6f2da7f2db0b4ac032654669797fafb6d62e`
+- Acquisition code commit: `ceb4fb8a242d878303bb5fcca46bce63e6b7c39d`
+- Feature SHA256: `40762f49ea4e6bbaf262207ef3d3abcbb9120a117be9667c3b637f8cf71c0a44`
+- Availability SHA256: `4d712d7e5baf67049f959f52e9aa4dc4a8b34704cc8e42773476ded1c5f624c3`
 
 ## Official sources
 
@@ -45,11 +48,18 @@ The README documents monthly/daily archives, Spot/Futures klines and checksum si
 Availability columns: `spot_bar_observed, perp_bar_observed, spot_taker_imbalance_available, perp_taker_imbalance_available, spot_perp_basis_available, spot_perp_return_divergence_available, d1_features_available`.
 Feature columns: `spot_trade_count, spot_quote_volume, spot_taker_buy_base, spot_taker_buy_quote, spot_taker_imbalance, perp_trade_count, perp_quote_volume, perp_taker_buy_base, perp_taker_buy_quote, perp_taker_imbalance, spot_perp_basis, spot_perp_return_divergence`.
 
+Ledger record counts: `d1_pilot_run`=1, `d1_archive_download`=2, `d1_aggtrade_head_probe`=208, `d1_bar_availability`=2976.
+
 ## Aggregate-trade capacity check
 
 Method: `HTTP HEAD Content-Length; no aggregate-trade payload downloaded`
 Known compressed bytes across requested Spot + USD-M monthly archives: `101938925277`
 
-No aggregate-trade payload was downloaded. The estimate is based on official `Content-Length` values for available monthly ZIPs; unknown/404 months remain explicit in the capacity JSON and ledger.
+| source | requested months | HTTP 200 | HTTP 404 | known-size months | unknown-size months |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `spot_aggTrades` | `104` | `103` | `1` | `103` | `1` |
+| `um_aggTrades` | `104` | `79` | `25` | `79` | `25` |
+
+No aggregate-trade payload was downloaded. The estimate is based on official `Content-Length` values for HTTP 200 monthly ZIPs only; unknown/404 months remain explicit in the capacity JSON and append-only ledger.
 
 This artifact is feasibility evidence only. It does not establish that any D1 feature predicts returns or improves trading utility.

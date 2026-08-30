@@ -13,7 +13,7 @@
       "known_size": true,
       "month": "2018-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:32.926082+00:00",
+      "probe_ts": "2026-08-30T14:35:35.085535+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -29,7 +29,7 @@
       "known_size": true,
       "month": "2018-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.023273+00:00",
+      "probe_ts": "2026-08-30T14:35:35.168351+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -45,7 +45,7 @@
       "known_size": true,
       "month": "2018-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.066134+00:00",
+      "probe_ts": "2026-08-30T14:35:35.218264+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -61,7 +61,7 @@
       "known_size": true,
       "month": "2018-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.109512+00:00",
+      "probe_ts": "2026-08-30T14:35:35.269731+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -77,7 +77,7 @@
       "known_size": true,
       "month": "2018-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.158221+00:00",
+      "probe_ts": "2026-08-30T14:35:35.323115+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -93,7 +93,7 @@
       "known_size": true,
       "month": "2018-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.202497+00:00",
+      "probe_ts": "2026-08-30T14:35:35.373762+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -109,7 +109,7 @@
       "known_size": true,
       "month": "2018-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.246796+00:00",
+      "probe_ts": "2026-08-30T14:35:35.423179+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -125,7 +125,7 @@
       "known_size": true,
       "month": "2018-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.293091+00:00",
+      "probe_ts": "2026-08-30T14:35:35.476655+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -141,7 +141,7 @@
       "known_size": true,
       "month": "2018-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.340269+00:00",
+      "probe_ts": "2026-08-30T14:35:35.533018+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -157,7 +157,7 @@
       "known_size": true,
       "month": "2018-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.393793+00:00",
+      "probe_ts": "2026-08-30T14:35:35.586183+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -173,7 +173,7 @@
       "known_size": true,
       "month": "2018-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.446311+00:00",
+      "probe_ts": "2026-08-30T14:35:35.636351+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -189,7 +189,7 @@
       "known_size": true,
       "month": "2018-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.490900+00:00",
+      "probe_ts": "2026-08-30T14:35:35.705797+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -205,7 +205,7 @@
       "known_size": true,
       "month": "2019-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.538174+00:00",
+      "probe_ts": "2026-08-30T14:35:35.754819+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -221,7 +221,7 @@
       "known_size": true,
       "month": "2019-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.569719+00:00",
+      "probe_ts": "2026-08-30T14:35:35.801790+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -237,7 +237,7 @@
       "known_size": true,
       "month": "2019-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.618371+00:00",
+      "probe_ts": "2026-08-30T14:35:35.857073+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -253,7 +253,7 @@
       "known_size": true,
       "month": "2019-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.671005+00:00",
+      "probe_ts": "2026-08-30T14:35:35.910015+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -269,7 +269,7 @@
       "known_size": true,
       "month": "2019-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.696905+00:00",
+      "probe_ts": "2026-08-30T14:35:35.961377+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -285,7 +285,7 @@
       "known_size": true,
       "month": "2019-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.744741+00:00",
+      "probe_ts": "2026-08-30T14:35:36.012281+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -301,7 +301,7 @@
       "known_size": true,
       "month": "2019-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.791380+00:00",
+      "probe_ts": "2026-08-30T14:35:36.059260+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -317,7 +317,7 @@
       "known_size": true,
       "month": "2019-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.862994+00:00",
+      "probe_ts": "2026-08-30T14:35:36.111750+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -333,7 +333,7 @@
       "known_size": true,
       "month": "2019-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.913776+00:00",
+      "probe_ts": "2026-08-30T14:35:36.153898+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -349,7 +349,7 @@
       "known_size": true,
       "month": "2019-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:33.961048+00:00",
+      "probe_ts": "2026-08-30T14:35:36.208049+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -365,7 +365,7 @@
       "known_size": true,
       "month": "2019-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.020113+00:00",
+      "probe_ts": "2026-08-30T14:35:36.240409+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -381,7 +381,7 @@
       "known_size": true,
       "month": "2019-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.071034+00:00",
+      "probe_ts": "2026-08-30T14:35:36.287837+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -397,7 +397,7 @@
       "known_size": true,
       "month": "2020-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.100493+00:00",
+      "probe_ts": "2026-08-30T14:35:36.339426+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -413,7 +413,7 @@
       "known_size": true,
       "month": "2020-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.144674+00:00",
+      "probe_ts": "2026-08-30T14:35:36.389544+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -429,7 +429,7 @@
       "known_size": true,
       "month": "2020-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.189897+00:00",
+      "probe_ts": "2026-08-30T14:35:36.427591+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -445,7 +445,7 @@
       "known_size": true,
       "month": "2020-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.239086+00:00",
+      "probe_ts": "2026-08-30T14:35:36.475653+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -461,7 +461,7 @@
       "known_size": true,
       "month": "2020-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.286110+00:00",
+      "probe_ts": "2026-08-30T14:35:36.520414+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -477,7 +477,7 @@
       "known_size": true,
       "month": "2020-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.317547+00:00",
+      "probe_ts": "2026-08-30T14:35:36.556170+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -493,7 +493,7 @@
       "known_size": true,
       "month": "2020-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.361217+00:00",
+      "probe_ts": "2026-08-30T14:35:36.612801+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -509,7 +509,7 @@
       "known_size": true,
       "month": "2020-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.415697+00:00",
+      "probe_ts": "2026-08-30T14:35:36.658813+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -525,7 +525,7 @@
       "known_size": true,
       "month": "2020-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.472942+00:00",
+      "probe_ts": "2026-08-30T14:35:36.711719+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -541,7 +541,7 @@
       "known_size": true,
       "month": "2020-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.503631+00:00",
+      "probe_ts": "2026-08-30T14:35:36.763116+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -557,7 +557,7 @@
       "known_size": true,
       "month": "2020-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.552670+00:00",
+      "probe_ts": "2026-08-30T14:35:36.814917+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -573,7 +573,7 @@
       "known_size": true,
       "month": "2020-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.608667+00:00",
+      "probe_ts": "2026-08-30T14:35:36.862474+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -589,7 +589,7 @@
       "known_size": true,
       "month": "2021-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.639707+00:00",
+      "probe_ts": "2026-08-30T14:35:36.913515+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -605,7 +605,7 @@
       "known_size": true,
       "month": "2021-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.693675+00:00",
+      "probe_ts": "2026-08-30T14:35:36.950544+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -621,7 +621,7 @@
       "known_size": true,
       "month": "2021-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.748958+00:00",
+      "probe_ts": "2026-08-30T14:35:37.001956+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -637,7 +637,7 @@
       "known_size": true,
       "month": "2021-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.804078+00:00",
+      "probe_ts": "2026-08-30T14:35:37.046985+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -653,7 +653,7 @@
       "known_size": true,
       "month": "2021-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.853612+00:00",
+      "probe_ts": "2026-08-30T14:35:37.087623+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -669,7 +669,7 @@
       "known_size": true,
       "month": "2021-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.881197+00:00",
+      "probe_ts": "2026-08-30T14:35:37.130160+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -685,7 +685,7 @@
       "known_size": true,
       "month": "2021-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.917403+00:00",
+      "probe_ts": "2026-08-30T14:35:37.164817+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -701,7 +701,7 @@
       "known_size": true,
       "month": "2021-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.956620+00:00",
+      "probe_ts": "2026-08-30T14:35:37.202349+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -717,7 +717,7 @@
       "known_size": true,
       "month": "2021-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:34.985308+00:00",
+      "probe_ts": "2026-08-30T14:35:37.231732+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -733,7 +733,7 @@
       "known_size": true,
       "month": "2021-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.027865+00:00",
+      "probe_ts": "2026-08-30T14:35:37.286284+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -749,7 +749,7 @@
       "known_size": true,
       "month": "2021-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.058628+00:00",
+      "probe_ts": "2026-08-30T14:35:37.313235+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -765,7 +765,7 @@
       "known_size": true,
       "month": "2021-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.091611+00:00",
+      "probe_ts": "2026-08-30T14:35:37.344878+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -781,7 +781,7 @@
       "known_size": true,
       "month": "2022-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.117857+00:00",
+      "probe_ts": "2026-08-30T14:35:37.386336+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -797,7 +797,7 @@
       "known_size": true,
       "month": "2022-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.150199+00:00",
+      "probe_ts": "2026-08-30T14:35:37.434660+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -813,7 +813,7 @@
       "known_size": true,
       "month": "2022-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.195842+00:00",
+      "probe_ts": "2026-08-30T14:35:37.483297+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -829,7 +829,7 @@
       "known_size": true,
       "month": "2022-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.221987+00:00",
+      "probe_ts": "2026-08-30T14:35:37.538022+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -845,7 +845,7 @@
       "known_size": true,
       "month": "2022-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.252403+00:00",
+      "probe_ts": "2026-08-30T14:35:37.583235+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -861,7 +861,7 @@
       "known_size": true,
       "month": "2022-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.282369+00:00",
+      "probe_ts": "2026-08-30T14:35:37.653980+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -877,7 +877,7 @@
       "known_size": true,
       "month": "2022-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.320633+00:00",
+      "probe_ts": "2026-08-30T14:35:37.690920+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -893,7 +893,7 @@
       "known_size": true,
       "month": "2022-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.367198+00:00",
+      "probe_ts": "2026-08-30T14:35:37.723920+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -909,7 +909,7 @@
       "known_size": true,
       "month": "2022-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.399456+00:00",
+      "probe_ts": "2026-08-30T14:35:37.769933+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -925,7 +925,7 @@
       "known_size": true,
       "month": "2022-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.430770+00:00",
+      "probe_ts": "2026-08-30T14:35:37.800426+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -941,7 +941,7 @@
       "known_size": true,
       "month": "2022-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.462502+00:00",
+      "probe_ts": "2026-08-30T14:35:37.836850+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -957,7 +957,7 @@
       "known_size": true,
       "month": "2022-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.491887+00:00",
+      "probe_ts": "2026-08-30T14:35:37.871458+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -973,7 +973,7 @@
       "known_size": true,
       "month": "2023-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.533214+00:00",
+      "probe_ts": "2026-08-30T14:35:37.907482+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -989,7 +989,7 @@
       "known_size": true,
       "month": "2023-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.565941+00:00",
+      "probe_ts": "2026-08-30T14:35:37.937779+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1005,7 +1005,7 @@
       "known_size": true,
       "month": "2023-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.599346+00:00",
+      "probe_ts": "2026-08-30T14:35:37.972071+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1021,7 +1021,7 @@
       "known_size": true,
       "month": "2023-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.629575+00:00",
+      "probe_ts": "2026-08-30T14:35:38.003386+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1037,7 +1037,7 @@
       "known_size": true,
       "month": "2023-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.657655+00:00",
+      "probe_ts": "2026-08-30T14:35:38.030097+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1053,7 +1053,7 @@
       "known_size": true,
       "month": "2023-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.690742+00:00",
+      "probe_ts": "2026-08-30T14:35:38.058566+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1069,7 +1069,7 @@
       "known_size": true,
       "month": "2023-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.729772+00:00",
+      "probe_ts": "2026-08-30T14:35:38.091190+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1085,7 +1085,7 @@
       "known_size": true,
       "month": "2023-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.765872+00:00",
+      "probe_ts": "2026-08-30T14:35:38.126642+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1101,7 +1101,7 @@
       "known_size": true,
       "month": "2023-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.802757+00:00",
+      "probe_ts": "2026-08-30T14:35:38.163180+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1117,7 +1117,7 @@
       "known_size": true,
       "month": "2023-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.828362+00:00",
+      "probe_ts": "2026-08-30T14:35:38.214392+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1133,7 +1133,7 @@
       "known_size": true,
       "month": "2023-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.854770+00:00",
+      "probe_ts": "2026-08-30T14:35:38.246029+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1149,7 +1149,7 @@
       "known_size": true,
       "month": "2023-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.891718+00:00",
+      "probe_ts": "2026-08-30T14:35:38.278914+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1165,7 +1165,7 @@
       "known_size": true,
       "month": "2024-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.934885+00:00",
+      "probe_ts": "2026-08-30T14:35:38.309463+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1181,7 +1181,7 @@
       "known_size": true,
       "month": "2024-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:35.968969+00:00",
+      "probe_ts": "2026-08-30T14:35:38.339105+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1197,7 +1197,7 @@
       "known_size": true,
       "month": "2024-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.001174+00:00",
+      "probe_ts": "2026-08-30T14:35:38.368943+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1213,7 +1213,7 @@
       "known_size": true,
       "month": "2024-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.030801+00:00",
+      "probe_ts": "2026-08-30T14:35:38.400442+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1229,7 +1229,7 @@
       "known_size": true,
       "month": "2024-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.062880+00:00",
+      "probe_ts": "2026-08-30T14:35:38.432894+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1245,7 +1245,7 @@
       "known_size": true,
       "month": "2024-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.092589+00:00",
+      "probe_ts": "2026-08-30T14:35:38.463674+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1261,7 +1261,7 @@
       "known_size": true,
       "month": "2024-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.123906+00:00",
+      "probe_ts": "2026-08-30T14:35:38.496106+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1277,7 +1277,7 @@
       "known_size": true,
       "month": "2024-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.156925+00:00",
+      "probe_ts": "2026-08-30T14:35:38.527053+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1293,7 +1293,7 @@
       "known_size": true,
       "month": "2024-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.188726+00:00",
+      "probe_ts": "2026-08-30T14:35:38.556314+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1309,7 +1309,7 @@
       "known_size": true,
       "month": "2024-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.217769+00:00",
+      "probe_ts": "2026-08-30T14:35:38.599029+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1325,7 +1325,7 @@
       "known_size": true,
       "month": "2024-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.247810+00:00",
+      "probe_ts": "2026-08-30T14:35:38.628692+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1341,7 +1341,7 @@
       "known_size": true,
       "month": "2024-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.272774+00:00",
+      "probe_ts": "2026-08-30T14:35:38.658956+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1357,7 +1357,7 @@
       "known_size": true,
       "month": "2025-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.308029+00:00",
+      "probe_ts": "2026-08-30T14:35:38.685134+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1373,7 +1373,7 @@
       "known_size": true,
       "month": "2025-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.338243+00:00",
+      "probe_ts": "2026-08-30T14:35:38.716306+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1389,7 +1389,7 @@
       "known_size": true,
       "month": "2025-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.368175+00:00",
+      "probe_ts": "2026-08-30T14:35:38.746492+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1405,7 +1405,7 @@
       "known_size": true,
       "month": "2025-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.403229+00:00",
+      "probe_ts": "2026-08-30T14:35:38.781071+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1421,7 +1421,7 @@
       "known_size": true,
       "month": "2025-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.433633+00:00",
+      "probe_ts": "2026-08-30T14:35:38.809707+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1437,7 +1437,7 @@
       "known_size": true,
       "month": "2025-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.460427+00:00",
+      "probe_ts": "2026-08-30T14:35:38.836769+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1453,7 +1453,7 @@
       "known_size": true,
       "month": "2025-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.490382+00:00",
+      "probe_ts": "2026-08-30T14:35:38.865884+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1469,7 +1469,7 @@
       "known_size": true,
       "month": "2025-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.522161+00:00",
+      "probe_ts": "2026-08-30T14:35:38.893876+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1485,7 +1485,7 @@
       "known_size": true,
       "month": "2025-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.552236+00:00",
+      "probe_ts": "2026-08-30T14:35:38.923853+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1501,7 +1501,7 @@
       "known_size": true,
       "month": "2025-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.584844+00:00",
+      "probe_ts": "2026-08-30T14:35:38.953728+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1517,7 +1517,7 @@
       "known_size": true,
       "month": "2025-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.616856+00:00",
+      "probe_ts": "2026-08-30T14:35:38.995794+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1533,7 +1533,7 @@
       "known_size": true,
       "month": "2025-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.647676+00:00",
+      "probe_ts": "2026-08-30T14:35:39.029515+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1549,7 +1549,7 @@
       "known_size": true,
       "month": "2026-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.684132+00:00",
+      "probe_ts": "2026-08-30T14:35:39.061389+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1565,7 +1565,7 @@
       "known_size": true,
       "month": "2026-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.715435+00:00",
+      "probe_ts": "2026-08-30T14:35:39.091384+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1581,7 +1581,7 @@
       "known_size": true,
       "month": "2026-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.746215+00:00",
+      "probe_ts": "2026-08-30T14:35:39.122986+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1597,7 +1597,7 @@
       "known_size": true,
       "month": "2026-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.828896+00:00",
+      "probe_ts": "2026-08-30T14:35:39.150530+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1613,7 +1613,7 @@
       "known_size": true,
       "month": "2026-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.864681+00:00",
+      "probe_ts": "2026-08-30T14:35:39.178061+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1629,7 +1629,7 @@
       "known_size": true,
       "month": "2026-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.894887+00:00",
+      "probe_ts": "2026-08-30T14:35:39.205534+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1645,7 +1645,7 @@
       "known_size": true,
       "month": "2026-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.930289+00:00",
+      "probe_ts": "2026-08-30T14:35:39.237203+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1661,7 +1661,7 @@
       "known_size": false,
       "month": "2026-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.962049+00:00",
+      "probe_ts": "2026-08-30T14:35:39.265034+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "spot_aggTrades",
       "symbol": "BTCUSDT"
@@ -1677,7 +1677,7 @@
       "known_size": false,
       "month": "2018-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:36.989580+00:00",
+      "probe_ts": "2026-08-30T14:35:39.300266+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1693,7 +1693,7 @@
       "known_size": false,
       "month": "2018-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.034083+00:00",
+      "probe_ts": "2026-08-30T14:35:39.333894+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1709,7 +1709,7 @@
       "known_size": false,
       "month": "2018-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.076758+00:00",
+      "probe_ts": "2026-08-30T14:35:39.364985+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1725,7 +1725,7 @@
       "known_size": false,
       "month": "2018-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.119544+00:00",
+      "probe_ts": "2026-08-30T14:35:39.395386+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1741,7 +1741,7 @@
       "known_size": false,
       "month": "2018-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.164500+00:00",
+      "probe_ts": "2026-08-30T14:35:39.430191+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1757,7 +1757,7 @@
       "known_size": false,
       "month": "2018-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.192419+00:00",
+      "probe_ts": "2026-08-30T14:35:39.466371+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1773,7 +1773,7 @@
       "known_size": false,
       "month": "2018-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.222442+00:00",
+      "probe_ts": "2026-08-30T14:35:39.510606+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1789,7 +1789,7 @@
       "known_size": false,
       "month": "2018-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.252398+00:00",
+      "probe_ts": "2026-08-30T14:35:39.536411+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1805,7 +1805,7 @@
       "known_size": false,
       "month": "2018-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.292120+00:00",
+      "probe_ts": "2026-08-30T14:35:39.565890+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1821,7 +1821,7 @@
       "known_size": false,
       "month": "2018-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.318731+00:00",
+      "probe_ts": "2026-08-30T14:35:39.599889+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1837,7 +1837,7 @@
       "known_size": false,
       "month": "2018-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.345503+00:00",
+      "probe_ts": "2026-08-30T14:35:39.631689+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1853,7 +1853,7 @@
       "known_size": false,
       "month": "2018-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.405126+00:00",
+      "probe_ts": "2026-08-30T14:35:39.666103+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1869,7 +1869,7 @@
       "known_size": false,
       "month": "2019-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.456951+00:00",
+      "probe_ts": "2026-08-30T14:35:39.693529+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1885,7 +1885,7 @@
       "known_size": false,
       "month": "2019-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.498251+00:00",
+      "probe_ts": "2026-08-30T14:35:39.725351+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1901,7 +1901,7 @@
       "known_size": false,
       "month": "2019-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.528443+00:00",
+      "probe_ts": "2026-08-30T14:35:39.756222+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1917,7 +1917,7 @@
       "known_size": false,
       "month": "2019-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.562698+00:00",
+      "probe_ts": "2026-08-30T14:35:39.947154+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1933,7 +1933,7 @@
       "known_size": false,
       "month": "2019-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.620087+00:00",
+      "probe_ts": "2026-08-30T14:35:40.001645+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1949,7 +1949,7 @@
       "known_size": false,
       "month": "2019-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.671655+00:00",
+      "probe_ts": "2026-08-30T14:35:40.028893+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1965,7 +1965,7 @@
       "known_size": false,
       "month": "2019-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.699307+00:00",
+      "probe_ts": "2026-08-30T14:35:40.071660+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1981,7 +1981,7 @@
       "known_size": false,
       "month": "2019-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.738360+00:00",
+      "probe_ts": "2026-08-30T14:35:40.100838+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -1997,7 +1997,7 @@
       "known_size": false,
       "month": "2019-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.767547+00:00",
+      "probe_ts": "2026-08-30T14:35:40.133669+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2013,7 +2013,7 @@
       "known_size": false,
       "month": "2019-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.799369+00:00",
+      "probe_ts": "2026-08-30T14:35:40.162552+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2029,7 +2029,7 @@
       "known_size": false,
       "month": "2019-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.849746+00:00",
+      "probe_ts": "2026-08-30T14:35:40.191866+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2045,7 +2045,7 @@
       "known_size": false,
       "month": "2019-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.876693+00:00",
+      "probe_ts": "2026-08-30T14:35:40.223082+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2061,7 +2061,7 @@
       "known_size": true,
       "month": "2020-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.909865+00:00",
+      "probe_ts": "2026-08-30T14:35:40.250836+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2077,7 +2077,7 @@
       "known_size": true,
       "month": "2020-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.941209+00:00",
+      "probe_ts": "2026-08-30T14:35:40.283505+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2093,7 +2093,7 @@
       "known_size": true,
       "month": "2020-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.965149+00:00",
+      "probe_ts": "2026-08-30T14:35:40.318625+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2109,7 +2109,7 @@
       "known_size": true,
       "month": "2020-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:37.997134+00:00",
+      "probe_ts": "2026-08-30T14:35:40.352985+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2125,7 +2125,7 @@
       "known_size": true,
       "month": "2020-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.026271+00:00",
+      "probe_ts": "2026-08-30T14:35:40.384455+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2141,7 +2141,7 @@
       "known_size": true,
       "month": "2020-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.054348+00:00",
+      "probe_ts": "2026-08-30T14:35:40.416357+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2157,7 +2157,7 @@
       "known_size": true,
       "month": "2020-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.094098+00:00",
+      "probe_ts": "2026-08-30T14:35:40.446751+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2173,7 +2173,7 @@
       "known_size": true,
       "month": "2020-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.122043+00:00",
+      "probe_ts": "2026-08-30T14:35:40.480624+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2189,7 +2189,7 @@
       "known_size": true,
       "month": "2020-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.145807+00:00",
+      "probe_ts": "2026-08-30T14:35:40.508096+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2205,7 +2205,7 @@
       "known_size": true,
       "month": "2020-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.176690+00:00",
+      "probe_ts": "2026-08-30T14:35:40.540158+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2221,7 +2221,7 @@
       "known_size": true,
       "month": "2020-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.210189+00:00",
+      "probe_ts": "2026-08-30T14:35:40.567890+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2237,7 +2237,7 @@
       "known_size": true,
       "month": "2020-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.237108+00:00",
+      "probe_ts": "2026-08-30T14:35:40.602964+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2253,7 +2253,7 @@
       "known_size": true,
       "month": "2021-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.271892+00:00",
+      "probe_ts": "2026-08-30T14:35:40.634235+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2269,7 +2269,7 @@
       "known_size": true,
       "month": "2021-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.298240+00:00",
+      "probe_ts": "2026-08-30T14:35:40.667046+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2285,7 +2285,7 @@
       "known_size": true,
       "month": "2021-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.324426+00:00",
+      "probe_ts": "2026-08-30T14:35:40.698741+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2301,7 +2301,7 @@
       "known_size": true,
       "month": "2021-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.357764+00:00",
+      "probe_ts": "2026-08-30T14:35:40.733710+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2317,7 +2317,7 @@
       "known_size": true,
       "month": "2021-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.401909+00:00",
+      "probe_ts": "2026-08-30T14:35:40.767797+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2333,7 +2333,7 @@
       "known_size": true,
       "month": "2021-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.433511+00:00",
+      "probe_ts": "2026-08-30T14:35:40.811194+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2349,7 +2349,7 @@
       "known_size": true,
       "month": "2021-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.462188+00:00",
+      "probe_ts": "2026-08-30T14:35:40.851914+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2365,7 +2365,7 @@
       "known_size": true,
       "month": "2021-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.494034+00:00",
+      "probe_ts": "2026-08-30T14:35:40.883893+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2381,7 +2381,7 @@
       "known_size": true,
       "month": "2021-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.523102+00:00",
+      "probe_ts": "2026-08-30T14:35:40.918683+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2397,7 +2397,7 @@
       "known_size": true,
       "month": "2021-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.561111+00:00",
+      "probe_ts": "2026-08-30T14:35:40.950109+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2413,7 +2413,7 @@
       "known_size": true,
       "month": "2021-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.593057+00:00",
+      "probe_ts": "2026-08-30T14:35:40.980692+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2429,7 +2429,7 @@
       "known_size": true,
       "month": "2021-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.640810+00:00",
+      "probe_ts": "2026-08-30T14:35:41.011334+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2445,7 +2445,7 @@
       "known_size": true,
       "month": "2022-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.668652+00:00",
+      "probe_ts": "2026-08-30T14:35:41.037627+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2461,7 +2461,7 @@
       "known_size": true,
       "month": "2022-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.699745+00:00",
+      "probe_ts": "2026-08-30T14:35:41.076801+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2477,7 +2477,7 @@
       "known_size": true,
       "month": "2022-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.731693+00:00",
+      "probe_ts": "2026-08-30T14:35:41.108279+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2493,7 +2493,7 @@
       "known_size": true,
       "month": "2022-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.759146+00:00",
+      "probe_ts": "2026-08-30T14:35:41.150694+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2509,7 +2509,7 @@
       "known_size": true,
       "month": "2022-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.790515+00:00",
+      "probe_ts": "2026-08-30T14:35:41.182525+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2525,7 +2525,7 @@
       "known_size": true,
       "month": "2022-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.823740+00:00",
+      "probe_ts": "2026-08-30T14:35:41.212108+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2541,7 +2541,7 @@
       "known_size": true,
       "month": "2022-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.856174+00:00",
+      "probe_ts": "2026-08-30T14:35:41.245334+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2557,7 +2557,7 @@
       "known_size": true,
       "month": "2022-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.888475+00:00",
+      "probe_ts": "2026-08-30T14:35:41.273281+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2573,7 +2573,7 @@
       "known_size": true,
       "month": "2022-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.916921+00:00",
+      "probe_ts": "2026-08-30T14:35:41.304002+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2589,7 +2589,7 @@
       "known_size": true,
       "month": "2022-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.948942+00:00",
+      "probe_ts": "2026-08-30T14:35:41.341097+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2605,7 +2605,7 @@
       "known_size": true,
       "month": "2022-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:38.982217+00:00",
+      "probe_ts": "2026-08-30T14:35:41.375188+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2621,7 +2621,7 @@
       "known_size": true,
       "month": "2022-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.014461+00:00",
+      "probe_ts": "2026-08-30T14:35:41.405062+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2637,7 +2637,7 @@
       "known_size": true,
       "month": "2023-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.045168+00:00",
+      "probe_ts": "2026-08-30T14:35:41.437336+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2653,7 +2653,7 @@
       "known_size": true,
       "month": "2023-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.078138+00:00",
+      "probe_ts": "2026-08-30T14:35:41.470020+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2669,7 +2669,7 @@
       "known_size": true,
       "month": "2023-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.107638+00:00",
+      "probe_ts": "2026-08-30T14:35:41.502861+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2685,7 +2685,7 @@
       "known_size": true,
       "month": "2023-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.135792+00:00",
+      "probe_ts": "2026-08-30T14:35:41.537115+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2701,7 +2701,7 @@
       "known_size": true,
       "month": "2023-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.164380+00:00",
+      "probe_ts": "2026-08-30T14:35:41.566685+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2717,7 +2717,7 @@
       "known_size": true,
       "month": "2023-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.195334+00:00",
+      "probe_ts": "2026-08-30T14:35:41.599513+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2733,7 +2733,7 @@
       "known_size": true,
       "month": "2023-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.225056+00:00",
+      "probe_ts": "2026-08-30T14:35:41.630341+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2749,7 +2749,7 @@
       "known_size": true,
       "month": "2023-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.254304+00:00",
+      "probe_ts": "2026-08-30T14:35:41.661001+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2765,7 +2765,7 @@
       "known_size": true,
       "month": "2023-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.285838+00:00",
+      "probe_ts": "2026-08-30T14:35:41.692299+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2781,7 +2781,7 @@
       "known_size": true,
       "month": "2023-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.320487+00:00",
+      "probe_ts": "2026-08-30T14:35:41.727031+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2797,7 +2797,7 @@
       "known_size": true,
       "month": "2023-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.365342+00:00",
+      "probe_ts": "2026-08-30T14:35:41.758011+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2813,7 +2813,7 @@
       "known_size": true,
       "month": "2023-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.399510+00:00",
+      "probe_ts": "2026-08-30T14:35:41.788587+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2829,7 +2829,7 @@
       "known_size": true,
       "month": "2024-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.458852+00:00",
+      "probe_ts": "2026-08-30T14:35:41.820098+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2845,7 +2845,7 @@
       "known_size": true,
       "month": "2024-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.485513+00:00",
+      "probe_ts": "2026-08-30T14:35:41.849562+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2861,7 +2861,7 @@
       "known_size": true,
       "month": "2024-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.510006+00:00",
+      "probe_ts": "2026-08-30T14:35:41.878798+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2877,7 +2877,7 @@
       "known_size": true,
       "month": "2024-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.540685+00:00",
+      "probe_ts": "2026-08-30T14:35:41.912278+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2893,7 +2893,7 @@
       "known_size": true,
       "month": "2024-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.572752+00:00",
+      "probe_ts": "2026-08-30T14:35:41.944625+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2909,7 +2909,7 @@
       "known_size": true,
       "month": "2024-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.606602+00:00",
+      "probe_ts": "2026-08-30T14:35:41.975954+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2925,7 +2925,7 @@
       "known_size": true,
       "month": "2024-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.637749+00:00",
+      "probe_ts": "2026-08-30T14:35:42.008062+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2941,7 +2941,7 @@
       "known_size": true,
       "month": "2024-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.670230+00:00",
+      "probe_ts": "2026-08-30T14:35:42.080171+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2957,7 +2957,7 @@
       "known_size": true,
       "month": "2024-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.696888+00:00",
+      "probe_ts": "2026-08-30T14:35:42.123290+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2973,7 +2973,7 @@
       "known_size": true,
       "month": "2024-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.736435+00:00",
+      "probe_ts": "2026-08-30T14:35:42.155470+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -2989,7 +2989,7 @@
       "known_size": true,
       "month": "2024-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.766265+00:00",
+      "probe_ts": "2026-08-30T14:35:42.183980+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3005,7 +3005,7 @@
       "known_size": true,
       "month": "2024-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.790433+00:00",
+      "probe_ts": "2026-08-30T14:35:42.235848+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3021,7 +3021,7 @@
       "known_size": true,
       "month": "2025-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.860482+00:00",
+      "probe_ts": "2026-08-30T14:35:42.264343+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3037,7 +3037,7 @@
       "known_size": true,
       "month": "2025-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.886361+00:00",
+      "probe_ts": "2026-08-30T14:35:42.314565+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3053,7 +3053,7 @@
       "known_size": true,
       "month": "2025-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.914637+00:00",
+      "probe_ts": "2026-08-30T14:35:42.348399+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3069,7 +3069,7 @@
       "known_size": true,
       "month": "2025-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.941268+00:00",
+      "probe_ts": "2026-08-30T14:35:42.398156+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3085,7 +3085,7 @@
       "known_size": true,
       "month": "2025-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.970109+00:00",
+      "probe_ts": "2026-08-30T14:35:42.445724+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3101,7 +3101,7 @@
       "known_size": true,
       "month": "2025-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:39.999700+00:00",
+      "probe_ts": "2026-08-30T14:35:42.475404+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3117,7 +3117,7 @@
       "known_size": true,
       "month": "2025-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.027790+00:00",
+      "probe_ts": "2026-08-30T14:35:42.506799+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3133,7 +3133,7 @@
       "known_size": true,
       "month": "2025-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.057575+00:00",
+      "probe_ts": "2026-08-30T14:35:42.537034+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3149,7 +3149,7 @@
       "known_size": true,
       "month": "2025-09",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.082468+00:00",
+      "probe_ts": "2026-08-30T14:35:42.569469+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3165,7 +3165,7 @@
       "known_size": true,
       "month": "2025-10",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.110128+00:00",
+      "probe_ts": "2026-08-30T14:35:42.599805+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3181,7 +3181,7 @@
       "known_size": true,
       "month": "2025-11",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.136472+00:00",
+      "probe_ts": "2026-08-30T14:35:42.642818+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3197,7 +3197,7 @@
       "known_size": true,
       "month": "2025-12",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.167810+00:00",
+      "probe_ts": "2026-08-30T14:35:42.680957+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3213,7 +3213,7 @@
       "known_size": true,
       "month": "2026-01",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.194171+00:00",
+      "probe_ts": "2026-08-30T14:35:42.712976+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3229,7 +3229,7 @@
       "known_size": true,
       "month": "2026-02",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.223522+00:00",
+      "probe_ts": "2026-08-30T14:35:42.741086+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3245,7 +3245,7 @@
       "known_size": true,
       "month": "2026-03",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.252689+00:00",
+      "probe_ts": "2026-08-30T14:35:42.770425+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3261,7 +3261,7 @@
       "known_size": true,
       "month": "2026-04",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.278805+00:00",
+      "probe_ts": "2026-08-30T14:35:42.801646+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3277,7 +3277,7 @@
       "known_size": true,
       "month": "2026-05",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.304549+00:00",
+      "probe_ts": "2026-08-30T14:35:42.827639+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3293,7 +3293,7 @@
       "known_size": true,
       "month": "2026-06",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.326209+00:00",
+      "probe_ts": "2026-08-30T14:35:42.861037+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3309,7 +3309,7 @@
       "known_size": true,
       "month": "2026-07",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.354755+00:00",
+      "probe_ts": "2026-08-30T14:35:42.889097+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3325,7 +3325,7 @@
       "known_size": false,
       "month": "2026-08",
       "payload_downloaded": false,
-      "probe_ts": "2026-08-30T14:24:40.383396+00:00",
+      "probe_ts": "2026-08-30T14:35:42.923892+00:00",
       "record_type": "d1_aggtrade_head_probe",
       "source": "um_aggTrades",
       "symbol": "BTCUSDT"
@@ -3356,7 +3356,7 @@
           "known_size": true,
           "month": "2018-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:32.926082+00:00",
+          "probe_ts": "2026-08-30T14:35:35.085535+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3372,7 +3372,7 @@
           "known_size": true,
           "month": "2018-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.023273+00:00",
+          "probe_ts": "2026-08-30T14:35:35.168351+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3388,7 +3388,7 @@
           "known_size": true,
           "month": "2018-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.066134+00:00",
+          "probe_ts": "2026-08-30T14:35:35.218264+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3404,7 +3404,7 @@
           "known_size": true,
           "month": "2018-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.109512+00:00",
+          "probe_ts": "2026-08-30T14:35:35.269731+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3420,7 +3420,7 @@
           "known_size": true,
           "month": "2018-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.158221+00:00",
+          "probe_ts": "2026-08-30T14:35:35.323115+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3436,7 +3436,7 @@
           "known_size": true,
           "month": "2018-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.202497+00:00",
+          "probe_ts": "2026-08-30T14:35:35.373762+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3452,7 +3452,7 @@
           "known_size": true,
           "month": "2018-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.246796+00:00",
+          "probe_ts": "2026-08-30T14:35:35.423179+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3468,7 +3468,7 @@
           "known_size": true,
           "month": "2018-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.293091+00:00",
+          "probe_ts": "2026-08-30T14:35:35.476655+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3484,7 +3484,7 @@
           "known_size": true,
           "month": "2018-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.340269+00:00",
+          "probe_ts": "2026-08-30T14:35:35.533018+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3500,7 +3500,7 @@
           "known_size": true,
           "month": "2018-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.393793+00:00",
+          "probe_ts": "2026-08-30T14:35:35.586183+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3516,7 +3516,7 @@
           "known_size": true,
           "month": "2018-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.446311+00:00",
+          "probe_ts": "2026-08-30T14:35:35.636351+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3532,7 +3532,7 @@
           "known_size": true,
           "month": "2018-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.490900+00:00",
+          "probe_ts": "2026-08-30T14:35:35.705797+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3548,7 +3548,7 @@
           "known_size": true,
           "month": "2019-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.538174+00:00",
+          "probe_ts": "2026-08-30T14:35:35.754819+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3564,7 +3564,7 @@
           "known_size": true,
           "month": "2019-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.569719+00:00",
+          "probe_ts": "2026-08-30T14:35:35.801790+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3580,7 +3580,7 @@
           "known_size": true,
           "month": "2019-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.618371+00:00",
+          "probe_ts": "2026-08-30T14:35:35.857073+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3596,7 +3596,7 @@
           "known_size": true,
           "month": "2019-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.671005+00:00",
+          "probe_ts": "2026-08-30T14:35:35.910015+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3612,7 +3612,7 @@
           "known_size": true,
           "month": "2019-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.696905+00:00",
+          "probe_ts": "2026-08-30T14:35:35.961377+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3628,7 +3628,7 @@
           "known_size": true,
           "month": "2019-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.744741+00:00",
+          "probe_ts": "2026-08-30T14:35:36.012281+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3644,7 +3644,7 @@
           "known_size": true,
           "month": "2019-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.791380+00:00",
+          "probe_ts": "2026-08-30T14:35:36.059260+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3660,7 +3660,7 @@
           "known_size": true,
           "month": "2019-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.862994+00:00",
+          "probe_ts": "2026-08-30T14:35:36.111750+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3676,7 +3676,7 @@
           "known_size": true,
           "month": "2019-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.913776+00:00",
+          "probe_ts": "2026-08-30T14:35:36.153898+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3692,7 +3692,7 @@
           "known_size": true,
           "month": "2019-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:33.961048+00:00",
+          "probe_ts": "2026-08-30T14:35:36.208049+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3708,7 +3708,7 @@
           "known_size": true,
           "month": "2019-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.020113+00:00",
+          "probe_ts": "2026-08-30T14:35:36.240409+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3724,7 +3724,7 @@
           "known_size": true,
           "month": "2019-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.071034+00:00",
+          "probe_ts": "2026-08-30T14:35:36.287837+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3740,7 +3740,7 @@
           "known_size": true,
           "month": "2020-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.100493+00:00",
+          "probe_ts": "2026-08-30T14:35:36.339426+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3756,7 +3756,7 @@
           "known_size": true,
           "month": "2020-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.144674+00:00",
+          "probe_ts": "2026-08-30T14:35:36.389544+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3772,7 +3772,7 @@
           "known_size": true,
           "month": "2020-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.189897+00:00",
+          "probe_ts": "2026-08-30T14:35:36.427591+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3788,7 +3788,7 @@
           "known_size": true,
           "month": "2020-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.239086+00:00",
+          "probe_ts": "2026-08-30T14:35:36.475653+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3804,7 +3804,7 @@
           "known_size": true,
           "month": "2020-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.286110+00:00",
+          "probe_ts": "2026-08-30T14:35:36.520414+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3820,7 +3820,7 @@
           "known_size": true,
           "month": "2020-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.317547+00:00",
+          "probe_ts": "2026-08-30T14:35:36.556170+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3836,7 +3836,7 @@
           "known_size": true,
           "month": "2020-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.361217+00:00",
+          "probe_ts": "2026-08-30T14:35:36.612801+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3852,7 +3852,7 @@
           "known_size": true,
           "month": "2020-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.415697+00:00",
+          "probe_ts": "2026-08-30T14:35:36.658813+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3868,7 +3868,7 @@
           "known_size": true,
           "month": "2020-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.472942+00:00",
+          "probe_ts": "2026-08-30T14:35:36.711719+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3884,7 +3884,7 @@
           "known_size": true,
           "month": "2020-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.503631+00:00",
+          "probe_ts": "2026-08-30T14:35:36.763116+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3900,7 +3900,7 @@
           "known_size": true,
           "month": "2020-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.552670+00:00",
+          "probe_ts": "2026-08-30T14:35:36.814917+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3916,7 +3916,7 @@
           "known_size": true,
           "month": "2020-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.608667+00:00",
+          "probe_ts": "2026-08-30T14:35:36.862474+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3932,7 +3932,7 @@
           "known_size": true,
           "month": "2021-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.639707+00:00",
+          "probe_ts": "2026-08-30T14:35:36.913515+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3948,7 +3948,7 @@
           "known_size": true,
           "month": "2021-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.693675+00:00",
+          "probe_ts": "2026-08-30T14:35:36.950544+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3964,7 +3964,7 @@
           "known_size": true,
           "month": "2021-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.748958+00:00",
+          "probe_ts": "2026-08-30T14:35:37.001956+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3980,7 +3980,7 @@
           "known_size": true,
           "month": "2021-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.804078+00:00",
+          "probe_ts": "2026-08-30T14:35:37.046985+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -3996,7 +3996,7 @@
           "known_size": true,
           "month": "2021-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.853612+00:00",
+          "probe_ts": "2026-08-30T14:35:37.087623+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4012,7 +4012,7 @@
           "known_size": true,
           "month": "2021-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.881197+00:00",
+          "probe_ts": "2026-08-30T14:35:37.130160+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4028,7 +4028,7 @@
           "known_size": true,
           "month": "2021-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.917403+00:00",
+          "probe_ts": "2026-08-30T14:35:37.164817+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4044,7 +4044,7 @@
           "known_size": true,
           "month": "2021-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.956620+00:00",
+          "probe_ts": "2026-08-30T14:35:37.202349+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4060,7 +4060,7 @@
           "known_size": true,
           "month": "2021-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:34.985308+00:00",
+          "probe_ts": "2026-08-30T14:35:37.231732+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4076,7 +4076,7 @@
           "known_size": true,
           "month": "2021-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.027865+00:00",
+          "probe_ts": "2026-08-30T14:35:37.286284+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4092,7 +4092,7 @@
           "known_size": true,
           "month": "2021-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.058628+00:00",
+          "probe_ts": "2026-08-30T14:35:37.313235+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4108,7 +4108,7 @@
           "known_size": true,
           "month": "2021-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.091611+00:00",
+          "probe_ts": "2026-08-30T14:35:37.344878+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4124,7 +4124,7 @@
           "known_size": true,
           "month": "2022-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.117857+00:00",
+          "probe_ts": "2026-08-30T14:35:37.386336+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4140,7 +4140,7 @@
           "known_size": true,
           "month": "2022-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.150199+00:00",
+          "probe_ts": "2026-08-30T14:35:37.434660+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4156,7 +4156,7 @@
           "known_size": true,
           "month": "2022-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.195842+00:00",
+          "probe_ts": "2026-08-30T14:35:37.483297+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4172,7 +4172,7 @@
           "known_size": true,
           "month": "2022-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.221987+00:00",
+          "probe_ts": "2026-08-30T14:35:37.538022+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4188,7 +4188,7 @@
           "known_size": true,
           "month": "2022-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.252403+00:00",
+          "probe_ts": "2026-08-30T14:35:37.583235+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4204,7 +4204,7 @@
           "known_size": true,
           "month": "2022-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.282369+00:00",
+          "probe_ts": "2026-08-30T14:35:37.653980+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4220,7 +4220,7 @@
           "known_size": true,
           "month": "2022-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.320633+00:00",
+          "probe_ts": "2026-08-30T14:35:37.690920+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4236,7 +4236,7 @@
           "known_size": true,
           "month": "2022-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.367198+00:00",
+          "probe_ts": "2026-08-30T14:35:37.723920+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4252,7 +4252,7 @@
           "known_size": true,
           "month": "2022-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.399456+00:00",
+          "probe_ts": "2026-08-30T14:35:37.769933+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4268,7 +4268,7 @@
           "known_size": true,
           "month": "2022-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.430770+00:00",
+          "probe_ts": "2026-08-30T14:35:37.800426+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4284,7 +4284,7 @@
           "known_size": true,
           "month": "2022-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.462502+00:00",
+          "probe_ts": "2026-08-30T14:35:37.836850+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4300,7 +4300,7 @@
           "known_size": true,
           "month": "2022-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.491887+00:00",
+          "probe_ts": "2026-08-30T14:35:37.871458+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4316,7 +4316,7 @@
           "known_size": true,
           "month": "2023-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.533214+00:00",
+          "probe_ts": "2026-08-30T14:35:37.907482+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4332,7 +4332,7 @@
           "known_size": true,
           "month": "2023-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.565941+00:00",
+          "probe_ts": "2026-08-30T14:35:37.937779+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4348,7 +4348,7 @@
           "known_size": true,
           "month": "2023-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.599346+00:00",
+          "probe_ts": "2026-08-30T14:35:37.972071+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4364,7 +4364,7 @@
           "known_size": true,
           "month": "2023-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.629575+00:00",
+          "probe_ts": "2026-08-30T14:35:38.003386+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4380,7 +4380,7 @@
           "known_size": true,
           "month": "2023-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.657655+00:00",
+          "probe_ts": "2026-08-30T14:35:38.030097+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4396,7 +4396,7 @@
           "known_size": true,
           "month": "2023-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.690742+00:00",
+          "probe_ts": "2026-08-30T14:35:38.058566+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4412,7 +4412,7 @@
           "known_size": true,
           "month": "2023-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.729772+00:00",
+          "probe_ts": "2026-08-30T14:35:38.091190+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4428,7 +4428,7 @@
           "known_size": true,
           "month": "2023-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.765872+00:00",
+          "probe_ts": "2026-08-30T14:35:38.126642+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4444,7 +4444,7 @@
           "known_size": true,
           "month": "2023-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.802757+00:00",
+          "probe_ts": "2026-08-30T14:35:38.163180+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4460,7 +4460,7 @@
           "known_size": true,
           "month": "2023-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.828362+00:00",
+          "probe_ts": "2026-08-30T14:35:38.214392+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4476,7 +4476,7 @@
           "known_size": true,
           "month": "2023-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.854770+00:00",
+          "probe_ts": "2026-08-30T14:35:38.246029+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4492,7 +4492,7 @@
           "known_size": true,
           "month": "2023-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.891718+00:00",
+          "probe_ts": "2026-08-30T14:35:38.278914+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4508,7 +4508,7 @@
           "known_size": true,
           "month": "2024-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.934885+00:00",
+          "probe_ts": "2026-08-30T14:35:38.309463+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4524,7 +4524,7 @@
           "known_size": true,
           "month": "2024-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:35.968969+00:00",
+          "probe_ts": "2026-08-30T14:35:38.339105+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4540,7 +4540,7 @@
           "known_size": true,
           "month": "2024-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.001174+00:00",
+          "probe_ts": "2026-08-30T14:35:38.368943+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4556,7 +4556,7 @@
           "known_size": true,
           "month": "2024-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.030801+00:00",
+          "probe_ts": "2026-08-30T14:35:38.400442+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4572,7 +4572,7 @@
           "known_size": true,
           "month": "2024-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.062880+00:00",
+          "probe_ts": "2026-08-30T14:35:38.432894+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4588,7 +4588,7 @@
           "known_size": true,
           "month": "2024-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.092589+00:00",
+          "probe_ts": "2026-08-30T14:35:38.463674+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4604,7 +4604,7 @@
           "known_size": true,
           "month": "2024-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.123906+00:00",
+          "probe_ts": "2026-08-30T14:35:38.496106+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4620,7 +4620,7 @@
           "known_size": true,
           "month": "2024-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.156925+00:00",
+          "probe_ts": "2026-08-30T14:35:38.527053+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4636,7 +4636,7 @@
           "known_size": true,
           "month": "2024-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.188726+00:00",
+          "probe_ts": "2026-08-30T14:35:38.556314+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4652,7 +4652,7 @@
           "known_size": true,
           "month": "2024-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.217769+00:00",
+          "probe_ts": "2026-08-30T14:35:38.599029+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4668,7 +4668,7 @@
           "known_size": true,
           "month": "2024-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.247810+00:00",
+          "probe_ts": "2026-08-30T14:35:38.628692+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4684,7 +4684,7 @@
           "known_size": true,
           "month": "2024-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.272774+00:00",
+          "probe_ts": "2026-08-30T14:35:38.658956+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4700,7 +4700,7 @@
           "known_size": true,
           "month": "2025-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.308029+00:00",
+          "probe_ts": "2026-08-30T14:35:38.685134+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4716,7 +4716,7 @@
           "known_size": true,
           "month": "2025-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.338243+00:00",
+          "probe_ts": "2026-08-30T14:35:38.716306+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4732,7 +4732,7 @@
           "known_size": true,
           "month": "2025-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.368175+00:00",
+          "probe_ts": "2026-08-30T14:35:38.746492+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4748,7 +4748,7 @@
           "known_size": true,
           "month": "2025-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.403229+00:00",
+          "probe_ts": "2026-08-30T14:35:38.781071+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4764,7 +4764,7 @@
           "known_size": true,
           "month": "2025-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.433633+00:00",
+          "probe_ts": "2026-08-30T14:35:38.809707+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4780,7 +4780,7 @@
           "known_size": true,
           "month": "2025-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.460427+00:00",
+          "probe_ts": "2026-08-30T14:35:38.836769+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4796,7 +4796,7 @@
           "known_size": true,
           "month": "2025-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.490382+00:00",
+          "probe_ts": "2026-08-30T14:35:38.865884+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4812,7 +4812,7 @@
           "known_size": true,
           "month": "2025-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.522161+00:00",
+          "probe_ts": "2026-08-30T14:35:38.893876+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4828,7 +4828,7 @@
           "known_size": true,
           "month": "2025-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.552236+00:00",
+          "probe_ts": "2026-08-30T14:35:38.923853+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4844,7 +4844,7 @@
           "known_size": true,
           "month": "2025-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.584844+00:00",
+          "probe_ts": "2026-08-30T14:35:38.953728+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4860,7 +4860,7 @@
           "known_size": true,
           "month": "2025-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.616856+00:00",
+          "probe_ts": "2026-08-30T14:35:38.995794+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4876,7 +4876,7 @@
           "known_size": true,
           "month": "2025-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.647676+00:00",
+          "probe_ts": "2026-08-30T14:35:39.029515+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4892,7 +4892,7 @@
           "known_size": true,
           "month": "2026-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.684132+00:00",
+          "probe_ts": "2026-08-30T14:35:39.061389+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4908,7 +4908,7 @@
           "known_size": true,
           "month": "2026-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.715435+00:00",
+          "probe_ts": "2026-08-30T14:35:39.091384+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4924,7 +4924,7 @@
           "known_size": true,
           "month": "2026-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.746215+00:00",
+          "probe_ts": "2026-08-30T14:35:39.122986+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4940,7 +4940,7 @@
           "known_size": true,
           "month": "2026-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.828896+00:00",
+          "probe_ts": "2026-08-30T14:35:39.150530+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4956,7 +4956,7 @@
           "known_size": true,
           "month": "2026-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.864681+00:00",
+          "probe_ts": "2026-08-30T14:35:39.178061+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4972,7 +4972,7 @@
           "known_size": true,
           "month": "2026-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.894887+00:00",
+          "probe_ts": "2026-08-30T14:35:39.205534+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -4988,7 +4988,7 @@
           "known_size": true,
           "month": "2026-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.930289+00:00",
+          "probe_ts": "2026-08-30T14:35:39.237203+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -5004,7 +5004,7 @@
           "known_size": false,
           "month": "2026-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.962049+00:00",
+          "probe_ts": "2026-08-30T14:35:39.265034+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "spot_aggTrades",
           "symbol": "BTCUSDT"
@@ -5030,7 +5030,7 @@
           "known_size": false,
           "month": "2018-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:36.989580+00:00",
+          "probe_ts": "2026-08-30T14:35:39.300266+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5046,7 +5046,7 @@
           "known_size": false,
           "month": "2018-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.034083+00:00",
+          "probe_ts": "2026-08-30T14:35:39.333894+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5062,7 +5062,7 @@
           "known_size": false,
           "month": "2018-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.076758+00:00",
+          "probe_ts": "2026-08-30T14:35:39.364985+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5078,7 +5078,7 @@
           "known_size": false,
           "month": "2018-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.119544+00:00",
+          "probe_ts": "2026-08-30T14:35:39.395386+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5094,7 +5094,7 @@
           "known_size": false,
           "month": "2018-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.164500+00:00",
+          "probe_ts": "2026-08-30T14:35:39.430191+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5110,7 +5110,7 @@
           "known_size": false,
           "month": "2018-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.192419+00:00",
+          "probe_ts": "2026-08-30T14:35:39.466371+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5126,7 +5126,7 @@
           "known_size": false,
           "month": "2018-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.222442+00:00",
+          "probe_ts": "2026-08-30T14:35:39.510606+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5142,7 +5142,7 @@
           "known_size": false,
           "month": "2018-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.252398+00:00",
+          "probe_ts": "2026-08-30T14:35:39.536411+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5158,7 +5158,7 @@
           "known_size": false,
           "month": "2018-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.292120+00:00",
+          "probe_ts": "2026-08-30T14:35:39.565890+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5174,7 +5174,7 @@
           "known_size": false,
           "month": "2018-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.318731+00:00",
+          "probe_ts": "2026-08-30T14:35:39.599889+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5190,7 +5190,7 @@
           "known_size": false,
           "month": "2018-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.345503+00:00",
+          "probe_ts": "2026-08-30T14:35:39.631689+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5206,7 +5206,7 @@
           "known_size": false,
           "month": "2018-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.405126+00:00",
+          "probe_ts": "2026-08-30T14:35:39.666103+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5222,7 +5222,7 @@
           "known_size": false,
           "month": "2019-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.456951+00:00",
+          "probe_ts": "2026-08-30T14:35:39.693529+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5238,7 +5238,7 @@
           "known_size": false,
           "month": "2019-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.498251+00:00",
+          "probe_ts": "2026-08-30T14:35:39.725351+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5254,7 +5254,7 @@
           "known_size": false,
           "month": "2019-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.528443+00:00",
+          "probe_ts": "2026-08-30T14:35:39.756222+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5270,7 +5270,7 @@
           "known_size": false,
           "month": "2019-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.562698+00:00",
+          "probe_ts": "2026-08-30T14:35:39.947154+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5286,7 +5286,7 @@
           "known_size": false,
           "month": "2019-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.620087+00:00",
+          "probe_ts": "2026-08-30T14:35:40.001645+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5302,7 +5302,7 @@
           "known_size": false,
           "month": "2019-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.671655+00:00",
+          "probe_ts": "2026-08-30T14:35:40.028893+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5318,7 +5318,7 @@
           "known_size": false,
           "month": "2019-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.699307+00:00",
+          "probe_ts": "2026-08-30T14:35:40.071660+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5334,7 +5334,7 @@
           "known_size": false,
           "month": "2019-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.738360+00:00",
+          "probe_ts": "2026-08-30T14:35:40.100838+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5350,7 +5350,7 @@
           "known_size": false,
           "month": "2019-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.767547+00:00",
+          "probe_ts": "2026-08-30T14:35:40.133669+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5366,7 +5366,7 @@
           "known_size": false,
           "month": "2019-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.799369+00:00",
+          "probe_ts": "2026-08-30T14:35:40.162552+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5382,7 +5382,7 @@
           "known_size": false,
           "month": "2019-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.849746+00:00",
+          "probe_ts": "2026-08-30T14:35:40.191866+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5398,7 +5398,7 @@
           "known_size": false,
           "month": "2019-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.876693+00:00",
+          "probe_ts": "2026-08-30T14:35:40.223082+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5414,7 +5414,7 @@
           "known_size": true,
           "month": "2020-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.909865+00:00",
+          "probe_ts": "2026-08-30T14:35:40.250836+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5430,7 +5430,7 @@
           "known_size": true,
           "month": "2020-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.941209+00:00",
+          "probe_ts": "2026-08-30T14:35:40.283505+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5446,7 +5446,7 @@
           "known_size": true,
           "month": "2020-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.965149+00:00",
+          "probe_ts": "2026-08-30T14:35:40.318625+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5462,7 +5462,7 @@
           "known_size": true,
           "month": "2020-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:37.997134+00:00",
+          "probe_ts": "2026-08-30T14:35:40.352985+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5478,7 +5478,7 @@
           "known_size": true,
           "month": "2020-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.026271+00:00",
+          "probe_ts": "2026-08-30T14:35:40.384455+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5494,7 +5494,7 @@
           "known_size": true,
           "month": "2020-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.054348+00:00",
+          "probe_ts": "2026-08-30T14:35:40.416357+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5510,7 +5510,7 @@
           "known_size": true,
           "month": "2020-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.094098+00:00",
+          "probe_ts": "2026-08-30T14:35:40.446751+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5526,7 +5526,7 @@
           "known_size": true,
           "month": "2020-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.122043+00:00",
+          "probe_ts": "2026-08-30T14:35:40.480624+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5542,7 +5542,7 @@
           "known_size": true,
           "month": "2020-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.145807+00:00",
+          "probe_ts": "2026-08-30T14:35:40.508096+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5558,7 +5558,7 @@
           "known_size": true,
           "month": "2020-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.176690+00:00",
+          "probe_ts": "2026-08-30T14:35:40.540158+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5574,7 +5574,7 @@
           "known_size": true,
           "month": "2020-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.210189+00:00",
+          "probe_ts": "2026-08-30T14:35:40.567890+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5590,7 +5590,7 @@
           "known_size": true,
           "month": "2020-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.237108+00:00",
+          "probe_ts": "2026-08-30T14:35:40.602964+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5606,7 +5606,7 @@
           "known_size": true,
           "month": "2021-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.271892+00:00",
+          "probe_ts": "2026-08-30T14:35:40.634235+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5622,7 +5622,7 @@
           "known_size": true,
           "month": "2021-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.298240+00:00",
+          "probe_ts": "2026-08-30T14:35:40.667046+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5638,7 +5638,7 @@
           "known_size": true,
           "month": "2021-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.324426+00:00",
+          "probe_ts": "2026-08-30T14:35:40.698741+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5654,7 +5654,7 @@
           "known_size": true,
           "month": "2021-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.357764+00:00",
+          "probe_ts": "2026-08-30T14:35:40.733710+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5670,7 +5670,7 @@
           "known_size": true,
           "month": "2021-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.401909+00:00",
+          "probe_ts": "2026-08-30T14:35:40.767797+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5686,7 +5686,7 @@
           "known_size": true,
           "month": "2021-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.433511+00:00",
+          "probe_ts": "2026-08-30T14:35:40.811194+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5702,7 +5702,7 @@
           "known_size": true,
           "month": "2021-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.462188+00:00",
+          "probe_ts": "2026-08-30T14:35:40.851914+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5718,7 +5718,7 @@
           "known_size": true,
           "month": "2021-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.494034+00:00",
+          "probe_ts": "2026-08-30T14:35:40.883893+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5734,7 +5734,7 @@
           "known_size": true,
           "month": "2021-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.523102+00:00",
+          "probe_ts": "2026-08-30T14:35:40.918683+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5750,7 +5750,7 @@
           "known_size": true,
           "month": "2021-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.561111+00:00",
+          "probe_ts": "2026-08-30T14:35:40.950109+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5766,7 +5766,7 @@
           "known_size": true,
           "month": "2021-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.593057+00:00",
+          "probe_ts": "2026-08-30T14:35:40.980692+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5782,7 +5782,7 @@
           "known_size": true,
           "month": "2021-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.640810+00:00",
+          "probe_ts": "2026-08-30T14:35:41.011334+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5798,7 +5798,7 @@
           "known_size": true,
           "month": "2022-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.668652+00:00",
+          "probe_ts": "2026-08-30T14:35:41.037627+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5814,7 +5814,7 @@
           "known_size": true,
           "month": "2022-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.699745+00:00",
+          "probe_ts": "2026-08-30T14:35:41.076801+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5830,7 +5830,7 @@
           "known_size": true,
           "month": "2022-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.731693+00:00",
+          "probe_ts": "2026-08-30T14:35:41.108279+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5846,7 +5846,7 @@
           "known_size": true,
           "month": "2022-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.759146+00:00",
+          "probe_ts": "2026-08-30T14:35:41.150694+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5862,7 +5862,7 @@
           "known_size": true,
           "month": "2022-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.790515+00:00",
+          "probe_ts": "2026-08-30T14:35:41.182525+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5878,7 +5878,7 @@
           "known_size": true,
           "month": "2022-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.823740+00:00",
+          "probe_ts": "2026-08-30T14:35:41.212108+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5894,7 +5894,7 @@
           "known_size": true,
           "month": "2022-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.856174+00:00",
+          "probe_ts": "2026-08-30T14:35:41.245334+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5910,7 +5910,7 @@
           "known_size": true,
           "month": "2022-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.888475+00:00",
+          "probe_ts": "2026-08-30T14:35:41.273281+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5926,7 +5926,7 @@
           "known_size": true,
           "month": "2022-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.916921+00:00",
+          "probe_ts": "2026-08-30T14:35:41.304002+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5942,7 +5942,7 @@
           "known_size": true,
           "month": "2022-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.948942+00:00",
+          "probe_ts": "2026-08-30T14:35:41.341097+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5958,7 +5958,7 @@
           "known_size": true,
           "month": "2022-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:38.982217+00:00",
+          "probe_ts": "2026-08-30T14:35:41.375188+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5974,7 +5974,7 @@
           "known_size": true,
           "month": "2022-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.014461+00:00",
+          "probe_ts": "2026-08-30T14:35:41.405062+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -5990,7 +5990,7 @@
           "known_size": true,
           "month": "2023-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.045168+00:00",
+          "probe_ts": "2026-08-30T14:35:41.437336+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6006,7 +6006,7 @@
           "known_size": true,
           "month": "2023-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.078138+00:00",
+          "probe_ts": "2026-08-30T14:35:41.470020+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6022,7 +6022,7 @@
           "known_size": true,
           "month": "2023-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.107638+00:00",
+          "probe_ts": "2026-08-30T14:35:41.502861+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6038,7 +6038,7 @@
           "known_size": true,
           "month": "2023-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.135792+00:00",
+          "probe_ts": "2026-08-30T14:35:41.537115+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6054,7 +6054,7 @@
           "known_size": true,
           "month": "2023-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.164380+00:00",
+          "probe_ts": "2026-08-30T14:35:41.566685+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6070,7 +6070,7 @@
           "known_size": true,
           "month": "2023-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.195334+00:00",
+          "probe_ts": "2026-08-30T14:35:41.599513+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6086,7 +6086,7 @@
           "known_size": true,
           "month": "2023-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.225056+00:00",
+          "probe_ts": "2026-08-30T14:35:41.630341+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6102,7 +6102,7 @@
           "known_size": true,
           "month": "2023-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.254304+00:00",
+          "probe_ts": "2026-08-30T14:35:41.661001+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6118,7 +6118,7 @@
           "known_size": true,
           "month": "2023-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.285838+00:00",
+          "probe_ts": "2026-08-30T14:35:41.692299+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6134,7 +6134,7 @@
           "known_size": true,
           "month": "2023-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.320487+00:00",
+          "probe_ts": "2026-08-30T14:35:41.727031+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6150,7 +6150,7 @@
           "known_size": true,
           "month": "2023-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.365342+00:00",
+          "probe_ts": "2026-08-30T14:35:41.758011+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6166,7 +6166,7 @@
           "known_size": true,
           "month": "2023-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.399510+00:00",
+          "probe_ts": "2026-08-30T14:35:41.788587+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6182,7 +6182,7 @@
           "known_size": true,
           "month": "2024-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.458852+00:00",
+          "probe_ts": "2026-08-30T14:35:41.820098+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6198,7 +6198,7 @@
           "known_size": true,
           "month": "2024-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.485513+00:00",
+          "probe_ts": "2026-08-30T14:35:41.849562+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6214,7 +6214,7 @@
           "known_size": true,
           "month": "2024-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.510006+00:00",
+          "probe_ts": "2026-08-30T14:35:41.878798+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6230,7 +6230,7 @@
           "known_size": true,
           "month": "2024-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.540685+00:00",
+          "probe_ts": "2026-08-30T14:35:41.912278+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6246,7 +6246,7 @@
           "known_size": true,
           "month": "2024-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.572752+00:00",
+          "probe_ts": "2026-08-30T14:35:41.944625+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6262,7 +6262,7 @@
           "known_size": true,
           "month": "2024-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.606602+00:00",
+          "probe_ts": "2026-08-30T14:35:41.975954+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6278,7 +6278,7 @@
           "known_size": true,
           "month": "2024-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.637749+00:00",
+          "probe_ts": "2026-08-30T14:35:42.008062+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6294,7 +6294,7 @@
           "known_size": true,
           "month": "2024-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.670230+00:00",
+          "probe_ts": "2026-08-30T14:35:42.080171+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6310,7 +6310,7 @@
           "known_size": true,
           "month": "2024-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.696888+00:00",
+          "probe_ts": "2026-08-30T14:35:42.123290+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6326,7 +6326,7 @@
           "known_size": true,
           "month": "2024-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.736435+00:00",
+          "probe_ts": "2026-08-30T14:35:42.155470+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6342,7 +6342,7 @@
           "known_size": true,
           "month": "2024-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.766265+00:00",
+          "probe_ts": "2026-08-30T14:35:42.183980+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6358,7 +6358,7 @@
           "known_size": true,
           "month": "2024-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.790433+00:00",
+          "probe_ts": "2026-08-30T14:35:42.235848+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6374,7 +6374,7 @@
           "known_size": true,
           "month": "2025-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.860482+00:00",
+          "probe_ts": "2026-08-30T14:35:42.264343+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6390,7 +6390,7 @@
           "known_size": true,
           "month": "2025-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.886361+00:00",
+          "probe_ts": "2026-08-30T14:35:42.314565+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6406,7 +6406,7 @@
           "known_size": true,
           "month": "2025-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.914637+00:00",
+          "probe_ts": "2026-08-30T14:35:42.348399+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6422,7 +6422,7 @@
           "known_size": true,
           "month": "2025-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.941268+00:00",
+          "probe_ts": "2026-08-30T14:35:42.398156+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6438,7 +6438,7 @@
           "known_size": true,
           "month": "2025-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.970109+00:00",
+          "probe_ts": "2026-08-30T14:35:42.445724+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6454,7 +6454,7 @@
           "known_size": true,
           "month": "2025-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:39.999700+00:00",
+          "probe_ts": "2026-08-30T14:35:42.475404+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6470,7 +6470,7 @@
           "known_size": true,
           "month": "2025-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.027790+00:00",
+          "probe_ts": "2026-08-30T14:35:42.506799+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6486,7 +6486,7 @@
           "known_size": true,
           "month": "2025-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.057575+00:00",
+          "probe_ts": "2026-08-30T14:35:42.537034+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6502,7 +6502,7 @@
           "known_size": true,
           "month": "2025-09",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.082468+00:00",
+          "probe_ts": "2026-08-30T14:35:42.569469+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6518,7 +6518,7 @@
           "known_size": true,
           "month": "2025-10",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.110128+00:00",
+          "probe_ts": "2026-08-30T14:35:42.599805+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6534,7 +6534,7 @@
           "known_size": true,
           "month": "2025-11",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.136472+00:00",
+          "probe_ts": "2026-08-30T14:35:42.642818+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6550,7 +6550,7 @@
           "known_size": true,
           "month": "2025-12",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.167810+00:00",
+          "probe_ts": "2026-08-30T14:35:42.680957+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6566,7 +6566,7 @@
           "known_size": true,
           "month": "2026-01",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.194171+00:00",
+          "probe_ts": "2026-08-30T14:35:42.712976+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6582,7 +6582,7 @@
           "known_size": true,
           "month": "2026-02",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.223522+00:00",
+          "probe_ts": "2026-08-30T14:35:42.741086+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6598,7 +6598,7 @@
           "known_size": true,
           "month": "2026-03",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.252689+00:00",
+          "probe_ts": "2026-08-30T14:35:42.770425+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6614,7 +6614,7 @@
           "known_size": true,
           "month": "2026-04",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.278805+00:00",
+          "probe_ts": "2026-08-30T14:35:42.801646+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6630,7 +6630,7 @@
           "known_size": true,
           "month": "2026-05",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.304549+00:00",
+          "probe_ts": "2026-08-30T14:35:42.827639+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6646,7 +6646,7 @@
           "known_size": true,
           "month": "2026-06",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.326209+00:00",
+          "probe_ts": "2026-08-30T14:35:42.861037+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6662,7 +6662,7 @@
           "known_size": true,
           "month": "2026-07",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.354755+00:00",
+          "probe_ts": "2026-08-30T14:35:42.889097+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
@@ -6678,7 +6678,7 @@
           "known_size": false,
           "month": "2026-08",
           "payload_downloaded": false,
-          "probe_ts": "2026-08-30T14:24:40.383396+00:00",
+          "probe_ts": "2026-08-30T14:35:42.923892+00:00",
           "record_type": "d1_aggtrade_head_probe",
           "source": "um_aggTrades",
           "symbol": "BTCUSDT"
