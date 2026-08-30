@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+import json
 import unittest
 
 import numpy as np
@@ -16,6 +17,7 @@ from unidream.experiments.p1_mbb import (
     P1_MBB_REPLICATES,
     P1MBBError,
     P1MBBImplementationBlocked,
+    P1MBBIndexArtifact,
     build_p1_mbb_index_artifact,
     bootstrap_p1_metric,
     bootstrap_p1_metric_seed_aggregate,
@@ -254,6 +256,75 @@ class P1ExactMBBTests(unittest.TestCase):
         np.testing.assert_array_equal(loaded.starts, artifact.starts)
         self.assertEqual(loaded.to_dict(include_starts=False), artifact.to_dict(include_starts=False))
         self.assertEqual(loaded.artifact_sha256, artifact.artifact_sha256)
+
+    def test_index_artifact_layout_and_archive_budgets_fail_closed(self) -> None:
+        artifact = self._artifact(n=19)
+        payload = artifact.to_dict()
+        payload["starts"] = np.asarray(artifact.starts, dtype="<i8")
+        malformed = dict(payload)
+        malformed["starts_dtype"] = "<f8"
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(malformed)
+        malformed = dict(payload)
+        malformed["starts_shape"] = [P1_MBB_REPLICATES, 999]
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(malformed)
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(
+                {**payload, "starts": artifact.starts.astype("<i4")}
+            )
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(
+                {**payload, "starts": np.asfortranarray(artifact.starts)}
+            )
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(
+                {**payload, "starts": artifact.starts.reshape(-1)}
+            )
+        huge = dict(payload)
+        huge.update(
+            {
+                "n": 10**9,
+                "starts_shape": [P1_MBB_REPLICATES, 125_000_000],
+                "starts": np.empty((0, 0), dtype="<i8"),
+            }
+        )
+        with self.assertRaises(P1MBBError):
+            P1MBBIndexArtifact.from_dict(huge)
+
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            oversized_metadata = artifact.metadata()
+            oversized_metadata.update(
+                {
+                    "n": 10**9,
+                    "starts_shape": [P1_MBB_REPLICATES, 125_000_000],
+                }
+            )
+            metadata = np.frombuffer(
+                json.dumps(oversized_metadata, sort_keys=True).encode("utf-8"),
+                dtype=np.uint8,
+            )
+            zip_bomb = directory_path / "declared-huge.npz"
+            np.savez_compressed(
+                zip_bomb,
+                starts=np.zeros((1, 1), dtype="<i8"),
+                metadata=metadata,
+            )
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(zip_bomb)
+
+            contradictory = directory_path / "contradictory-size.npz"
+            np.savez_compressed(
+                contradictory,
+                starts=np.zeros((P1_MBB_REPLICATES, 100), dtype="<i8"),
+                metadata=np.frombuffer(
+                    json.dumps(artifact.metadata(), sort_keys=True).encode("utf-8"),
+                    dtype=np.uint8,
+                ),
+            )
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(contradictory)
 
     def test_sensitivity_uses_all_fixed_lengths_and_conservative_raw_p(self) -> None:
         n = 35

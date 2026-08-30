@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 import tempfile
 from typing import Any
+import zipfile
 
 import numpy as np
 
@@ -144,6 +145,7 @@ _P1_S2_DIRECTION_SIGN: Mapping[str, str] = {
 }
 _P1_INDEX_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024
 _P1_INDEX_ARTIFACT_MAX_STARTS = 100_000_000
+_P1_INDEX_METADATA_MAX_BYTES = 8 * 1024 * 1024
 
 
 def _strict_int(value: Any, *, name: str, minimum: int | None = None) -> int:
@@ -337,6 +339,56 @@ def _artifact_digest(metadata: Mapping[str, Any], starts: np.ndarray) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _declared_index_layout(
+    payload: Mapping[str, Any],
+    *,
+    require_shape_fields: bool = False,
+) -> tuple[int, int, tuple[int, int], int]:
+    """Validate bounded layout metadata before touching the starts array."""
+    if not isinstance(payload, Mapping):
+        raise P1MBBError("P1 MBB artifact metadata must be an object")
+    try:
+        replicate_count = _strict_int(payload["replicates"], name="replicates", minimum=1)
+        n_int = _strict_int(payload["n"], name="n", minimum=1)
+        length = _strict_block_length(payload["block_length"])
+    except KeyError as exc:
+        raise P1MBBError(f"P1 MBB metadata is missing {exc.args[0]}") from exc
+    if replicate_count != P1_MBB_REPLICATES:
+        raise P1MBBError("P1 MBB replicates are fixed at 2000")
+    if n_int < length:
+        raise P1MBBError(f"P1 MBB requires n >= L; got n={n_int}, L={length}")
+    count = _n_blocks(n_int, length)
+    total_elements = replicate_count * count
+    if total_elements > _P1_INDEX_ARTIFACT_MAX_STARTS:
+        raise P1MBBError("P1 MBB start artifact exceeds its bounded element count")
+    declared_bytes = total_elements * np.dtype("<i8").itemsize
+    if declared_bytes > _P1_INDEX_ARTIFACT_MAX_BYTES:
+        raise P1MBBError("P1 MBB start artifact exceeds its bounded byte count")
+    expected_shape = (replicate_count, count)
+    if require_shape_fields and (
+        "starts_shape" not in payload or "starts_dtype" not in payload
+    ):
+        raise P1MBBError("P1 MBB metadata must declare starts_shape and starts_dtype")
+    if "starts_dtype" in payload and payload["starts_dtype"] != "<i8":
+        raise P1MBBError("P1 MBB metadata starts_dtype must be exactly '<i8'")
+    if "starts_shape" in payload:
+        shape = payload["starts_shape"]
+        if not isinstance(shape, (list, tuple)) or len(shape) != 2:
+            raise P1MBBError("P1 MBB metadata starts_shape must contain two dimensions")
+        try:
+            declared_shape = (
+                _strict_int(shape[0], name="starts_shape[0]", minimum=0),
+                _strict_int(shape[1], name="starts_shape[1]", minimum=0),
+            )
+        except (IndexError, TypeError, ValueError) as exc:
+            raise P1MBBError("P1 MBB metadata starts_shape is malformed") from exc
+        if declared_shape != expected_shape:
+            raise P1MBBError(
+                f"P1 MBB metadata starts_shape must be {expected_shape}, got {declared_shape}"
+            )
+    return n_int, length, expected_shape, declared_bytes
+
+
 @dataclass(frozen=True)
 class P1MBBIndexArtifact:
     """Reproducible P1 MBB draw artifact containing every start vector."""
@@ -369,10 +421,15 @@ class P1MBBIndexArtifact:
         length = _strict_block_length(self.block_length)
         n_int = _strict_int(self.n, name="n", minimum=1)
         replicate_count = _strict_int(self.replicates, name="replicates", minimum=1)
-        if replicate_count != P1_MBB_REPLICATES:
-            raise P1MBBError("P1 MBB replicates are fixed at 2000")
         if self.schema != P1_MBB_SCHEMA or self.schema_version != P1_MBB_SCHEMA_VERSION:
             raise P1MBBError("unsupported P1 MBB index artifact schema")
+        _, _, expected_shape, declared_bytes = _declared_index_layout(
+            {
+                "replicates": replicate_count,
+                "n": n_int,
+                "block_length": length,
+            }
+        )
         expected_seed = derive_p1_seed(
             unit,
             length,
@@ -381,9 +438,18 @@ class P1MBBIndexArtifact:
         supplied_seed = _strict_int(self.derived_seed, name="derived_seed", minimum=0)
         if supplied_seed != expected_seed:
             raise P1MBBError("derived_seed does not match the fixed P1 formula")
-        values = np.asarray(self.starts)
-        expected_shape = (replicate_count, _n_blocks(n_int, length))
-        if values.dtype != np.dtype("<i8") or values.shape != expected_shape:
+        try:
+            values = np.asarray(self.starts)
+        except (TypeError, ValueError, OverflowError, MemoryError) as exc:
+            raise P1MBBError("P1 MBB starts are not a valid array") from exc
+        if (
+            values.dtype != np.dtype("<i8")
+            or values.ndim != 2
+            or not values.flags.c_contiguous
+            or values.shape != expected_shape
+            or values.size != expected_shape[0] * expected_shape[1]
+            or values.nbytes != declared_bytes
+        ):
             raise P1MBBError(
                 f"starts must have little-endian int64 shape {expected_shape}, got {values.dtype}/{values.shape}"
             )
@@ -471,10 +537,24 @@ class P1MBBIndexArtifact:
         missing = [field for field in required if field not in payload]
         if missing:
             raise P1MBBError("P1 MBB artifact is missing: " + ", ".join(missing))
-        starts = np.asarray(payload["starts"])
-        if starts.dtype.kind not in "iu":
-            raise P1MBBError("P1 MBB artifact starts must be integer data")
-        starts = np.asarray(starts, dtype="<i8", order="C")
+        _, _, expected_shape, declared_bytes = _declared_index_layout(payload)
+        try:
+            starts = np.asarray(payload["starts"])
+        except (TypeError, ValueError, OverflowError, MemoryError) as exc:
+            raise P1MBBError("P1 MBB artifact starts are not a valid array") from exc
+        if (
+            starts.dtype != np.dtype("<i8")
+            or starts.ndim != 2
+            or not starts.flags.c_contiguous
+            or starts.shape != expected_shape
+            or starts.size != expected_shape[0] * expected_shape[1]
+            or starts.nbytes != declared_bytes
+        ):
+            raise P1MBBError(
+                "P1 MBB artifact starts must be a C-contiguous little-endian "
+                f"int64 array of shape {expected_shape}"
+            )
+        starts = np.array(starts, dtype="<i8", copy=True, order="C")
         artifact = cls(
             unit=payload["unit"],
             support_id=payload["support_id"],
@@ -598,25 +678,75 @@ def save_p1_mbb_index_artifact(path: str | Path, artifact: P1MBBIndexArtifact) -
     return artifact.artifact_sha256
 
 
+def _inspect_index_archive(source: Path) -> tuple[zipfile.ZipInfo, zipfile.ZipInfo]:
+    """Inspect NPZ member declarations without extracting a potentially huge array."""
+    try:
+        with zipfile.ZipFile(source, mode="r") as archive:
+            infos = archive.infolist()
+            if len(infos) != 2 or {info.filename for info in infos} != {
+                "starts.npy",
+                "metadata.npy",
+            }:
+                raise P1MBBError("P1 MBB index artifact has unexpected archive members")
+            starts_info = next(info for info in infos if info.filename == "starts.npy")
+            metadata_info = next(info for info in infos if info.filename == "metadata.npy")
+            if starts_info.file_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
+                raise P1MBBError("P1 MBB starts member exceeds the file-size limit")
+            if metadata_info.file_size > _P1_INDEX_METADATA_MAX_BYTES:
+                raise P1MBBError("P1 MBB metadata member exceeds the file-size limit")
+            if starts_info.compress_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
+                raise P1MBBError("P1 MBB compressed starts member exceeds the file-size limit")
+            if metadata_info.compress_size > _P1_INDEX_METADATA_MAX_BYTES:
+                raise P1MBBError("P1 MBB compressed metadata member exceeds the file-size limit")
+            return starts_info, metadata_info
+    except P1MBBError:
+        raise
+    except (OSError, RuntimeError, ValueError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+        raise P1MBBError("P1 MBB index artifact archive is malformed") from exc
+
+
 def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
     """Load and verify a lossless P1 MBB start artifact without pickle."""
     source = Path(path)
     try:
         if source.stat().st_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
             raise P1MBBError("P1 MBB index artifact exceeds the file-size limit")
+        starts_info, metadata_info = _inspect_index_archive(source)
         with np.load(source, allow_pickle=False) as archive:
             if set(archive.files) != {"starts", "metadata"}:
                 raise P1MBBError("P1 MBB index artifact has unexpected archive fields")
-            starts = np.asarray(archive["starts"])
             metadata_bytes = np.asarray(archive["metadata"])
-        if metadata_bytes.dtype != np.dtype("uint8") or metadata_bytes.ndim != 1:
-            raise P1MBBError("P1 MBB metadata bytes are malformed")
-        metadata = json.loads(bytes(metadata_bytes).decode("utf-8"))
-        if not isinstance(metadata, Mapping):
-            raise P1MBBError("P1 MBB metadata must be an object")
+            if (
+                metadata_bytes.dtype != np.dtype("uint8")
+                or metadata_bytes.ndim != 1
+                or metadata_bytes.nbytes > _P1_INDEX_METADATA_MAX_BYTES
+            ):
+                raise P1MBBError("P1 MBB metadata bytes are malformed")
+            try:
+                metadata = json.loads(bytes(metadata_bytes).decode("utf-8"))
+            except (UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                raise P1MBBError("P1 MBB metadata JSON is malformed") from exc
+            if not isinstance(metadata, Mapping):
+                raise P1MBBError("P1 MBB metadata must be an object")
+            _, _, expected_shape, declared_bytes = _declared_index_layout(
+                metadata,
+                require_shape_fields=True,
+            )
+            # A valid .npy member has a small header in addition to the raw
+            # int64 payload.  Reject a declared huge member before np.load can
+            # decompress/materialize it, while retaining a generous header cap.
+            npy_header_cap = 64 * 1024
+            if starts_info.file_size < declared_bytes or starts_info.file_size > declared_bytes + npy_header_cap:
+                raise P1MBBError("P1 MBB starts member size contradicts its declared shape")
+            starts = np.asarray(archive["starts"])
         payload = dict(metadata)
         payload["starts"] = starts
-        return P1MBBIndexArtifact.from_dict(payload)
+        artifact = P1MBBIndexArtifact.from_dict(payload)
+        if artifact.starts.shape != expected_shape or artifact.starts.nbytes != declared_bytes:
+            raise P1MBBError("P1 MBB starts materialization contradicts its declared shape")
+        if metadata_info.file_size > _P1_INDEX_METADATA_MAX_BYTES:
+            raise P1MBBError("P1 MBB metadata member exceeds the file-size limit")
+        return artifact
     except P1MBBError:
         raise
     except (OSError, ValueError, TypeError, OverflowError, MemoryError, json.JSONDecodeError, UnicodeError) as exc:
