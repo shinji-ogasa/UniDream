@@ -30,7 +30,7 @@ DEFAULT_MANIFEST_PATH = (
 # Filled from the committed manifest after its canonical JSON digest is
 # calculated.  Keeping this independently pinned is what makes an edited
 # ``manifest_sha256`` field fail closed as well.
-REGISTERED_MANIFEST_SHA256 = "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc"
+REGISTERED_MANIFEST_SHA256 = "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485"
 REGISTERED_BASE_REVISION = "881e5e08e9b413b51b0a2faf5c49592ce13329d1"
 
 REQUIRED_TOP_LEVEL_FIELDS = (
@@ -41,6 +41,7 @@ REQUIRED_TOP_LEVEL_FIELDS = (
     "base_revision",
     "amends_manifest_sha256",
     "amendment_reason",
+    "amendment_history",
     "results_observed",
     "manifest_sha256",
     "critical_field_paths",
@@ -177,6 +178,14 @@ def validate_pinned_artifacts(
         raise P1PreregistrationError("cache-local metadata must remain audit-only")
     if "do not hide" not in str(v4_load.get("cache_local_frozen_difference_policy", "")):
         raise P1PreregistrationError("cache-local/frozen differences must be visible")
+    expected_v4_runtime_policy = {
+        "body_validation_policy": "the runner must call load_cache_v4 with all explicit feature, returns, availability, and frozen metadata paths, then verify content digests, schema digest, cache tag, and row counts before any S3 run",
+        "source_provenance_difference_policy": "a known source-provenance-only difference is recorded separately and permits the run only when body content/schema/cache-tag/row-count checks match; promotion requires an explicit disposition field",
+        "missing_unknown_mismatch_policy": "absent or unknown provenance, missing body, or any body content/schema/cache-tag/row-count mismatch blocks S3 before fitting or scoring",
+        "promotion_disposition_required": True,
+    }
+    if any(v4_load.get(field) != value for field, value in expected_v4_runtime_policy.items()):
+        raise P1PreregistrationError("v4 body/provenance runtime policy is immutable")
     required_echoes = {
         "v4_feature_path",
         "v4_returns_path",
@@ -237,11 +246,17 @@ def validate_pinned_artifacts(
         "gate",
         "support_id",
         "support_range",
+        "support_range_semantics",
         "support_role",
     }
     if set(comparisons.get("required_fields", [])) != expected_required_fields:
         raise P1PreregistrationError(
             "primary comparison required fields must include fixed support metadata"
+        )
+    expected_action_required_fields = ["action_bootstrap_replay_policy"]
+    if comparisons.get("action_required_fields") != expected_action_required_fields:
+        raise P1PreregistrationError(
+            "action comparison required fields are not pinned"
         )
     expected_support = {
         "S0": ("synthetic_validation", [90000, 100000]),
@@ -287,6 +302,135 @@ def validate_pinned_artifacts(
         raise P1PreregistrationError("primary comparison IDs/order are immutable")
     if any(row.get("horizon") != 4 or row.get("primary") is not True for row in primary_rows):
         raise P1PreregistrationError("primary comparisons must be fixed h4 records")
+    fixed_range_semantics = "zero-based [start,end) right-exclusive; end excluded"
+    s0_gate = (
+        "Holm-rank-adjusted direction-aware lower percentile <= 0 for every fixed block length; "
+        "positive-edge Holm rejection is false; never promote"
+    )
+    s1_mse_gate = "Holm-adjusted one-sided paired bootstrap p <= 0.05 and direction-aware point delta < 0"
+    s1_utility_gate = (
+        "all ten seed-level validation utility deltas > 0 and non-N/A; every seed on the identical "
+        "scored mask has mean realized same-state clairvoyant net utility/value strictly greater than "
+        "Ridge mean realized net utility/value; aggregate Holm-adjusted one-sided paired bootstrap "
+        "p <= 0.05 and favorable point delta > 0"
+    )
+    s2_ge_gate = (
+        "Holm-adjusted monotonic contrast p <= 0.05 and median paired contrast {pair} >= -1e-12"
+    )
+    s2_le_gate = (
+        "Holm-adjusted monotonic contrast p <= 0.05 and median paired contrast {pair} <= 1e-12"
+    )
+    s3_gate = "Holm-adjusted one-sided paired bootstrap p <= 0.05 and favorable point delta > 0"
+    expected_semantic_tuples = {
+        "S0__ridge__utility_vs_hold__cost_on": (
+            "S0__ridge__on", "S0__benchmark_hold__off", "paired_net_utility_delta_vs_hold", "on", "non_positive", s0_gate,
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S0__persistence__utility_vs_hold__cost_on": (
+            "S0__persistence_last_observed__on", "S0__benchmark_hold__off", "paired_net_utility_delta_vs_hold", "on", "non_positive", s0_gate,
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S1__ridge__mse_vs_zero__cost_off": (
+            "S1__ridge__off", "S1__zero_return__off", "mse_delta_vs_baseline", "off", "negative", s1_mse_gate,
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S1__ridge__utility_vs_hold__cost_on": (
+            "S1__ridge__on", "S1__benchmark_hold__off", "paired_net_utility_delta_vs_hold", "on", "positive", s1_utility_gate,
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__high_vs_medium__ridge__mse_skill__cost_off": (
+            "S2-high__ridge__off", "S2-medium__ridge__off", "forecast_mse_skill_vs_zero", "off", "high_ge_medium", s2_ge_gate.format(pair="high-medium"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__high_vs_medium__ridge__normalized_regret__cost_on": (
+            "S2-high__ridge__on", "S2-medium__ridge__on", "normalized_action_regret", "on", "high_le_medium", s2_le_gate.format(pair="high-medium"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__high_vs_medium__ridge__utility__cost_on": (
+            "S2-high__ridge__on", "S2-medium__ridge__on", "s2_timing_net_utility_delta", "on", "high_ge_medium", s2_ge_gate.format(pair="high-medium"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__high_vs_medium__ridge__agreement__cost_on": (
+            "S2-high__ridge__on", "S2-medium__ridge__on", "feasible_action_agreement", "on", "high_ge_medium", s2_ge_gate.format(pair="high-medium"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__high_vs_medium__logistic__log_loss__cost_off": (
+            "S2-high__logistic__off", "S2-medium__logistic__off", "log_loss", "off", "high_le_medium", s2_le_gate.format(pair="high-medium"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__medium_vs_low__ridge__mse_skill__cost_off": (
+            "S2-medium__ridge__off", "S2-low__ridge__off", "forecast_mse_skill_vs_zero", "off", "medium_ge_low", s2_ge_gate.format(pair="medium-low"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__medium_vs_low__ridge__normalized_regret__cost_on": (
+            "S2-medium__ridge__on", "S2-low__ridge__on", "normalized_action_regret", "on", "medium_le_low", s2_le_gate.format(pair="medium-low"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__medium_vs_low__ridge__utility__cost_on": (
+            "S2-medium__ridge__on", "S2-low__ridge__on", "s2_timing_net_utility_delta", "on", "medium_ge_low", s2_ge_gate.format(pair="medium-low"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__medium_vs_low__ridge__agreement__cost_on": (
+            "S2-medium__ridge__on", "S2-low__ridge__on", "feasible_action_agreement", "on", "medium_ge_low", s2_ge_gate.format(pair="medium-low"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S2__medium_vs_low__logistic__log_loss__cost_off": (
+            "S2-medium__logistic__off", "S2-low__logistic__off", "log_loss", "off", "medium_le_low", s2_le_gate.format(pair="medium-low"),
+            "synthetic_validation", [90000, 100000],
+        ),
+        "S3__injected_vs_control__ridge__mse_skill_did__cost_off": (
+            "S3-injected__ridge__off", "S3-control__ridge__off", "s3_mse_skill_difference_in_differences", "off", "positive", s3_gate,
+            "s3_validation", [104528, 139568],
+        ),
+        "S3__injected_vs_control__ridge__utility__cost_on": (
+            "S3-injected__ridge__on", "S3-control__ridge__on", "s3_timing_net_utility_difference_in_differences", "on", "positive", s3_gate,
+            "s3_validation", [104528, 139568],
+        ),
+    }
+    expected_action_ids = {
+        "S0__ridge__utility_vs_hold__cost_on",
+        "S0__persistence__utility_vs_hold__cost_on",
+        "S1__ridge__utility_vs_hold__cost_on",
+        "S2__high_vs_medium__ridge__normalized_regret__cost_on",
+        "S2__high_vs_medium__ridge__utility__cost_on",
+        "S2__high_vs_medium__ridge__agreement__cost_on",
+        "S2__medium_vs_low__ridge__normalized_regret__cost_on",
+        "S2__medium_vs_low__ridge__utility__cost_on",
+        "S2__medium_vs_low__ridge__agreement__cost_on",
+        "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
+        "S3__injected_vs_control__ridge__utility__cost_on",
+    }
+    expected_action_replay = (
+        "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; "
+        "never replay policy state over a resampled or nonchronological sequence"
+    )
+    for row in primary_rows:
+        comparison_id = row.get("comparison_id")
+        expected = expected_semantic_tuples.get(comparison_id)
+        if expected is None:
+            raise P1PreregistrationError("primary comparison semantic tuple is not registered")
+        actual = (
+            row.get("candidate_id"), row.get("baseline_id"), row.get("metric"),
+            row.get("cost_mode"), row.get("direction"), row.get("gate"),
+            row.get("support_id"), row.get("support_range"),
+        )
+        if actual != expected:
+            raise P1PreregistrationError(
+                f"primary comparison semantic tuple altered: {comparison_id}"
+            )
+        if row.get("support_range_semantics") != fixed_range_semantics:
+            raise P1PreregistrationError(
+                f"primary comparison range semantics altered: {comparison_id}"
+            )
+        if comparison_id in expected_action_ids:
+            if row.get("action_bootstrap_replay_policy") != expected_action_replay:
+                raise P1PreregistrationError(
+                    f"action bootstrap replay semantics altered: {comparison_id}"
+                )
+        elif "action_bootstrap_replay_policy" in row:
+            raise P1PreregistrationError(
+                f"forecast comparison cannot carry action replay semantics: {comparison_id}"
+            )
     try:
         trial_ids = {
             json.loads(line)["trial_id"]
@@ -312,7 +456,7 @@ def validate_pinned_artifacts(
     if s1_utility.get("metric") != "paired_net_utility_delta_vs_hold" or s1_utility.get("cost_mode") != "on" or s1_utility.get("direction") != "positive":
         raise P1PreregistrationError("S1 utility comparison metric is immutable")
     if s1_utility.get("gate") != (
-        "all ten seed-level validation utility deltas > 0 and non-N/A; every seed clairvoyant value > Ridge value; aggregate Holm-adjusted one-sided paired bootstrap p <= 0.05 and favorable point delta > 0"
+        "all ten seed-level validation utility deltas > 0 and non-N/A; every seed on the identical scored mask has mean realized same-state clairvoyant net utility/value strictly greater than Ridge mean realized net utility/value; aggregate Holm-adjusted one-sided paired bootstrap p <= 0.05 and favorable point delta > 0"
     ):
         raise P1PreregistrationError("S1 per-seed utility/clairvoyant gate is missing")
 
@@ -363,11 +507,24 @@ def validate_fixed_manifest(
     if manifest["base_revision"] != REGISTERED_BASE_REVISION:
         raise P1PreregistrationError("base_revision differs from registered origin/main")
     if manifest["amends_manifest_sha256"] != (
-        "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d"
+        "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc"
     ):
         raise P1PreregistrationError("amended manifest digest is not pinned")
-    if manifest["amendment_reason"] != "pre-execution independent audit":
+    if manifest["amendment_reason"] != "second pre-execution independent audit":
         raise P1PreregistrationError("amendment reason is not pinned")
+    if manifest["amendment_history"] != [
+        {
+            "manifest_sha256": "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d",
+            "reason": "pre-execution independent audit",
+            "results_observed": False,
+        },
+        {
+            "manifest_sha256": "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc",
+            "reason": "first pre-execution independent audit predecessor",
+            "results_observed": False,
+        },
+    ]:
+        raise P1PreregistrationError("amendment history is incomplete or altered")
     if manifest["results_observed"] is not False:
         raise P1PreregistrationError("preregistration must be validated before results")
     if not isinstance(manifest["critical_field_paths"], list):
@@ -425,6 +582,13 @@ def validate_fixed_manifest(
         "reset separately for model, seed, cost mode, and injected/control arm"
     ):
         raise P1PreregistrationError("split inventory reset/carry policy is immutable")
+    if common.get("index_range_contract") != (
+        "all numeric split_range, support_range, fit_prefix_range, prediction_range, "
+        "fit_raw_range, prediction_raw_range, and body index ranges are zero-based "
+        "[start,end) right-exclusive; end is excluded and the origin row is never "
+        "admitted to its fit prefix"
+    ):
+        raise P1PreregistrationError("index range/exclusive-end contract is immutable")
     learned_fit = _require_mapping(common, "learned_fit_contract")
     expected_learned_fit = {
         "train_mask": "context_eligible AND target_complete[h] AND target_end <= origin - purge_bars AND row < origin",
@@ -480,6 +644,14 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("cache-local metadata must remain audit-only")
     if "do not hide" not in str(v4_load.get("cache_local_frozen_difference_policy", "")):
         raise P1PreregistrationError("cache-local/frozen differences must be visible")
+    expected_v4_runtime_policy = {
+        "body_validation_policy": "the runner must call load_cache_v4 with all explicit feature, returns, availability, and frozen metadata paths, then verify content digests, schema digest, cache tag, and row counts before any S3 run",
+        "source_provenance_difference_policy": "a known source-provenance-only difference is recorded separately and permits the run only when body content/schema/cache-tag/row-count checks match; promotion requires an explicit disposition field",
+        "missing_unknown_mismatch_policy": "absent or unknown provenance, missing body, or any body content/schema/cache-tag/row-count mismatch blocks S3 before fitting or scoring",
+        "promotion_disposition_required": True,
+    }
+    if any(v4_load.get(field) != value for field, value in expected_v4_runtime_policy.items()):
+        raise P1PreregistrationError("v4 body/provenance runtime policy is immutable")
     if not {
         "v4_feature_path",
         "v4_returns_path",
@@ -608,12 +780,21 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("OOF development/validation batch roles are immutable")
     if oof.get("oof_development_origins") != [20000, 30000, 40000, 50000, 60000, 70000, 80000] or oof.get("validation_origin") != 90000:
         raise P1PreregistrationError("OOF development/validation origins are immutable")
+    if oof.get("min_history_rule") != (
+        "count rows satisfying the exact train_mask after context, target, purge, and row<origin filters; this is eligible train-mask row count, not raw prefix length; if count < 16384, that model/horizon/origin is N/A and cannot promote"
+    ):
+        raise P1PreregistrationError("minimum history must count eligible train rows")
+    if oof.get("range_semantics") != (
+        "all numeric ranges in this OOF contract are zero-based [start,end) right-exclusive; fit prefixes end before the origin and never include the origin row"
+    ):
+        raise P1PreregistrationError("OOF range semantics are immutable")
     if oof.get("primary_inferential_support") != {
         "support_id": "synthetic_validation",
         "split": "validation",
         "origin": 90000,
         "fit_prefix_range": [0, 90000],
         "prediction_range": [90000, 100000],
+        "range_semantics": "fit_prefix_range and prediction_range are zero-based [start,end) right-exclusive; origin 90000 is excluded from the fit prefix",
         "fit_rule": "one fit at origin 90000 using admissible prefix [0,90000) filtered by the train mask; score only the next validation interval [90000,100000)",
         "oof_development_role": "diagnostic_only",
         "outer_test_role": "report_only",
@@ -622,6 +803,7 @@ def validate_fixed_manifest(
     if oof.get("outer_report_operation") != {
         "origin": 100000,
         "fit_prefix_range": [0, 100000],
+        "range_semantics": "fit_prefix_range and prediction_range are zero-based [start,end) right-exclusive; origin 100000 is excluded from the fit prefix",
         "fit_rule": "after every threshold and manifest field is fixed, fit exactly once at origin 100000 on the admissible prefix [0,100000) with target_end <= origin - purge_bars and label row < origin",
         "prediction_range": [100000, 120000],
         "refit_origins": [],
@@ -764,6 +946,7 @@ def validate_fixed_manifest(
             "split": "validation",
             "fit_prefix_range": [0, 90000],
             "prediction_range": [90000, 100000],
+            "range_semantics": "fit_prefix_range and prediction_range are zero-based [start,end) right-exclusive; origin 90000 is excluded from the fit prefix",
             "origin": 90000,
             "role": "primary_inferential_gate",
         },
@@ -772,6 +955,7 @@ def validate_fixed_manifest(
             "split": "validation",
             "fit_raw_range": [52492, 104528],
             "prediction_range_raw": [104528, 139568],
+            "range_semantics": "fit_raw_range and prediction_range_raw are original zero-based [start,end) raw-body indices; validation origin 104528 is excluded from the fit prefix",
             "origin_raw": 104528,
             "role": "primary_inferential_gate",
         },
@@ -786,6 +970,7 @@ def validate_fixed_manifest(
         "s3_mse_skill_difference_in_differences": "skill(injected Ridge vs injected zero) - skill(control Ridge vs control zero), where skill(A vs B)=1-MSE(A)/MSE(B), on identical timestamps",
         "s3_timing_net_utility_difference_in_differences": "[Ridge-minus-independent-benchmark_hold_path net utility]_injected - [Ridge-minus-independent-benchmark_hold_path net utility]_control using only a common timestamp score mask; injected/control candidate inventories reset and carry independently, and local same-state hold is only for each candidate's regret/opportunity",
         "benchmark_hold_utility_delta": "candidate net utility minus an independent p_start=1, position=1, delta=0, cost-free benchmark hold on the same score mask",
+        "s1_clairvoyant_comparison": "for each S1 seed, compare mean realized net utility/value of the same-state clairvoyant and Ridge on the identical scored validation mask; require clairvoyant strictly greater, with no cumulative-path or mask mismatch",
         "s2_shared_randomness": "S2 high, medium, and low use identical base features, return-noise draws, sidecar gap masks, seeds, and row support; only beta changes",
     }
     if dict(_require_mapping(metrics, "primary_metric_formulas")) != expected_metric_formulas:
@@ -867,16 +1052,23 @@ def validate_fixed_manifest(
         "sensitivity_block_lengths": [8, 16, 32],
         "seed": 20260830,
         "forecast_primitive_grid": "the complete validation-split time-series row grid in original order; N/A/missing rows remain in place and are never compressed",
-        "action_primitive_grid": "one record per canonical non-overlapping complete four-bar scheduled decision block; no overlapping or incomplete block is a primitive",
+        "action_primitive_grid": "all structurally complete scheduled non-overlapping four-bar blocks inside the split, one record per block in original chronological order; outcome/forecast gaps remain false-mask N/A records and are never compressed",
+        "action_primitive_record_fields": "each action record stores candidate utility, independent benchmark_hold utility, same-state local hold utility, realized same-state clairvoyant utility, regret, opportunity, agreement, selected_delta, selected_position, previous_position, turnover, active_indicator, and fixed common masks produced by one chronological validation replay from p_start=1/countdown=0; selected_delta is the canonical chosen delta, selected_position is the clipped/deduplicated chosen position, previous_position is the policy state before the block, turnover=abs(selected_position-previous_position), and active_indicator=1 iff turnover>0",
+        "action_bootstrap_replay_policy": "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence",
+        "action_inventory_boundary_policy": "inventory and state are fixed inside each stored block record; bootstrap block boundaries and duplicate sampled records never carry or replay inventory state",
         "primitive_unit_for_L": "each moving-block length L is measured in the applicable primitive records, not compacted valid rows",
         "resampling_unit": "contiguous non-circular blocks within each seed/split primitive grid; same sampled indices for candidate and paired baseline",
         "non_circular_mbb": "require n >= L; for each replicate draw ceil(n/L) iid start integers uniformly from [0,n-L], concatenate each start:start+L range, and truncate to the first n primitive records; no circular wrap and no gap compression",
         "rng_seed_formula": "20260830 + 100000*unit_code + 1000*L + seed_ordinal",
+        "rng_lifecycle": "for each unit/support/seed/L create np.random.default_rng(derived_seed) exactly once, then draw all replicate starts in replicate order b=0..1999; do not reinitialize per replicate, arm, or comparison",
+        "replicate_order": "b=0,1,...,1999 in ascending order",
+        "quantile_method": "np.quantile(values, q, method='linear')",
         "rng_seed_ordinal": "synthetic uses the fixed seed-list ordinal 0..9; S3 uses ordinal 0",
         "index_reuse": "within a fixed unit/support/seed/L, reuse identical sampled primitive indices for every arm and comparison; seed derivation is independent of loop order",
         "paired_common_mask": "for every paired arm/comparison, use the fixed intersection eligible mask on the full primitive grid; non-common or N/A records stay present with false mask and are excluded only by metric masking",
         "paired_delta_formula": "d_i = candidate_i - baseline_i on the same primitive record; each replicate resamples the full primitive arrays and recomputes the declared metric before forming its paired contrast",
         "invalid_replicate_policy": "keep the fixed full-grid common eligible mask; sampled N/A records remain mask-out and are not dropped or compacted; N/A the entire comparison only when n<L, valid primitive count is zero, an arm's required metric is unavailable, or a denominator is zero/nonpositive",
+        "denominator_policy": "if any required comparison denominator is zero or nonpositive in a replicate or required arm, mark the entire comparison N/A/blocked; never repair, omit, or resample away the denominator failure",
         "seed_aggregation": "for synthetic comparisons, independently resample blocks within each seed and compute that seed's mean; aggregate the ten seed means with equal 1/10 weight, never row-count weighting; S3 is one timestamp stratum",
         "interval_formula": "two-sided percentile interval [quantile_0.025, quantile_0.975] for each fixed block length over exactly 2000 fixed-seed replicates; intervals are diagnostic only",
         "sensitivity_conservative_rule": "for each comparison, raw_p = max(p_block_length_8, p_block_length_16, p_block_length_32); use this intersection-union conservative p as the sole input to Holm; each block-length interval remains diagnostic",
@@ -949,7 +1141,7 @@ def validate_fixed_manifest(
         "agreement_per_seed_rule": "all ten S1 Ridge cost-on validation seed-level feasible-action agreement point estimates must be >= 0.90 and non-N/A",
         "utility_rule": "all ten S1 Ridge cost-on validation seed-level candidate-minus-independent-benchmark-hold utility deltas must be strictly > 0, and the aggregate must also pass Holm-adjusted one-sided p from conservative raw_p <= 0.05 with favorable point delta; cost-off is a paired diagnostic",
         "utility_per_seed_rule": "for every seed in common.seeds, validation utility delta > 0 on the fixed synthetic_validation support; any N/A or nonpositive seed fails promotion",
-        "clairvoyant_rule": "for every seed on the same synthetic_validation support, realized same-state clairvoyant action value must be strictly greater than the S1 Ridge validation action value; any N/A or non-strict comparison fails; this is an upper-bound sanity check, not a selection target",
+        "clairvoyant_rule": "for every seed on the identical synthetic_validation scored mask, mean realized same-state clairvoyant net utility/value must be strictly greater than the S1 Ridge validation mean realized net utility/value; any N/A, mask mismatch, or non-strict comparison fails; this is an upper-bound sanity check, not a selection target",
     }
     if dict(high_snr) != expected_high_snr:
         raise P1PreregistrationError("S1 per-seed recovery gate is immutable")
@@ -1000,6 +1192,8 @@ def validate_fixed_manifest(
         "epsilon shape (120512,)",
     ]:
         raise P1PreregistrationError("synthetic RNG draw order is immutable")
+    if synthetic.get("random_generator") != "np.random.default_rng(seed + 100).standard_normal" or synthetic.get("random_distribution") != "z0, every xi entry, every noise_features entry, and every epsilon entry are mutually independent iid standard normal N(0,1) draws" or synthetic.get("random_independence") != "z0, xi, noise_features, and epsilon are mutually independent; entries within each vector or matrix are iid" or synthetic.get("random_dtype") != "float64":
+        raise P1PreregistrationError("synthetic RNG distribution/dtype contract is immutable")
     if synthetic.get("raw_array_shapes") != {
         "z_raw": [120512],
         "xi": [120511],
@@ -1052,6 +1246,7 @@ def validate_fixed_manifest(
     if synthetic.get("outer_report_operation") != {
         "origin": 100000,
         "fit_prefix_range": [0, 100000],
+        "range_semantics": "fit_prefix_range and prediction_range are zero-based [start,end) right-exclusive; origin 100000 is excluded from the fit prefix",
         "fit_rule": "after every threshold and manifest field is fixed, fit exactly once at origin 100000 on the admissible prefix [0,100000) with target_end <= origin - purge_bars and label row < origin",
         "prediction_range": [100000, 120000],
         "refit_origins": [],
@@ -1147,6 +1342,7 @@ def validate_fixed_manifest(
         "origin_raw_index": 104528,
         "fit_raw_range": [52492, 104528],
         "prediction_raw_range": [104528, 139568],
+        "range_semantics": "fit_raw_range and prediction_raw_range are original zero-based [start,end) raw-body indices; validation origin 104528 is excluded from the fit prefix",
         "fit_rule": "one fixed fit at the validation boundary using only admissible pre-validation rows with target_end <= origin - purge_bars; no validation or outer target enters the fit",
         "refit_origins": [],
         "role": "primary_inferential_gate",
@@ -1158,7 +1354,7 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("S3 primary inferential operation is immutable")
     if s3.get("excluded_common_schedule_origin_raw_index") != 142492:
         raise P1PreregistrationError("S3 outer-boundary schedule exclusion is immutable")
-    if s3.get("outer_report_origin_raw_index") != 139568 or s3.get("outer_report_fit_raw_range") != [52492, 139568] or s3.get("outer_report_prediction_raw_range") != [139568, 173111] or s3.get("outer_report_refit_origins") != []:
+    if s3.get("outer_report_origin_raw_index") != 139568 or s3.get("outer_report_fit_raw_range") != [52492, 139568] or s3.get("outer_report_prediction_raw_range") != [139568, 173111] or s3.get("outer_report_refit_origins") != [] or s3.get("outer_report_range_semantics") != "outer_report_fit_raw_range and outer_report_prediction_raw_range are original zero-based [start,end) raw-body indices; outer origin 139568 is excluded from the fit prefix":
         raise P1PreregistrationError("S3 outer report operation is immutable")
     if s3.get("split_resolution", "").find("raw body thirds") == -1:
         raise P1PreregistrationError("S3 timestamp-aligned split rule is required")

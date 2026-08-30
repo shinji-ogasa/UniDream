@@ -51,6 +51,13 @@ class P1PreregistrationTests(unittest.TestCase):
         payload = _read_manifest()
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["status"], "preregistered")
+        self.assertEqual(
+            payload["amends_manifest_sha256"],
+            "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc",
+        )
+        self.assertEqual(payload["amendment_reason"], "second pre-execution independent audit")
+        self.assertEqual(len(payload["amendment_history"]), 2)
+        self.assertFalse(payload["results_observed"])
         self.assertEqual(payload["common"]["feature_columns"], [
             "open_ret", "high_ret", "low_ret", "close_ret", "vol_ret",
             "RSI_14", "macd", "macd_signal", "atr_norm_ret", "atr",
@@ -69,7 +76,12 @@ class P1PreregistrationTests(unittest.TestCase):
         with self.assertRaises(P1PreregistrationError):
             _review_manifest(missing)
 
-        for field in ("amends_manifest_sha256", "amendment_reason", "results_observed"):
+        for field in (
+            "amends_manifest_sha256",
+            "amendment_reason",
+            "amendment_history",
+            "results_observed",
+        ):
             missing = copy.deepcopy(base)
             del missing[field]
             with self.subTest(missing=field):
@@ -79,6 +91,7 @@ class P1PreregistrationTests(unittest.TestCase):
         mutations = {
             "amends_manifest_sha256": "wrong-prior-digest",
             "amendment_reason": "post-result revision",
+            "amendment_history": [],
             "results_observed": True,
             "common.target_end_formula": "target_end[t,h] = t + h",
             "common.sequence_context_bars": 32,
@@ -87,7 +100,10 @@ class P1PreregistrationTests(unittest.TestCase):
             "common.learned_fit_contract.feature_scaler": "global scaler",
             "common.split_end_rule": "allow target tails to cross split boundary",
             "common.evaluation_split_state_policy": "carry inventory across all splits",
+            "common.index_range_contract": "inclusive ranges",
             "common.oof.min_history_rows": 2048,
+            "common.oof.min_history_rule": "count raw prefix rows",
+            "common.oof.range_semantics": "inclusive end",
             "common.oof.origin_schedule.step": 512,
             "common.oof.primary_inferential_support.fit_prefix_range": [0, 89999],
             "common.oof.primary_inferential_support.prediction_range": [80000, 90000],
@@ -100,16 +116,25 @@ class P1PreregistrationTests(unittest.TestCase):
             "common.v4_load_contract.feature_path": "checkpoints/data_cache/other_features.parquet",
             "common.v4_load_contract.metadata_path": "checkpoints/data_cache/local_metadata.json",
             "common.v4_load_contract.require_explicit_paths": False,
+            "common.v4_load_contract.body_validation_policy": "trust cache directory",
+            "common.v4_load_contract.missing_unknown_mismatch_policy": "warn and continue",
             "common.v4_load_contract.known_cache_local_snapshot.source_provenance_digest": "wrong-revision",
             "common.runner_contract.outer_test_selection_allowed": True,
             "common.models.ridge.solver": "auto",
             "common.metrics.coverage_definitions.context_fraction": "context_complete / all_rows",
             "common.gates.block_bootstrap.invalid_replicate_policy": "drop N/A rows and compact",
+            "common.gates.block_bootstrap.action_primitive_record_fields": "candidate utility only",
+            "common.gates.block_bootstrap.action_bootstrap_replay_policy": "replay policy over bootstrap rows",
+            "common.gates.block_bootstrap.rng_lifecycle": "reseed each replicate",
+            "common.gates.block_bootstrap.quantile_method": "nearest",
+            "common.gates.block_bootstrap.denominator_policy": "omit failed rows",
             "common.gates.high_snr_recovery.utility_per_seed_rule": "aggregate only",
             "common.gates.high_snr_recovery.clairvoyant_rule": "clairvoyant is report-only",
             "synthetic_contract.n_rows": 20000,
             "synthetic_contract.raw_n_rows": 120000,
             "synthetic_contract.draw_order": ["epsilon first"],
+            "synthetic_contract.random_distribution": "not standard normal",
+            "synthetic_contract.random_dtype": "float32",
             "synthetic_contract.availability.gap_block_count": 100,
             "synthetic_contract.outer_report_operation.refit_origins": [110000],
             "common.metrics.primary_support_policy.s3.origin_raw": 104529,
@@ -153,12 +178,17 @@ class P1PreregistrationTests(unittest.TestCase):
         path = ROOT / ref["path"]
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
         required = set(ref["required_fields"])
-        self.assertTrue({"support_id", "support_range", "support_role"} <= required)
+        self.assertTrue({"support_id", "support_range", "support_range_semantics", "support_role"} <= required)
+        self.assertEqual(ref["action_required_fields"], ["action_bootstrap_replay_policy"])
         self.assertEqual(len(rows), ref["family_size"])
         self.assertEqual(exact_file_sha256(path), ref["sha256"])
         self.assertEqual(len({row["comparison_id"] for row in rows}), ref["family_size"])
         self.assertTrue(all(row["primary"] is True for row in rows))
         self.assertTrue(all(required <= set(row) for row in rows))
+        self.assertTrue(all(
+            row["support_range_semantics"] == "zero-based [start,end) right-exclusive; end excluded"
+            for row in rows
+        ))
         expected_support = {
             "S0": ("synthetic_validation", [90000, 100000]),
             "S1": ("synthetic_validation", [90000, 100000]),
@@ -172,6 +202,25 @@ class P1PreregistrationTests(unittest.TestCase):
         ))
         self.assertTrue(all(row["horizon"] == 4 for row in rows))
         self.assertTrue(all(row["cost_mode"] in {"off", "on"} for row in rows))
+        action_ids = {
+            "S0__ridge__utility_vs_hold__cost_on",
+            "S0__persistence__utility_vs_hold__cost_on",
+            "S1__ridge__utility_vs_hold__cost_on",
+            "S2__high_vs_medium__ridge__normalized_regret__cost_on",
+            "S2__high_vs_medium__ridge__utility__cost_on",
+            "S2__high_vs_medium__ridge__agreement__cost_on",
+            "S2__medium_vs_low__ridge__normalized_regret__cost_on",
+            "S2__medium_vs_low__ridge__utility__cost_on",
+            "S2__medium_vs_low__ridge__agreement__cost_on",
+            "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
+            "S3__injected_vs_control__ridge__utility__cost_on",
+        }
+        replay = "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence"
+        self.assertTrue(all(
+            ("action_bootstrap_replay_policy" in row) == (row["comparison_id"] in action_ids)
+            and (row.get("action_bootstrap_replay_policy") in {None, replay})
+            for row in rows
+        ))
         arm_path = ROOT / manifest["common"]["trial_registry"]["path"]
         arm_ids = {
             json.loads(line)["trial_id"]
@@ -185,6 +234,69 @@ class P1PreregistrationTests(unittest.TestCase):
             )
             for row in rows
         ))
+
+    def test_primary_comparison_semantic_tuples_are_exact(self) -> None:
+        manifest = _read_manifest()
+        path = ROOT / manifest["common"]["primary_comparison_registry"]["path"]
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        s0_gate = "Holm-rank-adjusted direction-aware lower percentile <= 0 for every fixed block length; positive-edge Holm rejection is false; never promote"
+        s1_mse_gate = "Holm-adjusted one-sided paired bootstrap p <= 0.05 and direction-aware point delta < 0"
+        s1_utility_gate = "all ten seed-level validation utility deltas > 0 and non-N/A; every seed on the identical scored mask has mean realized same-state clairvoyant net utility/value strictly greater than Ridge mean realized net utility/value; aggregate Holm-adjusted one-sided paired bootstrap p <= 0.05 and favorable point delta > 0"
+        s3_gate = "Holm-adjusted one-sided paired bootstrap p <= 0.05 and favorable point delta > 0"
+        ge_high = "Holm-adjusted monotonic contrast p <= 0.05 and median paired contrast high-medium >= -1e-12"
+        le_high = "Holm-adjusted monotonic contrast p <= 0.05 and median paired contrast high-medium <= 1e-12"
+        ge_low = "Holm-adjusted monotonic contrast p <= 0.05 and median paired contrast medium-low >= -1e-12"
+        le_low = "Holm-adjusted monotonic contrast p <= 0.05 and median paired contrast medium-low <= 1e-12"
+        expected = {
+            "S0__ridge__utility_vs_hold__cost_on": ("S0__ridge__on", "S0__benchmark_hold__off", "paired_net_utility_delta_vs_hold", "on", "non_positive", s0_gate, "synthetic_validation", [90000, 100000]),
+            "S0__persistence__utility_vs_hold__cost_on": ("S0__persistence_last_observed__on", "S0__benchmark_hold__off", "paired_net_utility_delta_vs_hold", "on", "non_positive", s0_gate, "synthetic_validation", [90000, 100000]),
+            "S1__ridge__mse_vs_zero__cost_off": ("S1__ridge__off", "S1__zero_return__off", "mse_delta_vs_baseline", "off", "negative", s1_mse_gate, "synthetic_validation", [90000, 100000]),
+            "S1__ridge__utility_vs_hold__cost_on": ("S1__ridge__on", "S1__benchmark_hold__off", "paired_net_utility_delta_vs_hold", "on", "positive", s1_utility_gate, "synthetic_validation", [90000, 100000]),
+            "S2__high_vs_medium__ridge__mse_skill__cost_off": ("S2-high__ridge__off", "S2-medium__ridge__off", "forecast_mse_skill_vs_zero", "off", "high_ge_medium", ge_high, "synthetic_validation", [90000, 100000]),
+            "S2__high_vs_medium__ridge__normalized_regret__cost_on": ("S2-high__ridge__on", "S2-medium__ridge__on", "normalized_action_regret", "on", "high_le_medium", le_high, "synthetic_validation", [90000, 100000]),
+            "S2__high_vs_medium__ridge__utility__cost_on": ("S2-high__ridge__on", "S2-medium__ridge__on", "s2_timing_net_utility_delta", "on", "high_ge_medium", ge_high, "synthetic_validation", [90000, 100000]),
+            "S2__high_vs_medium__ridge__agreement__cost_on": ("S2-high__ridge__on", "S2-medium__ridge__on", "feasible_action_agreement", "on", "high_ge_medium", ge_high, "synthetic_validation", [90000, 100000]),
+            "S2__high_vs_medium__logistic__log_loss__cost_off": ("S2-high__logistic__off", "S2-medium__logistic__off", "log_loss", "off", "high_le_medium", le_high, "synthetic_validation", [90000, 100000]),
+            "S2__medium_vs_low__ridge__mse_skill__cost_off": ("S2-medium__ridge__off", "S2-low__ridge__off", "forecast_mse_skill_vs_zero", "off", "medium_ge_low", ge_low, "synthetic_validation", [90000, 100000]),
+            "S2__medium_vs_low__ridge__normalized_regret__cost_on": ("S2-medium__ridge__on", "S2-low__ridge__on", "normalized_action_regret", "on", "medium_le_low", le_low, "synthetic_validation", [90000, 100000]),
+            "S2__medium_vs_low__ridge__utility__cost_on": ("S2-medium__ridge__on", "S2-low__ridge__on", "s2_timing_net_utility_delta", "on", "medium_ge_low", ge_low, "synthetic_validation", [90000, 100000]),
+            "S2__medium_vs_low__ridge__agreement__cost_on": ("S2-medium__ridge__on", "S2-low__ridge__on", "feasible_action_agreement", "on", "medium_ge_low", ge_low, "synthetic_validation", [90000, 100000]),
+            "S2__medium_vs_low__logistic__log_loss__cost_off": ("S2-medium__logistic__off", "S2-low__logistic__off", "log_loss", "off", "medium_le_low", le_low, "synthetic_validation", [90000, 100000]),
+            "S3__injected_vs_control__ridge__mse_skill_did__cost_off": ("S3-injected__ridge__off", "S3-control__ridge__off", "s3_mse_skill_difference_in_differences", "off", "positive", s3_gate, "s3_validation", [104528, 139568]),
+            "S3__injected_vs_control__ridge__utility__cost_on": ("S3-injected__ridge__on", "S3-control__ridge__on", "s3_timing_net_utility_difference_in_differences", "on", "positive", s3_gate, "s3_validation", [104528, 139568]),
+        }
+        self.assertEqual({row["comparison_id"] for row in rows}, set(expected))
+        for row in rows:
+            with self.subTest(comparison_id=row["comparison_id"]):
+                actual = (
+                    row["candidate_id"], row["baseline_id"], row["metric"],
+                    row["cost_mode"], row["direction"], row["gate"],
+                    row["support_id"], row["support_range"],
+                )
+                self.assertEqual(actual, expected[row["comparison_id"]])
+                self.assertEqual(
+                    row["support_range_semantics"],
+                    "zero-based [start,end) right-exclusive; end excluded",
+                )
+        action_ids = {
+            "S0__ridge__utility_vs_hold__cost_on",
+            "S0__persistence__utility_vs_hold__cost_on",
+            "S1__ridge__utility_vs_hold__cost_on",
+            "S2__high_vs_medium__ridge__normalized_regret__cost_on",
+            "S2__high_vs_medium__ridge__utility__cost_on",
+            "S2__high_vs_medium__ridge__agreement__cost_on",
+            "S2__medium_vs_low__ridge__normalized_regret__cost_on",
+            "S2__medium_vs_low__ridge__utility__cost_on",
+            "S2__medium_vs_low__ridge__agreement__cost_on",
+            "S3__injected_vs_control__ridge__mse_skill_did__cost_off",
+            "S3__injected_vs_control__ridge__utility__cost_on",
+        }
+        replay = "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence"
+        for row in rows:
+            if row["comparison_id"] in action_ids:
+                self.assertEqual(row["action_bootstrap_replay_policy"], replay)
+            else:
+                self.assertNotIn("action_bootstrap_replay_policy", row)
 
     def test_action_contract_is_canonical_and_separate_from_manifest_hash(self) -> None:
         manifest = _read_manifest()
@@ -218,6 +330,56 @@ class P1PreregistrationTests(unittest.TestCase):
         )
         self.assertTrue(all(off[key] == 0.0 for key in cost_only))
 
+    def test_dgp_and_action_bootstrap_lifecycle_are_pinned(self) -> None:
+        manifest = _read_manifest()
+        synthetic = manifest["synthetic_contract"]
+        self.assertEqual(
+            synthetic["random_generator"],
+            "np.random.default_rng(seed + 100).standard_normal",
+        )
+        self.assertEqual(
+            synthetic["random_distribution"],
+            "z0, every xi entry, every noise_features entry, and every epsilon entry are mutually independent iid standard normal N(0,1) draws",
+        )
+        self.assertEqual(
+            synthetic["random_independence"],
+            "z0, xi, noise_features, and epsilon are mutually independent; entries within each vector or matrix are iid",
+        )
+        self.assertEqual(synthetic["random_dtype"], "float64")
+        bootstrap = manifest["common"]["gates"]["block_bootstrap"]
+        self.assertEqual(
+            bootstrap["action_bootstrap_replay_policy"],
+            "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence",
+        )
+        self.assertIn("selected_delta", bootstrap["action_primitive_record_fields"])
+        self.assertIn("selected_position", bootstrap["action_primitive_record_fields"])
+        self.assertIn("previous_position", bootstrap["action_primitive_record_fields"])
+        self.assertIn("turnover", bootstrap["action_primitive_record_fields"])
+        self.assertIn("active_indicator", bootstrap["action_primitive_record_fields"])
+        self.assertEqual(
+            bootstrap["rng_lifecycle"],
+            "for each unit/support/seed/L create np.random.default_rng(derived_seed) exactly once, then draw all replicate starts in replicate order b=0..1999; do not reinitialize per replicate, arm, or comparison",
+        )
+        self.assertEqual(bootstrap["replicate_order"], "b=0,1,...,1999 in ascending order")
+        self.assertEqual(bootstrap["quantile_method"], "np.quantile(values, q, method='linear')")
+        self.assertIn("denominator is zero or nonpositive", bootstrap["denominator_policy"])
+
+    def test_ranges_history_and_v4_runtime_policy_are_pinned(self) -> None:
+        manifest = _read_manifest()
+        common = manifest["common"]
+        self.assertEqual(
+            common["index_range_contract"],
+            "all numeric split_range, support_range, fit_prefix_range, prediction_range, fit_raw_range, prediction_raw_range, and body index ranges are zero-based [start,end) right-exclusive; end is excluded and the origin row is never admitted to its fit prefix",
+        )
+        self.assertIn("eligible train-mask row count", common["oof"]["min_history_rule"])
+        self.assertIn("if count < 16384", common["oof"]["min_history_rule"])
+        self.assertIn("origin 90000 is excluded", common["oof"]["primary_inferential_support"]["range_semantics"])
+        v4 = common["v4_load_contract"]
+        self.assertIn("all explicit feature, returns, availability, and frozen metadata paths", v4["body_validation_policy"])
+        self.assertIn("content/schema/cache-tag/row-count", v4["source_provenance_difference_policy"])
+        self.assertIn("blocks S3", v4["missing_unknown_mismatch_policy"])
+        self.assertTrue(v4["promotion_disposition_required"])
+
     def test_s1_recovery_registry_requires_each_seed_and_clairvoyant_sanity(self) -> None:
         manifest = _read_manifest()
         path = ROOT / manifest["common"]["primary_comparison_registry"]["path"]
@@ -231,7 +393,10 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertEqual(row["support_id"], "synthetic_validation")
         self.assertEqual(row["support_range"], [90000, 100000])
         self.assertIn("all ten seed-level validation utility deltas > 0", row["gate"])
-        self.assertIn("every seed clairvoyant value > Ridge value", row["gate"])
+        self.assertIn(
+            "every seed on the identical scored mask has mean realized same-state clairvoyant net utility/value strictly greater than Ridge mean realized net utility/value",
+            row["gate"],
+        )
         high_snr = manifest["common"]["gates"]["high_snr_recovery"]
         self.assertIn("every seed", high_snr["utility_per_seed_rule"])
         self.assertIn("strictly greater", high_snr["clairvoyant_rule"])
@@ -278,7 +443,7 @@ class P1PreregistrationTests(unittest.TestCase):
 
     def test_production_loader_succeeds_and_freezes_pinned_manifest(self) -> None:
         manifest = load_fixed_manifest()
-        self.assertEqual(manifest["manifest_sha256"], "5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc")
+        self.assertEqual(manifest["manifest_sha256"], "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485")
         with self.assertRaises(TypeError):
             manifest["common"] = {}  # type: ignore[index]
 

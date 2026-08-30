@@ -1,9 +1,11 @@
 # P1 recovery preregistration protocol
 
 Status: preregistered, no experiment result is attached.  This document amends
-the earlier manifest digest
-`9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d` under the
-reason `pre-execution independent audit`; `results_observed=false` is fixed.
+the immediately preceding manifest digest
+`5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc` under the
+reason `second pre-execution independent audit`; `results_observed=false` is
+fixed.  The predecessor history retains the original pre-execution amendment
+digest `9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d`.
 
 The machine-readable source of truth is
 [`p1_recovery_prereg_manifest.json`](p1_recovery_prereg_manifest.json).  A
@@ -46,6 +48,9 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   AND row < origin`.  Fit `StandardScaler(with_mean=True,with_std=True)` on
   those rows only (`ddof=0`, zero-variance scale 1), then transform evaluation
   rows only; targets are never scaled and fixed baselines use no scaler.
+  `min_history_rows=16384` counts eligible rows satisfying this exact train
+  mask, not raw prefix rows; a model/horizon/origin with fewer rows is N/A and
+  cannot promote.
 - For every `h` in `{1,4,8,16}`, the target is exactly
   `y[t,h] = sum(return[t+1:t+h+1])` and its right-exclusive availability marker
   is `target_end[t,h] = t+h+1`.  The future bars must be contiguous, have
@@ -72,6 +77,9 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   prediction pass over `[100000,120000)`.  There is no refit at 110,000.  The
   outer pass is report-only and cannot tune, select, revise a threshold, or
   enter a primary comparison.
+  Every numeric `split_range`, `support_range`, `fit_prefix_range`, and
+  `prediction_range` is zero-based `[start,end)` with the end excluded; the
+  origin row is never included in its fit prefix.
 - For every diagnostic-development, primary-validation, and outer-report
   support, potential origins require the 64-bar history and the requested
   target/fill/outcome tail to end before that split's right-exclusive end.
@@ -135,6 +143,25 @@ block.  Hindsight/U0-path inventory and the U0 global dynamic-programming path
 are never fed into row scoring or policy state; U0 is a separate report-only
 upper bound.
 
+Action bootstrap never replays a policy over resampled rows.  First produce the
+full original validation action primitive grid once in chronological order:
+one record for every structurally complete, scheduled, non-overlapping h4
+block, including false-mask/N/A records for forecast or outcome gaps.  Each
+record stores candidate utility, independent benchmark-hold utility,
+same-state local hold utility, same-state clairvoyant utility, regret,
+opportunity, agreement, `selected_delta`, `selected_position`,
+`previous_position`, `turnover`, `active_indicator`, and fixed common masks
+from a single replay reset at `p_start=1`, countdown 0.  `selected_delta` is
+the canonical chosen delta, `selected_position` is the clipped/deduplicated
+chosen position, `previous_position` is the policy state before the block,
+`turnover=abs(selected_position-previous_position)`, and
+`active_indicator=1` iff turnover is positive.  Moving-block replicates
+resample record indices and recompute the declared means, sums, ratios, or DiD
+from those stored values; they do not carry inventory across bootstrap
+boundaries, duplicate records, or replay a nonchronological sequence.  Gap
+records remain in the original grid and are masked out rather than physically
+compressed.
+
 ## Fixed models and metrics
 
 The only model candidates are zero/persistence, Ridge, and logistic regression.
@@ -173,7 +200,10 @@ Generate raw arrays of length 120,512, then discard raw rows `[0,512)` so the
 output has 120,000 rows and 17 observed features.  Draw from
 `default_rng(seed+100)` in this exact order: one scalar `z0`, `xi` with shape
 `(120511,)`, C-order noise features with shape `(120512,16)`, then `epsilon`
-with shape `(120512,)`.  Set `z_raw[0]=z0` and
+with shape `(120512,)`.  Every `z0`, `xi` entry, `noise_features` entry, and
+`epsilon` entry is an independent float64 `N(0,1)` draw from
+`np.random.Generator.standard_normal`; the four draw groups are mutually
+independent and entries within each group are iid.  Set `z_raw[0]=z0` and
 `z_raw[k]=0.95*z_raw[k-1]+sqrt(1-0.95^2)*xi[k-1]`; set
 `r_raw[0]=0.001*epsilon[0]` (beta-independent sentinel) and
 `r_raw[k+1]=beta*z_raw[k]+0.001*epsilon[k+1]`.  The same base arrays are reused
@@ -202,8 +232,10 @@ feasible-action agreement of at least 90%, pooled Wilson lower bound at least
 conservative `raw_p` for validation-minus-independent-benchmark-hold h4 net utility under cost-on,
 with a favorable point delta `>0`.  In addition, every one of the ten fixed
 seed-level validation utility deltas must be strictly positive and non-N/A,
-and the realized same-state clairvoyant action value must be strictly greater
-than the Ridge validation action value for every seed on that same support.
+  and, for every seed on the identical scored mask, the mean realized
+  same-state clairvoyant net utility/value must be strictly greater than the
+  Ridge mean realized net utility/value.  A mask mismatch, N/A value, or
+  non-strict comparison fails.
 OOF-development scores are diagnostic-only;
 the single synthetic outer pass is report-only.  The realized-path clairvoyant
 is report-only and must remain above the validation decision on the same
@@ -351,10 +383,14 @@ measured in primitive records, not compacted valid rows.  Require `n >= L`; for
 each replicate draw `ceil(n/L)` iid integer starts uniformly from `[0,n-L]`,
 concatenate each non-circular range `start:start+L`, and truncate to the first
 `n` records.  Gaps are never crossed by physical compression.  The seed is
-`20260830 + 100000*unit_code + 1000*L + seed_ordinal`, with unit codes 1, 2,
-3, and 4 for synthetic forecast/action and S3 forecast/action respectively;
-synthetic seed ordinal is 0..9 and S3 ordinal is 0.  Within a fixed
-unit/support/seed/L, every arm and comparison reuses the same sampled indices.
+  `20260830 + 100000*unit_code + 1000*L + seed_ordinal`, with unit codes 1, 2,
+  3, and 4 for synthetic forecast/action and S3 forecast/action respectively;
+  synthetic seed ordinal is 0..9 and S3 ordinal is 0.  Within a fixed
+  unit/support/seed/L, create `default_rng(derived_seed)` exactly once, draw
+  all starts for replicates `b=0..1999` in ascending order, and reuse the same
+  sampled indices for every arm and comparison.  Do not reinitialize the RNG
+  per replicate, arm, or comparison.  Percentiles use
+  `np.quantile(values, q, method='linear')`.
 Each replicate resamples primitive arrays and recomputes the metric before
 forming its paired contrast: MSE is the mean squared-error difference, skill is
 `1-sum(SE_model)/sum(SE_zero)`, log loss/agreement are means, utility is the
@@ -363,8 +399,11 @@ level contrast after recomputing each level, normalized regret is
 `sum(regret)/sum(opportunity)` with a positive aggregate opportunity, and S3
 recomputes the injected/control skill and utility DID.  The shared common
 eligible mask stays a mask; sampled N/A records are not dropped or compacted.
-The entire comparison is N/A only when `n<L`, valid primitive count is zero,
-an arm's required metric is unavailable, or a denominator is zero/nonpositive.
+  The entire comparison is N/A only when `n<L`, valid primitive count is zero,
+  an arm's required metric is unavailable, or a denominator is zero/nonpositive.
+  If any required denominator is zero or nonpositive in a replicate or required
+  arm, the entire comparison is N/A/blocked; it is never repaired, omitted, or
+  removed by resampling.
 For each `L`, the two-sided percentile interval `[quantile_0.025,
 quantile_0.975]` is diagnostic.  The one-sided raw p-value used for inference is
 `raw_p=max(p_8,p_16,p_32)`, a conservative intersection-union rule; no gate is
@@ -377,7 +416,10 @@ cost modes).  The separate
 `p1_recovery_primary_comparisons.jsonl` enumerates the 16 executable paired
 comparisons; only its `primary=true` records define the multiplicity family.
 Every primary record contains its fixed `support_id`, right-exclusive
-`support_range`, and `support_role`; all 16 records point to the validation
+`support_range`, the exact `support_range_semantics` value `zero-based
+[start,end) right-exclusive; end excluded`, and `support_role`; action-capable
+records additionally carry the exact stored-record/no-replay
+`action_bootstrap_replay_policy`.  All 16 records point to the validation
 support for their scenario (synthetic `[90000,100000)`, S3 raw
 `[104528,139568)`).  OOF-development rows are diagnostic-only, and outer rows
 are report-only and never enter Holm or any gate.
@@ -455,6 +497,13 @@ load_cache_v4(
     metadata_path="docs/data_quality_v4_rebuild_2018_2024_metadata.json",
 )
 ```
+
+The runner must verify the loaded body against the frozen metadata's content
+digests, schema digest, cache tag, and row counts before fitting or scoring.
+Missing or unknown provenance, missing body files, or any mismatch blocks S3.
+If only the known cache-local source-provenance digest differs while all body,
+schema, cache-tag, and row-count checks match, the run may proceed but must
+record the difference and an explicit promotion disposition.
 
 The `cache_dir`/`cache_tag`-only default lookup is forbidden for S3.  The
 repository-frozen metadata is authoritative and its SHA-256 is pinned above;
