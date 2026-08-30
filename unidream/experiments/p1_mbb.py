@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import tempfile
 from typing import Any
 import zipfile
@@ -509,6 +510,11 @@ class P1MBBIndexArtifact:
 
     def materialize_indices(self) -> np.ndarray:
         """Materialize all indices in ``(replicate, n)`` C order on demand."""
+        materialized_bytes = self.replicates * self.n * np.dtype("<i8").itemsize
+        if materialized_bytes > _P1_INDEX_ARTIFACT_MAX_BYTES:
+            raise P1MBBError(
+                "all P1 MBB indices exceed the bounded materialization size"
+            )
         try:
             result = np.empty((self.replicates, self.n), dtype="<i8", order="C")
         except (MemoryError, OverflowError) as exc:
@@ -614,6 +620,8 @@ def build_p1_mbb_index_artifact(
     total_starts = P1_MBB_REPLICATES * count
     if total_starts > _P1_INDEX_ARTIFACT_MAX_STARTS:
         raise P1MBBError("P1 MBB start artifact exceeds its bounded size")
+    if total_starts * np.dtype("<i8").itemsize > _P1_INDEX_ARTIFACT_MAX_BYTES:
+        raise P1MBBError("P1 MBB start artifact exceeds its bounded byte count")
     try:
         rng = np.random.default_rng(derived_seed)
         starts = np.empty((P1_MBB_REPLICATES, count), dtype="<i8", order="C")
@@ -678,7 +686,7 @@ def save_p1_mbb_index_artifact(path: str | Path, artifact: P1MBBIndexArtifact) -
     return artifact.artifact_sha256
 
 
-def _inspect_index_archive(source: Path) -> tuple[zipfile.ZipInfo, zipfile.ZipInfo]:
+def _inspect_index_archive(source: Any) -> tuple[zipfile.ZipInfo, zipfile.ZipInfo]:
     """Inspect NPZ member declarations without extracting a potentially huge array."""
     try:
         with zipfile.ZipFile(source, mode="r") as archive:
@@ -705,14 +713,76 @@ def _inspect_index_archive(source: Path) -> tuple[zipfile.ZipInfo, zipfile.ZipIn
         raise P1MBBError("P1 MBB index artifact archive is malformed") from exc
 
 
+def _open_regular_index_artifact(source: Path) -> tuple[Any, int, tuple[Any, ...]]:
+    """Open one regular inode, rejecting links and path races before parsing."""
+    try:
+        link_stat = source.lstat()
+    except (OSError, ValueError) as exc:
+        raise P1MBBError(f"could not stat P1 MBB index artifact {source}") from exc
+    if not stat.S_ISREG(link_stat.st_mode):
+        raise P1MBBError("P1 MBB index artifact must be a regular file, not a link/device/pipe")
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    non_blocking = getattr(os, "O_NONBLOCK", 0)
+    descriptor = -1
+    handle: Any = None
+    try:
+        descriptor = os.open(source, os.O_RDONLY | no_follow | non_blocking)
+        handle = os.fdopen(descriptor, mode="rb", closefd=True)
+        descriptor = -1
+        opened_stat = os.fstat(handle.fileno())
+    except (OSError, ValueError) as exc:
+        if handle is not None:
+            try:
+                handle.close()
+            except OSError:
+                pass
+        elif descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        raise P1MBBError(f"could not open P1 MBB index artifact {source}") from exc
+    if not stat.S_ISREG(opened_stat.st_mode):
+        handle.close()
+        raise P1MBBError("P1 MBB index artifact must remain a regular file")
+    signature = (
+        opened_stat.st_dev,
+        opened_stat.st_ino,
+        opened_stat.st_size,
+        opened_stat.st_mtime_ns,
+        opened_stat.st_ctime_ns,
+    )
+    return handle, int(opened_stat.st_size), signature
+
+
+def _assert_index_artifact_unchanged(handle: Any, signature: tuple[Any, ...]) -> None:
+    try:
+        current = os.fstat(handle.fileno())
+    except (OSError, ValueError) as exc:
+        raise P1MBBError("P1 MBB index artifact disappeared during parsing") from exc
+    current_signature = (
+        current.st_dev,
+        current.st_ino,
+        current.st_size,
+        current.st_mtime_ns,
+        current.st_ctime_ns,
+    )
+    if current_signature != signature:
+        raise P1MBBError("P1 MBB index artifact changed during parsing")
+
+
 def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
     """Load and verify a lossless P1 MBB start artifact without pickle."""
     source = Path(path)
+    handle: Any = None
     try:
-        if source.stat().st_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
+        handle, source_size, source_signature = _open_regular_index_artifact(source)
+        if source_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
             raise P1MBBError("P1 MBB index artifact exceeds the file-size limit")
-        starts_info, metadata_info = _inspect_index_archive(source)
-        with np.load(source, allow_pickle=False) as archive:
+        starts_info, metadata_info = _inspect_index_archive(handle)
+        _assert_index_artifact_unchanged(handle, source_signature)
+        handle.seek(0)
+        with np.load(handle, allow_pickle=False) as archive:
             if set(archive.files) != {"starts", "metadata"}:
                 raise P1MBBError("P1 MBB index artifact has unexpected archive fields")
             metadata_bytes = np.asarray(archive["metadata"])
@@ -738,7 +808,9 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
             npy_header_cap = 64 * 1024
             if starts_info.file_size < declared_bytes or starts_info.file_size > declared_bytes + npy_header_cap:
                 raise P1MBBError("P1 MBB starts member size contradicts its declared shape")
+            _assert_index_artifact_unchanged(handle, source_signature)
             starts = np.asarray(archive["starts"])
+            _assert_index_artifact_unchanged(handle, source_signature)
         payload = dict(metadata)
         payload["starts"] = starts
         artifact = P1MBBIndexArtifact.from_dict(payload)
@@ -749,8 +821,14 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
         return artifact
     except P1MBBError:
         raise
-    except (OSError, ValueError, TypeError, OverflowError, MemoryError, json.JSONDecodeError, UnicodeError) as exc:
+    except (OSError, ValueError, TypeError, OverflowError, MemoryError, EOFError, json.JSONDecodeError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
         raise P1MBBError(f"could not load P1 MBB index artifact {source}") from exc
+    finally:
+        if handle is not None:
+            try:
+                handle.close()
+            except OSError:
+                pass
 
 
 def _strict_float64_vector(value: Any, *, name: str, n: int) -> np.ndarray:

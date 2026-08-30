@@ -5,6 +5,8 @@ import tempfile
 from pathlib import Path
 import json
 import unittest
+import warnings
+import zipfile
 
 import numpy as np
 
@@ -326,6 +328,58 @@ class P1ExactMBBTests(unittest.TestCase):
             with self.assertRaises(P1MBBError):
                 load_p1_mbb_index_artifact(contradictory)
 
+            metadata_object = np.frombuffer(
+                json.dumps(artifact.metadata(), sort_keys=True).encode("utf-8"),
+                dtype=np.uint8,
+            )
+            bad_metadata_dtype = directory_path / "bad-metadata-dtype.npz"
+            np.savez_compressed(
+                bad_metadata_dtype,
+                starts=artifact.starts,
+                metadata=metadata_object.astype("<f8"),
+            )
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(bad_metadata_dtype)
+            bad_metadata_shape = directory_path / "bad-metadata-shape.npz"
+            np.savez_compressed(
+                bad_metadata_shape,
+                starts=artifact.starts,
+                metadata=metadata_object.reshape(1, -1),
+            )
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(bad_metadata_shape)
+            bad_fortran = directory_path / "bad-fortran.npz"
+            np.savez_compressed(
+                bad_fortran,
+                starts=np.asfortranarray(artifact.starts),
+                metadata=metadata_object,
+            )
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(bad_fortran)
+            bad_members = directory_path / "bad-members.npz"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                with zipfile.ZipFile(bad_members, mode="w") as archive:
+                    archive.writestr("starts.npy", b"duplicate-a")
+                    archive.writestr("starts.npy", b"duplicate-b")
+                    archive.writestr("metadata.npy", b"metadata")
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(bad_members)
+            bad_path_member = directory_path / "bad-path-member.npz"
+            with zipfile.ZipFile(bad_path_member, mode="w") as archive:
+                archive.writestr("../starts.npy", b"starts")
+                archive.writestr("metadata.npy", b"metadata")
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(bad_path_member)
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(directory_path)
+            valid_path = directory_path / "valid.npz"
+            save_p1_mbb_index_artifact(valid_path, artifact)
+            symlink = directory_path / "indices-link.npz"
+            symlink.symlink_to(valid_path)
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(symlink)
+
     def test_sensitivity_uses_all_fixed_lengths_and_conservative_raw_p(self) -> None:
         n = 35
         candidate = np.arange(n, dtype="<f8")
@@ -578,6 +632,33 @@ class P1ExactMBBTests(unittest.TestCase):
                 candidate_se=ones,
                 baseline_se=ones,
                 reducer=lambda values: float(np.mean(values)),
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "mse_delta",
+                artifact=artifact,
+                mask=mask,
+                direction="positive",
+                candidate_se=ones,
+                baseline_se=ones,
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "skill",
+                artifact=artifact,
+                mask=mask,
+                direction="negative",
+                model_se=ones,
+                zero_se=ones,
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "normalized_regret",
+                artifact=artifact,
+                mask=mask,
+                direction="positive",
+                regret=ones,
+                opportunity=ones,
             )
         with self.assertRaises(P1MBBError):
             bootstrap_p1_metric(
