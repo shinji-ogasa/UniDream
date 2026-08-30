@@ -130,13 +130,21 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             schema_sha256=schema_sha256,
             content_sha256=content_sha256,
         )
-        with self.assertRaisesRegex(ActionPrimitiveContractError, "payload SHA-256 is required"):
-            validate_action_primitive_records(
-                records,
-                schema=schema,
-                expected_schema_sha256=schema_sha256,
-                expected_content_sha256=content_sha256,
-            )
+        expected_hashes = {
+            "expected_schema_sha256": schema_sha256,
+            "expected_content_sha256": content_sha256,
+            "expected_payload_sha256": payload_sha256,
+        }
+        for missing_field in expected_hashes:
+            with self.subTest(missing_field=missing_field):
+                omitted = dict(expected_hashes)
+                omitted.pop(missing_field)
+                with self.assertRaisesRegex(ActionPrimitiveContractError, "is required"):
+                    validate_action_primitive_records(
+                        records,
+                        schema=schema,
+                        **omitted,
+                    )
         with self.assertRaisesRegex(ActionPrimitiveContractError, "schema mapping is required"):
             validate_action_primitive_records(
                 records,
