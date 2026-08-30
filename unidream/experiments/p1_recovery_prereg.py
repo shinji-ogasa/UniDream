@@ -15,6 +15,18 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from .action_primitives import (
+    ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH,
+    ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256,
+    ACTION_PRIMITIVE_HASH_FIELDS,
+    ACTION_PRIMITIVE_INDEX_FIELDS,
+    ACTION_PRIMITIVE_MASK_FIELDS,
+    ACTION_PRIMITIVE_RECORD_FIELDS,
+    ACTION_PRIMITIVE_STRING_ARM_FIELDS,
+    ACTION_PRIMITIVE_VALUE_FIELDS,
+    canonical_action_primitive_schema_sha256,
+)
+
 
 class P1PreregistrationError(ValueError):
     """Raised when a P1 preregistration is missing or has been altered."""
@@ -30,8 +42,15 @@ DEFAULT_MANIFEST_PATH = (
 # Filled from the committed manifest after its canonical JSON digest is
 # calculated.  Keeping this independently pinned is what makes an edited
 # ``manifest_sha256`` field fail closed as well.
-REGISTERED_MANIFEST_SHA256 = "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481"
+REGISTERED_MANIFEST_SHA256 = "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4"
 REGISTERED_BASE_REVISION = "881e5e08e9b413b51b0a2faf5c49592ce13329d1"
+
+P1_V4_RUNTIME_VALIDATION_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_p1_v4_runtime_inputs"
+)
+V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_v4_runtime_inputs"
+)
 
 REQUIRED_TOP_LEVEL_FIELDS = (
     "manifest_id",
@@ -183,7 +202,9 @@ def validate_pinned_artifacts(
         "source_provenance_difference_policy": "a known source-provenance-only difference is recorded separately and permits the run only when body content/schema/cache-tag/row-count checks match; promotion requires an explicit disposition field",
         "missing_unknown_mismatch_policy": "absent or unknown provenance, missing body, or any body content/schema/cache-tag/row-count mismatch blocks S3 before fitting or scoring",
         "promotion_disposition_required": True,
-        "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        "runtime_validation_entrypoint": P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+        "runtime_body_validator_entrypoint": V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT,
+        "runtime_authentication_policy": "production P1 entrypoint must call load_fixed_manifest first, then delegate the authenticated frozen manifest to the body validator; caller mappings and forged manifest_sha256/results_observed/frozen digests are rejected before body validation",
         "runtime_validation_required_before_fit_or_score": True,
         "runtime_path_override_policy": "path_overrides may replace the four explicit body paths only as a complete set; cache_dir/cache_tag-only lookup is forbidden",
         "runtime_disposition_fields": ["status", "reason", "body_match", "source_provenance_match"],
@@ -191,6 +212,29 @@ def validate_pinned_artifacts(
     }
     if any(v4_load.get(field) != value for field, value in expected_v4_runtime_policy.items()):
         raise P1PreregistrationError("v4 body/provenance runtime policy is immutable")
+    action_schema_ref = _require_mapping(v4_load, "action_primitive_schema_reference")
+    if action_schema_ref.get("path") != ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH:
+        raise P1PreregistrationError("external action primitive schema path is immutable")
+    schema_sha256 = action_schema_ref.get("sha256")
+    if schema_sha256 != ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256:
+        raise P1PreregistrationError("external action primitive schema hash must be pinned")
+    schema_path = _artifact_path(root_path, str(action_schema_ref.get("path", "")))
+    try:
+        schema_payload = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise P1PreregistrationError("could not parse external action primitive schema") from exc
+    if not isinstance(schema_payload, Mapping):
+        raise P1PreregistrationError("external action primitive schema must be an object")
+    try:
+        actual_schema_sha256 = canonical_action_primitive_schema_sha256(schema_payload)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise P1PreregistrationError("external action primitive schema is not canonical JSON") from exc
+    if actual_schema_sha256 != schema_sha256:
+        raise P1PreregistrationError("external action primitive schema hash mismatch")
+    if schema_payload.get("record_fields") != list(ACTION_PRIMITIVE_RECORD_FIELDS):
+        raise P1PreregistrationError("external action primitive schema fields are not canonical")
+    if schema_payload.get("hash_fields") != list(ACTION_PRIMITIVE_HASH_FIELDS):
+        raise P1PreregistrationError("external action primitive schema hash fields are not canonical")
     required_echoes = {
         "v4_feature_path",
         "v4_returns_path",
@@ -264,11 +308,36 @@ def validate_pinned_artifacts(
         raise P1PreregistrationError(
             "primary comparison required fields must include fixed support metadata"
         )
-    expected_action_required_fields = ["action_bootstrap_replay_policy"]
+    expected_action_required_fields = [
+        "action_bootstrap_replay_policy",
+        "action_primitive_hash_fields",
+    ]
     if comparisons.get("action_required_fields") != expected_action_required_fields:
         raise P1PreregistrationError(
             "action comparison required fields are not pinned"
         )
+    action_comparison_ids = {
+        "S0__ridge__utility_vs_hold__cost_on",
+        "S0__persistence__utility_vs_hold__cost_on",
+        "S1__ridge__utility_vs_hold__cost_on",
+        "S2__high_vs_medium__ridge__normalized_regret__cost_on",
+        "S2__high_vs_medium__ridge__utility__cost_on",
+        "S2__high_vs_medium__ridge__agreement__cost_on",
+        "S2__medium_vs_low__ridge__normalized_regret__cost_on",
+        "S2__medium_vs_low__ridge__utility__cost_on",
+        "S2__medium_vs_low__ridge__agreement__cost_on",
+        "S3__injected_vs_control__ridge__utility__cost_on",
+    }
+    for row in primary_rows:
+        if row.get("comparison_id") in action_comparison_ids:
+            if row.get("action_primitive_hash_fields") != list(ACTION_PRIMITIVE_HASH_FIELDS):
+                raise P1PreregistrationError(
+                    "action comparisons must require all primitive hash echoes"
+                )
+        elif "action_primitive_hash_fields" in row:
+            raise P1PreregistrationError(
+                "forecast-only comparisons must not carry action primitive fields"
+            )
     expected_support = {
         "S0": ("synthetic_validation", [90000, 100000]),
         "S1": ("synthetic_validation", [90000, 100000]),
@@ -517,10 +586,10 @@ def validate_fixed_manifest(
     if manifest["base_revision"] != REGISTERED_BASE_REVISION:
         raise P1PreregistrationError("base_revision differs from registered origin/main")
     if manifest["amends_manifest_sha256"] != (
-        "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485"
+        "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481"
     ):
         raise P1PreregistrationError("amended manifest digest is not pinned")
-    if manifest["amendment_reason"] != "third pre-execution independent audit":
+    if manifest["amendment_reason"] != "fourth pre-execution independent audit":
         raise P1PreregistrationError("amendment reason is not pinned")
     if manifest["amendment_history"] != [
         {
@@ -536,6 +605,11 @@ def validate_fixed_manifest(
         {
             "manifest_sha256": "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485",
             "reason": "second pre-execution independent audit predecessor",
+            "results_observed": False,
+        },
+        {
+            "manifest_sha256": "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481",
+            "reason": "third pre-execution independent audit",
             "results_observed": False,
         },
     ]:
@@ -664,7 +738,9 @@ def validate_fixed_manifest(
         "source_provenance_difference_policy": "a known source-provenance-only difference is recorded separately and permits the run only when body content/schema/cache-tag/row-count checks match; promotion requires an explicit disposition field",
         "missing_unknown_mismatch_policy": "absent or unknown provenance, missing body, or any body content/schema/cache-tag/row-count mismatch blocks S3 before fitting or scoring",
         "promotion_disposition_required": True,
-        "runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        "runtime_validation_entrypoint": P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+        "runtime_body_validator_entrypoint": V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT,
+        "runtime_authentication_policy": "production P1 entrypoint must call load_fixed_manifest first, then delegate the authenticated frozen manifest to the body validator; caller mappings and forged manifest_sha256/results_observed/frozen digests are rejected before body validation",
         "runtime_validation_required_before_fit_or_score": True,
         "runtime_path_override_policy": "path_overrides may replace the four explicit body paths only as a complete set; cache_dir/cache_tag-only lookup is forbidden",
         "runtime_disposition_fields": ["status", "reason", "body_match", "source_provenance_match"],
@@ -672,6 +748,14 @@ def validate_fixed_manifest(
     }
     if any(v4_load.get(field) != value for field, value in expected_v4_runtime_policy.items()):
         raise P1PreregistrationError("v4 body/provenance runtime policy is immutable")
+    action_schema_ref = _require_mapping(v4_load, "action_primitive_schema_reference")
+    expected_schema_ref = {
+        "path": ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH,
+        "sha256": ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256,
+        "hash_method": "SHA-256 of canonical UTF-8 JSON with ensure_ascii=false, sort_keys=true, separators=(',',':'), allow_nan=false; external schema is authoritative for primitive hashes",
+    }
+    if dict(action_schema_ref) != expected_schema_ref:
+        raise P1PreregistrationError("external action primitive schema reference is immutable")
     if not {
         "v4_feature_path",
         "v4_returns_path",
@@ -844,8 +928,10 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("OOF split order is immutable")
     if oof.get("train_window_rows") is not None or oof.get("train_window_rule") != "expanding eligible prefix with no cap":
         raise P1PreregistrationError("OOF train-window contract is immutable")
-    if oof.get("target_mask_rule") != "all target bars t+1..t+h must have spot_bar_observed=true, a finite return, and contiguous 15m timestamps; future funding/mark masks do not invalidate a return label":
-        raise P1PreregistrationError("target label mask must remain Spot-only")
+    if oof.get("target_mask_rule") != (
+        "reference common.availability.target_window_rule exactly: target_complete[t,h] requires decision row t, target bars t+1..t+h, and every h consecutive 15m edge t->t+1 through t+h-1->t+h; edge t+h->t+h+1 is not required; returns and spot masks apply only to t+1..t+h, funding/mark masks do not invalidate a return label, and target_end=t+h+1 is exclusive"
+    ):
+        raise P1PreregistrationError("target label mask must reference the canonical availability rule")
     availability = _require_mapping(common, "availability")
     expected_availability = {
         "required_columns": [
@@ -877,11 +963,17 @@ def validate_fixed_manifest(
         "outer_test_rows": "report-only; never tune, select, or revise thresholds",
         "post_output_tuning_allowed": False,
         "missing_artifact_policy": "fail closed with N/A/blocked status",
-        "v4_runtime_validation_entrypoint": "unidream.experiments.runtime.validate_v4_runtime_inputs",
+        "v4_runtime_validation_entrypoint": P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+        "v4_runtime_body_validator_entrypoint": V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT,
+        "v4_runtime_authentication_required": "load_fixed_manifest must run first and its canonical/pinned digest, critical fields, and results_observed=false must be authoritative; only then may the body validator run",
         "v4_runtime_validation_required_before_fit_or_score": True,
         "cost_contract_consistency": "optimizer, teacher, student replay, U0, Q, and Backtest must all verify the mode-specific contract hash before scoring; a missing or mismatched hash fails closed",
         "inventory_consistency": "agreement and regret use each forecast policy's own carried p_{t-1}; U0/global hindsight inventory cannot enter row scoring or update policy state",
         "unknown_or_overridden_field_policy": "reject before fitting",
+        "generic_train_app_policy": "unidream.experiments.train_app.run_training_app is the legacy generic WM->BC->AC application and is not a P1 research runner; a P1 runner is blocked unless it enters through v4_runtime_validation_entrypoint and uses the authenticated wrapper",
+        "action_primitive_execution_status": "blocked_not_implemented",
+        "action_primitive_start_condition": "runner cannot start action scoring or moving-block bootstrap until the canonical action primitive producer and P1-specific MBB are separately implemented and validated; the existing generic MBB is forbidden",
+        "required_action_primitive_hash_fields": ["action_primitive_payload_sha256", "action_primitive_schema_sha256", "action_primitive_content_sha256"],
     }
     if any(runner.get(field) != value for field, value in expected_runner_fields.items()):
         raise P1PreregistrationError("runner fail-closed contract is immutable")
@@ -1078,6 +1170,11 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("primary comparison registry path is immutable")
     if comparisons.get("family_size") != 16:
         raise P1PreregistrationError("primary comparison family size is immutable")
+    if comparisons.get("action_required_fields") != [
+        "action_bootstrap_replay_policy",
+        "action_primitive_hash_fields",
+    ]:
+        raise P1PreregistrationError("action comparison hash echo fields are immutable")
     comparison_hash = comparisons.get("sha256")
     if not isinstance(comparison_hash, str) or (
         comparison_hash == "TO_BE_COMPUTED" and not allow_pending_artifact_hashes
@@ -1091,19 +1188,42 @@ def validate_fixed_manifest(
         "sensitivity_block_lengths": [8, 16, 32],
         "seed": 20260830,
         "forecast_primitive_grid": "the complete validation-split time-series row grid in original order; N/A/missing rows remain in place and are never compressed",
-        "action_primitive_grid": "all structurally complete scheduled non-overlapping four-bar blocks inside the split, one record per block in original chronological order; split-local scheduled starts are 0,4,... from canonical complete_decision_starts; outcome/forecast gaps remain false-mask N/A records and are never compressed",
-        "action_primitive_record_fields": "each action record stores primitive_index, decision_index, fill_index, end_index, previous_position, selected_delta, selected_position, candidate_utility, benchmark_hold_utility, same_state_local_hold_utility, clairvoyant_utility, regret, opportunity, agreement, turnover, active_indicator, origin_eligible_mask, forecast_finite_mask, fill_complete_mask, outcome_complete_mask, scored_action_mask, scenario_id, seed, split_id, support_id, model_id, cost_mode, and cost_contract_hash; selected_delta is the canonical chosen delta, selected_position is the clipped/deduplicated chosen position, previous_position is the policy state before the block, turnover=abs(selected_position-previous_position), and active_indicator=1 iff turnover>0",
+        "action_primitive_grid": "all structurally complete scheduled non-overlapping four-bar blocks inside the split, one record per block in original chronological order; split-local scheduled starts are 0,4,... from canonical complete_decision_starts; outcome/forecast gaps remain false-mask N/A records and are never compressed; selected_delta is the canonical chosen delta, selected_position is the clipped/deduplicated chosen position, previous_position is policy state before the block, turnover=abs(selected_position-previous_position), and active_indicator=1 iff turnover>0",
+        "action_primitive_record_fields": list(ACTION_PRIMITIVE_RECORD_FIELDS),
         "action_primitive_schema": {
             "schedule_rule": "split-local scheduled starts are 0,4,... from canonical complete_decision_starts; global decision index = support_start + local decision index; one record per scheduled non-overlapping four-bar block in original order",
-            "index_fields": ["primitive_index", "decision_index", "fill_index", "end_index"],
+            "record_fields": list(ACTION_PRIMITIVE_RECORD_FIELDS),
+            "index_fields": list(ACTION_PRIMITIVE_INDEX_FIELDS),
             "index_dtype": "int64",
-            "value_fields": ["previous_position", "selected_delta", "selected_position", "candidate_utility", "benchmark_hold_utility", "same_state_local_hold_utility", "clairvoyant_utility", "regret", "opportunity", "agreement", "turnover", "active_indicator"],
+            "value_fields": list(ACTION_PRIMITIVE_VALUE_FIELDS),
             "value_dtype": "float64",
-            "mask_fields": ["origin_eligible_mask", "forecast_finite_mask", "fill_complete_mask", "outcome_complete_mask", "scored_action_mask", "common_mask"],
+            "mask_fields": list(ACTION_PRIMITIVE_MASK_FIELDS),
             "mask_dtype": "bool",
             "arm_id_fields": ["scenario_id", "seed", "split_id", "support_id", "model_id", "cost_mode", "cost_contract_hash"],
-            "hash_fields": ["action_primitive_payload_sha256", "action_primitive_schema_sha256", "action_primitive_content_sha256"],
+            "hash_fields": list(ACTION_PRIMITIVE_HASH_FIELDS),
             "gap_policy": "retain every scheduled primitive record in original order; mask forecast/outcome gaps false and exclude them from metric denominators without dropping or compressing records",
+            "external_schema_path": ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH,
+            "external_schema_sha256": ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256,
+            "canonical_serialization": {
+                "index_semantics": "primitive_index is the zero-based full-grid row ordinal; decision_index is the output-coordinate t; fill_index=decision_index+1; end_index=decision_index+4 is the inclusive final return bar; scheduled decision indices advance by four",
+                "field_order": "record_fields exactly as listed; no sorting or omission",
+                "row_order": "original chronological primitive_index order; retain every scheduled full-grid row including false-mask gap rows",
+                "shape": "each field is a one-dimensional array of shape (record_count,), encoded in C order",
+                "index_encoding": "little-endian int64 (=<i8)",
+                "value_encoding": "little-endian IEEE-754 float64 (=<f8); finite values preserve bits and every NaN uses 0x7ff8000000000000; infinities rejected",
+                "bool_encoding": "strict bool encoded one byte each as 0x00 or 0x01",
+                "string_encoding": "UTF-8 bytes with a little-endian uint64 byte-length prefix per value",
+                "field_framing": "field name and ASCII dtype tag are uint64-length-prefixed; ndim=1 and the one-element shape use little-endian uint64; data byte length is uint64-prefixed before field bytes",
+                "content_framing": "magic UNIDREAM-P1-ACTION-PRIMITIVE-CONTENT\\x00 followed by uint64 record_count and fields in record_fields order",
+                "payload_framing": "magic UNIDREAM-P1-ACTION-PRIMITIVE-PAYLOAD\\x00 followed by length-prefixed canonical UTF-8 JSON header and length-prefixed canonical content bytes",
+                "json_encoding": "UTF-8 JSON with ensure_ascii=false, sort_keys=true, separators=(',',':'), allow_nan=false"
+            },
+            "hash_scopes": {
+                "action_primitive_schema_sha256": "SHA-256 of the external schema canonical UTF-8 JSON bytes; external digest is pinned outside the payload",
+                "action_primitive_content_sha256": "SHA-256 of canonical framed bytes for every record_fields field and every original full-grid row; hash fields excluded",
+                "action_primitive_payload_sha256": "SHA-256 of payload magic, canonical JSON header containing record_count/record_fields/schema_sha256/content_sha256, and canonical content bytes; payload hash excluded",
+                "full_grid_gap_policy": "false-mask/N/A rows remain physically present and contribute their canonical mask/value bytes; metrics alone exclude them"
+            }
         },
         "action_bootstrap_replay_policy": "resample stored canonical action block record indices and recompute declared means/sums/ratios/DiD; never replay policy state over a resampled or nonchronological sequence",
         "action_inventory_boundary_policy": "inventory and state are fixed inside each stored block record; bootstrap block boundaries and duplicate sampled records never carry or replay inventory state",
@@ -1473,8 +1593,10 @@ def load_fixed_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> Mapping[str
 __all__ = [
     "DEFAULT_MANIFEST_PATH",
     "P1PreregistrationError",
+    "P1_V4_RUNTIME_VALIDATION_ENTRYPOINT",
     "REGISTERED_BASE_REVISION",
     "REGISTERED_MANIFEST_SHA256",
+    "V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT",
     "canonical_json_sha256",
     "canonical_manifest_sha256",
     "exact_file_sha256",

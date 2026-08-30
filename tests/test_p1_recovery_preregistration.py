@@ -53,10 +53,10 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertEqual(payload["status"], "preregistered")
         self.assertEqual(
             payload["amends_manifest_sha256"],
-            "1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485",
+            "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481",
         )
-        self.assertEqual(payload["amendment_reason"], "third pre-execution independent audit")
-        self.assertEqual(len(payload["amendment_history"]), 3)
+        self.assertEqual(payload["amendment_reason"], "fourth pre-execution independent audit")
+        self.assertEqual(len(payload["amendment_history"]), 4)
         self.assertFalse(payload["results_observed"])
         self.assertEqual(payload["common"]["feature_columns"], [
             "open_ret", "high_ret", "low_ret", "close_ret", "vol_ret",
@@ -179,11 +179,24 @@ class P1PreregistrationTests(unittest.TestCase):
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
         required = set(ref["required_fields"])
         self.assertTrue({"support_id", "support_range", "support_range_semantics", "support_role"} <= required)
-        self.assertEqual(ref["action_required_fields"], ["action_bootstrap_replay_policy"])
+        self.assertEqual(ref["action_required_fields"], [
+            "action_bootstrap_replay_policy",
+            "action_primitive_hash_fields",
+        ])
         self.assertEqual(len(rows), ref["family_size"])
         self.assertEqual(exact_file_sha256(path), ref["sha256"])
         self.assertEqual(len({row["comparison_id"] for row in rows}), ref["family_size"])
         self.assertTrue(all(row["primary"] is True for row in rows))
+        action_rows = [row for row in rows if "action_bootstrap_replay_policy" in row]
+        self.assertEqual(len(action_rows), 10)
+        self.assertTrue(all(
+            row["action_primitive_hash_fields"] == [
+                "action_primitive_payload_sha256",
+                "action_primitive_schema_sha256",
+                "action_primitive_content_sha256",
+            ]
+            for row in action_rows
+        ))
         self.assertTrue(all(required <= set(row) for row in rows))
         self.assertTrue(all(
             row["support_range_semantics"] == "zero-based [start,end) right-exclusive; end excluded"
@@ -360,6 +373,11 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertIn("previous_position", bootstrap["action_primitive_record_fields"])
         self.assertIn("turnover", bootstrap["action_primitive_record_fields"])
         self.assertIn("active_indicator", bootstrap["action_primitive_record_fields"])
+        self.assertIn("common_mask", bootstrap["action_primitive_record_fields"])
+        self.assertEqual(
+            bootstrap["action_primitive_record_fields"],
+            bootstrap["action_primitive_schema"]["record_fields"],
+        )
         self.assertEqual(
             bootstrap["rng_lifecycle"],
             "for each unit/support/seed/L create np.random.default_rng(derived_seed) exactly once, then draw all replicate starts in replicate order b=0..1999; do not reinitialize per replicate, arm, or comparison",
@@ -385,6 +403,14 @@ class P1PreregistrationTests(unittest.TestCase):
         )
         self.assertIn("cost_contract_hash", schema["arm_id_fields"])
         self.assertIn("action_primitive_payload_sha256", schema["hash_fields"])
+        self.assertEqual(
+            schema["external_schema_sha256"],
+            "d0520b3dbc3c444e2efe5a55e175e96b662f97fb404d901ea51e1c32e5bb9955",
+        )
+        self.assertIn("float64", schema["canonical_serialization"]["value_encoding"])
+        self.assertIn("C order", schema["canonical_serialization"]["shape"])
+        self.assertIn("full-grid", schema["canonical_serialization"]["row_order"])
+        self.assertIn("payload", schema["hash_scopes"]["action_primitive_payload_sha256"])
 
     def test_ranges_history_and_v4_runtime_policy_are_pinned(self) -> None:
         manifest = _read_manifest()
@@ -403,8 +429,13 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertTrue(v4["promotion_disposition_required"])
         self.assertEqual(
             v4["runtime_validation_entrypoint"],
+            "unidream.experiments.runtime.validate_p1_v4_runtime_inputs",
+        )
+        self.assertEqual(
+            v4["runtime_body_validator_entrypoint"],
             "unidream.experiments.runtime.validate_v4_runtime_inputs",
         )
+        self.assertIn("load_fixed_manifest first", v4["runtime_authentication_policy"])
         self.assertTrue(v4["runtime_validation_required_before_fit_or_score"])
         self.assertEqual(
             v4["runtime_disposition_fields"],
@@ -484,7 +515,7 @@ class P1PreregistrationTests(unittest.TestCase):
 
     def test_production_loader_succeeds_and_freezes_pinned_manifest(self) -> None:
         manifest = load_fixed_manifest()
-        self.assertEqual(manifest["manifest_sha256"], "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481")
+        self.assertEqual(manifest["manifest_sha256"], "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4")
         with self.assertRaises(TypeError):
             manifest["common"] = {}  # type: ignore[index]
 

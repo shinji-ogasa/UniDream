@@ -2,18 +2,24 @@
 
 Status: preregistered, no experiment result is attached.  This document amends
 the immediately preceding manifest digest
-`1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485` under the
-reason `third pre-execution independent audit`; `results_observed=false` is
-fixed.  The predecessor history retains the original pre-execution amendment
+`de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481` under the
+reason `fourth pre-execution independent audit`; `results_observed=false` is
+fixed.  The amendment history retains the original pre-execution amendment
 digests `9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d`,
-`5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc`.
+`5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc`,
+`1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485`, and
+`de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481`.
 
 The machine-readable source of truth is
 [`p1_recovery_prereg_manifest.json`](p1_recovery_prereg_manifest.json).  A
-future runner must load that file through the fail-closed validator before it
-creates data, fits a model, or opens an outer row.  The registered base is
+future runner must enter through
+`unidream.experiments.runtime.validate_p1_v4_runtime_inputs`, which first calls
+`load_fixed_manifest` (canonical digest, independently pinned digest, critical
+fields, and `results_observed=false`) and only then delegates to the generic
+`validate_v4_runtime_inputs` body validator.  The registered base is
 `origin/main` at `881e5e08e9b413b51b0a2faf5c49592ce13329d1`; the manifest
-digest is pinned independently in
+digest `d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4` is
+pinned independently in
 `unidream/experiments/p1_recovery_prereg.py`.
 
 This wave is a recovery/implementation test, not investment evidence.  S0–S2
@@ -71,7 +77,11 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   eligible prefix with no cap.  The minimum history is 16,384 rows; the purge
   is 16 bars; labels satisfy `target_end <= origin - 16` and label row `<
   origin`.  Later origins and labels never enter an earlier batch.  Scaling is
-  fit on eligible rows `u < origin` only.  Early rows remain false/NaN.
+  fit on eligible rows `u < origin` only.  Early rows remain false/NaN.  The
+  OOF `target_mask_rule` references the canonical
+  `common.availability.target_window_rule` exactly: for every horizon `h`, all
+  `h` edges `t->t+1` through `t+h-1->t+h` are required, while
+  `t+h->t+h+1` is not.
   Synthetic fit/OOF-development/validation/outer ranges are `[0,20000)`,
   `[20000,90000)`, `[90000,100000)`, and `[100000,120000)`; these ranges are
   disjoint.  OOF-development is diagnostic-only.  All 16 primary comparisons
@@ -155,24 +165,57 @@ split-local scheduled starts are `0,4,...` from the canonical
 `complete_decision_starts`, and global decision index is
 `support_start + local decision index`.  There is one record for every
 structurally complete, scheduled, non-overlapping h4 block, including
-false-mask/N/A records for forecast or outcome gaps.  Each record has int64
-`primitive_index`, `decision_index`, `fill_index`, and `end_index`; float64
-previous/selected positions and delta, candidate, benchmark-hold,
-same-state-local-hold, clairvoyant, regret, opportunity, agreement, turnover,
-and active values; bool origin/forecast/fill/outcome/scored/common masks; and
-the scenario, seed, split, support, model, cost-mode, and cost-contract-hash
-arm identifiers.  Each record stores the fixed values from a single original
-chronological replay reset at `p_start=1`, countdown 0.  `selected_delta` is
-the canonical chosen delta, `selected_position` is the clipped/deduplicated
-chosen position, `previous_position` is the policy state before the block,
-`turnover=abs(selected_position-previous_position)`, and
-`active_indicator=1` iff turnover is positive.  Moving-block replicates
-resample record indices and recompute the declared means, sums, ratios, or DiD
-from those stored values; they do not carry inventory across bootstrap
-boundaries, duplicate records, or replay a nonchronological sequence.  Gap
-records remain in the original grid and are masked out rather than physically
-compressed.  The payload, schema, and content SHA-256 values are echoed in
-every result artifact.
+false-mask/N/A records for forecast or outcome gaps.  The exact record-field
+list and nested schema are identical and include `common_mask`:
+`primitive_index`, `decision_index`, `fill_index`, `end_index`,
+`previous_position`, `selected_delta`, `selected_position`,
+`candidate_utility`, `benchmark_hold_utility`, `same_state_local_hold_utility`,
+`clairvoyant_utility`, `regret`, `opportunity`, `agreement`, `turnover`,
+`active_indicator`, `origin_eligible_mask`, `forecast_finite_mask`,
+`fill_complete_mask`, `outcome_complete_mask`, `scored_action_mask`,
+`common_mask`, `scenario_id`, `seed`, `split_id`, `support_id`, `model_id`,
+`cost_mode`, and `cost_contract_hash`.  Index fields and `seed` are strict
+little-endian int64; value fields are strict little-endian IEEE-754 float64;
+mask fields are strict bool; arm strings are UTF-8.  Record fields are encoded
+in this order and rows remain in original `primitive_index` order, with every
+full-grid gap row retained physically.  C-order shape `(record_count,)`, field
+name/dtype length-prefixes, little-endian ndim/shape uint64 framing, data
+byte-length framing, one-byte bool encoding (`0x00`/`0x01`),
+and UTF-8 length framing are fixed.  Finite float bits are preserved, every
+NaN is encoded as `0x7ff8000000000000`, and infinities are rejected.  JSON
+framing uses UTF-8, `ensure_ascii=false`, `sort_keys=true`, compact separators,
+and `allow_nan=false`.
+
+`selected_delta` is the canonical chosen delta, `selected_position` is the
+clipped/deduplicated chosen position, `previous_position` is the policy state
+before the block, `turnover=abs(selected_position-previous_position)`, and
+`active_indicator=1` iff `turnover>0`.
+
+`primitive_index` is the zero-based full-grid row ordinal; `decision_index` is
+the output-coordinate `t`; `fill_index=decision_index+1`; and
+`end_index=decision_index+4` is the inclusive final return bar.  Scheduled
+decision indices advance by four.
+
+Three hashes have disjoint, exact scopes.  `action_primitive_schema_sha256`
+is SHA-256 over the external canonical JSON schema
+`docs/experiments/action_primitive_schema.json`, whose pinned digest is
+`d0520b3dbc3c444e2efe5a55e175e96b662f97fb404d901ea51e1c32e5bb9955` outside
+the payload.  `action_primitive_content_sha256` is SHA-256 over the
+canonical framed bytes for every listed field and every original full-grid row;
+hash declarations are excluded.  `action_primitive_payload_sha256` is
+SHA-256 over payload magic, a canonical JSON header containing
+`record_count`, `record_fields`, `schema_sha256`, and `content_sha256`, and the
+framed content bytes; the payload hash itself is excluded.  Moving-block
+replicates resample record indices and recompute the declared means, sums,
+ratios, or DiD from those stored values; they do not carry inventory across
+bootstrap boundaries, duplicate records, or replay a nonchronological
+sequence.  The payload, schema, and content SHA-256 values are echoed in every
+result artifact.
+
+The action primitive producer and P1-specific moving-block implementation are
+not implemented on this preregistration branch.  A runner must stop with a
+blocked/N/A status until both are separately implemented and validated; the
+existing generic MBB path is forbidden.
 
 ## Fixed models and metrics
 
@@ -481,7 +524,11 @@ Missing rows, insufficient class support, undefined metrics, missing masks,
 missing provenance, altered manifest fields, and failed coverage are N/A or
 blocked.  The runner must stop before fitting or promotion, and it must not
 change a threshold, seed, feature, horizon, split, cost, or outer-row status
-after seeing any output.
+after seeing any output.  The existing generic
+`unidream.experiments.train_app.run_training_app` is not a P1 research runner;
+it is explicitly unsuitable because it owns the generic WM→BC→AC pipeline.
+The P1 runner is blocked unless it uses the authenticated v4 wrapper and the
+separately implemented P1 action primitive/MBB components.
 
 ## Immutable v4 input provenance
 
@@ -518,10 +565,14 @@ load_cache_v4(
 )
 ```
 
-Before fitting or scoring, the production runner must call
-`unidream.experiments.runtime.validate_v4_runtime_inputs` with the manifest and
-all four explicit paths.  That entrypoint must call the explicit
-`load_cache_v4(...)`, then verify the loaded body against the frozen metadata's
+Before fitting or scoring, the production runner must call the authenticated
+`unidream.experiments.runtime.validate_p1_v4_runtime_inputs` entrypoint.  It
+must first call `load_fixed_manifest` and reject any forged manifest digest,
+`results_observed` flag, critical field, or frozen v4 digest.  Only the frozen
+manifest may then be passed to the generic body validator
+`unidream.experiments.runtime.validate_v4_runtime_inputs` with all four
+explicit paths.  That body validator must call the explicit `load_cache_v4(...)`,
+then verify the loaded body against the frozen metadata's
 content digests, schema digest, cache tag, feature/sidecar row counts, and
 canonical columns.  Missing or unknown provenance, missing body files, or any
 mismatch blocks S3.  The validator returns the mandatory disposition fields
