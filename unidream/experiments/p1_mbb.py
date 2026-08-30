@@ -144,6 +144,13 @@ _P1_S2_DIRECTION_SIGN: Mapping[str, str] = {
     "medium_ge_low": "positive",
     "medium_le_low": "negative",
 }
+_P1_S2_LEVEL_METRIC_ALLOWED_DIRECTIONS: Mapping[str, frozenset[str]] = {
+    "skill": frozenset({"high_ge_medium", "medium_ge_low"}),
+    "agreement": frozenset({"high_ge_medium", "medium_ge_low"}),
+    "policy_utility_delta": frozenset({"high_ge_medium", "medium_ge_low"}),
+    "logloss": frozenset({"high_le_medium", "medium_le_low"}),
+    "normalized_regret": frozenset({"high_le_medium", "medium_le_low"}),
+}
 _P1_INDEX_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024
 _P1_INDEX_ARTIFACT_MAX_STARTS = 100_000_000
 _P1_INDEX_METADATA_MAX_BYTES = 8 * 1024 * 1024
@@ -946,6 +953,14 @@ def _validate_s2_level_metric(level_metric: Any) -> str:
     return level_metric
 
 
+def _validate_s2_metric_direction(level_metric: str, level_direction: str) -> None:
+    allowed = _P1_S2_LEVEL_METRIC_ALLOWED_DIRECTIONS.get(level_metric)
+    if allowed is not None and level_direction not in allowed:
+        raise P1MBBError(
+            f"S2 {level_metric} does not permit level_direction={level_direction!r}"
+        )
+
+
 def _resolve_metric_direction(
     metric: str,
     direction: Any,
@@ -1169,6 +1184,7 @@ def _metric_value(
         # second-level.  Ratio/skill forms are recomputed independently for
         # both levels inside every replicate before this contrast is formed.
         _validate_s2_direction(level_direction)
+        _validate_s2_metric_direction(level_name, level_direction)
         if level_name in {"mean", "logloss", "agreement", "policy_utility_delta"}:
             value = _safe_mean(selected["level_a_values"][selected_mask], name="level_a_values") - _safe_mean(selected["level_b_values"][selected_mask], name="level_b_values")
         elif level_name == "skill":

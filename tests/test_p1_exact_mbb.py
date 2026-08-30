@@ -670,6 +670,18 @@ class P1ExactMBBTests(unittest.TestCase):
                 level_a_values=ones,
                 level_b_values=zeros,
             )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "s2_contrast",
+                artifact=artifact,
+                mask=mask,
+                level_direction="high_ge_medium",
+                level_metric="normalized_regret",
+                level_a_regret=ones,
+                level_a_opportunity=ones,
+                level_b_regret=ones,
+                level_b_opportunity=ones,
+            )
 
     def test_s2_skill_and_normalized_regret_recompute_before_level_contrast(self) -> None:
         n = 35
