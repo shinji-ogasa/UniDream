@@ -99,6 +99,19 @@ class TeacherInventoryContractTest(unittest.TestCase):
                 },
                 log_ts=lambda: "00:00:00",
             )
+        # A strict artifact requirement is itself a conditional opt-in.  It
+        # must not silently fall through to the legacy predictive-state path
+        # when the separate conditional_oracle_path flag is absent.
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((2, 1), dtype=np.float32),
+                h_train=np.zeros((2, 1), dtype=np.float32),
+                seq_len=2,
+                ac_cfg={"require_conditional_oof_artifact": True},
+                log_ts=lambda: "00:00:00",
+            )
 
     def test_conditional_bundle_rejects_partial_finite_state_outside_mask(self) -> None:
         partial = np.asarray([[1.0, np.nan]], dtype=np.float32)
@@ -325,6 +338,46 @@ class TeacherInventoryContractTest(unittest.TestCase):
                 ac_cfg={"conditional_oracle_path": True},
                 log_ts=lambda: "00:00:00",
                 oof_bundle=missing_indices,
+            )
+
+        overlapping = self._complete_oof_bundle()
+        overlapping["val_row_indices"] = np.asarray([2, 3], dtype=np.int64)
+        overlapping["val"] = overlapping["predictions"][overlapping["val_row_indices"]].copy()
+        overlapping["val_mask"] = overlapping["prediction_mask"][overlapping["val_row_indices"]].copy()
+        overlapping["val_prediction_eligibility_mask"] = overlapping[
+            "prediction_eligibility_mask"
+        ][overlapping["val_row_indices"]].copy()
+        overlapping["val_training_label_eligibility_mask"] = overlapping[
+            "training_label_eligibility_mask"
+        ][overlapping["val_row_indices"]].copy()
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((3, 1), dtype=np.float32),
+                h_train=np.zeros((3, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=overlapping,
+            )
+
+        empty_view = self._complete_oof_bundle()
+        empty_view["train"] = np.empty((0, 1), dtype=np.float64)
+        empty_view["train_row_indices"] = np.empty(0, dtype=np.int64)
+        empty_view["train_mask"] = np.empty(0, dtype=bool)
+        empty_view["train_prediction_eligibility_mask"] = np.empty(0, dtype=bool)
+        empty_view["train_training_label_eligibility_mask"] = np.empty(0, dtype=bool)
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((3, 1), dtype=np.float32),
+                h_train=np.zeros((3, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=empty_view,
             )
 
     def test_conditional_fold_input_builder_blocks_before_hindsight_dp(self) -> None:

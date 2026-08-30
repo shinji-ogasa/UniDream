@@ -171,6 +171,30 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
         with self.assertRaises(ConditionalOOFArtifactError):
             validate_conditional_oof_artifact(bad_delay)
 
+        missing_delay = copy.deepcopy(artifact)
+        missing_delay["provenance"] = dict(missing_delay["provenance"])
+        missing_delay["provenance"].pop("execution_delay_bars")
+        missing_delay["artifact_sha256"] = hash_conditional_oof_artifact(missing_delay)
+        missing_delay["artifact_hash"] = missing_delay["artifact_sha256"]
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config=self._strict_config(),
+                oof_bundle={"conditional_oof_artifact": missing_delay},
+                caller="artifact-test",
+            )
+
+        overflowing_horizon = copy.deepcopy(artifact)
+        overflowing_horizon["provenance"] = dict(overflowing_horizon["provenance"])
+        overflowing_horizon["provenance"]["horizon"] = 10**100
+        overflowing_horizon["artifact_sha256"] = hash_conditional_oof_artifact(overflowing_horizon)
+        overflowing_horizon["artifact_hash"] = overflowing_horizon["artifact_sha256"]
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config=self._strict_config(),
+                oof_bundle={"conditional_oof_artifact": overflowing_horizon},
+                caller="artifact-test",
+            )
+
     def test_zero_h64_coverage_is_retained_but_strict_consumer_fails(self) -> None:
         artifact = self._artifact(
             coverage=[
@@ -239,6 +263,32 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                 caller="artifact-test",
             )
 
+        hash_only = self._strict_config()
+        hash_only.pop("expected_action_execution_contract")
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config=hash_only,
+                oof_bundle={"conditional_oof_artifact": artifact},
+                caller="artifact-test",
+            )
+
+        self_bound = copy.deepcopy(artifact)
+        self_bound["expected_heads_horizons"] = [("return", 1)]
+        self_bound["expected_hashes"] = self._strict_config()["expected_hashes"]
+        self_bound["expected_action_execution_contract"] = ActionExecutionContract.canonical().to_dict()
+        self_bound["expected_action_execution_contract_hash"] = ActionExecutionContract.canonical().contract_hash
+        self_bound["artifact_sha256"] = hash_conditional_oof_artifact(self_bound)
+        self_bound["artifact_hash"] = self_bound["artifact_sha256"]
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config={
+                    "conditional_oracle_path": True,
+                    "require_conditional_oof_artifact": True,
+                },
+                oof_bundle={"conditional_oof_artifact": self_bound},
+                caller="artifact-test",
+            )
+
     def test_strict_coverage_requires_pass_and_consistent_counts(self) -> None:
         base = self._artifact()
         for field, value in (
@@ -249,6 +299,42 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
             ("status", "block"),
         ):
             with self.subTest(field=field):
+                artifact = copy.deepcopy(base)
+                artifact["coverage"][0][field] = value
+                artifact["artifact_sha256"] = hash_conditional_oof_artifact(artifact)
+                artifact["artifact_hash"] = artifact["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(artifact)
+
+        for field in (
+            "total_target_slots",
+            "masked_target_slots",
+            "valid_targets",
+            "finite_targets",
+            "finite_masked_targets",
+            "finite_target_count",
+            "finite_loss_steps",
+            "pass",
+            "block_reason",
+        ):
+            with self.subTest(missing_field=field):
+                artifact = copy.deepcopy(base)
+                artifact["coverage"][0].pop(field)
+                artifact["artifact_sha256"] = hash_conditional_oof_artifact(artifact)
+                artifact["artifact_hash"] = artifact["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(artifact)
+
+        for field, value in (
+            ("total_target_slots", 0),
+            ("masked_target_slots", 7),
+            ("finite_masked_targets", 7),
+            ("finite_targets", 7),
+            ("finite_loss_steps", 0),
+            ("pass", False),
+            ("block_reason", "unexpected_block"),
+        ):
+            with self.subTest(invalid_field=field):
                 artifact = copy.deepcopy(base)
                 artifact["coverage"][0][field] = value
                 artifact["artifact_sha256"] = hash_conditional_oof_artifact(artifact)
@@ -290,6 +376,26 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                 tampered["artifact_hash"] = tampered["artifact_sha256"]
                 with self.assertRaises(ConditionalOOFArtifactError):
                     validate_conditional_oof_artifact(tampered)
+
+        for shape in ((len(artifact["predictions"]), 0), (0, 1)):
+            with self.subTest(shape=shape):
+                tampered = copy.deepcopy(artifact)
+                tampered["predictions"] = np.empty(shape, dtype=np.float64)
+                tampered["artifact_sha256"] = hash_conditional_oof_artifact(tampered)
+                tampered["artifact_hash"] = tampered["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(tampered)
+
+        empty_origins = copy.deepcopy(artifact)
+        empty_origins["origins"] = []
+        empty_origins["provenance"] = dict(empty_origins["provenance"])
+        empty_origins["provenance"]["n_origins_called"] = 0
+        empty_origins["provenance"]["origin_sha256"] = _sha("empty-origins")
+        empty_origins["origin_sha256"] = empty_origins["provenance"]["origin_sha256"]
+        empty_origins["artifact_sha256"] = hash_conditional_oof_artifact(empty_origins)
+        empty_origins["artifact_hash"] = empty_origins["artifact_sha256"]
+        with self.assertRaises(ConditionalOOFArtifactError):
+            validate_conditional_oof_artifact(empty_origins)
 
     def test_action_contract_mapping_and_aliases_are_content_bound(self) -> None:
         artifact = self._artifact()
@@ -339,6 +445,35 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                 ],
             )
 
+        for alias, value in (
+            ("transition_cost_rate", 0.123),
+            ("delta_grid", [0.0]),
+            ("countdown_reset", 99),
+            ("spread_side", "wrong_side"),
+        ):
+            with self.subTest(alias=alias):
+                tampered = copy.deepcopy(artifact)
+                tampered["action_execution_contract"][alias] = value
+                tampered["provenance"]["action_execution_contract"][alias] = value
+                tampered["artifact_sha256"] = hash_conditional_oof_artifact(tampered)
+                tampered["artifact_hash"] = tampered["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(tampered)
+
+        for component, value in (
+            ("normalizer", {"sha256": _sha("normalizer"), "in_sample": True}),
+            ("calibrator", {"sha256": _sha("calibrator")}),
+            ("teacher_weight", {"sha256": _sha("teacher"), "in_sample": "false"}),
+            ("checkpoint", {"sha256": _sha("checkpoint"), "in_sample": True}),
+        ):
+            with self.subTest(component=component):
+                tampered = copy.deepcopy(artifact)
+                tampered["provenance"][component] = value
+                tampered["artifact_sha256"] = hash_conditional_oof_artifact(tampered)
+                tampered["artifact_hash"] = tampered["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(tampered)
+
     def test_malformed_typed_json_is_normalized_and_bounded(self) -> None:
         malformed_payloads = (
             {
@@ -365,6 +500,13 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                 "shape": [1],
                 "data_b64": "not-base64",
             },
+            {
+                "__ndarray__": True,
+                "dtype": "uint8",
+                "shape": [1],
+                # Four base64 characters decode to three bytes; one was declared.
+                "data_b64": "AAAA",
+            },
         )
         with tempfile.TemporaryDirectory() as directory:
             for payload in malformed_payloads:
@@ -373,6 +515,34 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                     path.write_text(json.dumps(payload), encoding="utf-8")
                     with self.assertRaises(ConditionalOOFArtifactError):
                         load_conditional_oof_artifact(path)
+
+        aggregate = {
+            "arrays": [
+                {
+                    "__ndarray__": True,
+                    "dtype": "uint8",
+                    "shape": [10_000_000],
+                    "data_b64": "",
+                },
+                {
+                    "__ndarray__": True,
+                    "dtype": "uint8",
+                    "shape": [10_000_000],
+                    "data_b64": "",
+                },
+                {
+                    "__ndarray__": True,
+                    "dtype": "uint8",
+                    "shape": [1],
+                    "data_b64": "",
+                },
+            ]
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "aggregate.json"
+            path.write_text(json.dumps(aggregate), encoding="utf-8")
+            with self.assertRaises(ConditionalOOFArtifactError):
+                load_conditional_oof_artifact(path)
 
     def test_atomic_write_uses_unique_same_directory_temporary_file(self) -> None:
         artifact = self._artifact()

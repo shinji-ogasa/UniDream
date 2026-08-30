@@ -150,9 +150,10 @@ an atomic replace.  A strict conditional config must set
 `expected_heads_horizons`, an `expected_hashes` mapping containing
 `checkpoint_sha256`, `normalizer_sha256`, `calibrator_sha256`, and
 `teacher_weight_sha256` (the `teacher_sha256` alias is accepted), plus
-`expected_action_execution_contract_hash` (and optionally the full canonical
-`expected_action_execution_contract` mapping).  Omitting any binding is a
-configuration blocker; values are never copied from the artifact itself.  A
+both the full canonical `expected_action_execution_contract` mapping and its
+explicit `expected_action_execution_contract_hash`.  A hash-only action
+binding is rejected.  Omitting any binding is a configuration blocker; values
+are never copied from the artifact itself.  A
 nested envelope may add only indexed `train`/`val`/`test` views and their masks;
 outer predictions, origins, provenance, targets, coverage, hashes, or schema
 keys are rejected even when their values happen to match.  The existing
@@ -194,7 +195,7 @@ split-view matching, split-only conditional bundles, and hindsight inventory
 rejection.
 
 Observed result: 26 scoped contract tests passed.  The complete repository
-suite passed (149 tests).
+suite passed (209 tests).
 
 The full suite is required before promotion:
 
