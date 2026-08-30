@@ -1480,11 +1480,9 @@ def _ensure_dataset(dataset: RunnerDataset) -> RunnerDataset:
     returns = np.asarray(dataset.returns)
     if returns.shape != (n_rows,) or not np.issubdtype(returns.dtype, np.number):
         raise P1RunnerError("dataset returns are not row-aligned")
-    if not np.isfinite(returns).all():
-        raise P1RunnerError(
-            "production synthetic dataset returns must be finite; "
-            "missing returns belong in the target mask fixture only"
-        )
+    returns = np.asarray(returns, dtype=np.float64)
+    if np.isinf(returns).any():
+        raise P1RunnerError("dataset returns must not contain infinity")
     targets = np.asarray(dataset.targets)
     if (
         targets.shape != (n_rows, len(FORECAST_HORIZONS))
@@ -1537,6 +1535,16 @@ def _ensure_dataset(dataset: RunnerDataset) -> RunnerDataset:
                 )
     except (KeyError, TypeError, AttributeError) as exc:
         raise P1RunnerError("dataset availability masks are incomplete") from exc
+    # A return gap is represented by a non-finite value together with an
+    # unobserved Spot bar.  It is valid source evidence for evaluation rows,
+    # but a non-finite return on an observed Spot bar is malformed.  Do not
+    # replace missing values with zero; target construction keeps them
+    # masked instead.
+    spot_observed = np.asarray(availability["spot_bar_observed"])
+    if np.any(spot_observed & ~np.isfinite(returns)):
+        raise P1RunnerError(
+            "dataset returns may be non-finite only when spot_bar_observed is false"
+        )
 
     expected_targets, expected_target_mask, expected_target_end = build_target_arrays(
         returns,
@@ -1989,6 +1997,10 @@ def fit_model_at_origin(
         predictions[inference_mask] = 0.0 if resolved_task == "continuous" else 0.5
         prediction_mask = inference_mask.copy()
     elif model_id == "persistence_last_observed":
+        if not np.isfinite(data.returns[inference_mask]).all():
+            raise P1RunnerError(
+                "persistence inference rows must have finite current observed returns"
+            )
         if resolved_task == "continuous":
             predictions[inference_mask] = horizon_int * data.returns[inference_mask]
         else:
