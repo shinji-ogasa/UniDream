@@ -307,6 +307,8 @@ class P1RecoveryS3BoundaryTests(unittest.TestCase):
             runner.S3_INJECTION_BETA * body.z_scores[first],
         )
         self.assertFalse(body.injected_returns.flags.writeable)
+        with self.assertRaisesRegex(runner.P1RunnerError, "authenticated public"):
+            runner._require_production_s3_body(body)
 
     def test_s3_public_loader_calls_authenticated_wrapper_only(self):
         fake = _fake_authenticated_s3_result()
@@ -317,6 +319,13 @@ class P1RecoveryS3BoundaryTests(unittest.TestCase):
             body = runner.load_s3_validation_body(manifest_path="/tmp/ignored")
         wrapper.assert_called_once()
         self.assertEqual(body.runtime["p1_runtime_validation_entrypoint"], runner.P1_V4_RUNTIME_VALIDATION_ENTRYPOINT)
+        self.assertEqual(runner._require_production_s3_body(body), body)
+        mutated_features = np.array(body.features, copy=True)
+        mutated_features[0, 0] += 1.0
+        with self.assertRaisesRegex(runner.P1RunnerError, "digest mismatch"):
+            runner._require_production_s3_body(
+                replace(body, features=mutated_features)
+            )
 
         forged = copy.deepcopy(fake)
         del forged["p1_runtime_validation_entrypoint"]

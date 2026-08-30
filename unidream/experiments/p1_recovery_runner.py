@@ -15,8 +15,10 @@ weaken its immutable field checks.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
+import hashlib
+import json
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal
@@ -90,6 +92,44 @@ S3_OUTER_END = 173_111
 V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT = (
     "unidream.experiments.runtime.validate_v4_runtime_inputs"
 )
+_S3_BODY_SEAL = object()
+
+
+def _s3_hash_plain(value: Any) -> Any:
+    """Normalize immutable provenance into canonical JSON hash input."""
+
+    if isinstance(value, Mapping):
+        return {str(key): _s3_hash_plain(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [_s3_hash_plain(item) for item in value]
+    if isinstance(value, np.generic):
+        return _s3_hash_plain(value.item())
+    if value is None or isinstance(value, (str, bool, int, float)):
+        if isinstance(value, float) and not np.isfinite(value):
+            raise P1RunnerError("S3 provenance hash input contains a non-finite scalar")
+        return value
+    raise P1RunnerError("S3 provenance hash input contains an unsupported value")
+
+
+def _s3_array_sha256(value: Any, *, label: str) -> str:
+    """Hash dtype, shape, and exact C-order bytes for one S3 source array."""
+
+    array = np.asarray(value)
+    if array.dtype.hasobject:
+        raise P1RunnerError(f"S3 {label} cannot use object dtype")
+    contiguous = np.ascontiguousarray(array)
+    header = json.dumps(
+        {"dtype": contiguous.dtype.str, "shape": list(contiguous.shape)},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    digest = hashlib.sha256()
+    digest.update(header)
+    digest.update(b"\0")
+    digest.update(contiguous.tobytes(order="C"))
+    return digest.hexdigest()
 
 
 def validate_15m_timestamps(
@@ -786,6 +826,8 @@ class S3InjectionControl:
     z_scores: np.ndarray
     context_mask: np.ndarray
     availability: Mapping[str, np.ndarray]
+    body_sha256: str = ""
+    _production_seal: object | None = field(default=None, repr=False, compare=False)
 
     @property
     def returns(self) -> np.ndarray:
@@ -829,6 +871,8 @@ class S3ArmDataset:
     binary_labels: np.ndarray
     context_mask: np.ndarray
     availability: Mapping[str, np.ndarray]
+    source_body_sha256: str = ""
+    _production_seal: object | None = field(default=None, repr=False, compare=False)
 
     @property
     def context_eligible(self) -> np.ndarray:
@@ -837,6 +881,115 @@ class S3ArmDataset:
     @property
     def target_complete(self) -> np.ndarray:
         return self.target_mask
+
+
+def _s3_body_sha256(body: S3InjectionControl) -> str:
+    """Bind the authenticated wrapper echoes to every materialized S3 array."""
+
+    if not isinstance(body, S3InjectionControl):
+        raise P1RunnerError("S3 source hash requires an S3InjectionControl")
+    arrays = {
+        "timestamps": _s3_array_sha256(body.timestamps, label="timestamps"),
+        "features": _s3_array_sha256(body.features, label="features"),
+        "returns_v4": _s3_array_sha256(body.returns_v4, label="returns_v4"),
+        "control_returns": _s3_array_sha256(
+            body.control_returns, label="control_returns"
+        ),
+        "injected_returns": _s3_array_sha256(
+            body.injected_returns, label="injected_returns"
+        ),
+        "injection_mask": _s3_array_sha256(
+            body.injection_mask, label="injection_mask"
+        ),
+        "z_scores": _s3_array_sha256(body.z_scores, label="z_scores"),
+        "context_mask": _s3_array_sha256(body.context_mask, label="context_mask"),
+    }
+    for name in REQUIRED_AVAILABILITY_COLUMNS:
+        try:
+            arrays[f"availability.{name}"] = _s3_array_sha256(
+                body.availability[name], label=f"availability.{name}"
+            )
+        except (KeyError, TypeError) as exc:
+            raise P1RunnerError("S3 source hash is missing availability masks") from exc
+    payload = {
+        "schema": "unidream.p1.s3_authenticated_body",
+        "version": 1,
+        "runtime": _s3_hash_plain(body.runtime),
+        "arrays": arrays,
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _require_production_s3_body(body: S3InjectionControl) -> S3InjectionControl:
+    """Reject fixture/direct-constructor bodies at every production fit boundary."""
+
+    if not isinstance(body, S3InjectionControl):
+        raise P1RunnerError("S3 production requires an S3InjectionControl")
+    if body._production_seal is not _S3_BODY_SEAL:
+        raise P1RunnerError(
+            "S3 body was not materialized by the authenticated public runtime loader"
+        )
+    if (
+        not isinstance(body.body_sha256, str)
+        or len(body.body_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in body.body_sha256)
+    ):
+        raise P1RunnerError("S3 authenticated body digest is malformed")
+    if _s3_body_sha256(body) != body.body_sha256:
+        raise P1RunnerError("S3 authenticated body digest mismatch")
+    return body
+
+
+def _require_production_s3_arm(dataset: S3ArmDataset) -> S3ArmDataset:
+    """Bind an S3 arm to the still-authenticated immutable source body."""
+
+    if dataset._production_seal is not _S3_BODY_SEAL:
+        raise P1RunnerError("S3 arm was not built by the authenticated arm builder")
+    source = _require_production_s3_body(dataset.source)
+    if dataset.source_body_sha256 != source.body_sha256:
+        raise P1RunnerError("S3 arm source digest mismatch")
+    if dataset.seed != 20260830 or dataset.arm not in {
+        "injected",
+        "zero_injection_control",
+    }:
+        raise P1RunnerError("S3 arm identity differs from the preregistered arm")
+    expected_beta = S3_INJECTION_BETA if dataset.arm == "injected" else 0.0
+    if dataset.beta != expected_beta:
+        raise P1RunnerError("S3 arm beta differs from the preregistered value")
+    expected_returns = (
+        source.injected_returns
+        if dataset.arm == "injected"
+        else source.control_returns
+    )
+    exact_arrays = (
+        ("timestamps", dataset.timestamps, source.timestamps),
+        ("features", dataset.features, source.features),
+        ("returns", dataset.returns, expected_returns),
+        ("context_mask", dataset.context_mask, source.context_mask),
+    )
+    for label, actual, expected in exact_arrays:
+        if not np.array_equal(np.asarray(actual), np.asarray(expected), equal_nan=True):
+            raise P1RunnerError(f"S3 arm {label} differs from its authenticated source")
+    for name in REQUIRED_AVAILABILITY_COLUMNS:
+        try:
+            matches = np.array_equal(
+                np.asarray(dataset.availability[name]),
+                np.asarray(source.availability[name]),
+            )
+        except (KeyError, TypeError) as exc:
+            raise P1RunnerError("S3 arm availability is incomplete") from exc
+        if not matches:
+            raise P1RunnerError(
+                f"S3 arm availability {name} differs from its authenticated source"
+            )
+    return dataset
 
 
 def _require_authenticated_v4_result(
@@ -1028,6 +1181,8 @@ def _s3_availability_values(
 
 def _prepare_s3_injection_control(
     runtime_result: Mapping[str, Any],
+    *,
+    _production_seal: object | None = None,
 ) -> S3InjectionControl:
     """Test-only materializer for an authenticated v4 wrapper result.
 
@@ -1096,7 +1251,9 @@ def _prepare_s3_injection_control(
         z_scores[decision] = z_value
         injected_returns[next_row] += S3_INJECTION_BETA * z_value
         injection_mask[decision] = True
-    return S3InjectionControl(
+    if _production_seal not in (None, _S3_BODY_SEAL):
+        raise P1RunnerError("invalid S3 production seal")
+    body = S3InjectionControl(
         runtime=_s3_provenance_echo(result),
         timestamps=timestamps,
         features=feature_values,
@@ -1107,7 +1264,9 @@ def _prepare_s3_injection_control(
         z_scores=_read_only(z_scores, dtype=np.float64),
         context_mask=context_mask,
         availability=availability,
+        _production_seal=_production_seal,
     )
+    return replace(body, body_sha256=_s3_body_sha256(body))
 
 
 def load_s3_validation_body(
@@ -1141,7 +1300,10 @@ def load_s3_validation_body(
         cache_local_metadata_path=cache_local_metadata_path,
         provenance_disposition=provenance_disposition,
     )
-    return _prepare_s3_injection_control(validated)
+    return _prepare_s3_injection_control(
+        validated,
+        _production_seal=_S3_BODY_SEAL,
+    )
 
 
 def build_s3_arm_dataset(
@@ -1150,8 +1312,7 @@ def build_s3_arm_dataset(
 ) -> S3ArmDataset:
     """Build canonical targets for one authenticated S3 arm without refitting."""
 
-    if not isinstance(body, S3InjectionControl):
-        raise P1RunnerError("S3 arm dataset requires an authenticated S3InjectionControl")
+    body = _require_production_s3_body(body)
     if arm not in {"injected", "zero_injection_control"}:
         raise P1RunnerError("S3 arm must be 'injected' or 'zero_injection_control'")
     runtime = body.runtime
@@ -1205,6 +1366,8 @@ def build_s3_arm_dataset(
         binary_labels=labels,
         context_mask=expected_context,
         availability=body.availability,
+        source_body_sha256=body.body_sha256,
+        _production_seal=_S3_BODY_SEAL,
     )
 
 
@@ -1222,6 +1385,8 @@ def _horizon_column(dataset: RunnerDataset, horizon: int) -> int:
 def _ensure_dataset(dataset: RunnerDataset) -> RunnerDataset:
     if not isinstance(dataset, (SyntheticDataset, S3ArmDataset)):
         raise P1RunnerError("runner model APIs require a canonical P1 dataset")
+    if isinstance(dataset, S3ArmDataset):
+        _require_production_s3_arm(dataset)
     features = validate_current_row_features(dataset.features)
     n_rows = len(features)
     timestamps = validate_15m_timestamps(dataset.timestamps, n_rows=n_rows)
