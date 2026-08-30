@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import tempfile
 from typing import Any
@@ -155,6 +156,7 @@ _P1_S2_LEVEL_METRIC_ALLOWED_DIRECTIONS: Mapping[str, frozenset[str]] = {
 _P1_INDEX_ARTIFACT_MAX_BYTES = 512 * 1024 * 1024
 _P1_INDEX_ARTIFACT_MAX_STARTS = 100_000_000
 _P1_INDEX_METADATA_MAX_BYTES = 8 * 1024 * 1024
+P1_REGRET_DOMAIN_TOL = 1e-12
 
 
 def _strict_int(value: Any, *, name: str, minimum: int | None = None) -> int:
@@ -331,6 +333,16 @@ def draw_non_circular_mbb_indices(
 
 def _starts_digest(starts: np.ndarray) -> str:
     return hashlib.sha256(starts.tobytes(order="C")).hexdigest()
+
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _strict_sha256(value: Any, *, name: str) -> str:
+    """Validate a caller-supplied digest without accepting a self-described value."""
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        raise P1MBBError(f"{name} must be a lowercase hexadecimal SHA-256 digest")
+    return value
 
 
 def _metadata_bytes(metadata: Mapping[str, Any]) -> bytes:
@@ -536,7 +548,14 @@ class P1MBBIndexArtifact:
         return result
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "P1MBBIndexArtifact":
+    def _from_dict(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        expected_artifact_sha256: str | None,
+        require_external_digest: bool,
+        verify_deterministic_starts: bool,
+    ) -> "P1MBBIndexArtifact":
         if not isinstance(payload, Mapping):
             raise P1MBBError("P1 MBB artifact must be an object")
         required = (
@@ -584,11 +603,73 @@ class P1MBBIndexArtifact:
             schema=payload["schema"],
             schema_version=payload["schema_version"],
         )
-        if "starts_sha256" in payload and payload["starts_sha256"] != artifact.starts_sha256:
+        if require_external_digest and expected_artifact_sha256 is None:
+            raise P1MBBError(
+                "production P1 MBB artifact loading requires an external expected_artifact_sha256"
+            )
+        if "starts_sha256" not in payload:
+            if require_external_digest:
+                raise P1MBBError("production P1 MBB artifact requires starts_sha256")
+        elif _strict_sha256(payload["starts_sha256"], name="starts_sha256") != artifact.starts_sha256:
             raise P1MBBError("P1 MBB starts hash mismatch")
-        if "artifact_sha256" in payload and payload["artifact_sha256"] != artifact.artifact_sha256:
+        if "artifact_sha256" not in payload:
+            if require_external_digest:
+                raise P1MBBError("production P1 MBB artifact requires artifact_sha256")
+        elif _strict_sha256(payload["artifact_sha256"], name="artifact_sha256") != artifact.artifact_sha256:
             raise P1MBBError("P1 MBB artifact hash mismatch")
+        if require_external_digest:
+            external_digest = _strict_sha256(
+                expected_artifact_sha256,
+                name="expected_artifact_sha256",
+            )
+            if external_digest != artifact.artifact_sha256:
+                raise P1MBBError(
+                    "P1 MBB artifact does not match the independent expected_artifact_sha256"
+                )
+        if verify_deterministic_starts:
+            # The fixed seed formula is an independent binding for the entire
+            # starts matrix.  A caller cannot make a forged matrix acceptable by
+            # merely recomputing and echoing its own hashes.
+            try:
+                rng = np.random.default_rng(artifact.derived_seed)
+                for replicate in range(artifact.replicates):
+                    expected = draw_non_circular_mbb_starts(
+                        artifact.n,
+                        artifact.block_length,
+                        rng,
+                    )
+                    if not np.array_equal(expected, artifact.starts[replicate]):
+                        raise P1MBBError(
+                            f"P1 MBB starts do not match the fixed RNG stream at replicate {replicate}"
+                        )
+            except (MemoryError, OverflowError) as exc:
+                raise P1MBBError("P1 MBB deterministic starts verification failed") from exc
         return artifact
+
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        expected_artifact_sha256: str | None = None,
+    ) -> "P1MBBIndexArtifact":
+        """Load a production artifact with external and deterministic binding."""
+        return cls._from_dict(
+            payload,
+            expected_artifact_sha256=expected_artifact_sha256,
+            require_external_digest=True,
+            verify_deterministic_starts=True,
+        )
+
+    @classmethod
+    def from_dict_fixture(cls, payload: Mapping[str, Any]) -> "P1MBBIndexArtifact":
+        """Load a relaxed in-memory fixture; never use this for promotion."""
+        return cls._from_dict(
+            payload,
+            expected_artifact_sha256=None,
+            require_external_digest=False,
+            verify_deterministic_starts=False,
+        )
 
 
 def build_p1_mbb_index_artifact(
@@ -883,8 +964,13 @@ def _assert_index_artifact_unchanged(handle: Any, signature: tuple[Any, ...]) ->
         raise P1MBBError("P1 MBB index artifact changed during parsing")
 
 
-def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
-    """Load and verify a lossless P1 MBB start artifact without pickle."""
+def _load_p1_mbb_index_artifact(
+    path: str | Path,
+    *,
+    expected_artifact_sha256: str | None,
+    production: bool,
+) -> P1MBBIndexArtifact:
+    """Load a lossless P1 MBB start archive after bounded structural checks."""
     source = Path(path)
     handle: Any = None
     try:
@@ -952,7 +1038,13 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
         _assert_index_artifact_unchanged(handle, source_signature)
         payload = dict(metadata)
         payload["starts"] = starts
-        artifact = P1MBBIndexArtifact.from_dict(payload)
+        if production:
+            artifact = P1MBBIndexArtifact.from_dict(
+                payload,
+                expected_artifact_sha256=expected_artifact_sha256,
+            )
+        else:
+            artifact = P1MBBIndexArtifact.from_dict_fixture(payload)
         if artifact.starts.shape != expected_shape or artifact.starts.nbytes != declared_bytes:
             raise P1MBBError("P1 MBB starts materialization contradicts its declared shape")
         if metadata_info.file_size > _P1_INDEX_METADATA_MAX_BYTES:
@@ -968,6 +1060,28 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
                 handle.close()
             except OSError:
                 pass
+
+
+def load_p1_mbb_index_artifact(
+    path: str | Path,
+    *,
+    expected_artifact_sha256: str | None = None,
+) -> P1MBBIndexArtifact:
+    """Load a production index artifact with an independent digest binding."""
+    return _load_p1_mbb_index_artifact(
+        path,
+        expected_artifact_sha256=expected_artifact_sha256,
+        production=True,
+    )
+
+
+def load_p1_mbb_index_artifact_fixture(path: str | Path) -> P1MBBIndexArtifact:
+    """Load a relaxed fixture archive; this boundary cannot promote results."""
+    return _load_p1_mbb_index_artifact(
+        path,
+        expected_artifact_sha256=None,
+        production=False,
+    )
 
 
 def _strict_float64_vector(value: Any, *, name: str, n: int) -> np.ndarray:
@@ -990,6 +1104,23 @@ def _strict_bool_mask(value: Any, *, name: str, n: int) -> np.ndarray:
     if array.dtype != np.dtype(np.bool_) or array.ndim != 1 or array.shape != (n,):
         raise P1MBBError(f"{name} must be a strict bool vector of shape ({n},)")
     return np.array(array, dtype=np.bool_, copy=True, order="C")
+
+
+def p1_mask_sha256(mask: Any) -> str:
+    """Return the canonical digest of a full-grid boolean mask.
+
+    The production wrapper compares this value with an independently supplied
+    digest.  It is intentionally just the C-order bool payload because the
+    vector length is already bound to the metric artifact ``n``.
+    """
+    try:
+        values = np.asarray(mask)
+    except (TypeError, ValueError, OverflowError, MemoryError) as exc:
+        raise P1MBBError("mask is not a valid array for hashing") from exc
+    if values.dtype != np.dtype(np.bool_) or values.ndim != 1:
+        raise P1MBBError("mask hash requires a one-dimensional strict bool vector")
+    canonical = np.ascontiguousarray(values, dtype=np.bool_)
+    return hashlib.sha256(canonical.tobytes(order="C")).hexdigest()
 
 
 def _validate_paired_inputs(
@@ -1187,6 +1318,117 @@ def _validate_optional_arm_masks(
         )
 
 
+def _validate_required_arm_masks(
+    common_mask: np.ndarray,
+    *,
+    candidate_mask: Any,
+    baseline_mask: Any,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Require both externally produced arm masks at the production boundary."""
+    if candidate_mask is None or baseline_mask is None:
+        raise P1MBBError(
+            "production P1 bootstrap requires candidate_mask and baseline_mask; "
+            "arm masks may not be omitted"
+        )
+    candidate = _strict_bool_mask(
+        candidate_mask,
+        name="candidate_mask",
+        n=len(common_mask),
+    )
+    baseline = _strict_bool_mask(
+        baseline_mask,
+        name="baseline_mask",
+        n=len(common_mask),
+    )
+    if not np.array_equal(candidate, baseline) or not np.array_equal(candidate, common_mask):
+        raise P1MBBError(
+            "production P1 metric arms must use the identical externally bound common mask"
+        )
+    return candidate, baseline
+
+
+def _validate_production_provenance(
+    metric: str,
+    common_mask: np.ndarray,
+    *,
+    provenance: Mapping[str, Any] | None,
+    expected_common_mask_sha256: Any,
+    expected_common_mask_field: Any,
+    expected_source_result_sha256: Any,
+    expected_action_primitive_payload_sha256: Any,
+    expected_action_primitive_schema_sha256: Any,
+    expected_action_primitive_content_sha256: Any,
+    expected_forecast_artifact_sha256: Any,
+    expected_forecast_result_sha256: Any,
+) -> dict[str, str]:
+    """Authenticate action/forecast provenance before a production bootstrap.
+
+    All expected values are supplied by the authenticated upstream artifact
+    loader.  Values copied only from the candidate result are never used as the
+    source of truth; the computed mask digest is checked independently here.
+    """
+    if not isinstance(provenance, Mapping):
+        raise P1MBBError("production P1 bootstrap requires external provenance metadata")
+    kind_value = provenance.get("kind", provenance.get("primitive_kind"))
+    if kind_value not in {"action", "forecast"}:
+        raise P1MBBError("production provenance kind must be exactly 'action' or 'forecast'")
+    kind = str(kind_value)
+    common_digest = _strict_sha256(
+        expected_common_mask_sha256,
+        name="expected_common_mask_sha256",
+    )
+    if p1_mask_sha256(common_mask) != common_digest:
+        raise P1MBBError("production common mask does not match its external digest")
+    field = _strict_text(
+        expected_common_mask_field,
+        name="expected_common_mask_field",
+    )
+    if provenance.get("common_mask_sha256") != common_digest:
+        raise P1MBBError("production provenance common mask digest mismatch")
+    if provenance.get("common_mask_field") != field:
+        raise P1MBBError("production provenance common mask field mismatch")
+
+    validated: dict[str, str] = {
+        "kind": kind,
+        "common_mask_sha256": common_digest,
+        "common_mask_field": field,
+    }
+    if kind == "action":
+        action_values = {
+            "action_primitive_payload_sha256": expected_action_primitive_payload_sha256,
+            "action_primitive_schema_sha256": expected_action_primitive_schema_sha256,
+            "action_primitive_content_sha256": expected_action_primitive_content_sha256,
+            "source_result_sha256": expected_source_result_sha256,
+        }
+        for name, expected in action_values.items():
+            digest = _strict_sha256(expected, name=f"expected_{name}")
+            if provenance.get(name) != digest:
+                raise P1MBBError(f"production provenance {name} mismatch")
+            validated[name] = digest
+    else:
+        artifact_digest = _strict_sha256(
+            expected_forecast_artifact_sha256,
+            name="expected_forecast_artifact_sha256",
+        )
+        result_expected = expected_forecast_result_sha256
+        if result_expected is None:
+            result_expected = expected_source_result_sha256
+        result_digest = _strict_sha256(
+            result_expected,
+            name="expected_forecast_result_sha256",
+        )
+        if provenance.get("forecast_artifact_sha256") != artifact_digest:
+            raise P1MBBError("production provenance forecast artifact digest mismatch")
+        if provenance.get("forecast_result_sha256") != result_digest:
+            raise P1MBBError("production provenance forecast result digest mismatch")
+        validated["forecast_artifact_sha256"] = artifact_digest
+        validated["forecast_result_sha256"] = result_digest
+    # Echo only authenticated fields.  Additional caller-provided provenance is
+    # deliberately ignored so an unregistered field cannot become evidence.
+    del metric
+    return validated
+
+
 def _validate_metric_indices(indices: Any, *, n: int) -> np.ndarray:
     try:
         values = np.asarray(indices)
@@ -1256,6 +1498,30 @@ def _require_nonnegative(values: np.ndarray, *, name: str) -> None:
         raise P1MBBError(f"{name} must contain non-negative squared errors")
 
 
+def _require_nonnegative_domain(values: np.ndarray, *, name: str) -> None:
+    if np.any(values < 0.0):
+        raise P1MBBError(f"{name} must contain non-negative values")
+
+
+def _require_binary_agreement(values: np.ndarray, *, name: str) -> None:
+    if not np.isin(values, (0.0, 1.0)).all():
+        raise P1MBBError(f"{name} must contain only 0 or 1 agreement indicators")
+
+
+def _require_regret_domain(
+    regret: np.ndarray,
+    opportunity: np.ndarray,
+    *,
+    regret_name: str,
+    opportunity_name: str,
+) -> None:
+    if np.any(regret < -P1_REGRET_DOMAIN_TOL):
+        raise P1MBBError(
+            f"{regret_name} must be >= {-P1_REGRET_DOMAIN_TOL:g}"
+        )
+    _require_nonnegative_domain(opportunity, name=opportunity_name)
+
+
 def _prepare_single_metric(
     arrays: Mapping[str, Any],
     mask: Any,
@@ -1301,9 +1567,33 @@ def _metric_value(
         except (FloatingPointError, TypeError, ValueError, OverflowError) as exc:
             raise P1MBBError("skill is non-finite") from exc
     elif metric == "logloss":
-        value = _safe_mean(selected["candidate_logloss"][selected_mask], name="candidate_logloss") - _safe_mean(selected["baseline_logloss"][selected_mask], name="baseline_logloss")
+        candidate_logloss = _valid_values(
+            selected["candidate_logloss"],
+            selected_mask,
+            name="candidate_logloss",
+        )
+        baseline_logloss = _valid_values(
+            selected["baseline_logloss"],
+            selected_mask,
+            name="baseline_logloss",
+        )
+        _require_nonnegative_domain(candidate_logloss, name="candidate_logloss")
+        _require_nonnegative_domain(baseline_logloss, name="baseline_logloss")
+        value = _safe_mean(candidate_logloss, name="candidate_logloss") - _safe_mean(baseline_logloss, name="baseline_logloss")
     elif metric == "agreement":
-        value = _safe_mean(selected["candidate_agreement"][selected_mask], name="candidate_agreement") - _safe_mean(selected["baseline_agreement"][selected_mask], name="baseline_agreement")
+        candidate_agreement = _valid_values(
+            selected["candidate_agreement"],
+            selected_mask,
+            name="candidate_agreement",
+        )
+        baseline_agreement = _valid_values(
+            selected["baseline_agreement"],
+            selected_mask,
+            name="baseline_agreement",
+        )
+        _require_binary_agreement(candidate_agreement, name="candidate_agreement")
+        _require_binary_agreement(baseline_agreement, name="baseline_agreement")
+        value = _safe_mean(candidate_agreement, name="candidate_agreement") - _safe_mean(baseline_agreement, name="baseline_agreement")
     elif metric == "policy_utility_delta":
         value = _safe_mean(selected["candidate_utility"][selected_mask], name="candidate_utility") - _safe_mean(selected["benchmark_hold_utility"][selected_mask], name="benchmark_hold_utility")
     elif metric == "s2_contrast":
@@ -1318,7 +1608,23 @@ def _metric_value(
         _validate_s2_direction(level_direction)
         _validate_s2_metric_direction(level_name, level_direction)
         if level_name in {"mean", "logloss", "agreement", "policy_utility_delta"}:
-            value = _safe_mean(selected["level_a_values"][selected_mask], name="level_a_values") - _safe_mean(selected["level_b_values"][selected_mask], name="level_b_values")
+            level_a_values = _valid_values(
+                selected["level_a_values"],
+                selected_mask,
+                name="level_a_values",
+            )
+            level_b_values = _valid_values(
+                selected["level_b_values"],
+                selected_mask,
+                name="level_b_values",
+            )
+            if level_name == "logloss":
+                _require_nonnegative_domain(level_a_values, name="level_a_values")
+                _require_nonnegative_domain(level_b_values, name="level_b_values")
+            elif level_name == "agreement":
+                _require_binary_agreement(level_a_values, name="level_a_values")
+                _require_binary_agreement(level_b_values, name="level_b_values")
+            value = _safe_mean(level_a_values, name="level_a_values") - _safe_mean(level_b_values, name="level_b_values")
         elif level_name == "skill":
             level_a_model = _valid_values(selected["level_a_model_se"], selected_mask, name="level_a_model_se")
             level_a_zero = _valid_values(selected["level_a_zero_se"], selected_mask, name="level_a_zero_se")
@@ -1343,6 +1649,18 @@ def _metric_value(
             level_a_opportunity = _valid_values(selected["level_a_opportunity"], selected_mask, name="level_a_opportunity")
             level_b_regret = _valid_values(selected["level_b_regret"], selected_mask, name="level_b_regret")
             level_b_opportunity = _valid_values(selected["level_b_opportunity"], selected_mask, name="level_b_opportunity")
+            _require_regret_domain(
+                level_a_regret,
+                level_a_opportunity,
+                regret_name="level_a_regret",
+                opportunity_name="level_a_opportunity",
+            )
+            _require_regret_domain(
+                level_b_regret,
+                level_b_opportunity,
+                regret_name="level_b_regret",
+                opportunity_name="level_b_opportunity",
+            )
             level_a_denominator = _safe_sum(level_a_opportunity, name="level_a_opportunity")
             level_b_denominator = _safe_sum(level_b_opportunity, name="level_b_opportunity")
             if level_a_denominator <= 0.0 or level_b_denominator <= 0.0:
@@ -1353,6 +1671,12 @@ def _metric_value(
     elif metric == "normalized_regret":
         regret = _valid_values(selected["regret"], selected_mask, name="regret")
         opportunity = _valid_values(selected["opportunity"], selected_mask, name="opportunity")
+        _require_regret_domain(
+            regret,
+            opportunity,
+            regret_name="regret",
+            opportunity_name="opportunity",
+        )
         denominator = _safe_sum(opportunity, name="opportunity")
         if denominator <= 0.0:
             raise P1MBBError(
@@ -1445,7 +1769,9 @@ def recompute_logloss_mean(
         {"values": values}, mask, expected_keys=frozenset({"values"})
     )
     selected, selected_mask = _metric_views(arrays, common_mask, indices=indices)
-    return _safe_mean(selected["values"][selected_mask], name="values")
+    valid = _valid_values(selected["values"], selected_mask, name="values")
+    _require_nonnegative_domain(valid, name="values")
+    return _safe_mean(valid, name="values")
 
 
 def recompute_logloss_delta(
@@ -1475,7 +1801,9 @@ def recompute_agreement_mean(
         {"values": values}, mask, expected_keys=frozenset({"values"})
     )
     selected, selected_mask = _metric_views(arrays, common_mask, indices=indices)
-    return _safe_mean(selected["values"][selected_mask], name="values")
+    valid = _valid_values(selected["values"], selected_mask, name="values")
+    _require_binary_agreement(valid, name="values")
+    return _safe_mean(valid, name="values")
 
 
 def recompute_agreement_delta(
@@ -1724,7 +2052,7 @@ def _metric_result(
     return result
 
 
-def bootstrap_p1_metric(
+def _bootstrap_p1_metric(
     metric: Any,
     *,
     artifact: P1MBBIndexArtifact,
@@ -1734,6 +2062,16 @@ def bootstrap_p1_metric(
     level_metric: Any = None,
     candidate_mask: Any = None,
     baseline_mask: Any = None,
+    production: bool,
+    provenance: Mapping[str, Any] | None = None,
+    expected_common_mask_sha256: Any = None,
+    expected_common_mask_field: Any = None,
+    expected_source_result_sha256: Any = None,
+    expected_action_primitive_payload_sha256: Any = None,
+    expected_action_primitive_schema_sha256: Any = None,
+    expected_action_primitive_content_sha256: Any = None,
+    expected_forecast_artifact_sha256: Any = None,
+    expected_forecast_result_sha256: Any = None,
     **arrays: Any,
 ) -> dict[str, Any]:
     """Run one preregistered metric over one exact stored MBB artifact.
@@ -1776,7 +2114,27 @@ def bootstrap_p1_metric(
         expected_keys=expected_keys,
         n=artifact.n,
     )
-    if metric_name in P1_PAIRED_MEAN_METRICS:
+    validated_provenance: dict[str, str] | None = None
+    if production:
+        _validate_required_arm_masks(
+            common_mask,
+            candidate_mask=candidate_mask,
+            baseline_mask=baseline_mask,
+        )
+        validated_provenance = _validate_production_provenance(
+            metric_name,
+            common_mask,
+            provenance=provenance,
+            expected_common_mask_sha256=expected_common_mask_sha256,
+            expected_common_mask_field=expected_common_mask_field,
+            expected_source_result_sha256=expected_source_result_sha256,
+            expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
+            expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
+            expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+            expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
+            expected_forecast_result_sha256=expected_forecast_result_sha256,
+        )
+    elif metric_name in P1_PAIRED_MEAN_METRICS:
         _validate_optional_arm_masks(
             common_mask,
             candidate_mask=candidate_mask,
@@ -1811,18 +2169,96 @@ def bootstrap_p1_metric(
             raise P1MBBError(
                 f"{metric_name} comparison blocked at replicate {replicate}: {exc}"
             ) from exc
+    result_extra: dict[str, Any] = {}
+    if level_name is not None:
+        result_extra.update(
+            {"level_direction": level_name, "level_metric": level_metric_name}
+        )
+    if validated_provenance is not None:
+        result_extra["provenance"] = validated_provenance
     return _metric_result(
         metric_name,
         artifact,
         point_estimate=point_estimate,
         samples=samples,
         direction=direction_name,
-        extra=(
-            {"level_direction": level_name, "level_metric": level_metric_name}
-            if level_name is not None
-            else None
-        ),
+        extra=result_extra or None,
     )
+
+
+def bootstrap_p1_metric(
+    metric: Any,
+    *,
+    artifact: P1MBBIndexArtifact,
+    mask: Any,
+    direction: Any = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+    candidate_mask: Any = None,
+    baseline_mask: Any = None,
+    provenance: Mapping[str, Any] | None = None,
+    expected_common_mask_sha256: Any = None,
+    expected_common_mask_field: Any = None,
+    expected_source_result_sha256: Any = None,
+    expected_action_primitive_payload_sha256: Any = None,
+    expected_action_primitive_schema_sha256: Any = None,
+    expected_action_primitive_content_sha256: Any = None,
+    expected_forecast_artifact_sha256: Any = None,
+    expected_forecast_result_sha256: Any = None,
+    **arrays: Any,
+) -> dict[str, Any]:
+    """Run a production P1 metric bootstrap with authenticated provenance."""
+    return _bootstrap_p1_metric(
+        metric,
+        artifact=artifact,
+        mask=mask,
+        direction=direction,
+        level_direction=level_direction,
+        level_metric=level_metric,
+        candidate_mask=candidate_mask,
+        baseline_mask=baseline_mask,
+        production=True,
+        provenance=provenance,
+        expected_common_mask_sha256=expected_common_mask_sha256,
+        expected_common_mask_field=expected_common_mask_field,
+        expected_source_result_sha256=expected_source_result_sha256,
+        expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
+        expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
+        expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+        expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
+        expected_forecast_result_sha256=expected_forecast_result_sha256,
+        **arrays,
+    )
+
+
+def bootstrap_p1_metric_fixture(
+    metric: Any,
+    *,
+    artifact: P1MBBIndexArtifact,
+    mask: Any,
+    direction: Any = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+    candidate_mask: Any = None,
+    baseline_mask: Any = None,
+    **arrays: Any,
+) -> dict[str, Any]:
+    """Run the relaxed deterministic fixture API; never use for promotion."""
+    return _bootstrap_p1_metric(
+        metric,
+        artifact=artifact,
+        mask=mask,
+        direction=direction,
+        level_direction=level_direction,
+        level_metric=level_metric,
+        candidate_mask=candidate_mask,
+        baseline_mask=baseline_mask,
+        production=False,
+        **arrays,
+    )
+
+
+bootstrap_p1_metric_production = bootstrap_p1_metric
 
 
 def _payload_grid_length(payload: Mapping[str, Any]) -> int:
@@ -1835,7 +2271,7 @@ def _payload_grid_length(payload: Mapping[str, Any]) -> int:
     return int(mask.shape[0])
 
 
-def bootstrap_p1_metric_seed_aggregate(
+def _bootstrap_p1_metric_seed_aggregate(
     metric: Any,
     *,
     unit: str | int | None = None,
@@ -1846,6 +2282,8 @@ def bootstrap_p1_metric_seed_aggregate(
     direction: Any = None,
     level_direction: Any = None,
     level_metric: Any = None,
+    production: bool,
+    provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Bootstrap ten synthetic seeds independently and equal-weight them.
 
@@ -1870,6 +2308,15 @@ def bootstrap_p1_metric_seed_aggregate(
     length = _strict_block_length(block_length)
     if not isinstance(seed_inputs, Mapping):
         raise P1MBBError("seed_inputs must be a mapping of seed ordinal to payload")
+    if production:
+        if not isinstance(provenance_by_seed, Mapping):
+            raise P1MBBError(
+                "production synthetic aggregation requires external provenance_by_seed"
+            )
+        if set(provenance_by_seed) != set(range(10)):
+            raise P1MBBError(
+                "production synthetic aggregation requires provenance for every seed 0..9"
+            )
     try:
         raw_ordinals = list(seed_inputs.keys())
     except (TypeError, ValueError, OverflowError, MemoryError) as exc:
@@ -1941,7 +2388,28 @@ def bootstrap_p1_metric_seed_aggregate(
         array_payload = {field: payload[field] for field in expected_arrays}
         candidate_mask = payload.get("candidate_mask")
         baseline_mask = payload.get("baseline_mask")
-        per_seed[ordinal] = bootstrap_p1_metric(
+        provenance_args: dict[str, Any] = {}
+        if production:
+            seed_provenance = provenance_by_seed[ordinal]
+            if not isinstance(seed_provenance, Mapping):
+                raise P1MBBError(f"seed {ordinal} production provenance must be a mapping")
+            if "provenance" not in seed_provenance:
+                raise P1MBBError(f"seed {ordinal} production provenance is missing provenance")
+            provenance_args = {
+                key: seed_provenance.get(key)
+                for key in (
+                    "provenance",
+                    "expected_common_mask_sha256",
+                    "expected_common_mask_field",
+                    "expected_source_result_sha256",
+                    "expected_action_primitive_payload_sha256",
+                    "expected_action_primitive_schema_sha256",
+                    "expected_action_primitive_content_sha256",
+                    "expected_forecast_artifact_sha256",
+                    "expected_forecast_result_sha256",
+                )
+            }
+        per_seed[ordinal] = _bootstrap_p1_metric(
             metric_name,
             artifact=artifact,
             mask=payload["mask"],
@@ -1950,6 +2418,8 @@ def bootstrap_p1_metric_seed_aggregate(
             level_metric=level_metric_name,
             candidate_mask=candidate_mask,
             baseline_mask=baseline_mask,
+            production=production,
+            **provenance_args,
             **array_payload,
         )
 
@@ -1972,18 +2442,26 @@ def bootstrap_p1_metric_seed_aggregate(
     if not np.isfinite(aggregate_samples).all() or not np.isfinite(point_estimate):
         raise P1MBBError("synthetic seed bootstrap aggregation is non-finite")
     direction_name = per_seed[0]["direction"]
+    aggregate_extra: dict[str, Any] = {}
+    if metric_name == "s2_contrast":
+        aggregate_extra.update(
+            {
+                "level_direction": per_seed[0].get("level_direction"),
+                "level_metric": per_seed[0].get("level_metric"),
+            }
+        )
+    if production:
+        aggregate_extra["provenance_by_seed"] = {
+            ordinal: dict(per_seed[ordinal].get("provenance", {}))
+            for ordinal in range(10)
+        }
     result = _metric_result(
         metric_name,
         artifacts[0],
         point_estimate=point_estimate,
         samples=np.asarray(aggregate_samples, dtype="<f8"),
         direction=direction_name,
-        extra={
-            "level_direction": per_seed[0].get("level_direction"),
-            "level_metric": per_seed[0].get("level_metric"),
-        }
-        if metric_name == "s2_contrast"
-        else None,
+        extra=aggregate_extra or None,
     )
     result.pop("index_artifact_sha256", None)
     result.update(
@@ -2006,8 +2484,66 @@ def bootstrap_p1_metric_seed_aggregate(
     return result
 
 
-# Both names describe the same closed operation; the alias does not add a
-# second seed or weighting convention.
+def bootstrap_p1_metric_seed_aggregate(
+    metric: Any,
+    *,
+    unit: str | int | None = None,
+    unit_code: Any = None,
+    support_id: Any,
+    block_length: Any,
+    seed_inputs: Mapping[Any, Mapping[str, Any]],
+    direction: Any = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+    provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run the production ten-seed aggregate with external provenance."""
+    return _bootstrap_p1_metric_seed_aggregate(
+        metric,
+        unit=unit,
+        unit_code=unit_code,
+        support_id=support_id,
+        block_length=block_length,
+        seed_inputs=seed_inputs,
+        direction=direction,
+        level_direction=level_direction,
+        level_metric=level_metric,
+        production=True,
+        provenance_by_seed=provenance_by_seed,
+    )
+
+
+def bootstrap_p1_metric_seed_aggregate_fixture(
+    metric: Any,
+    *,
+    unit: str | int | None = None,
+    unit_code: Any = None,
+    support_id: Any,
+    block_length: Any,
+    seed_inputs: Mapping[Any, Mapping[str, Any]],
+    direction: Any = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+) -> dict[str, Any]:
+    """Run the relaxed ten-seed fixture aggregate; never promote its result."""
+    return _bootstrap_p1_metric_seed_aggregate(
+        metric,
+        unit=unit,
+        unit_code=unit_code,
+        support_id=support_id,
+        block_length=block_length,
+        seed_inputs=seed_inputs,
+        direction=direction,
+        level_direction=level_direction,
+        level_metric=level_metric,
+        production=False,
+    )
+
+
+bootstrap_p1_metric_seed_aggregate_production = bootstrap_p1_metric_seed_aggregate
+
+# Both names describe the same closed production operation; the fixture alias
+# is separate so development fixtures cannot silently cross the promotion gate.
 bootstrap_p1_metric_by_seed = bootstrap_p1_metric_seed_aggregate
 
 
@@ -2050,7 +2586,7 @@ def bootstrap_p1_metric_seed_sensitivity(
 bootstrap_p1_metric_sensitivity_by_seed = bootstrap_p1_metric_seed_sensitivity
 
 
-def paired_bootstrap_mean_delta(
+def _paired_bootstrap_mean_delta(
     candidate_values: Any,
     baseline_values: Any,
     *,
@@ -2059,6 +2595,16 @@ def paired_bootstrap_mean_delta(
     artifact: P1MBBIndexArtifact,
     metric: str,
     direction: str,
+    production: bool,
+    provenance: Mapping[str, Any] | None = None,
+    expected_common_mask_sha256: Any = None,
+    expected_common_mask_field: Any = None,
+    expected_source_result_sha256: Any = None,
+    expected_action_primitive_payload_sha256: Any = None,
+    expected_action_primitive_schema_sha256: Any = None,
+    expected_action_primitive_content_sha256: Any = None,
+    expected_forecast_artifact_sha256: Any = None,
+    expected_forecast_result_sha256: Any = None,
 ) -> dict[str, Any]:
     """Recompute one registered paired mean contrast over exact MBB draws.
 
@@ -2091,18 +2637,95 @@ def paired_bootstrap_mean_delta(
         ),
     }
     candidate_name, baseline_name = array_names[metric_name]
-    result = bootstrap_p1_metric(
+    result = _bootstrap_p1_metric(
         metric_name,
         artifact=artifact,
         mask=common_mask,
         direction=direction_name,
         candidate_mask=candidate_mask,
         baseline_mask=baseline_mask,
+        production=production,
+        provenance=provenance,
+        expected_common_mask_sha256=expected_common_mask_sha256,
+        expected_common_mask_field=expected_common_mask_field,
+        expected_source_result_sha256=expected_source_result_sha256,
+        expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
+        expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
+        expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+        expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
+        expected_forecast_result_sha256=expected_forecast_result_sha256,
         **{candidate_name: candidate, baseline_name: baseline},
     )
     result["point_delta"] = result["point_estimate"]
     result["favorable_point_delta"] = result["favorable_point_estimate"]
     return result
+
+
+def paired_bootstrap_mean_delta(
+    candidate_values: Any,
+    baseline_values: Any,
+    *,
+    candidate_mask: Any,
+    baseline_mask: Any,
+    artifact: P1MBBIndexArtifact,
+    metric: str,
+    direction: str,
+    provenance: Mapping[str, Any] | None = None,
+    expected_common_mask_sha256: Any = None,
+    expected_common_mask_field: Any = None,
+    expected_source_result_sha256: Any = None,
+    expected_action_primitive_payload_sha256: Any = None,
+    expected_action_primitive_schema_sha256: Any = None,
+    expected_action_primitive_content_sha256: Any = None,
+    expected_forecast_artifact_sha256: Any = None,
+    expected_forecast_result_sha256: Any = None,
+) -> dict[str, Any]:
+    """Production paired bootstrap with mandatory external provenance."""
+    return _paired_bootstrap_mean_delta(
+        candidate_values,
+        baseline_values,
+        candidate_mask=candidate_mask,
+        baseline_mask=baseline_mask,
+        artifact=artifact,
+        metric=metric,
+        direction=direction,
+        production=True,
+        provenance=provenance,
+        expected_common_mask_sha256=expected_common_mask_sha256,
+        expected_common_mask_field=expected_common_mask_field,
+        expected_source_result_sha256=expected_source_result_sha256,
+        expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
+        expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
+        expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+        expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
+        expected_forecast_result_sha256=expected_forecast_result_sha256,
+    )
+
+
+def paired_bootstrap_mean_delta_fixture(
+    candidate_values: Any,
+    baseline_values: Any,
+    *,
+    candidate_mask: Any,
+    baseline_mask: Any,
+    artifact: P1MBBIndexArtifact,
+    metric: str,
+    direction: str,
+) -> dict[str, Any]:
+    """Relaxed fixture paired bootstrap; never use for production promotion."""
+    return _paired_bootstrap_mean_delta(
+        candidate_values,
+        baseline_values,
+        candidate_mask=candidate_mask,
+        baseline_mask=baseline_mask,
+        artifact=artifact,
+        metric=metric,
+        direction=direction,
+        production=False,
+    )
+
+
+paired_bootstrap_mean_delta_production = paired_bootstrap_mean_delta
 
 
 def paired_bootstrap_mean_delta_sensitivity(
@@ -2131,7 +2754,7 @@ def paired_bootstrap_mean_delta_sensitivity(
             block_length=length,
         )
         artifacts[length] = artifact
-        results[length] = paired_bootstrap_mean_delta(
+        results[length] = _paired_bootstrap_mean_delta(
             candidate_values,
             baseline_values,
             candidate_mask=candidate_mask,
@@ -2139,6 +2762,7 @@ def paired_bootstrap_mean_delta_sensitivity(
             artifact=artifact,
             metric=metric,
             direction=direction,
+            production=False,
         )
     return {
         "status": "ok",
@@ -2199,6 +2823,7 @@ __all__ = [
     "P1_MBB_SCHEMA_VERSION",
     "P1_MBB_UNIT_CODES",
     "P1_MBB_UNIT_SUPPORTS",
+    "P1_REGRET_DOMAIN_TOL",
     "P1_PAIRED_MEAN_METRICS",
     "P1_RECOMPUTE_METRICS",
     "P1MBBError",
@@ -2206,8 +2831,12 @@ __all__ = [
     "P1MBBIndexArtifact",
     "build_p1_mbb_index_artifact",
     "bootstrap_p1_metric",
+    "bootstrap_p1_metric_fixture",
+    "bootstrap_p1_metric_production",
     "bootstrap_p1_metric_by_seed",
     "bootstrap_p1_metric_seed_aggregate",
+    "bootstrap_p1_metric_seed_aggregate_fixture",
+    "bootstrap_p1_metric_seed_aggregate_production",
     "bootstrap_p1_metric_seed_sensitivity",
     "bootstrap_p1_metric_sensitivity_by_seed",
     "derive_p1_seed",
@@ -2215,8 +2844,11 @@ __all__ = [
     "draw_non_circular_mbb_indices",
     "draw_non_circular_mbb_starts",
     "load_p1_mbb_index_artifact",
+    "load_p1_mbb_index_artifact_fixture",
     "materialize_non_circular_mbb_indices",
     "paired_bootstrap_mean_delta",
+    "paired_bootstrap_mean_delta_fixture",
+    "paired_bootstrap_mean_delta_production",
     "paired_bootstrap_mean_delta_sensitivity",
     "recompute_agreement_delta",
     "recompute_agreement_mean",
@@ -2232,6 +2864,7 @@ __all__ = [
     "recompute_s3_skill_did",
     "recompute_s3_utility_did",
     "recompute_skill",
+    "p1_mask_sha256",
     "reject_unpaired_or_generic_mbb",
     "run_p1_mbb",
     "save_p1_mbb_index_artifact",
