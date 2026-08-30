@@ -1841,8 +1841,15 @@ def _contains_embedded_conditional_oof_artifact(
     _depth: int = 0,
     _active: set[int] | None = None,
     _nodes: list[int] | None = None,
+    _expected_hash_container: bool = False,
 ) -> bool:
-    """Find a full artifact nested under an otherwise harmless config key."""
+    """Find artifact payload/core keys nested under a config key.
+
+    Expected hash maps are the one intentional nested use of names such as
+    ``checkpoint_sha256`` and ``teacher_sha256``.  Their small scalar allowlist
+    is handled explicitly; an artifact schema/provenance/prediction key inside
+    that map still fails closed.
+    """
     if _depth > _MAX_ARTIFACT_JSON_DEPTH:
         raise ConditionalOOFArtifactError(
             "strict conditional config exceeds artifact-source nesting depth"
@@ -1861,17 +1868,39 @@ def _contains_embedded_conditional_oof_artifact(
             return True
         _active.add(object_id)
         try:
-            for item in value.values():
+            for key, item in value.items():
                 _nodes[0] += 1
                 if _nodes[0] > _MAX_ARTIFACT_JSON_NODES:
                     raise ConditionalOOFArtifactError(
                         "strict conditional config exceeds artifact-source node budget"
                     )
+                key_name = str(key)
+                if key_name in _ARTIFACT_BINDING_SIGNATURE_KEYS and not (
+                    _expected_hash_container
+                    and key_name
+                    in {
+                        "checkpoint_sha256",
+                        "normalizer_sha256",
+                        "calibrator_sha256",
+                        "teacher_weight_sha256",
+                        "teacher_sha256",
+                    }
+                ):
+                    return True
                 if _contains_embedded_conditional_oof_artifact(
                     item,
                     _depth=_depth + 1,
                     _active=_active,
                     _nodes=_nodes,
+                    _expected_hash_container=(
+                        _expected_hash_container
+                        or key_name
+                        in {
+                            "expected_hashes",
+                            "expected_model_hashes",
+                            "conditional_oof_expected_hashes",
+                        }
+                    ),
                 ):
                     return True
         finally:
@@ -1896,6 +1925,7 @@ def _contains_embedded_conditional_oof_artifact(
                     _depth=_depth + 1,
                     _active=_active,
                     _nodes=_nodes,
+                    _expected_hash_container=_expected_hash_container,
                 ):
                     return True
         finally:
