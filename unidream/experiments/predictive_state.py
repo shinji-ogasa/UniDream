@@ -7,8 +7,8 @@ from .chronological_oof import (
     ConditionalPathBlocked,
     ConditionalOOFArtifactError,
     _conditional_oof_artifact_envelope,
-    conditional_path_enabled,
-    conditional_oof_artifact_required,
+    conditional_path_or_artifact_enabled,
+    conditional_runtime_config,
     require_conditional_oof_inputs,
     strict_bool_array,
     strict_bool_value,
@@ -367,22 +367,24 @@ def build_wm_predictive_state_bundle(
     oof_bundle: dict | None = None,
 ) -> dict | None:
     try:
-        conditional_enabled = conditional_path_enabled(ac_cfg)
-        artifact_required = conditional_oof_artifact_required(ac_cfg)
+        # ``ac_cfg`` is usually stage-local.  The shared helper keeps a
+        # propagated top-level strict request visible at this boundary.
+        effective_ac_cfg = conditional_runtime_config(ac_cfg)
+        conditional_enabled = conditional_path_or_artifact_enabled(effective_ac_cfg)
     except (OverflowError, ChronologicalOOFError, ValueError, TypeError) as exc:
         raise ConditionalPathBlocked(
             f"conditional predictive state config is invalid ({exc})"
         ) from exc
-    if conditional_enabled or artifact_required:
+    if conditional_enabled:
         require_conditional_oof_inputs(
-            config=ac_cfg,
+            config=effective_ac_cfg,
             oof_bundle=oof_bundle,
             caller="build_wm_predictive_state_bundle",
         )
         if oof_bundle is not None:
             return _conditional_oof_state_bundle(
                 oof_bundle=oof_bundle,
-                ac_cfg=ac_cfg,
+                ac_cfg=effective_ac_cfg,
                 log_ts=log_ts,
             )
         raise ConditionalPathBlocked(

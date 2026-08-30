@@ -53,6 +53,7 @@ _MAX_ARTIFACT_TOTAL_ARRAY_BYTES = 512 * 1024 * 1024
 _MAX_ARTIFACT_JSON_NODES = 1_000_000
 _MAX_ARTIFACT_JSON_DEPTH = 64
 _MAX_ARTIFACT_ARRAY_NDIM = 8
+_MAX_PROVENANCE_SCAN_NODES = 100_000
 _CONDITIONAL_OOF_ENVELOPE_KEYS = frozenset(
     {"conditional_oof_artifact", "oof_artifact", "artifact"}
 )
@@ -276,6 +277,7 @@ def _artifact_json_value(
     *,
     for_hash: bool = False,
     _depth: int = 0,
+    _budget: dict[str, int] | None = None,
 ) -> Any:
     """Convert metadata to deterministic JSON-safe values.
 
@@ -283,13 +285,34 @@ def _artifact_json_value(
     when hashing; nested metadata is expected to be scalar/list/mapping data.
     Rejecting implicit stringification here keeps provenance hashes auditable.
     """
+    if _budget is None:
+        _budget = {"nodes": 0, "elements": 0, "bytes": 0}
+    _budget["nodes"] += 1
+    if _budget["nodes"] > _MAX_ARTIFACT_JSON_NODES:
+        raise ConditionalOOFArtifactError(
+            f"artifact metadata exceeds maximum of {_MAX_ARTIFACT_JSON_NODES} nodes"
+        )
     if _depth > _MAX_ARTIFACT_JSON_DEPTH:
         raise ConditionalOOFArtifactError(
             f"artifact metadata exceeds maximum nesting depth {_MAX_ARTIFACT_JSON_DEPTH}"
         )
     if isinstance(value, np.ndarray):
+        _, elements, nbytes = _validate_array_layout(
+            value.dtype,
+            value.shape,
+            name="artifact array",
+        )
+        _budget["elements"] += elements
+        _budget["bytes"] += nbytes
+        if _budget["elements"] > _MAX_ARTIFACT_TOTAL_ARRAY_ELEMENTS:
+            raise ConditionalOOFArtifactError(
+                "artifact ndarray payloads exceed the aggregate element budget"
+            )
+        if _budget["bytes"] > _MAX_ARTIFACT_TOTAL_ARRAY_BYTES:
+            raise ConditionalOOFArtifactError(
+                "artifact ndarray payloads exceed the aggregate byte budget"
+            )
         if for_hash:
-            _validate_array_layout(value.dtype, value.shape, name="artifact array")
             return {
                 "__ndarray__": True,
                 "dtype": value.dtype.str,
@@ -298,15 +321,30 @@ def _artifact_json_value(
             }
         return value.tolist()
     if isinstance(value, np.generic):
-        return _artifact_json_value(value.item(), for_hash=for_hash, _depth=_depth + 1)
+        return _artifact_json_value(
+            value.item(),
+            for_hash=for_hash,
+            _depth=_depth + 1,
+            _budget=_budget,
+        )
     if isinstance(value, Mapping):
         return {
-            str(key): _artifact_json_value(item, for_hash=for_hash, _depth=_depth + 1)
+            str(key): _artifact_json_value(
+                item,
+                for_hash=for_hash,
+                _depth=_depth + 1,
+                _budget=_budget,
+            )
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         }
     if isinstance(value, (list, tuple)):
         return [
-            _artifact_json_value(item, for_hash=for_hash, _depth=_depth + 1)
+            _artifact_json_value(
+                item,
+                for_hash=for_hash,
+                _depth=_depth + 1,
+                _budget=_budget,
+            )
             for item in value
         ]
     if isinstance(value, (str, int, bool)) or value is None:
@@ -322,6 +360,71 @@ def _artifact_json_value(
     raise ConditionalOOFArtifactError(
         f"unsupported artifact metadata value type: {type(value).__name__}"
     )
+
+
+def _validate_provenance_in_sample_flags(value: Any) -> None:
+    """Reject in-sample provenance flags at any nested depth.
+
+    Component-level provenance is user supplied metadata, so checking only a
+    fixed list of immediate component names leaves a straightforward bypass:
+    an attacker can wrap ``{"in_sample": true}`` in an arbitrary mapping.
+    Scan mappings and sequences recursively with explicit depth/node/cycle
+    guards.  Shared (but acyclic) objects are allowed; an active object seen
+    again is a cycle and is rejected fail-closed.
+    """
+    active: set[int] = set()
+    nodes = 0
+
+    def visit(current: Any, *, depth: int, path: str) -> None:
+        nonlocal nodes
+        if depth > _MAX_ARTIFACT_JSON_DEPTH:
+            raise ConditionalOOFArtifactError(
+                "provenance metadata exceeds maximum nesting depth "
+                f"{_MAX_ARTIFACT_JSON_DEPTH}"
+            )
+        if isinstance(current, Mapping):
+            object_id = id(current)
+            if object_id in active:
+                raise ConditionalOOFArtifactError(
+                    f"provenance metadata contains a reference cycle at {path}"
+                )
+            active.add(object_id)
+            try:
+                for key, item in current.items():
+                    nodes += 1
+                    if nodes > _MAX_PROVENANCE_SCAN_NODES:
+                        raise ConditionalOOFArtifactError(
+                            "provenance metadata exceeds the recursive node budget"
+                        )
+                    child_path = f"{path}.{key}"
+                    if key == "in_sample":
+                        if type(item) is not bool or item is not False:
+                            raise ConditionalOOFArtifactError(
+                                f"{child_path} must be explicitly false"
+                            )
+                    visit(item, depth=depth + 1, path=child_path)
+            finally:
+                active.remove(object_id)
+            return
+        if isinstance(current, (list, tuple)):
+            object_id = id(current)
+            if object_id in active:
+                raise ConditionalOOFArtifactError(
+                    f"provenance metadata contains a reference cycle at {path}"
+                )
+            active.add(object_id)
+            try:
+                for index, item in enumerate(current):
+                    nodes += 1
+                    if nodes > _MAX_PROVENANCE_SCAN_NODES:
+                        raise ConditionalOOFArtifactError(
+                            "provenance metadata exceeds the recursive node budget"
+                        )
+                    visit(item, depth=depth + 1, path=f"{path}[{index}]")
+            finally:
+                active.remove(object_id)
+
+    visit(value, depth=0, path="provenance")
 
 
 def hash_conditional_oof_artifact(artifact: Mapping[str, Any]) -> str:
@@ -587,7 +690,11 @@ def _coverage_rows(
             "conditional OOF artifact requires non-empty head-by-horizon coverage"
         )
     normalized: list[dict[str, Any]] = []
-    seen: set[tuple[str, int]] = set()
+    # train_wm can emit multiple output rows for one logical head/horizon
+    # (for example a utility head with several action/value outputs).  Keep
+    # that identity instead of collapsing it to the pair.  Legacy rows that
+    # predate ``output_index`` still get a single pair-level slot.
+    seen: set[tuple[str, int, int | None]] = set()
     for raw in value:
         if not isinstance(raw, Mapping):
             raise ConditionalOOFArtifactError("coverage rows must be mappings")
@@ -598,12 +705,23 @@ def _coverage_rows(
         horizon = strict_integer_value(row.get("horizon"), name="coverage.horizon")
         if horizon < 1:
             raise ConditionalOOFArtifactError("coverage.horizon must be >= 1")
-        pair = (head, horizon)
-        if pair in seen:
-            raise ConditionalOOFArtifactError(
-                f"duplicate head-by-horizon coverage row: {head}:{horizon}"
+        output_index: int | None = None
+        if "output_index" in row and row["output_index"] is not None:
+            output_index = strict_integer_value(
+                row["output_index"],
+                name="coverage.output_index",
             )
-        seen.add(pair)
+            if output_index < 0:
+                raise ConditionalOOFArtifactError(
+                    "coverage.output_index must be >= 0"
+                )
+        key = (head, horizon, output_index)
+        if key in seen:
+            raise ConditionalOOFArtifactError(
+                "duplicate head-by-horizon-output coverage row: "
+                f"{head}:{horizon}:{output_index}"
+            )
+        seen.add(key)
         count_fields = (
             "target_count",
             "gradient_steps",
@@ -777,6 +895,10 @@ def _coverage_rows(
             )
         row["head"] = head
         row["horizon"] = horizon
+        # Preserve an explicit null for pair-level/raw compatibility.  This
+        # makes the normalized representation unambiguous and keeps output
+        # rows auditable after JSON round-trips.
+        row["output_index"] = output_index
         # Never drop a row because it is zero-covered: h64 is a visible
         # contract failure, not an absent diagnostic.
         normalized.append(row)
@@ -1119,6 +1241,10 @@ def validate_conditional_oof_artifact(
                 raise ConditionalOOFArtifactError(
                     f"provenance.{component_name}.in_sample must be false"
                 )
+        # The immediate-name check above documents the known model-component
+        # contract.  The recursive scan closes arbitrary-depth wrappers and
+        # aliases that would otherwise hide an in-sample flag.
+        _validate_provenance_in_sample_flags(provenance)
     horizon = strict_integer_value(provenance.get("horizon"), name="provenance.horizon")
     if horizon < 1:
         raise ConditionalOOFArtifactError("provenance.horizon must be >= 1")
@@ -1322,14 +1448,45 @@ def validate_conditional_oof_artifact(
             raise ConditionalOOFArtifactError("coverage.status must be a string when supplied")
 
 
-def _encode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
-    """Encode an artifact for JSON while preserving typed NaN arrays."""
+def _encode_artifact_json(
+    value: Any,
+    *,
+    _depth: int = 0,
+    _budget: dict[str, int] | None = None,
+) -> Any:
+    """Encode an artifact for JSON while preserving typed NaN arrays.
+
+    The encoder uses the same aggregate node/array budgets as the decoder so
+    a caller cannot bypass the persisted-artifact limits by constructing a
+    giant in-memory payload and asking the writer to serialize it.
+    """
+    if _budget is None:
+        _budget = {"nodes": 0, "elements": 0, "bytes": 0}
+    _budget["nodes"] += 1
+    if _budget["nodes"] > _MAX_ARTIFACT_JSON_NODES:
+        raise ConditionalOOFArtifactError(
+            f"artifact JSON exceeds maximum of {_MAX_ARTIFACT_JSON_NODES} nodes"
+        )
     if _depth > _MAX_ARTIFACT_JSON_DEPTH:
         raise ConditionalOOFArtifactError(
             f"artifact JSON exceeds maximum nesting depth {_MAX_ARTIFACT_JSON_DEPTH}"
         )
     if isinstance(value, np.ndarray):
-        _validate_array_layout(value.dtype, value.shape, name="artifact array")
+        _, elements, nbytes = _validate_array_layout(
+            value.dtype,
+            value.shape,
+            name="artifact array",
+        )
+        _budget["elements"] += elements
+        _budget["bytes"] += nbytes
+        if _budget["elements"] > _MAX_ARTIFACT_TOTAL_ARRAY_ELEMENTS:
+            raise ConditionalOOFArtifactError(
+                "artifact ndarray payloads exceed the aggregate element budget"
+            )
+        if _budget["bytes"] > _MAX_ARTIFACT_TOTAL_ARRAY_BYTES:
+            raise ConditionalOOFArtifactError(
+                "artifact ndarray payloads exceed the aggregate byte budget"
+            )
         contiguous = np.ascontiguousarray(value)
         return {
             "__ndarray__": True,
@@ -1338,15 +1495,27 @@ def _encode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
             "data_b64": base64.b64encode(contiguous.tobytes(order="C")).decode("ascii"),
         }
     if isinstance(value, np.generic):
-        return _encode_artifact_json(value.item(), _depth=_depth + 1)
+        return _encode_artifact_json(
+            value.item(),
+            _depth=_depth + 1,
+            _budget=_budget,
+        )
     if isinstance(value, Mapping):
         return {
-            str(key): _encode_artifact_json(item, _depth=_depth + 1)
+            str(key): _encode_artifact_json(
+                item,
+                _depth=_depth + 1,
+                _budget=_budget,
+            )
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         }
     if isinstance(value, (list, tuple)):
         return [
-            _encode_artifact_json(item, _depth=_depth + 1)
+            _encode_artifact_json(
+                item,
+                _depth=_depth + 1,
+                _budget=_budget,
+            )
             for item in value
         ]
     if isinstance(value, (str, int, bool)) or value is None:
@@ -1477,7 +1646,13 @@ def write_conditional_oof_artifact(
             separators=(",", ":"),
             allow_nan=False,
         )
-    except (RecursionError, TypeError, ValueError, OverflowError) as exc:
+        encoded_size = len((text + "\n").encode("utf-8"))
+        if encoded_size > _MAX_ARTIFACT_FILE_BYTES:
+            raise ConditionalOOFArtifactError(
+                "conditional OOF artifact JSON exceeds "
+                f"{_MAX_ARTIFACT_FILE_BYTES} bytes"
+            )
+    except (RecursionError, TypeError, ValueError, OverflowError, MemoryError) as exc:
         raise ConditionalOOFArtifactError(
             f"conditional OOF artifact JSON encoding failed: {exc}"
         ) from exc
@@ -1567,6 +1742,9 @@ def _conditional_artifact_required(config: Mapping[str, Any] | None) -> bool:
         config.get("conditional_oof_artifact"),
         config.get("conditional_oracle"),
         config.get("oracle"),
+        config.get("world_model"),
+        config.get("ac"),
+        config.get("bc"),
     ):
         if isinstance(section, Mapping):
             for key in (
@@ -1602,6 +1780,96 @@ _EXPECTED_HASH_ALIASES = {
     "teacher_hash": "teacher_weight_sha256",
     "teacher_sha256": "teacher_weight_sha256",
 }
+
+# Keys that are owned by a persisted artifact rather than by an external
+# expectation.  A full run config may still contain ordinary action/cost
+# settings, so the action mapping alone is not treated as an artifact
+# signature; once any immutable artifact core is present, however, the whole
+# section is rejected as a possible self-binding source.
+_ARTIFACT_BINDING_SIGNATURE_KEYS = frozenset(
+    {
+        "schema",
+        "schema_version",
+        "artifact_kind",
+        "artifact_sha256",
+        "artifact_hash",
+        "predictions",
+        "prediction_mask",
+        "oof_mask",
+        "prediction_eligibility_mask",
+        "training_label_eligibility_mask",
+        "target_end_exclusive",
+        "train_count",
+        "origins",
+        "provenance",
+        "coverage",
+        "origin_sha256",
+        "checkpoint_sha256",
+        "normalizer_sha256",
+        "calibrator_sha256",
+        "teacher_weight_sha256",
+        "teacher_sha256",
+    }
+)
+
+
+def _looks_like_conditional_oof_artifact_mapping(value: Any) -> bool:
+    """Return whether a config mapping contains immutable artifact core data."""
+    if not isinstance(value, Mapping):
+        return False
+    keys = {str(key) for key in value}
+    if keys & _ARTIFACT_BINDING_SIGNATURE_KEYS:
+        return True
+    return (
+        "action_execution_contract" in keys
+        and bool(
+            keys
+            & {
+                "action_execution_contract_hash",
+                "action_execution_contract_sha256",
+                "origin_sha256",
+            }
+        )
+    )
+
+
+def _reject_artifact_self_binding_sources(config: Mapping[str, Any]) -> None:
+    """Reject artifact payloads masquerading as strict external config.
+
+    Strict expectations must be independently supplied.  In particular, a
+    caller must not merge a previously produced artifact into the root,
+    ``conditional_oof``, or another generic option section and have its own
+    hashes/coverage/origins become the expected values.  The dedicated
+    ``conditional_oof_artifact_contract`` section is allowed only for its
+    expectation fields; artifact core keys inside it are rejected as well.
+    """
+    sections: list[tuple[str, Mapping[str, Any]]] = [("root", config)]
+    seen_ids = {id(config)}
+    for name in (
+        "conditional_oof",
+        "conditional_oof_artifact_contract",
+        "conditional_oracle",
+        "oracle",
+    ):
+        section = config.get(name)
+        if not isinstance(section, Mapping) or id(section) in seen_ids:
+            continue
+        seen_ids.add(id(section))
+        sections.append((name, section))
+    for section_name, section in sections:
+        if _looks_like_conditional_oof_artifact_mapping(section):
+            raise ConditionalOOFArtifactError(
+                f"strict conditional config section {section_name!r} contains "
+                "conditional OOF artifact core keys; external bindings must be "
+                "independent of the artifact"
+            )
+        for envelope_key in _CONDITIONAL_OOF_ENVELOPE_KEYS:
+            candidate = section.get(envelope_key)
+            if _looks_like_conditional_oof_artifact_mapping(candidate):
+                raise ConditionalOOFArtifactError(
+                    f"strict conditional config section {section_name!r} embeds "
+                    f"artifact payload under {envelope_key!r}"
+                )
 
 
 def _conditional_config_sections(config: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -1712,6 +1980,7 @@ def _strict_conditional_bindings(
     config: Mapping[str, Any],
 ) -> tuple[Any | None, str, dict[str, str], tuple[tuple[str, int], ...]]:
     """Read external strict expectations; self-declared artifact values are never defaults."""
+    _reject_artifact_self_binding_sources(config)
     sections = _conditional_config_sections(config)
     heads_value = _first_conditional_config_value(
         sections,
@@ -2024,6 +2293,41 @@ def conditional_path_enabled(config: Mapping[str, Any] | None) -> bool:
         if teacher_mode in {"conditional", "conditional_oof", "predictable_conditional"}:
             return True
     return False
+
+
+def conditional_runtime_config(
+    full_config: Mapping[str, Any] | None,
+    section_config: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Propagate conditional hard-stop flags into a stage-local config.
+
+    Fold orchestration frequently passes only ``ac``/``bc``/``world_model``
+    sub-mappings to a stage.  A top-level strict artifact requirement must not
+    disappear at that boundary.  This helper creates a copy, observes both
+    the full manifest and the optional stage section, and sets only affirmative
+    flags; legacy configurations containing false flags remain unchanged.
+    """
+    if full_config is not None and not isinstance(full_config, Mapping):
+        raise ChronologicalOOFError("full conditional config must be a mapping")
+    if section_config is not None and not isinstance(section_config, Mapping):
+        raise ChronologicalOOFError("stage conditional config must be a mapping")
+    result = dict(section_config or {})
+    path = conditional_path_enabled(full_config) or conditional_path_enabled(section_config)
+    artifact_required = conditional_oof_artifact_required(full_config) or conditional_oof_artifact_required(
+        section_config
+    )
+    if path:
+        result["conditional_oracle_path"] = True
+    if artifact_required:
+        result["require_conditional_oof_artifact"] = True
+    return result
+
+
+def conditional_path_or_artifact_enabled(
+    config: Mapping[str, Any] | None,
+) -> bool:
+    """Return whether either conditional path or strict artifact is enabled."""
+    return conditional_path_enabled(config) or conditional_oof_artifact_required(config)
 
 
 def _require_conditional_oof_inputs_impl(
@@ -2825,6 +3129,8 @@ __all__ = [
     "chronological_oof_predict",
     "chronological_oof_standardize",
     "conditional_path_enabled",
+    "conditional_path_or_artifact_enabled",
+    "conditional_runtime_config",
     "conditional_oof_artifact_hash",
     "conditional_oof_artifact_required",
     "hash_conditional_oof_artifact",

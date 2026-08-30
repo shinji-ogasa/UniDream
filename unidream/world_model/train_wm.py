@@ -23,7 +23,7 @@ from unidream.data.dataset import SequenceDataset
 from unidream.device import resolve_device
 from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.experiments.chronological_oof import (
-    conditional_path_enabled,
+    conditional_path_or_artifact_enabled,
     strict_bool_value,
 )
 from unidream.world_model.ensemble import EnsembleWorldModel
@@ -203,7 +203,10 @@ class WorldModelTrainer:
         self.ensemble.to(self.device)
         cfg = cfg or {}
         wm_cfg = cfg.get("world_model", {})
-        conditional_enabled = conditional_path_enabled(cfg)
+        # A strict artifact request is itself a hard stop while this legacy
+        # trainer remains the only implementation.  Do not let a top-level
+        # ``require_conditional_oof_artifact`` silently select this path.
+        conditional_enabled = conditional_path_or_artifact_enabled(cfg)
         explicit_coverage_gate = False
         option_sections = [("config", cfg), ("world_model", wm_cfg)]
         for section_name in ("oracle", "ac", "bc"):
