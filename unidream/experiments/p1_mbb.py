@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 import os
@@ -439,6 +439,10 @@ class P1MBBIndexArtifact:
     replicates: int = P1_MBB_REPLICATES
     schema: str = P1_MBB_SCHEMA
     schema_version: int = P1_MBB_SCHEMA_VERSION
+    # This capability marker is intentionally not part of the serialized
+    # metadata or constructor.  Only the strict external-binding loader may
+    # set it; internally built/fixture artifacts cannot enter production.
+    _production_loaded: bool = field(default=False, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         unit, code = _normalize_unit(self.unit)
@@ -666,12 +670,14 @@ class P1MBBIndexArtifact:
         expected_artifact_sha256: str | None = None,
     ) -> "P1MBBIndexArtifact":
         """Load a production artifact with external and deterministic binding."""
-        return cls._from_dict(
+        artifact = cls._from_dict(
             payload,
             expected_artifact_sha256=expected_artifact_sha256,
             require_external_digest=True,
             verify_deterministic_starts=True,
         )
+        object.__setattr__(artifact, "_production_loaded", True)
+        return artifact
 
     @classmethod
     def from_dict_fixture(cls, payload: Mapping[str, Any]) -> "P1MBBIndexArtifact":
@@ -2726,6 +2732,10 @@ def _bootstrap_p1_metric(
     metric_name = _validate_recompute_metric(metric)
     if not isinstance(artifact, P1MBBIndexArtifact):
         raise P1MBBError("P1 metric bootstrap requires a P1MBBIndexArtifact")
+    if production and getattr(artifact, "_production_loaded", False) is not True:
+        raise P1MBBError(
+            "production P1 bootstrap requires an index artifact loaded through the strict external-binding loader"
+        )
     if metric_name == "s2_contrast":
         level_name = _validate_s2_direction(level_direction)
         level_metric_name = _validate_s2_level_metric(level_metric or "mean")
@@ -2964,6 +2974,10 @@ def _validate_external_index_artifacts(
         if not isinstance(artifact, P1MBBIndexArtifact):
             raise P1MBBError(
                 f"production {name} artifact {ordinal} is not a P1MBBIndexArtifact"
+            )
+        if getattr(artifact, "_production_loaded", False) is not True:
+            raise P1MBBError(
+                f"production {name} artifact {ordinal} was not loaded through the strict external-binding loader"
             )
         if (
             artifact.unit != unit

@@ -67,6 +67,14 @@ class P1ExactMBBTests(unittest.TestCase):
             block_length=block_length,
         )
 
+    @staticmethod
+    def _production_artifact(*, n: int = 19, block_length: int = 8):
+        artifact = P1ExactMBBTests._artifact(n=n, block_length=block_length)
+        return P1MBBIndexArtifact.from_dict(
+            artifact.to_dict(),
+            expected_artifact_sha256=artifact.artifact_sha256,
+        )
+
     def test_exact_start_draw_and_c_order_materialization(self) -> None:
         n = 19
         length = 8
@@ -790,7 +798,7 @@ class P1ExactMBBTests(unittest.TestCase):
 
     def test_production_bootstrap_requires_external_mask_and_source_binding(self) -> None:
         n = 19
-        artifact = self._artifact(n=n)
+        artifact = self._production_artifact(n=n)
         mask = np.ones(n, dtype=np.bool_)
         candidate = np.arange(n, dtype="<f8")
         baseline = np.zeros(n, dtype="<f8")
@@ -862,7 +870,7 @@ class P1ExactMBBTests(unittest.TestCase):
 
     def test_production_forecast_provenance_is_distinct_from_action(self) -> None:
         n = 19
-        artifact = self._artifact(n=n)
+        artifact = self._production_artifact(n=n)
         mask = np.ones(n, dtype=np.bool_)
         common_digest = p1_mask_sha256(mask)
         result = production_bootstrap_p1_metric(
@@ -914,7 +922,7 @@ class P1ExactMBBTests(unittest.TestCase):
 
     def test_result_artifact_is_typed_atomic_and_external_digest_bound(self) -> None:
         n = 19
-        artifact = self._artifact(n=n)
+        artifact = self._production_artifact(n=n)
         mask = np.ones(n, dtype=np.bool_)
         digest = p1_mask_sha256(mask)
         result = production_bootstrap_p1_metric(
@@ -1012,16 +1020,19 @@ class P1ExactMBBTests(unittest.TestCase):
             }
             for seed in range(10)
         }
-        index_artifacts = {
-            seed: build_p1_mbb_index_artifact(
+        index_artifacts = {}
+        for seed in range(10):
+            raw_artifact = build_p1_mbb_index_artifact(
                 n,
                 unit="synthetic_action",
                 support_id="synthetic_validation",
                 seed_ordinal=seed,
                 block_length=8,
             )
-            for seed in range(10)
-        }
+            index_artifacts[seed] = P1MBBIndexArtifact.from_dict(
+                raw_artifact.to_dict(),
+                expected_artifact_sha256=raw_artifact.artifact_sha256,
+            )
         with self.assertRaises(P1MBBError):
             production_seed_aggregate(
                 "policy_utility_delta",
