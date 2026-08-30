@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -69,11 +70,26 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                     "gradient_steps": 8,
                     "nonzero_gradient_steps": 8,
                     "target_coverage": 0.8,
-                    "gradient_coverage": 0.8,
+                    "gradient_coverage": 1.0,
                     "status": "pass",
                 }
             ],
         )
+
+    @staticmethod
+    def _strict_config(*, heads=("return", 1)) -> dict:
+        return {
+            "conditional_oracle_path": True,
+            "require_conditional_oof_artifact": True,
+            "expected_heads_horizons": [heads],
+            "expected_hashes": {
+                "checkpoint_sha256": _sha("checkpoint"),
+                "normalizer_sha256": _sha("normalizer"),
+                "calibrator_sha256": _sha("calibrator"),
+                "teacher_weight_sha256": _sha("teacher"),
+            },
+            "expected_action_execution_contract_hash": ActionExecutionContract.canonical().contract_hash,
+        }
 
     def test_artifact_round_trips_typed_nan_arrays_and_hash(self) -> None:
         artifact = self._artifact()
@@ -167,10 +183,7 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
             validate_conditional_oof_artifact(artifact)
 
     def test_missing_artifact_and_contract_hash_mismatch_fail_closed(self) -> None:
-        config = {
-            "conditional_oracle_path": True,
-            "require_conditional_oof_artifact": True,
-        }
+        config = self._strict_config()
         with self.assertRaises(ConditionalPathBlocked):
             require_conditional_oof_inputs(
                 config=config,
@@ -190,6 +203,174 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
             oof_bundle={"conditional_oof_artifact": artifact},
             caller="artifact-test",
         )
+
+    def test_strict_consumer_requires_external_expected_bindings_and_rejects_h64_drop(self) -> None:
+        artifact = self._artifact()
+        incomplete = {
+            "conditional_oracle_path": True,
+            "require_conditional_oof_artifact": True,
+        }
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config=incomplete,
+                oof_bundle={"conditional_oof_artifact": artifact},
+                caller="artifact-test",
+            )
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config=self._strict_config(heads=("return", 64)),
+                oof_bundle={"conditional_oof_artifact": artifact},
+                caller="artifact-test",
+            )
+        with self.assertRaises(ConditionalPathBlocked):
+            require_conditional_oof_inputs(
+                config={"require_conditional_oof_artifact": True},
+                oof_bundle={"conditional_oof_artifact": artifact},
+                caller="artifact-test",
+            )
+
+    def test_strict_coverage_requires_pass_and_consistent_counts(self) -> None:
+        base = self._artifact()
+        for field, value in (
+            ("gradient_steps", 0),
+            ("nonzero_gradient_steps", 0),
+            ("target_coverage", 0.0),
+            ("gradient_coverage", 0.0),
+            ("status", "block"),
+        ):
+            with self.subTest(field=field):
+                artifact = copy.deepcopy(base)
+                artifact["coverage"][0][field] = value
+                artifact["artifact_sha256"] = hash_conditional_oof_artifact(artifact)
+                artifact["artifact_hash"] = artifact["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(artifact)
+
+        inconsistent = {
+            "head": "return",
+            "horizon": 1,
+            "target_count": 8,
+            "total_target_slots": 10,
+            "gradient_steps": 8,
+            "nonzero_gradient_steps": 8,
+            "target_coverage": 0.9,
+            "gradient_coverage": 1.0,
+            "status": "pass",
+        }
+        with self.assertRaises(ConditionalOOFArtifactError):
+            self._artifact(coverage=[inconsistent])
+
+    def test_false_prediction_rows_reject_inf_and_partial_finite_values(self) -> None:
+        artifact = self._artifact()
+        for replacement in (
+            np.asarray([[np.inf]], dtype=np.float64),
+            np.asarray([[1.0]], dtype=np.float64),
+            np.asarray([[1.0, np.nan]], dtype=np.float64),
+        ):
+            with self.subTest(replacement=replacement.tolist()):
+                tampered = copy.deepcopy(artifact)
+                false_row = int(np.flatnonzero(~tampered["prediction_mask"])[0])
+                if replacement.shape[1] == tampered["predictions"].shape[1]:
+                    tampered["predictions"][false_row] = replacement[0]
+                else:
+                    tampered["predictions"][false_row, 0] = replacement[0, 0]
+                    if tampered["predictions"].shape[1] > 1:
+                        tampered["predictions"][false_row, 1] = replacement[0, 1]
+                tampered["artifact_sha256"] = hash_conditional_oof_artifact(tampered)
+                tampered["artifact_hash"] = tampered["artifact_sha256"]
+                with self.assertRaises(ConditionalOOFArtifactError):
+                    validate_conditional_oof_artifact(tampered)
+
+    def test_action_contract_mapping_and_aliases_are_content_bound(self) -> None:
+        artifact = self._artifact()
+        tampered = copy.deepcopy(artifact)
+        tampered["action_execution_contract"]["fee_rate"] = 0.0004
+        tampered["provenance"]["action_execution_contract"]["fee_rate"] = 0.0004
+        tampered["artifact_sha256"] = hash_conditional_oof_artifact(tampered)
+        tampered["artifact_hash"] = tampered["artifact_sha256"]
+        with self.assertRaises(ConditionalOOFArtifactError):
+            validate_conditional_oof_artifact(tampered)
+
+        alias_mismatch = copy.deepcopy(artifact)
+        alias_mismatch["provenance"]["teacher_sha256"] = _sha("different-teacher")
+        alias_mismatch["artifact_sha256"] = hash_conditional_oof_artifact(alias_mismatch)
+        alias_mismatch["artifact_hash"] = alias_mismatch["artifact_sha256"]
+        with self.assertRaises(ConditionalOOFArtifactError):
+            validate_conditional_oof_artifact(alias_mismatch)
+
+        root_origin_mismatch = copy.deepcopy(artifact)
+        root_origin_mismatch["origin_sha256"] = _sha("different-origin")
+        root_origin_mismatch["artifact_sha256"] = hash_conditional_oof_artifact(root_origin_mismatch)
+        root_origin_mismatch["artifact_hash"] = root_origin_mismatch["artifact_sha256"]
+        with self.assertRaises(ConditionalOOFArtifactError):
+            validate_conditional_oof_artifact(root_origin_mismatch)
+
+        with self.assertRaises(ConditionalOOFArtifactError):
+            build_conditional_oof_artifact(
+                self._raw(),
+                horizon=1,
+                action_execution_contract=_sha("contract-a"),
+                action_execution_contract_hash=_sha("contract-b"),
+                checkpoint_sha256=_sha("checkpoint"),
+                normalizer_sha256=_sha("normalizer"),
+                calibrator_sha256=_sha("calibrator"),
+                teacher_weight_sha256=_sha("teacher"),
+                coverage=[
+                    {
+                        "head": "return",
+                        "horizon": 1,
+                        "target_count": 8,
+                        "gradient_steps": 8,
+                        "nonzero_gradient_steps": 8,
+                        "target_coverage": 0.8,
+                        "gradient_coverage": 1.0,
+                        "status": "pass",
+                    }
+                ],
+            )
+
+    def test_malformed_typed_json_is_normalized_and_bounded(self) -> None:
+        malformed_payloads = (
+            {
+                "__ndarray__": True,
+                "dtype": "O",
+                "shape": [1],
+                "data_b64": "AA==",
+            },
+            {
+                "__ndarray__": True,
+                "dtype": "float64",
+                "shape": [2**63],
+                "data_b64": "",
+            },
+            {
+                "__ndarray__": True,
+                "dtype": "float64",
+                "shape": [1] * 9,
+                "data_b64": "AAAAAAAAAAA=",
+            },
+            {
+                "__ndarray__": True,
+                "dtype": "float64",
+                "shape": [1],
+                "data_b64": "not-base64",
+            },
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for payload in malformed_payloads:
+                with self.subTest(payload=payload):
+                    path = Path(directory) / "malformed.json"
+                    path.write_text(json.dumps(payload), encoding="utf-8")
+                    with self.assertRaises(ConditionalOOFArtifactError):
+                        load_conditional_oof_artifact(path)
+
+    def test_atomic_write_uses_unique_same_directory_temporary_file(self) -> None:
+        artifact = self._artifact()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "conditional_oof.json"
+            write_conditional_oof_artifact(output, artifact)
+            self.assertTrue(output.is_file())
+            self.assertEqual(list(Path(directory).glob("*.tmp")), [])
 
     def test_nested_envelope_cannot_shadow_artifact_core_even_with_equal_value(self) -> None:
         artifact = self._artifact()
