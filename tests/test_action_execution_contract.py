@@ -19,6 +19,7 @@ from unidream.eval.action_execution import (
     replay_contract_absolute_path,
     run_contract_backtest,
     transition_cost,
+    _candidate_position,
 )
 from unidream.eval.backtest import ActionExecutionBacktest, Backtest
 from unidream.experiments.transition_advantage import (
@@ -134,6 +135,14 @@ class ActionExecutionContractTest(unittest.TestCase):
         np.testing.assert_allclose(
             candidate_positions(0.98, self.contract),
             np.asarray([0.90, 0.94, 0.98, 1.00]),
+        )
+
+    def test_absolute_position_canonicalises_clip_round12_before_replay(self) -> None:
+        near_one = np.nextafter(1.0, 0.0)
+        self.assertEqual(_candidate_position(self.contract, near_one, -0.08), 0.92)
+        self.assertEqual(
+            candidate_positions(near_one, self.contract).tolist(),
+            [0.92, 0.96, 1.0],
         )
 
     def test_cost_uses_full_spread_as_half_transition_plus_slippage_and_fee(self) -> None:

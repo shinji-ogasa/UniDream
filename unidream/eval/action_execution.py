@@ -887,7 +887,14 @@ def _candidate_position(contract: ActionExecutionContract, current: float, delta
             f"decision delta {delta!r} is not in the contract candidate grid "
             f"{contract.candidate_deltas!r}"
         )
-    return float(np.clip(current + delta, contract.position_min, contract.position_max))
+    # The absolute-position wire value is canonicalised identically to the
+    # action-primitive producer: clip first, then round to twelve decimals.
+    return float(
+        np.round(
+            np.clip(current + delta, contract.position_min, contract.position_max),
+            decimals=12,
+        )
+    )
 
 
 def candidate_positions(
