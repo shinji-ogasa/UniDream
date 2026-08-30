@@ -4,7 +4,11 @@ from unidream.data.oracle import ACTIONS as DEFAULT_ACTIONS
 from unidream.data.oracle import feature_stress_teacher
 from unidream.data.oracle import smooth_aim_positions
 
-from .chronological_oof import ConditionalPathBlocked, conditional_path_enabled
+from .chronological_oof import (
+    ConditionalPathBlocked,
+    conditional_path_or_artifact_enabled,
+    conditional_runtime_config,
+)
 from .oracle_post import apply_oracle_postprocess
 from .oracle_stage import compute_base_oracle
 from .oracle_teacher import compute_teacher_oracle
@@ -310,7 +314,8 @@ def prepare_fold_inputs(
     forward_window_stats_fn,
     log_ts,
 ):
-    if conditional_path_enabled(cfg):
+    effective_cfg = conditional_runtime_config(cfg, ac_cfg)
+    if conditional_path_or_artifact_enabled(effective_cfg):
         raise ConditionalPathBlocked(
             "prepare_fold_inputs is the legacy hindsight input path and is blocked for "
             "conditional Oracle experiments; supply a chronological OOF outcome/teacher "

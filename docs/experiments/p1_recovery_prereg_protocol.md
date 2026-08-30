@@ -1,16 +1,25 @@
 # P1 recovery preregistration protocol
 
 Status: preregistered, no experiment result is attached.  This document amends
-the earlier manifest digest
-`9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d` under the
-reason `pre-execution independent audit`; `results_observed=false` is fixed.
+the immediately preceding manifest digest
+`de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481` under the
+reason `fourth pre-execution independent audit`; `results_observed=false` is
+fixed.  The amendment history retains the original pre-execution amendment
+digests `9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d`,
+`5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc`,
+`1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485`, and
+`de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481`.
 
 The machine-readable source of truth is
 [`p1_recovery_prereg_manifest.json`](p1_recovery_prereg_manifest.json).  A
-future runner must load that file through the fail-closed validator before it
-creates data, fits a model, or opens an outer row.  The registered base is
+future runner must enter through
+`unidream.experiments.runtime.validate_p1_v4_runtime_inputs`, which first calls
+`load_fixed_manifest` (canonical digest, independently pinned digest, critical
+fields, and `results_observed=false`) and only then delegates to the generic
+`validate_v4_runtime_inputs` body validator.  The registered base is
 `origin/main` at `881e5e08e9b413b51b0a2faf5c49592ce13329d1`; the manifest
-digest is pinned independently in
+digest `d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4` is
+pinned independently in
 `unidream/experiments/p1_recovery_prereg.py`.
 
 This wave is a recovery/implementation test, not investment evidence.  S0–S2
@@ -25,10 +34,13 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   manifest.  Availability is a separate strict-boolean sidecar containing
   `spot_bar_observed`, `funding_rate_available`, and
   `mark_close_available`.
-- A decision origin requires all three strict sidecar flags and finite model
-  features for its 64-bar forecast context.  A target/outcome bar requires
-  only `spot_bar_observed=true`, a finite return, and contiguous 15m
-  adjacency; future funding/mark flags do not invalidate a return label.  A
+- A decision origin is an output-coordinate row `t`; it requires `t >= 63`
+  and the current-inclusive context `[t-63,t]` (64 rows) to have consecutive
+  15m timestamps, finite canonical 17 features, and all three strict sidecar
+  flags true.  This indexing is applied after the raw burn-in slice and only
+  `X[t]` is passed to the model.  A target/outcome bar requires only
+  `spot_bar_observed=true`, a finite return, and contiguous 15m adjacency;
+  future funding/mark flags do not invalidate a return label.  A
   false/missing/non-contiguous required row invalidates the complete context
   or target window.  Timestamp rows remain in place; no sorting, compression,
   interpolation, forward fill, or missing-to-zero conversion is allowed.
@@ -46,10 +58,15 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   AND row < origin`.  Fit `StandardScaler(with_mean=True,with_std=True)` on
   those rows only (`ddof=0`, zero-variance scale 1), then transform evaluation
   rows only; targets are never scaled and fixed baselines use no scaler.
+  `min_history_rows=16384` counts eligible rows satisfying this exact train
+  mask, not raw prefix rows; a model/horizon/origin with fewer rows is N/A and
+  cannot promote.
 - For every `h` in `{1,4,8,16}`, the target is exactly
   `y[t,h] = sum(return[t+1:t+h+1])` and its right-exclusive availability marker
-  is `target_end[t,h] = t+h+1`.  The future bars must be contiguous, have
-  finite returns, and have `spot_bar_observed=true`; funding/mark
+  is `target_end[t,h] = t+h+1`.  `target_complete[t,h]` requires decision row
+  `t`, target rows `[t+1,...,t+h]`, and exactly the `h` contiguous 15m edges
+  `t→t+1` through `t+h-1→t+h`; returns and Spot masks are required only on
+  `t+1..t+h`.  The edge `t+h→t+h+1` is not required.  Funding/mark
   availability is not a target-label requirement.
 - OOF origins are chronological and processed in exactly eight fixed batches:
   `origin[k] = 20000 + 10000*k` for `k=0..7`, with origins
@@ -60,7 +77,11 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   eligible prefix with no cap.  The minimum history is 16,384 rows; the purge
   is 16 bars; labels satisfy `target_end <= origin - 16` and label row `<
   origin`.  Later origins and labels never enter an earlier batch.  Scaling is
-  fit on eligible rows `u < origin` only.  Early rows remain false/NaN.
+  fit on eligible rows `u < origin` only.  Early rows remain false/NaN.  The
+  OOF `target_mask_rule` references the canonical
+  `common.availability.target_window_rule` exactly: for every horizon `h`, all
+  `h` edges `t->t+1` through `t+h-1->t+h` are required, while
+  `t+h->t+h+1` is not.
   Synthetic fit/OOF-development/validation/outer ranges are `[0,20000)`,
   `[20000,90000)`, `[90000,100000)`, and `[100000,120000)`; these ranges are
   disjoint.  OOF-development is diagnostic-only.  All 16 primary comparisons
@@ -72,6 +93,9 @@ No result, outer-test metric, or apparent winner may alter this protocol.
   prediction pass over `[100000,120000)`.  There is no refit at 110,000.  The
   outer pass is report-only and cannot tune, select, revise a threshold, or
   enter a primary comparison.
+  Every numeric `split_range`, `support_range`, `fit_prefix_range`, and
+  `prediction_range` is zero-based `[start,end)` with the end excluded; the
+  origin row is never included in its fit prefix.
 - For every diagnostic-development, primary-validation, and outer-report
   support, potential origins require the 64-bar history and the requested
   target/fill/outcome tail to end before that split's right-exclusive end.
@@ -135,6 +159,64 @@ block.  Hindsight/U0-path inventory and the U0 global dynamic-programming path
 are never fed into row scoring or policy state; U0 is a separate report-only
 upper bound.
 
+Action bootstrap never replays a policy over resampled rows.  First produce the
+full original validation action primitive grid once in chronological order:
+split-local scheduled starts are `0,4,...` from the canonical
+`complete_decision_starts`, and global decision index is
+`support_start + local decision index`.  There is one record for every
+structurally complete, scheduled, non-overlapping h4 block, including
+false-mask/N/A records for forecast or outcome gaps.  The exact record-field
+list and nested schema are identical and include `common_mask`:
+`primitive_index`, `decision_index`, `fill_index`, `end_index`,
+`previous_position`, `selected_delta`, `selected_position`,
+`candidate_utility`, `benchmark_hold_utility`, `same_state_local_hold_utility`,
+`clairvoyant_utility`, `regret`, `opportunity`, `agreement`, `turnover`,
+`active_indicator`, `origin_eligible_mask`, `forecast_finite_mask`,
+`fill_complete_mask`, `outcome_complete_mask`, `scored_action_mask`,
+`common_mask`, `scenario_id`, `seed`, `split_id`, `support_id`, `model_id`,
+`cost_mode`, and `cost_contract_hash`.  Index fields and `seed` are strict
+little-endian int64; value fields are strict little-endian IEEE-754 float64;
+mask fields are strict bool; arm strings are UTF-8.  Record fields are encoded
+in this order and rows remain in original `primitive_index` order, with every
+full-grid gap row retained physically.  C-order shape `(record_count,)`, field
+name/dtype length-prefixes, little-endian ndim/shape uint64 framing, data
+byte-length framing, one-byte bool encoding (`0x00`/`0x01`),
+and UTF-8 length framing are fixed.  Finite float bits are preserved, every
+NaN is encoded as `0x7ff8000000000000`, and infinities are rejected.  JSON
+framing uses UTF-8, `ensure_ascii=false`, `sort_keys=true`, compact separators,
+and `allow_nan=false`.
+
+`selected_delta` is the canonical chosen delta, `selected_position` is the
+clipped/deduplicated chosen position, `previous_position` is the policy state
+before the block, `turnover=abs(selected_position-previous_position)`, and
+`active_indicator=1` iff `turnover>0`.
+
+`primitive_index` is the zero-based full-grid row ordinal; `decision_index` is
+the output-coordinate `t`; `fill_index=decision_index+1`; and
+`end_index=decision_index+4` is the inclusive final return bar.  Scheduled
+decision indices advance by four.
+
+Three hashes have disjoint, exact scopes.  `action_primitive_schema_sha256`
+is SHA-256 over the external canonical JSON schema
+`docs/experiments/action_primitive_schema.json`, whose pinned digest is
+`d0520b3dbc3c444e2efe5a55e175e96b662f97fb404d901ea51e1c32e5bb9955` outside
+the payload.  `action_primitive_content_sha256` is SHA-256 over the
+canonical framed bytes for every listed field and every original full-grid row;
+hash declarations are excluded.  `action_primitive_payload_sha256` is
+SHA-256 over payload magic, a canonical JSON header containing
+`record_count`, `record_fields`, `schema_sha256`, and `content_sha256`, and the
+framed content bytes; the payload hash itself is excluded.  Moving-block
+replicates resample record indices and recompute the declared means, sums,
+ratios, or DiD from those stored values; they do not carry inventory across
+bootstrap boundaries, duplicate records, or replay a nonchronological
+sequence.  The payload, schema, and content SHA-256 values are echoed in every
+result artifact.
+
+The action primitive producer and P1-specific moving-block implementation are
+not implemented on this preregistration branch.  A runner must stop with a
+blocked/N/A status until both are separately implemented and validated; the
+existing generic MBB path is forbidden.
+
 ## Fixed models and metrics
 
 The only model candidates are zero/persistence, Ridge, and logistic regression.
@@ -173,7 +255,10 @@ Generate raw arrays of length 120,512, then discard raw rows `[0,512)` so the
 output has 120,000 rows and 17 observed features.  Draw from
 `default_rng(seed+100)` in this exact order: one scalar `z0`, `xi` with shape
 `(120511,)`, C-order noise features with shape `(120512,16)`, then `epsilon`
-with shape `(120512,)`.  Set `z_raw[0]=z0` and
+with shape `(120512,)`.  Every `z0`, `xi` entry, `noise_features` entry, and
+`epsilon` entry is an independent float64 `N(0,1)` draw from
+`np.random.Generator.standard_normal`; the four draw groups are mutually
+independent and entries within each group are iid.  Set `z_raw[0]=z0` and
 `z_raw[k]=0.95*z_raw[k-1]+sqrt(1-0.95^2)*xi[k-1]`; set
 `r_raw[0]=0.001*epsilon[0]` (beta-independent sentinel) and
 `r_raw[k+1]=beta*z_raw[k]+0.001*epsilon[k+1]`.  The same base arrays are reused
@@ -202,8 +287,10 @@ feasible-action agreement of at least 90%, pooled Wilson lower bound at least
 conservative `raw_p` for validation-minus-independent-benchmark-hold h4 net utility under cost-on,
 with a favorable point delta `>0`.  In addition, every one of the ten fixed
 seed-level validation utility deltas must be strictly positive and non-N/A,
-and the realized same-state clairvoyant action value must be strictly greater
-than the Ridge validation action value for every seed on that same support.
+  and, for every seed on the identical scored mask, the mean realized
+  same-state clairvoyant net utility/value must be strictly greater than the
+  Ridge mean realized net utility/value.  A mask mismatch, N/A value, or
+  non-strict comparison fails.
 OOF-development scores are diagnostic-only;
 the single synthetic outer pass is report-only.  The realized-path clairvoyant
 is report-only and must remain above the validation decision on the same
@@ -292,15 +379,21 @@ digest.
 
 ## Availability and computation
 
-Synthetic masks are deterministic two-bar blocks: 40 starts per source are
-sampled without replacement from output-index range `[512,119998)` using
-`default_rng(seed + 50000 + source_offset)`, with source offsets 11, 23, and
-37.  Raw arrays have length 120,512 and output rows are raw `[512,120512)`;
-the same starts are reused by S0, S1, and all S2 levels for a seed.  S3 uses
-the v4 sidecar directly.  A context or target
-window crossing a gap is N/A; rows are never compacted to conceal it.  Context
-windows require all three source masks, while target labels require only the
-Spot observation mask plus finite, contiguous returns.  A conservative
+Synthetic masks are deterministic two-bar blocks.  For each source, use the
+exact call
+`rng=np.random.default_rng(seed+50000+source_offset);`
+`relative=rng.choice(119998-512,size=40,replace=False,shuffle=True);`
+`starts=np.asarray(relative,dtype=np.int64)+512`.  These are output-coordinate
+indices after the raw burn-in slice, not pre-slice raw indices; retain the
+returned choice order in the artifact and never sort it.  Each source's false
+mask is the union of half-open output intervals `[start,start+2)`; starts are
+unique, but adjacent starts may overlap bars and the union is applied.  Raw
+arrays have length 120,512 and output rows are raw `[512,120512)`; the same
+starts are reused by S0, S1, and all S2 levels for a seed.  S3 uses the v4
+sidecar directly.  A context or target window crossing a gap is N/A; rows are
+never compacted to conceal it.  Context windows require all three source
+masks, while target labels require only the Spot observation mask plus finite,
+contiguous returns.  A conservative
 mask-only reference count with 40 two-bar gaps per source, context 64, and
 maximum target horizon 16 gives a minimum eligible fraction of 0.9245 across
 the ten fixed synthetic seeds; this derivation inspects no model output or
@@ -347,14 +440,20 @@ Primary bootstrap inference uses 2,000 non-circular moving-block replicates at
 split time-series row grid in original order; missing/N/A rows remain in place
 and are represented by masks.  The action primitive grid is one record per
 canonical non-overlapping complete four-bar scheduled decision block.  `L` is
-measured in primitive records, not compacted valid rows.  Require `n >= L`; for
-each replicate draw `ceil(n/L)` iid integer starts uniformly from `[0,n-L]`,
-concatenate each non-circular range `start:start+L`, and truncate to the first
-`n` records.  Gaps are never crossed by physical compression.  The seed is
-`20260830 + 100000*unit_code + 1000*L + seed_ordinal`, with unit codes 1, 2,
-3, and 4 for synthetic forecast/action and S3 forecast/action respectively;
-synthetic seed ordinal is 0..9 and S3 ordinal is 0.  Within a fixed
-unit/support/seed/L, every arm and comparison reuses the same sampled indices.
+  measured in primitive records, not compacted valid rows.  Require `n >= L`; for
+  each replicate draw exactly
+  `starts=rng.integers(low=0,high=n-L+1,size=ceil(n/L),endpoint=False,dtype=np.int64)`.
+  Materialize `indices = starts[:,None] + np.arange(L,dtype=np.int64)`, flatten
+  in C order, and take the first `n` indices.  This is non-circular; gaps are
+  never crossed by physical compression.  The seed is
+  `20260830 + 100000*unit_code + 1000*L + seed_ordinal`, with unit codes 1, 2,
+  3, and 4 for synthetic forecast/action and S3 forecast/action respectively;
+  synthetic seed ordinal is 0..9 and S3 ordinal is 0.  Within a fixed
+  unit/support/seed/L, create `default_rng(derived_seed)` exactly once, draw
+  all starts for replicates `b=0..1999` in ascending order, and reuse the same
+  sampled indices for every arm and comparison.  Do not reinitialize the RNG
+  per replicate, arm, or comparison.  Percentiles use
+  `np.quantile(values, q, method='linear')`.
 Each replicate resamples primitive arrays and recomputes the metric before
 forming its paired contrast: MSE is the mean squared-error difference, skill is
 `1-sum(SE_model)/sum(SE_zero)`, log loss/agreement are means, utility is the
@@ -363,8 +462,11 @@ level contrast after recomputing each level, normalized regret is
 `sum(regret)/sum(opportunity)` with a positive aggregate opportunity, and S3
 recomputes the injected/control skill and utility DID.  The shared common
 eligible mask stays a mask; sampled N/A records are not dropped or compacted.
-The entire comparison is N/A only when `n<L`, valid primitive count is zero,
-an arm's required metric is unavailable, or a denominator is zero/nonpositive.
+  The entire comparison is N/A only when `n<L`, valid primitive count is zero,
+  an arm's required metric is unavailable, or a denominator is zero/nonpositive.
+  If any required denominator is zero or nonpositive in a replicate or required
+  arm, the entire comparison is N/A/blocked; it is never repaired, omitted, or
+  removed by resampling.
 For each `L`, the two-sided percentile interval `[quantile_0.025,
 quantile_0.975]` is diagnostic.  The one-sided raw p-value used for inference is
 `raw_p=max(p_8,p_16,p_32)`, a conservative intersection-union rule; no gate is
@@ -377,7 +479,10 @@ cost modes).  The separate
 `p1_recovery_primary_comparisons.jsonl` enumerates the 16 executable paired
 comparisons; only its `primary=true` records define the multiplicity family.
 Every primary record contains its fixed `support_id`, right-exclusive
-`support_range`, and `support_role`; all 16 records point to the validation
+`support_range`, the exact `support_range_semantics` value `zero-based
+[start,end) right-exclusive; end excluded`, and `support_role`; action-capable
+records additionally carry the exact stored-record/no-replay
+`action_bootstrap_replay_policy`.  All 16 records point to the validation
 support for their scenario (synthetic `[90000,100000)`, S3 raw
 `[104528,139568)`).  OOF-development rows are diagnostic-only, and outer rows
 are report-only and never enter Holm or any gate.
@@ -419,7 +524,11 @@ Missing rows, insufficient class support, undefined metrics, missing masks,
 missing provenance, altered manifest fields, and failed coverage are N/A or
 blocked.  The runner must stop before fitting or promotion, and it must not
 change a threshold, seed, feature, horizon, split, cost, or outer-row status
-after seeing any output.
+after seeing any output.  The existing generic
+`unidream.experiments.train_app.run_training_app` is not a P1 research runner;
+it is explicitly unsuitable because it owns the generic WM→BC→AC pipeline.
+The P1 runner is blocked unless it uses the authenticated v4 wrapper and the
+separately implemented P1 action primitive/MBB components.
 
 ## Immutable v4 input provenance
 
@@ -456,7 +565,35 @@ load_cache_v4(
 )
 ```
 
-The `cache_dir`/`cache_tag`-only default lookup is forbidden for S3.  The
+Before fitting or scoring, the production runner must call the authenticated
+`unidream.experiments.runtime.validate_p1_v4_runtime_inputs` entrypoint.  It
+must first call `load_fixed_manifest` and reject any forged manifest digest,
+`results_observed` flag, critical field, or frozen v4 digest.  Only the frozen
+manifest may then be passed to the generic body validator
+`unidream.experiments.runtime.validate_v4_runtime_inputs` with all four
+explicit paths.  That body validator must call the explicit `load_cache_v4(...)`,
+then verify the loaded body against the frozen metadata's
+content digests, schema digest, cache tag, feature/sidecar row counts, and
+canonical columns.  Missing or unknown provenance, missing body files, or any
+mismatch blocks S3.  The validator returns the mandatory disposition fields
+`status`, `reason`, `body_match`, and `source_provenance_match`.  If only the
+known cache-local source-provenance digest differs while all body, schema,
+cache-tag, and row-count checks match, the run may proceed but must echo the
+`source_provenance_only_difference` disposition; an unknown source digest
+blocks it.  A cache-local file is audit-only and may be absent, in which case
+the disposition is `absent` and the frozen metadata remains authoritative.
+The authenticated wrapper snapshots the manifest, all four explicit body
+paths, and any existing cache-local path with `lstat`/`stat` identity
+(`dev`, `ino`, `size`, `mtime_ns`, regular-file mode) before and after the
+read/load/hash sequence; symlinks, non-regular files, and any identity change
+block the run.  Absolute paths are allowed when they resolve to regular files;
+the generic body validator retains its fixture-only API without this wrapper
+authentication.
+
+The `cache_dir`/`cache_tag`-only default lookup is forbidden for S3.  Any
+`path_overrides` supplied to the validator must provide the complete four-path
+set (`feature_path`, `returns_path`, `availability_path`, `metadata_path`);
+partial overrides are rejected.  The
 repository-frozen metadata is authoritative and its SHA-256 is pinned above;
 the cache-local metadata at
 `checkpoints/data_cache/BTCUSDT_15m_2018-01-01_2024-01-01_z60_v4_official_metadata.json`
@@ -481,7 +618,10 @@ select the local metadata or to claim a new dataset revision.
 The canonical action execution
 contract is `action_execution_contract.json` (the path and canonical-content
 SHA-256 are pinned in the manifest) and is shared by optimizer, teacher,
-student replay, U0, Q, and Backtest.  Logistic regression is a binary
+student replay, U0, Q, and Backtest.  Action results must also echo the
+canonical primitive payload, schema, and content SHA-256 fields named in the
+manifest; a missing or mismatched hash is a fail-closed contract error.
+Logistic regression is a binary
 proper-score diagnostic only; Ridge is the sole learned h4 action mapper.
 Zero-return and persistence-last-observed are fixed comparators: persistence
 predicts `h * return[t]` continuously and clips its binary probability to

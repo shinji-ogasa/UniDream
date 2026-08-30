@@ -1,0 +1,110 @@
+{
+  "schema_id": "p1-action-primitive-v1",
+  "schema_version": 1,
+  "record_fields": [
+    "primitive_index",
+    "decision_index",
+    "fill_index",
+    "end_index",
+    "previous_position",
+    "selected_delta",
+    "selected_position",
+    "candidate_utility",
+    "benchmark_hold_utility",
+    "same_state_local_hold_utility",
+    "clairvoyant_utility",
+    "regret",
+    "opportunity",
+    "agreement",
+    "turnover",
+    "active_indicator",
+    "origin_eligible_mask",
+    "forecast_finite_mask",
+    "fill_complete_mask",
+    "outcome_complete_mask",
+    "scored_action_mask",
+    "common_mask",
+    "scenario_id",
+    "seed",
+    "split_id",
+    "support_id",
+    "model_id",
+    "cost_mode",
+    "cost_contract_hash"
+  ],
+  "field_groups": {
+    "index_fields": [
+      "primitive_index",
+      "decision_index",
+      "fill_index",
+      "end_index"
+    ],
+    "index_dtype": "int64",
+    "value_fields": [
+      "previous_position",
+      "selected_delta",
+      "selected_position",
+      "candidate_utility",
+      "benchmark_hold_utility",
+      "same_state_local_hold_utility",
+      "clairvoyant_utility",
+      "regret",
+      "opportunity",
+      "agreement",
+      "turnover",
+      "active_indicator"
+    ],
+    "value_dtype": "float64",
+    "mask_fields": [
+      "origin_eligible_mask",
+      "forecast_finite_mask",
+      "fill_complete_mask",
+      "outcome_complete_mask",
+      "scored_action_mask",
+      "common_mask"
+    ],
+    "mask_dtype": "bool",
+    "integer_arm_id_fields": ["seed"],
+    "string_arm_id_fields": [
+      "scenario_id",
+      "split_id",
+      "support_id",
+      "model_id",
+      "cost_mode",
+      "cost_contract_hash"
+    ]
+  },
+  "serialization": {
+    "index_semantics": "primitive_index is the zero-based full-grid row ordinal; decision_index is the output-coordinate t; fill_index=decision_index+1; end_index=decision_index+4 is the inclusive final return bar; scheduled decision indices advance by four",
+    "field_order": "record_fields exactly as listed; no sorting or omission",
+    "row_order": "original chronological primitive_index order; full scheduled grid rows, including false-mask gap rows",
+    "shape": "each field is a one-dimensional array of shape (record_count,), encoded in C order",
+    "index_encoding": "little-endian int64 (=<i8)",
+    "value_encoding": "little-endian IEEE-754 float64 (=<f8); finite values preserve bits and every NaN uses 0x7ff8000000000000; infinities are rejected",
+    "bool_encoding": "strict bool values encoded one byte each as 0x00 or 0x01",
+    "string_encoding": "UTF-8 bytes with a little-endian uint64 byte-length prefix per value",
+    "field_framing": "field name and ASCII dtype tag are uint64-length-prefixed; ndim=1 and the one-element shape use little-endian uint64; data byte length is uint64-prefixed before field bytes",
+    "content_framing": "magic UNIDREAM-P1-ACTION-PRIMITIVE-CONTENT\\x00 followed by uint64 record_count and fields in record_fields order",
+    "payload_framing": "magic UNIDREAM-P1-ACTION-PRIMITIVE-PAYLOAD\\x00 followed by length-prefixed canonical UTF-8 JSON header and length-prefixed canonical content bytes",
+    "json_encoding": "UTF-8 JSON with ensure_ascii=false, sort_keys=true, separators=(',',':'), allow_nan=false"
+  },
+  "hash_scopes": {
+    "action_primitive_schema_sha256": "SHA-256 of this external schema JSON canonical UTF-8 bytes; the schema digest is pinned outside any action payload and is not self-declared by a record",
+    "action_primitive_content_sha256": "SHA-256 of the canonical content bytes for every record_fields field and every original full-grid row in row order; hash fields themselves are excluded",
+    "action_primitive_payload_sha256": "SHA-256 of the framed payload magic, canonical JSON header containing record_count/record_fields/schema_sha256/content_sha256, and the canonical content bytes; no payload hash field is included",
+    "hash_field_exclusion": "payload/schema/content hash declarations are not included as record fields and cannot self-bind their own value",
+    "external_schema_authority": "docs/experiments/action_primitive_schema.json with an independently pinned canonical SHA-256 in the P1 manifest"
+  },
+  "grid_policy": {
+    "schedule": "split-local starts 0,4,... from canonical complete_decision_starts; one record per scheduled structurally complete non-overlapping h4 block",
+    "gap_rows": "retain every scheduled primitive row in its original position; false masks mark forecast/outcome gaps and no physical row compression is permitted",
+    "common_mask": "strict bool intersection mask for paired comparison eligibility; it is persisted and hashed even when false",
+    "state": "positions and inventory are fixed from one chronological replay; bootstrap never replays state across sampled records",
+    "unimplemented_status": "producer and moving-block bootstrap remain blocked on this preregistration branch; generic MBB is forbidden"
+  },
+  "hash_fields": [
+    "action_primitive_payload_sha256",
+    "action_primitive_schema_sha256",
+    "action_primitive_content_sha256"
+  ]
+}

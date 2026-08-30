@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+import hashlib
 import json
 import os
 import random
+import stat
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -182,6 +186,696 @@ def cache_quality_status(cache_dir: str, cache_tag: str) -> str:
     except CacheV4Error:
         return "v4_invalid"
     return "v4_verified"
+
+
+class V4RuntimeInputError(ValueError):
+    """Raised when a preregistered v4 runtime input cannot be verified."""
+
+
+_V4_RUNTIME_BODY_FIELDS = ("feature_path", "returns_path", "availability_path", "metadata_path")
+_V4_RUNTIME_DISPOSITION_FIELDS = (
+    "status",
+    "reason",
+    "body_match",
+    "source_provenance_match",
+)
+_V4_RUNTIME_DISPOSITION_STATUSES = (
+    "absent",
+    "identical",
+    "source_provenance_only_difference",
+)
+_V4_RUNTIME_BODY_METADATA_FIELDS = (
+    "cache_tag",
+    "schema_version",
+    "schema_digest",
+    "content_digests",
+    "rows",
+    "sidecar_rows",
+    "feature_columns",
+    "availability_columns",
+    "returns_columns",
+)
+
+# ``validate_v4_runtime_inputs`` deliberately remains a small body validator.
+# It is useful in cache fixtures and in tests which construct a temporary v4
+# body, but accepting an arbitrary mapping there must never be mistaken for an
+# authenticated P1 run boundary.  The production entrypoint below pins the
+# manifest first and then delegates to this body validator.
+V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_v4_runtime_inputs"
+)
+P1_V4_RUNTIME_VALIDATION_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_p1_v4_runtime_inputs"
+)
+
+
+def _v4_runtime_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _v4_runtime_resolve_path(value: str | Path, root: Path) -> Path:
+    path = Path(value)
+    if not path.is_absolute():
+        path = root / path
+    return path
+
+
+def _v4_runtime_collect_body_paths(
+    contract: Mapping[str, Any],
+    root_path: Path,
+    *,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+) -> dict[str, Path]:
+    """Resolve the same complete explicit body path set used by the validator."""
+    merged_overrides: dict[str, str | Path] = {}
+    for source_name, source in (("path_overrides", path_overrides), ("paths", paths)):
+        if source is None:
+            continue
+        if not isinstance(source, Mapping):
+            raise V4RuntimeInputError(f"{source_name} must be an object")
+        for key, value in source.items():
+            if key in merged_overrides and merged_overrides[key] != value:
+                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
+            merged_overrides[str(key)] = value
+    keyword_overrides = {
+        "feature_path": feature_path,
+        "returns_path": returns_path,
+        "availability_path": availability_path,
+        "metadata_path": metadata_path,
+    }
+    for key, value in keyword_overrides.items():
+        if value is not None:
+            if key in merged_overrides and merged_overrides[key] != value:
+                raise V4RuntimeInputError(f"conflicting v4 path override for {key!r}")
+            merged_overrides[key] = value
+    aliases = {
+        "features": "feature_path",
+        "returns": "returns_path",
+        "availability": "availability_path",
+        "metadata": "metadata_path",
+    }
+    normalised_overrides: dict[str, str | Path] = {}
+    for key, value in merged_overrides.items():
+        canonical_key = aliases.get(key, key)
+        if canonical_key not in _V4_RUNTIME_BODY_FIELDS:
+            raise V4RuntimeInputError(f"unknown v4 path override: {key!r}")
+        if canonical_key in normalised_overrides and normalised_overrides[canonical_key] != value:
+            raise V4RuntimeInputError(f"conflicting v4 path override for {canonical_key!r}")
+        normalised_overrides[canonical_key] = value
+    if normalised_overrides and set(normalised_overrides) != set(_V4_RUNTIME_BODY_FIELDS):
+        missing = sorted(set(_V4_RUNTIME_BODY_FIELDS) - set(normalised_overrides))
+        raise V4RuntimeInputError(
+            "v4 path overrides must provide all explicit body paths: " + ", ".join(missing)
+        )
+
+    configured_paths = {
+        field: normalised_overrides.get(field, contract.get(field))
+        for field in _V4_RUNTIME_BODY_FIELDS
+    }
+    if any(value is None or not str(value) for value in configured_paths.values()):
+        raise V4RuntimeInputError("v4 manifest is missing an explicit body path")
+    return {
+        field: _v4_runtime_resolve_path(value, root_path)
+        for field, value in configured_paths.items()
+    }
+
+
+def _v4_runtime_collect_cache_local_path(
+    contract: Mapping[str, Any],
+    root_path: Path,
+    cache_local_metadata_path: str | Path | None,
+) -> Path | None:
+    value = cache_local_metadata_path
+    if value is None:
+        value = contract.get("cache_local_metadata_path")
+    if value is None or not str(value):
+        return None
+    return _v4_runtime_resolve_path(value, root_path)
+
+
+def _v4_runtime_path_snapshot(
+    path: Path,
+    label: str,
+    *,
+    allow_missing: bool,
+) -> tuple[int, int, int, int, int] | None:
+    """Capture a stable regular-file identity without following symlinks."""
+    try:
+        lstat_result = os.lstat(path)
+    except FileNotFoundError:
+        if allow_missing:
+            return None
+        raise V4RuntimeInputError(f"authenticated P1 {label} is missing: {path}") from None
+    except OSError as exc:
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} cannot be inspected: {path}"
+        ) from exc
+    if stat.S_ISLNK(lstat_result.st_mode):
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} must not be a symlink: {path}"
+        )
+    if not stat.S_ISREG(lstat_result.st_mode):
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} must be a regular file: {path}"
+        )
+    try:
+        stat_result = os.stat(path)
+    except OSError as exc:
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} changed during inspection: {path}"
+        ) from exc
+    if not stat.S_ISREG(stat_result.st_mode):
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} must be a regular file: {path}"
+        )
+    lstat_identity = (
+        lstat_result.st_dev,
+        lstat_result.st_ino,
+        lstat_result.st_size,
+        lstat_result.st_mtime_ns,
+        lstat_result.st_mode,
+    )
+    stat_identity = (
+        stat_result.st_dev,
+        stat_result.st_ino,
+        stat_result.st_size,
+        stat_result.st_mtime_ns,
+        stat_result.st_mode,
+    )
+    if lstat_identity != stat_identity:
+        raise V4RuntimeInputError(
+            f"authenticated P1 {label} changed during inspection: {path}"
+        )
+    return lstat_identity
+
+
+def _v4_runtime_snapshot_paths(
+    paths: Mapping[str, Path],
+    *,
+    allow_missing: bool,
+) -> dict[str, tuple[int, int, int, int, int] | None]:
+    return {
+        label: _v4_runtime_path_snapshot(path, label, allow_missing=allow_missing)
+        for label, path in paths.items()
+    }
+
+
+def _v4_runtime_verify_path_snapshots(
+    before: Mapping[str, tuple[int, int, int, int, int] | None],
+    paths: Mapping[str, Path],
+) -> None:
+    for label, path in paths.items():
+        try:
+            after = _v4_runtime_path_snapshot(path, label, allow_missing=True)
+        except V4RuntimeInputError as exc:
+            raise V4RuntimeInputError(
+                f"authenticated P1 {label} changed during validation: {path}"
+            ) from exc
+        if after != before.get(label):
+            raise V4RuntimeInputError(
+                f"authenticated P1 {label} changed during validation: {path}"
+            )
+
+
+def _v4_runtime_require_mapping(value: Any, label: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise V4RuntimeInputError(f"{label} must be an object")
+    return value
+
+
+def _v4_runtime_plain(value: Any) -> Any:
+    """Normalize frozen tuples/mappings for authenticated identity checks."""
+    if isinstance(value, Mapping):
+        return {key: _v4_runtime_plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_v4_runtime_plain(item) for item in value]
+    return value
+
+
+def _v4_runtime_pinned_string_sequence(value: Any, label: str) -> tuple[str, ...]:
+    """Normalize JSON lists and deep-frozen tuples for exact contract checks."""
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise V4RuntimeInputError(f"{label} must be a sequence of strings")
+    normalized = tuple(value)
+    if any(not isinstance(item, str) for item in normalized):
+        raise V4RuntimeInputError(f"{label} must contain only strings")
+    return normalized
+
+
+def _v4_runtime_body_metadata_matches(
+    candidate: Mapping[str, Any],
+    expected: Mapping[str, Any],
+    *,
+    label: str,
+) -> None:
+    for field in _V4_RUNTIME_BODY_METADATA_FIELDS:
+        expected_value = expected.get(field)
+        candidate_value = candidate.get(field)
+        if candidate_value != expected_value:
+            raise V4RuntimeInputError(
+                f"{label} {field} mismatch: {candidate_value!r} != {expected_value!r}"
+            )
+
+
+def _v4_runtime_validate_disposition(
+    disposition: Mapping[str, Any],
+    derived: Mapping[str, Any],
+) -> dict[str, Any]:
+    missing = [field for field in _V4_RUNTIME_DISPOSITION_FIELDS if field not in disposition]
+    if missing:
+        raise V4RuntimeInputError(
+            "v4 provenance disposition is missing fields: " + ", ".join(missing)
+        )
+    status = disposition.get("status")
+    if status not in _V4_RUNTIME_DISPOSITION_STATUSES:
+        raise V4RuntimeInputError(f"unknown v4 provenance disposition status: {status!r}")
+    if not isinstance(disposition.get("reason"), str) or not disposition["reason"].strip():
+        raise V4RuntimeInputError("v4 provenance disposition reason must be non-empty")
+    for field in ("body_match", "source_provenance_match"):
+        value = disposition.get(field)
+        if value is not None and not isinstance(value, bool):
+            raise V4RuntimeInputError(f"v4 provenance disposition {field} must be bool or null")
+    for field in ("status", "body_match", "source_provenance_match"):
+        if disposition.get(field) != derived.get(field):
+            raise V4RuntimeInputError(
+                f"v4 provenance disposition {field} does not match observed inputs"
+            )
+    return dict(disposition)
+
+
+def validate_v4_runtime_inputs(
+    manifest: Mapping[str, Any],
+    *,
+    root: str | Path | None = None,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+    cache_local_metadata_path: str | Path | None = None,
+    provenance_disposition: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Validate explicit v4 bodies before a preregistered run can fit or score.
+
+    The frozen repository metadata is always passed to ``load_cache_v4`` as the
+    metadata path.  A cache-local metadata file is an optional audit snapshot;
+    when present, its body fields must match the frozen metadata and a source
+    provenance-only difference is surfaced in the returned disposition.  No
+    cache-directory fallback or data repair is performed here.
+    """
+    if not isinstance(manifest, Mapping):
+        raise V4RuntimeInputError("manifest must be an object")
+    common = _v4_runtime_require_mapping(manifest.get("common"), "common")
+    contract = _v4_runtime_require_mapping(common.get("v4_load_contract"), "common.v4_load_contract")
+    parent = _v4_runtime_require_mapping(
+        _v4_runtime_require_mapping(manifest.get("provenance"), "provenance").get("v4_parent"),
+        "provenance.v4_parent",
+    )
+    if contract.get("loader") != "unidream.data.cache_v4.load_cache_v4":
+        raise V4RuntimeInputError("manifest does not pin the v4 cache loader")
+    if contract.get("require_explicit_paths") is not True or contract.get("cache_dir_cache_tag_fallback") != "forbidden":
+        raise V4RuntimeInputError("v4 runtime requires explicit paths and forbids cache fallback")
+    runtime_entrypoint = contract.get("runtime_validation_entrypoint")
+    body_validator_entrypoint = contract.get("runtime_body_validator_entrypoint")
+    if body_validator_entrypoint is not None:
+        if body_validator_entrypoint != V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT:
+            raise V4RuntimeInputError("manifest does not pin the v4 body validator")
+        if runtime_entrypoint != P1_V4_RUNTIME_VALIDATION_ENTRYPOINT:
+            raise V4RuntimeInputError(
+                "manifest does not pin the authenticated P1 v4 runtime validator"
+            )
+    elif runtime_entrypoint != V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT:
+        # Legacy fixture-shaped contracts predate the authenticated wrapper.
+        # Keep the generic function usable for those fixtures, while the fixed
+        # P1 manifest validator requires the two explicit entrypoint fields.
+        raise V4RuntimeInputError("manifest does not pin the v4 body validator")
+    if contract.get("runtime_validation_required_before_fit_or_score") is not True:
+        raise V4RuntimeInputError("v4 runtime validation is not required before fit/score")
+    disposition_fields = _v4_runtime_pinned_string_sequence(
+        contract.get("runtime_disposition_fields"),
+        "v4 runtime disposition fields",
+    )
+    if disposition_fields != _V4_RUNTIME_DISPOSITION_FIELDS:
+        raise V4RuntimeInputError("v4 runtime disposition fields are not pinned")
+    disposition_statuses = _v4_runtime_pinned_string_sequence(
+        contract.get("runtime_disposition_statuses"),
+        "v4 runtime disposition statuses",
+    )
+    if disposition_statuses != _V4_RUNTIME_DISPOSITION_STATUSES:
+        raise V4RuntimeInputError("v4 runtime disposition statuses are not pinned")
+
+    root_path = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    resolved_paths = _v4_runtime_collect_body_paths(
+        contract,
+        root_path,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+    )
+    missing_paths = [str(path) for path in resolved_paths.values() if not path.is_file()]
+    if missing_paths:
+        raise V4RuntimeInputError("v4 runtime body is incomplete; missing files: " + ", ".join(missing_paths))
+
+    expected_cache_tag = parent.get("cache_tag")
+    if contract.get("cache_tag") != expected_cache_tag:
+        raise V4RuntimeInputError("v4 manifest/cache metadata cache-tag mismatch")
+    try:
+        features, returns, availability, frozen_metadata = load_cache_v4(
+            cache_tag=str(expected_cache_tag),
+            feature_path=resolved_paths["feature_path"],
+            returns_path=resolved_paths["returns_path"],
+            availability_path=resolved_paths["availability_path"],
+            metadata_path=resolved_paths["metadata_path"],
+        )
+    except (CacheV4Error, OSError, TypeError, ValueError) as exc:
+        raise V4RuntimeInputError(f"explicit v4 body validation failed: {exc}") from exc
+
+    expected_frozen_metadata = {
+        "cache_tag": parent.get("cache_tag"),
+        "schema_version": parent.get("schema_version"),
+        "schema_digest": parent.get("schema_digest"),
+        "content_digests": parent.get("content_digests"),
+        "rows": parent.get("feature_rows"),
+        "sidecar_rows": parent.get("sidecar_rows"),
+        "feature_columns": list(common.get("feature_columns", [])),
+        "availability_columns": list(parent.get("required_availability_columns", [])),
+        "returns_columns": ["returns"],
+    }
+    _v4_runtime_body_metadata_matches(
+        frozen_metadata,
+        expected_frozen_metadata,
+        label="frozen v4 metadata",
+    )
+    if frozen_metadata.get("source_provenance_digest") != parent.get("source_provenance_digest"):
+        raise V4RuntimeInputError("frozen v4 source provenance digest mismatch")
+    frozen_metadata_sha256 = _v4_runtime_sha256(resolved_paths["metadata_path"])
+    if frozen_metadata_sha256 != parent.get("metadata_sha256"):
+        raise V4RuntimeInputError("frozen v4 metadata file SHA-256 mismatch")
+
+    local_path = _v4_runtime_collect_cache_local_path(
+        contract,
+        root_path,
+        cache_local_metadata_path,
+    )
+    local_metadata: Mapping[str, Any] | None = None
+    local_sha256: str | None = None
+    local_source_digest: str | None = None
+    local_body_match: bool | None = None
+    local_source_match: bool | None = None
+    if local_path is not None and local_path.exists() and not local_path.is_file():
+        raise V4RuntimeInputError(f"cache-local v4 metadata path is not a file: {local_path}")
+    if local_path is not None and local_path.is_file():
+        try:
+            local_payload = json.loads(local_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise V4RuntimeInputError(f"could not parse cache-local v4 metadata: {local_path}") from exc
+        local_metadata = _v4_runtime_require_mapping(local_payload, "cache-local v4 metadata")
+        local_sha256 = _v4_runtime_sha256(local_path)
+        local_source_digest = local_metadata.get("source_provenance_digest")
+        if not isinstance(local_source_digest, str) or not local_source_digest:
+            raise V4RuntimeInputError("cache-local v4 source provenance is absent or unknown")
+        source_provenance = local_metadata.get("source_provenance")
+        if not isinstance(source_provenance, Mapping):
+            raise V4RuntimeInputError("cache-local v4 source provenance is absent or unknown")
+        source_payload = json.dumps(
+            source_provenance,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        if hashlib.sha256(source_payload).hexdigest() != local_source_digest:
+            raise V4RuntimeInputError("cache-local v4 source provenance digest mismatch")
+        try:
+            _v4_runtime_body_metadata_matches(
+                local_metadata,
+                expected_frozen_metadata,
+                label="cache-local v4 metadata",
+            )
+        except V4RuntimeInputError as exc:
+            raise V4RuntimeInputError("cache-local v4 body metadata mismatch") from exc
+        local_body_match = True
+        local_source_match = local_source_digest == parent.get("source_provenance_digest")
+        if not local_source_match:
+            known_snapshot = contract.get("known_cache_local_snapshot")
+            known_snapshot = (
+                _v4_runtime_require_mapping(known_snapshot, "known_cache_local_snapshot")
+                if known_snapshot is not None
+                else None
+            )
+            if (
+                known_snapshot is None
+                or local_source_digest != known_snapshot.get("source_provenance_digest")
+                or (
+                    known_snapshot.get("metadata_sha256") is not None
+                    and local_sha256 != known_snapshot.get("metadata_sha256")
+                )
+            ):
+                raise V4RuntimeInputError("cache-local source provenance differs with an unknown digest")
+
+    if local_path is None or local_metadata is None:
+        derived_disposition = {
+            "status": "absent",
+            "reason": "cache-local metadata is absent; frozen repository metadata remains authoritative",
+            "body_match": None,
+            "source_provenance_match": None,
+        }
+    elif local_source_match:
+        derived_disposition = {
+            "status": "identical",
+            "reason": "cache-local metadata body and source provenance match frozen metadata",
+            "body_match": True,
+            "source_provenance_match": True,
+        }
+    else:
+        derived_disposition = {
+            "status": "source_provenance_only_difference",
+            "reason": "cache-local body matches but its known source provenance digest differs from frozen metadata",
+            "body_match": True,
+            "source_provenance_match": False,
+        }
+    disposition = (
+        _v4_runtime_validate_disposition(provenance_disposition, derived_disposition)
+        if provenance_disposition is not None
+        else dict(derived_disposition)
+    )
+    local_content_digests = (
+        dict(local_metadata.get("content_digests", {})) if local_metadata is not None else None
+    )
+    local_row_counts = (
+        {"rows": local_metadata.get("rows"), "sidecar_rows": local_metadata.get("sidecar_rows")}
+        if local_metadata is not None
+        else None
+    )
+    result = {
+        "status": "v4_runtime_validated",
+        "features": features,
+        "returns": returns,
+        "availability": availability,
+        "metadata": frozen_metadata,
+        "paths": {field: str(path) for field, path in resolved_paths.items()},
+        "v4_runtime_validation_status": "passed",
+        "v4_runtime_provenance_disposition": disposition,
+        "v4_runtime_body_match": local_body_match,
+        "v4_runtime_loaded_body_match": True,
+        "v4_runtime_source_provenance_match": local_source_match,
+        "v4_runtime_frozen_metadata_sha256": frozen_metadata_sha256,
+        "v4_runtime_cache_local_metadata_sha256": local_sha256,
+        "v4_runtime_cache_local_source_provenance_digest": local_source_digest,
+        "v4_runtime_cache_local_schema_digest": (
+            local_metadata.get("schema_digest") if local_metadata is not None else None
+        ),
+        "v4_runtime_cache_local_content_digests": local_content_digests,
+        "v4_runtime_cache_local_row_counts": local_row_counts,
+        "v4_feature_path": str(resolved_paths["feature_path"]),
+        "v4_returns_path": str(resolved_paths["returns_path"]),
+        "v4_availability_path": str(resolved_paths["availability_path"]),
+        "v4_frozen_metadata_path": str(resolved_paths["metadata_path"]),
+        "v4_frozen_metadata_sha256": frozen_metadata_sha256,
+        "v4_frozen_source_provenance_digest": frozen_metadata.get("source_provenance_digest"),
+        "v4_cache_local_metadata_path": str(local_path) if local_path is not None else None,
+        "v4_cache_local_metadata_sha256": local_sha256,
+        "v4_cache_local_source_provenance_digest": local_source_digest,
+        "v4_cache_local_schema_digest": (
+            local_metadata.get("schema_digest") if local_metadata is not None else None
+        ),
+        "v4_cache_local_content_digests": local_content_digests,
+        "v4_cache_local_row_counts": local_row_counts,
+    }
+    return result
+
+
+def validate_p1_v4_runtime_inputs(
+    manifest: Mapping[str, Any] | str | Path | None = None,
+    *,
+    manifest_path: str | Path | None = None,
+    root: str | Path | None = None,
+    path_overrides: Mapping[str, str | Path] | None = None,
+    paths: Mapping[str, str | Path] | None = None,
+    feature_path: str | Path | None = None,
+    returns_path: str | Path | None = None,
+    availability_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
+    cache_local_metadata_path: str | Path | None = None,
+    provenance_disposition: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Authenticate the P1 manifest before validating a v4 body.
+
+    ``validate_v4_runtime_inputs`` is intentionally retained as the generic
+    body validator used by fixtures.  A production P1 caller must enter here:
+    this function always invokes :func:`load_fixed_manifest`, checks any
+    caller-supplied manifest against the loaded frozen mapping, and only then
+    delegates to the generic body validator.  Consequently a forged
+    ``manifest_sha256``, ``results_observed`` flag, or frozen v4 digest cannot
+    be paired with an otherwise valid body through this API.
+
+    The first positional argument accepts either an optional manifest mapping
+    (for explicit identity checking) or a manifest path.  A mapping is never
+    used as the authority; the result is always based on ``load_fixed_manifest``.
+    """
+    # Import lazily to keep ordinary cache helpers independent from the P1
+    # preregistration module while still making the authenticated call
+    # observable/patchable in contract tests.
+    from . import p1_recovery_prereg
+
+    candidate_manifest: Mapping[str, Any] | None = None
+    if manifest is not None and isinstance(manifest, Mapping):
+        candidate_manifest = manifest
+    elif manifest is not None:
+        if manifest_path is not None:
+            raise V4RuntimeInputError(
+                "manifest path was supplied both positionally and by keyword"
+            )
+        manifest_path = manifest
+
+    try:
+        selected_manifest_path = (
+            Path(manifest_path)
+            if manifest_path is not None
+            else p1_recovery_prereg.DEFAULT_MANIFEST_PATH
+        )
+    except (TypeError, ValueError) as exc:
+        raise V4RuntimeInputError("P1 manifest path must be path-like") from exc
+    manifest_before = _v4_runtime_path_snapshot(
+        selected_manifest_path,
+        "manifest",
+        allow_missing=False,
+    )
+    try:
+        fixed_manifest = p1_recovery_prereg.load_fixed_manifest(selected_manifest_path)
+    except (p1_recovery_prereg.P1PreregistrationError, OSError, TypeError, ValueError) as exc:
+        raise V4RuntimeInputError(
+            "authenticated P1 manifest validation failed before v4 body validation"
+        ) from exc
+
+    if candidate_manifest is not None:
+        # Compare the entire mapping, not only a self-reported digest.  This
+        # catches forged results_observed/frozen-digest fields even when a
+        # caller recomputes the candidate's canonical digest.
+        if not isinstance(candidate_manifest, Mapping):  # defensive for proxies
+            raise V4RuntimeInputError("P1 manifest must be an object")
+        if candidate_manifest.get("results_observed") is not False:
+            raise V4RuntimeInputError(
+                "authenticated P1 manifest must keep results_observed=false"
+            )
+        if candidate_manifest.get("manifest_sha256") != fixed_manifest.get(
+            "manifest_sha256"
+        ):
+            raise V4RuntimeInputError("P1 manifest_sha256 differs from the pinned manifest")
+        if _v4_runtime_plain(candidate_manifest) != _v4_runtime_plain(fixed_manifest):
+            raise V4RuntimeInputError(
+                "supplied P1 manifest differs from the authenticated fixed manifest"
+            )
+
+    # The call is deliberately explicit rather than forwarding an arbitrary
+    # mapping.  Body paths remain caller-supplied only as the complete explicit
+    # set enforced by the generic validator; frozen metadata expectations come
+    # from the authenticated manifest.
+    root_path = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    fixed_common = _v4_runtime_require_mapping(fixed_manifest.get("common"), "common")
+    fixed_contract = _v4_runtime_require_mapping(
+        fixed_common.get("v4_load_contract"),
+        "common.v4_load_contract",
+    )
+    resolved_paths = _v4_runtime_collect_body_paths(
+        fixed_contract,
+        root_path,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+    )
+    local_path = _v4_runtime_collect_cache_local_path(
+        fixed_contract,
+        root_path,
+        cache_local_metadata_path,
+    )
+    authenticated_paths: dict[str, Path] = {
+        "manifest": selected_manifest_path,
+        **resolved_paths,
+    }
+    if local_path is not None:
+        authenticated_paths["cache_local_metadata"] = local_path
+    before = {"manifest": manifest_before}
+    before.update(
+        _v4_runtime_snapshot_paths(resolved_paths, allow_missing=False)
+    )
+    if local_path is not None:
+        before["cache_local_metadata"] = _v4_runtime_path_snapshot(
+            local_path,
+            "cache_local_metadata",
+            allow_missing=True,
+        )
+    result = validate_v4_runtime_inputs(
+        fixed_manifest,
+        root=root,
+        path_overrides=path_overrides,
+        paths=paths,
+        feature_path=feature_path,
+        returns_path=returns_path,
+        availability_path=availability_path,
+        metadata_path=metadata_path,
+        cache_local_metadata_path=cache_local_metadata_path,
+        provenance_disposition=provenance_disposition,
+    )
+    _v4_runtime_verify_path_snapshots(before, authenticated_paths)
+    result.update(
+        {
+            "manifest_id": fixed_manifest.get("manifest_id"),
+            "manifest_sha256": fixed_manifest.get("manifest_sha256"),
+            "base_revision": fixed_manifest.get("base_revision"),
+            "results_observed": fixed_manifest.get("results_observed"),
+            "p1_manifest_id": fixed_manifest.get("manifest_id"),
+            "p1_manifest_sha256": fixed_manifest.get("manifest_sha256"),
+            "p1_base_revision": fixed_manifest.get("base_revision"),
+            "p1_results_observed": fixed_manifest.get("results_observed"),
+            "p1_runtime_validation_entrypoint": P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+            "p1_runtime_body_validator_entrypoint": V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT,
+        }
+    )
+    return result
+
+
+# Descriptive aliases keep callers from bypassing the authenticated boundary
+# merely because they use the shorter P1 naming used by the preregistration
+# protocol.  The manifest pins the long, unambiguous name above.
+validate_p1_runtime_inputs = validate_p1_v4_runtime_inputs
+validate_p1_recovery_runtime_inputs = validate_p1_v4_runtime_inputs
 
 
 def _cache_parameters(

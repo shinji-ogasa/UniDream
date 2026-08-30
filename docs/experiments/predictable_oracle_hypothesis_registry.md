@@ -64,6 +64,8 @@ All P2 families must freeze exact folds, horizons, seeds, model hyperparameters 
 
 For every P2 row, primary evidence is an OOS proper-score delta and the net utility of one frozen mapper. Sign accuracy, IC or one profitable fold alone cannot promote a feature group.
 
+D1-A acquisition evidence (2026-08-30, branch `exp/d1-signed-flow-acquisition-20260830`, code commit `ceb4fb8`): the January 2024 Spot/USD-M 15m kline metadata pilot passed archive checksum and parser-contract checks, and the aggregate-trade archive was probed with HTTP HEAD only for capacity. No aggregate-trade payload, live observation replay, predictive score, or P2 result was produced. P2-D1 therefore remains `blocked-data`; the tracked pilot report and artifacts are under `docs/d1_signed_flow_pilot/`, including the append-only availability/revision ledger.
+
 ## P3-P6 — decision and learning hypotheses
 
 | id | hypothesis | falsifier / promotion evidence | current status |
@@ -85,7 +87,9 @@ For every P2 row, primary evidence is an OOS proper-score delta and the net util
 | --- | --- | --- |
 | `exp/p0-a-availability-20260830` | Luna max P0-A | availability sidecar -> row/window eligibility |
 | `exp/p0-b-target-oof-20260830` | Luna max P0-B | target/gradient coverage, OOF teacher gate, inventory provenance |
+| `exp/p0b-oof-artifact-contract-20260830` | Luna max P0-B artifact contract | conditional OOF schema, provenance hashes, coverage and fail-closed consumer boundary |
 | `exp/p0-c-action-execution-20260830` | Luna max P0-C | shared action/execution/cost/commitment contract |
 | `exp/p0-integration-audit-20260830` | Luna max integration audit | v4 full-grid eligibility to P0-C parity and P0-B boundary guard |
+| `exp/d1-signed-flow-acquisition-20260830` | Luna max D1 | official archive acquisition and data-contract coverage only; no model/P2 |
 
 Each owner commits and pushes coherent units on its branch. The lead inspects the complete diff, reruns tests and merges only after the branch's scoped gate passes. Failed and blocked rows remain in this registry; they are not deleted from the candidate history.

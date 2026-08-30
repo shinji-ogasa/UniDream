@@ -37,7 +37,11 @@ from unidream.experiments.m2 import (
 )
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
 from unidream.experiments.fold_runtime import resolve_ac_max_steps
-from unidream.experiments.chronological_oof import ConditionalPathBlocked, conditional_path_enabled
+from unidream.experiments.chronological_oof import (
+    ConditionalPathBlocked,
+    conditional_path_or_artifact_enabled,
+    conditional_runtime_config,
+)
 from unidream.experiments.test_stage import run_test_stage
 from unidream.experiments.val_selector_stage import run_val_selector_stage
 from unidream.experiments.wm_stage import prepare_world_model_stage
@@ -66,15 +70,23 @@ def run_fold(
     # AC config. Keep derived values out of the immutable run config stored in
     # the manifest so replay can use the same config hash in this process too.
     fold_cfg = deepcopy(cfg)
-    ac_cfg = fold_cfg.get("ac", {})
-    bc_cfg = fold_cfg.get("bc", {})
-    wm_cfg = fold_cfg.get("world_model", {})
+    # Propagate affirmative conditional flags from the complete manifest into
+    # every stage-local mapping.  Otherwise a top-level strict OOF request can
+    # be lost when a legacy stage receives only ``ac``/``bc``/``world_model``.
+    ac_cfg = conditional_runtime_config(fold_cfg, fold_cfg.get("ac", {}))
+    bc_cfg = conditional_runtime_config(fold_cfg, fold_cfg.get("bc", {}))
+    wm_cfg = conditional_runtime_config(fold_cfg, fold_cfg.get("world_model", {}))
     costs_cfg = fold_cfg.get("costs", {})
     reward_cfg = fold_cfg.get("reward", {})
     obs_dim = wfo_dataset.obs_dim
     seq_len = fold_cfg.get("data", {}).get("seq_len", 64)
 
-    if conditional_path_enabled(fold_cfg):
+    if (
+        conditional_path_or_artifact_enabled(fold_cfg)
+        or conditional_path_or_artifact_enabled(ac_cfg)
+        or conditional_path_or_artifact_enabled(bc_cfg)
+        or conditional_path_or_artifact_enabled(wm_cfg)
+    ):
         raise ConditionalPathBlocked(
             "run_fold is blocked for conditional Oracle until chronological OOF WM "
             "retraining, normalizer/calibrator provenance, and replay inventory are supplied"

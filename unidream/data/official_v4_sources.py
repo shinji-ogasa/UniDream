@@ -97,6 +97,11 @@ def official_archive_url(source: str, symbol: str, interval: str, month: str | p
             f"{OFFICIAL_SPOT_ARCHIVE_BASE}/{symbol}/{interval}/"
             f"{symbol}-{interval}-{month_value.year:04d}-{month_value.month:02d}.zip"
         )
+    elif source == "um_klines":
+        url = (
+            f"{OFFICIAL_UM_ARCHIVE_BASE}/klines/{symbol}/{interval}/"
+            f"{symbol}-{interval}-{month_value.year:04d}-{month_value.month:02d}.zip"
+        )
     elif source == "um_mark_price_klines":
         url = (
             f"{OFFICIAL_UM_ARCHIVE_BASE}/markPriceKlines/{symbol}/{interval}/"
