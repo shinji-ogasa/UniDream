@@ -394,7 +394,7 @@ class P1ExactMBBTests(unittest.TestCase):
             support_id="synthetic_validation",
             seed_ordinal=0,
             metric="mse_delta",
-            direction="positive",
+            direction="negative",
         )
         self.assertEqual(result["block_lengths"], [8, 16, 32])
         self.assertEqual(set(result["per_block_length"]), {8, 16, 32})

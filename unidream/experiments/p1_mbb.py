@@ -1921,7 +1921,11 @@ def paired_bootstrap_mean_delta(
     one-sided ``(1 + count)/ (B + 1)`` value.
     """
     metric_name = _validate_metric(metric)
-    direction_name = _validate_direction(direction)
+    direction_name = _resolve_metric_direction(
+        metric_name,
+        direction,
+        level_direction=None,
+    )
     candidate, baseline, common_mask = _validate_paired_inputs(
         candidate_values,
         baseline_values,
@@ -2036,7 +2040,26 @@ def reject_unpaired_or_generic_mbb(*_: Any, **__: Any) -> None:
 
 def run_p1_mbb(*args: Any, **kwargs: Any) -> dict[str, Any]:
     """Named P1 entrypoint; no generic callback or unpaired mode is exposed."""
-    if len(args) < 2 and not {"candidate_values", "baseline_values"} <= set(kwargs):
+    if args:
+        raise P1MBBImplementationBlocked(
+            "P1 MBB entrypoint requires named paired inputs; positional/generic modes are forbidden"
+        )
+    allowed = {
+        "candidate_values",
+        "baseline_values",
+        "candidate_mask",
+        "baseline_mask",
+        "artifact",
+        "metric",
+        "direction",
+    }
+    unexpected = set(kwargs) - allowed
+    if unexpected:
+        raise P1MBBImplementationBlocked(
+            "P1 MBB does not accept generic callbacks or extra reducer fields: "
+            + ", ".join(sorted(unexpected))
+        )
+    if not {"candidate_values", "baseline_values"} <= set(kwargs):
         raise P1MBBImplementationBlocked(
             "P1 MBB requires both candidate_values and baseline_values"
         )
