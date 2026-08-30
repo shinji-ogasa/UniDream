@@ -4,6 +4,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 import json
+import stat
 import unittest
 import warnings
 import zipfile
@@ -371,6 +372,15 @@ class P1ExactMBBTests(unittest.TestCase):
                 archive.writestr("metadata.npy", b"metadata")
             with self.assertRaises(P1MBBError):
                 load_p1_mbb_index_artifact(bad_path_member)
+            bad_archive_symlink = directory_path / "bad-archive-symlink.npz"
+            with zipfile.ZipFile(bad_archive_symlink, mode="w") as archive:
+                starts_link = zipfile.ZipInfo("starts.npy")
+                starts_link.create_system = 3
+                starts_link.external_attr = (stat.S_IFLNK | 0o777) << 16
+                archive.writestr(starts_link, b"not-a-regular-member")
+                archive.writestr("metadata.npy", b"not-a-regular-member")
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_index_artifact(bad_archive_symlink)
             with self.assertRaises(P1MBBError):
                 load_p1_mbb_index_artifact(directory_path)
             valid_path = directory_path / "valid.npz"

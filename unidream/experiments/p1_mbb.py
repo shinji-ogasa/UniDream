@@ -12,6 +12,7 @@ the paired metric forms named by the preregistration are accepted.
 """
 from __future__ import annotations
 
+import ast
 from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
@@ -298,7 +299,10 @@ def materialize_non_circular_mbb_indices(
     length = _strict_block_length(block_length)
     if n_int < length:
         raise P1MBBError(f"P1 MBB requires n >= L; got n={n_int}, L={length}")
-    values = np.asarray(starts)
+    try:
+        values = np.asarray(starts)
+    except (TypeError, ValueError, OverflowError, MemoryError) as exc:
+        raise P1MBBError("MBB starts are not a valid array") from exc
     count = _n_blocks(n_int, length)
     if values.dtype != np.dtype("<i8") or values.shape != (count,):
         raise P1MBBError("MBB starts must be a one-dimensional little-endian int64 vector")
@@ -705,6 +709,16 @@ def _inspect_index_archive(source: Any) -> tuple[zipfile.ZipInfo, zipfile.ZipInf
                 raise P1MBBError("P1 MBB index artifact has unexpected archive members")
             starts_info = next(info for info in infos if info.filename == "starts.npy")
             metadata_info = next(info for info in infos if info.filename == "metadata.npy")
+            for info in (starts_info, metadata_info):
+                if info.is_dir():
+                    raise P1MBBError("P1 MBB index archive members must be regular files")
+                # NumPy's NPZ writer emits ordinary Unix permission bits.  If
+                # an archive records an explicit non-regular Unix type (for
+                # example a symlink), reject it before opening the member.
+                mode = (info.external_attr >> 16) & 0xFFFF
+                file_type = stat.S_IFMT(mode)
+                if file_type not in (0, stat.S_IFREG):
+                    raise P1MBBError("P1 MBB index archive contains a non-regular member")
             if starts_info.file_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
                 raise P1MBBError("P1 MBB starts member exceeds the file-size limit")
             if metadata_info.file_size > _P1_INDEX_METADATA_MAX_BYTES:
@@ -718,6 +732,97 @@ def _inspect_index_archive(source: Any) -> tuple[zipfile.ZipInfo, zipfile.ZipInf
         raise
     except (OSError, RuntimeError, ValueError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
         raise P1MBBError("P1 MBB index artifact archive is malformed") from exc
+
+
+def _inspect_npy_member_header(
+    source: Any,
+    member_name: str,
+    expected_member: zipfile.ZipInfo,
+    *,
+    expected_dtype: str,
+    expected_shape: tuple[int, ...] | None,
+    max_payload_bytes: int,
+) -> tuple[tuple[int, ...], int]:
+    """Validate one NPY header and declared payload before NumPy materializes it."""
+    header_cap = 64 * 1024
+    try:
+        expected_itemsize = np.dtype(expected_dtype).itemsize
+        with zipfile.ZipFile(source, mode="r") as archive:
+            member = archive.getinfo(member_name)
+            if (
+                member.file_size != expected_member.file_size
+                or member.compress_size != expected_member.compress_size
+                or member.CRC != expected_member.CRC
+            ):
+                raise P1MBBError("P1 MBB index archive member changed during parsing")
+            with archive.open(member, mode="r") as stream:
+                prefix = stream.read(8)
+                if len(prefix) != 8 or prefix[:6] != b"\x93NUMPY":
+                    raise P1MBBError(f"P1 MBB {member_name} has an invalid NPY header")
+                major, minor = prefix[6], prefix[7]
+                if (major, minor) == (1, 0):
+                    length_bytes = stream.read(2)
+                    header_prefix = 10
+                    encoding = "latin1"
+                elif (major, minor) in ((2, 0), (3, 0)):
+                    length_bytes = stream.read(4)
+                    header_prefix = 12
+                    encoding = "utf-8" if major == 3 else "latin1"
+                else:
+                    raise P1MBBError(f"P1 MBB {member_name} uses an unsupported NPY version")
+                if len(length_bytes) != header_prefix - 8:
+                    raise P1MBBError(f"P1 MBB {member_name} has a truncated NPY header")
+                header_length = int.from_bytes(length_bytes, byteorder="little", signed=False)
+                if header_length <= 0 or header_length > header_cap:
+                    raise P1MBBError(f"P1 MBB {member_name} NPY header is too large")
+                header_bytes = stream.read(header_length)
+                if len(header_bytes) != header_length:
+                    raise P1MBBError(f"P1 MBB {member_name} has a truncated NPY header")
+                try:
+                    header = ast.literal_eval(header_bytes.decode(encoding))
+                except (UnicodeError, SyntaxError, ValueError, TypeError, MemoryError, RecursionError) as exc:
+                    raise P1MBBError(f"P1 MBB {member_name} NPY header is malformed") from exc
+                if not isinstance(header, dict) or set(header) != {
+                    "descr",
+                    "fortran_order",
+                    "shape",
+                }:
+                    raise P1MBBError(f"P1 MBB {member_name} NPY header fields are malformed")
+                if header["descr"] != expected_dtype:
+                    raise P1MBBError(f"P1 MBB {member_name} NPY dtype is not {expected_dtype!r}")
+                if type(header["fortran_order"]) is not bool or header["fortran_order"]:
+                    raise P1MBBError(f"P1 MBB {member_name} NPY array must be C-order")
+                shape_value = header["shape"]
+                if not isinstance(shape_value, tuple):
+                    raise P1MBBError(f"P1 MBB {member_name} NPY shape is malformed")
+                shape: list[int] = []
+                for dimension in shape_value:
+                    if isinstance(dimension, bool) or not isinstance(dimension, int) or dimension < 0:
+                        raise P1MBBError(f"P1 MBB {member_name} NPY shape is malformed")
+                    shape.append(dimension)
+                normalized_shape = tuple(shape)
+                if expected_shape is not None and normalized_shape != expected_shape:
+                    raise P1MBBError(
+                        f"P1 MBB {member_name} NPY shape must be {expected_shape}, got {normalized_shape}"
+                    )
+                elements = 1
+                for dimension in normalized_shape:
+                    if dimension and elements > max_payload_bytes // expected_itemsize // dimension:
+                        raise P1MBBError(f"P1 MBB {member_name} NPY payload exceeds its byte limit")
+                    elements *= dimension
+                payload_bytes = elements * expected_itemsize
+                if payload_bytes > max_payload_bytes:
+                    raise P1MBBError(f"P1 MBB {member_name} NPY payload exceeds its byte limit")
+                declared_file_size = header_prefix + header_length + payload_bytes
+                if member.file_size != declared_file_size:
+                    raise P1MBBError(
+                        f"P1 MBB {member_name} NPY member size contradicts its header"
+                    )
+                return normalized_shape, payload_bytes
+    except P1MBBError:
+        raise
+    except (OSError, RuntimeError, ValueError, TypeError, OverflowError, MemoryError, EOFError, KeyError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+        raise P1MBBError(f"P1 MBB {member_name} NPY header is unreadable") from exc
 
 
 def _open_regular_index_artifact(source: Path) -> tuple[Any, int, tuple[Any, ...]]:
@@ -788,6 +893,21 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
             raise P1MBBError("P1 MBB index artifact exceeds the file-size limit")
         starts_info, metadata_info = _inspect_index_archive(handle)
         _assert_index_artifact_unchanged(handle, source_signature)
+
+        # Inspect both NPY headers before asking NumPy to decompress either
+        # payload.  The metadata header is the only safe source of the starts
+        # shape, so it is parsed first and independently bounded.
+        metadata_header_shape, metadata_payload_bytes = _inspect_npy_member_header(
+            handle,
+            "metadata.npy",
+            metadata_info,
+            expected_dtype="|u1",
+            expected_shape=None,
+            max_payload_bytes=_P1_INDEX_METADATA_MAX_BYTES,
+        )
+        if len(metadata_header_shape) != 1:
+            raise P1MBBError("P1 MBB metadata NPY array must be one-dimensional")
+        _assert_index_artifact_unchanged(handle, source_signature)
         handle.seek(0)
         with np.load(handle, allow_pickle=False) as archive:
             if set(archive.files) != {"starts", "metadata"}:
@@ -797,27 +917,39 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
                 metadata_bytes.dtype != np.dtype("uint8")
                 or metadata_bytes.ndim != 1
                 or metadata_bytes.nbytes > _P1_INDEX_METADATA_MAX_BYTES
+                or metadata_bytes.shape != metadata_header_shape
+                or metadata_bytes.nbytes != metadata_payload_bytes
             ):
                 raise P1MBBError("P1 MBB metadata bytes are malformed")
-            try:
-                metadata = json.loads(bytes(metadata_bytes).decode("utf-8"))
-            except (UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
-                raise P1MBBError("P1 MBB metadata JSON is malformed") from exc
-            if not isinstance(metadata, Mapping):
-                raise P1MBBError("P1 MBB metadata must be an object")
-            _, _, expected_shape, declared_bytes = _declared_index_layout(
-                metadata,
-                require_shape_fields=True,
-            )
-            # A valid .npy member has a small header in addition to the raw
-            # int64 payload.  Reject a declared huge member before np.load can
-            # decompress/materialize it, while retaining a generous header cap.
-            npy_header_cap = 64 * 1024
-            if starts_info.file_size < declared_bytes or starts_info.file_size > declared_bytes + npy_header_cap:
-                raise P1MBBError("P1 MBB starts member size contradicts its declared shape")
-            _assert_index_artifact_unchanged(handle, source_signature)
+            metadata_bytes = np.array(metadata_bytes, dtype=np.uint8, copy=True, order="C")
+        _assert_index_artifact_unchanged(handle, source_signature)
+        try:
+            metadata = json.loads(bytes(metadata_bytes).decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise P1MBBError("P1 MBB metadata JSON is malformed") from exc
+        if not isinstance(metadata, Mapping):
+            raise P1MBBError("P1 MBB metadata must be an object")
+        _, _, expected_shape, declared_bytes = _declared_index_layout(
+            metadata,
+            require_shape_fields=True,
+        )
+        starts_header_shape, starts_payload_bytes = _inspect_npy_member_header(
+            handle,
+            "starts.npy",
+            starts_info,
+            expected_dtype="<i8",
+            expected_shape=expected_shape,
+            max_payload_bytes=_P1_INDEX_ARTIFACT_MAX_BYTES,
+        )
+        if starts_payload_bytes != declared_bytes or starts_header_shape != expected_shape:
+            raise P1MBBError("P1 MBB starts payload contradicts its declared shape")
+        _assert_index_artifact_unchanged(handle, source_signature)
+        handle.seek(0)
+        with np.load(handle, allow_pickle=False) as archive:
+            if set(archive.files) != {"starts", "metadata"}:
+                raise P1MBBError("P1 MBB index artifact has unexpected archive fields")
             starts = np.asarray(archive["starts"])
-            _assert_index_artifact_unchanged(handle, source_signature)
+        _assert_index_artifact_unchanged(handle, source_signature)
         payload = dict(metadata)
         payload["starts"] = starts
         artifact = P1MBBIndexArtifact.from_dict(payload)
@@ -828,7 +960,7 @@ def load_p1_mbb_index_artifact(path: str | Path) -> P1MBBIndexArtifact:
         return artifact
     except P1MBBError:
         raise
-    except (OSError, ValueError, TypeError, OverflowError, MemoryError, EOFError, json.JSONDecodeError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+    except (OSError, ValueError, TypeError, OverflowError, MemoryError, EOFError, KeyError, json.JSONDecodeError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
         raise P1MBBError(f"could not load P1 MBB index artifact {source}") from exc
     finally:
         if handle is not None:
