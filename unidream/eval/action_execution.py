@@ -282,8 +282,11 @@ class ActionExecutionContract:
     ) -> "ActionExecutionTrajectory":
         return replay_contract_absolute_path(returns, absolute_positions, self)
 
-    def select_decisions(self, score_returns: np.ndarray | Sequence[float]) -> np.ndarray:
-        return select_block_decisions(score_returns, self)
+    def select_decisions(
+        self,
+        decision_block_scores: np.ndarray | Sequence[float],
+    ) -> np.ndarray:
+        return select_block_decisions(decision_block_scores, self)
 
     def __hash__(self) -> int:
         # Explicitly hash the canonical serialized contract so future additions
@@ -506,6 +509,31 @@ def _validate_series(values: np.ndarray | Sequence[float], *, name: str) -> np.n
     return arr
 
 
+def _validate_decision_block_scores(
+    values: np.ndarray | Sequence[float],
+    contract: ActionExecutionContract,
+) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Validate only the scalar forecast available at each decision start.
+
+    The full-length representation intentionally permits arbitrary/NaN values
+    at blocked and outcome bars.  Those cells are not forecasts for the
+    current decision and must never be inspected or used as a fallback.
+    """
+    try:
+        arr = np.asarray(values, dtype=np.float64).reshape(-1)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("decision_block_scores must be a numeric sequence") from exc
+    starts = complete_decision_starts(len(arr), contract)
+    if not starts:
+        raise ValueError("decision_block_scores require at least one complete decision block")
+    for start in starts:
+        if not np.isfinite(arr[start]):
+            raise ValueError(
+                f"decision_block_scores[{start}] must be a finite cumulative forecast"
+            )
+    return arr, starts
+
+
 def _validate_lengths(decision_deltas: np.ndarray, returns: np.ndarray) -> None:
     if len(decision_deltas) != len(returns):
         raise ValueError("decision_deltas and returns must have equal lengths")
@@ -708,33 +736,29 @@ def decision_deltas_from_positions(
 
 
 def select_block_decisions(
-    score_returns: np.ndarray | Sequence[float],
+    decision_block_scores: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
 ) -> np.ndarray:
-    """Select causal block actions from the current block score only.
+    """Select causal block actions from one scalar score per decision start.
 
-    This is the conditional-teacher selector.  At each decision it scores
-    only the delayed block ``fill:fill+H`` and then advances the current
-    position.  It never reads score values from a later decision block, so a
-    perturbation of future block forecasts cannot alter an earlier teacher
-    decision.  U0 uses :func:`select_hindsight_block_decisions` instead.
+    ``decision_block_scores`` is a full-length vector, but only
+    ``decision_block_scores[t]`` is read for a complete decision start ``t``.
+    Each scalar is the cumulative four-bar forecast already available at that
+    decision time; blocked/outcome-bar cells are deliberately ignored.  U0
+    uses :func:`select_hindsight_block_decisions` instead because it consumes
+    realized per-bar returns.
     """
     contract = contract or ActionExecutionContract.canonical()
-    scores = _validate_series(score_returns, name="score_returns")
-    starts = complete_decision_starts(len(scores), contract)
-    if not starts:
-        raise ValueError("action path requires at least one complete decision block")
+    scores, starts = _validate_decision_block_scores(decision_block_scores, contract)
 
     deltas = np.zeros(len(scores), dtype=np.float64)
     current = float(contract.p_start)
     for start in starts:
-        fill = start + contract.execution_delay_bars
-        end = fill + contract.h_decision
-        block_sum = float(scores[fill:end].sum())
+        block_score = float(scores[start])
         candidates: list[tuple[float, float, float]] = []
         for delta in contract.candidate_deltas:
             nxt = _candidate_position(contract, current, delta)
-            value = nxt * block_sum - transition_cost(current, nxt, contract)
+            value = nxt * block_score - transition_cost(current, nxt, contract)
             candidates.append((value, delta, nxt))
         _, best_delta, best_next = max(
             candidates,
@@ -812,13 +836,25 @@ def select_hindsight_block_decisions(
 
 
 def replay_selected_path(
-    score_returns: np.ndarray | Sequence[float],
+    decision_block_scores: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,
 ) -> ActionExecutionTrajectory:
-    """Select and replay the causal conditional-teacher trajectory."""
+    """Select/replay a causal teacher from cumulative block forecasts.
+
+    The returned replay uses a deterministic per-bar expansion of each
+    decision-start scalar (score divided evenly across the four scored bars)
+    solely so the trajectory can expose utility/cost arrays.  No blocked or
+    outcome-bar input cells are read.
+    """
     contract = contract or ActionExecutionContract.canonical()
-    deltas = select_block_decisions(score_returns, contract)
-    return replay_action_path(score_returns, deltas, contract)
+    scores, starts = _validate_decision_block_scores(decision_block_scores, contract)
+    deltas = select_block_decisions(scores, contract)
+    replay_returns = np.zeros(len(scores), dtype=np.float64)
+    for start in starts:
+        fill = start + contract.execution_delay_bars
+        end = fill + contract.h_decision
+        replay_returns[fill:end] = float(scores[start]) / contract.h_decision
+    return replay_action_path(replay_returns, deltas, contract)
 
 
 def replay_hindsight_selected_path(

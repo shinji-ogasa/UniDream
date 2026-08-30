@@ -234,19 +234,22 @@ def compute_net_returns(
 
 
 def conditional_oracle_teacher_path(
-    forecast_returns: np.ndarray | pd.Series,
+    decision_block_scores: np.ndarray | pd.Series,
     contract: ActionExecutionContract,
 ) -> ActionExecutionTrajectory:
-    """Build a contract-compliant teacher from decision-time forecasts.
+    """Build a contract-compliant teacher from cumulative block forecasts.
 
-    ``forecast_returns`` is a causal/OOF bar-level expected return score.  It
-    is intentionally not a realized-return label here.  The optimizer uses
-    the shared P0-C feasible-action/commitment/cost path and the resulting
-    trajectory can be replayed by the new Backtest without remapping actions.
+    ``decision_block_scores[t]`` is one causal/OOF cumulative expected-return
+    forecast for the delayed block earned after decision ``t``.  The full
+    length vector may contain arbitrary/NaN values at blocked or outcome bars;
+    the selector reads only complete decision-start cells.  It is intentionally
+    not a realized-return label.  The optimizer uses the shared P0-C
+    feasible-action/commitment/cost path and the resulting trajectory can be
+    replayed by the new Backtest without remapping actions.
     """
     if not isinstance(contract, ActionExecutionContract):
         raise TypeError("contract must be an ActionExecutionContract")
-    return replay_selected_path(forecast_returns, contract)
+    return replay_selected_path(decision_block_scores, contract)
 
 
 def hindsight_upper_bound_path(

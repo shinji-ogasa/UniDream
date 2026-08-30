@@ -186,7 +186,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             np.testing.assert_array_equal(trajectory.scored_mask, u0.scored_mask)
 
         metrics = ActionExecutionBacktest(
-            returns,
+            teacher.returns,
             teacher.decision_deltas,
             contract=self.contract,
             interval="1d",
@@ -195,15 +195,26 @@ class ActionExecutionContractTest(unittest.TestCase):
 
     def test_causal_teacher_does_not_read_future_decision_block_scores(self) -> None:
         scores = np.zeros(9, dtype=np.float64)
-        scores[1:5] = -0.01
+        scores[0] = -0.01
         baseline = conditional_oracle_teacher_path(scores, self.contract)
 
         perturbed = scores.copy()
-        perturbed[5:9] = 100.0
+        perturbed[1:5] = 1_000_000.0
         changed = conditional_oracle_teacher_path(perturbed, self.contract)
 
         self.assertEqual(baseline.decision_deltas[0], changed.decision_deltas[0])
         self.assertEqual(baseline.decision_positions[0], changed.decision_positions[0])
+
+        changed_start_score = scores.copy()
+        changed_start_score[0] = 0.01
+        score_changed = conditional_oracle_teacher_path(changed_start_score, self.contract)
+        self.assertNotEqual(baseline.decision_deltas[0], score_changed.decision_deltas[0])
+
+        sparse = np.full(9, np.nan, dtype=np.float64)
+        sparse[0] = scores[0]
+        sparse[4] = 0.0
+        sparse_teacher = conditional_oracle_teacher_path(sparse, self.contract)
+        self.assertEqual(sparse_teacher.decision_deltas[0], baseline.decision_deltas[0])
 
     def test_hindsight_selector_is_iterative_for_long_windows(self) -> None:
         # More than Python's usual recursion limit in decision blocks: U0 must
