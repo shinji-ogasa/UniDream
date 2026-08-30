@@ -87,6 +87,7 @@ D1-A acquisition evidence (2026-08-30, branch `exp/d1-signed-flow-acquisition-20
 | --- | --- | --- |
 | `exp/p0-a-availability-20260830` | Luna max P0-A | availability sidecar -> row/window eligibility |
 | `exp/p0-b-target-oof-20260830` | Luna max P0-B | target/gradient coverage, OOF teacher gate, inventory provenance |
+| `exp/p0b-oof-artifact-contract-20260830` | Luna max P0-B artifact contract | conditional OOF schema, provenance hashes, coverage and fail-closed consumer boundary |
 | `exp/p0-c-action-execution-20260830` | Luna max P0-C | shared action/execution/cost/commitment contract |
 | `exp/p0-integration-audit-20260830` | Luna max integration audit | v4 full-grid eligibility to P0-C parity and P0-B boundary guard |
 | `exp/d1-signed-flow-acquisition-20260830` | Luna max D1 | official archive acquisition and data-contract coverage only; no model/P2 |

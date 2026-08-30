@@ -116,6 +116,41 @@ and teacher-weight provenance.
 `chronological_oof_standardize` fits each row's mean/std from prior OOF rows
 only.  It leaves rows without enough prior OOF history unavailable.
 
+### Conditional OOF artifact boundary (schema v1)
+
+The conditional path now has a separate, hashable artifact boundary in
+`unidream.experiments.chronological_oof`.  `build_conditional_oof_artifact`
+requires the producer to persist the explicit future-only rule
+`target_end_exclusive[t] = t + horizon + 1`; the historical helper's
+model-agnostic default is intentionally not reused here.  The artifact keeps
+the full-row prediction mask and training-label mask separately, retains NaN
+outside the prediction mask, requires `provenance.in_sample: false`, and
+records strict SHA-256 fields for the origin records, checkpoint, normalizer,
+calibrator, teacher weight, and the P0-C `ActionExecutionContract`.
+
+`validate_conditional_oof_artifact` re-runs the raw chronological checks and
+also rejects duplicate/overlapping origins, any `idx >= origin`, a target end
+after `origin - purge`, wrong one-bar decision-to-fill delay, root/provenance
+hash disagreement, content tampering, or a contract-hash mismatch.  Coverage
+is represented as an explicit head-by-horizon list.  A zero-covered h64 row is
+kept in the artifact with its block reason; it is never silently removed.  The
+strict consumer gate rejects that row, while the relaxed producer mode exists
+only to preserve the diagnostic evidence.
+
+`write_conditional_oof_artifact`/`load_conditional_oof_artifact` use typed
+base64 array payloads so NaN and mask dtypes survive JSON round trips.  A
+conditional config must set `require_conditional_oof_artifact: true` (or
+`conditional_oof_artifact_required: true`) and supply the artifact envelope
+before a new consumer can proceed.  The existing raw-bundle path remains for
+the current integration fixture and historical diagnostics; it is not a
+claim that full per-fold WM/normalizer/calibrator/student replay is complete.
+
+Implementation commits for this contract are `8357ab1` (schema, validator,
+hash and persistence), `950d426` (fixture tests), and `a3912c4` (predictive
+state artifact-envelope gate), branch
+`exp/p0b-oof-artifact-contract-20260830`.  No WM/BC/AC result was run or
+promoted by this work.
+
 ### Current inventory contract
 
 `current_inventory_from_replay` and
