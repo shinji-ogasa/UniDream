@@ -50,8 +50,13 @@ an explicit `require_target_gradient_coverage: true`, write the JSONL artifact
 first and then raise `TargetGradientCoverageError` when any enabled row is
 blocked.  If a checkpoint was written before the gate, a
 `world_model.pt.blocked.json` marker records `status=blocked` and
-`promotable=false`.  `require_target_gradient_coverage: false` preserves the
-legacy diagnostic-only continuation.
+`promotable=false`.  `WorldModelTrainer.load(path)` treats that marker as an
+active consumer-side block and raises `TargetGradientCoverageError` by
+default, so a marker cannot be ignored by normal promotion/evaluation.  Only
+an explicit `allow_blocked_legacy=True` load is permitted for historical
+diagnostics; it does not make the checkpoint promotable.
+`require_target_gradient_coverage: false` preserves the legacy
+diagnostic-only continuation.
 
 ### Chronological OOF contract
 
@@ -65,11 +70,21 @@ partial fill を許さない。OOF validator、expanding standardizer、conditio
 predictive-state bundle の三つの入口でこの契約を検証する。
 All availability masks are strict boolean arrays; integer, float/NaN, and
 string masks are rejected instead of implicitly coerced.  An optional strict
-boolean `row_eligibility_mask` from the caller is ANDed with target and finite
-feature eligibility for both training rows and origins.  A false origin never
-calls the callback and remains NaN/false.  Its caller-supplied provenance is
-retained in the OOF result.  For window/sequence inputs, the caller must pass
-one eligibility value per window; no sidecar is auto-zero-filled.
+boolean `row_eligibility_mask` from the caller is combined with finite
+features for prediction-origin eligibility.  Training-label eligibility is a
+separate mask that additionally requires `valid_target_mask` and finite
+targets.  The result records `prediction_eligibility` and
+`training_label_eligibility` counts and provenance separately.  Thus a
+future-target value or mask on the origin row cannot suppress that row's
+decision-time OOF state; it can affect only later training prefixes.  A false
+origin never calls the callback and remains NaN/false.  An incomplete target
+tail can still receive a prediction when its decision-time feature/window is
+eligible.  `prediction_mask` means only finite callback output, not score/eval
+label completeness; downstream scoring/evaluation must apply a separate
+label-completeness mask rather than reusing the target-training mask.  Its
+caller-supplied provenance is retained in the OOF result.  For
+window/sequence inputs, the caller must pass one eligibility value per window;
+no sidecar is auto-zero-filled.
 Horizon, purge, train-size/window, step, target-end cutoff, and standardizer
 history options require actual integer types; bool, fractional, and string
 coercion are rejected. Conditional flags and mapping `enabled` values likewise
@@ -105,8 +120,8 @@ explicit origin/window eligibility, horizon/purge eligibility, no early-row
 fill, partial-finite values outside an OOF mask, and hindsight inventory
 rejection.
 
-Observed result: 19 scoped contract tests passed.  The complete repository
-suite passed (142 tests).
+Observed result: 20 scoped contract tests passed.  The complete repository
+suite passed (143 tests).
 
 The full suite is required before promotion:
 

@@ -1867,8 +1867,28 @@ class WorldModelTrainer:
         atomic_torch_save(ckpt, path)
         print(f"[WM] Checkpoint saved: {path}")
 
-    def load(self, path: str) -> None:
-        """チェックポイントをロードする."""
+    def load(self, path: str, *, allow_blocked_legacy: bool = False) -> None:
+        """チェックポイントをロードする.
+
+        A failed target/gradient coverage gate leaves ``path +
+        ".blocked.json"`` beside the checkpoint.  Normal promotion/evaluation
+        consumers must not silently read that checkpoint.  The only escape
+        hatch is the explicit, strict-boolean ``allow_blocked_legacy=True``
+        used by a caller that is intentionally replaying a historical or
+        diagnostic artifact; it does not make the checkpoint promotable.
+        """
+        allow_blocked_legacy = strict_bool_value(
+            allow_blocked_legacy,
+            name="allow_blocked_legacy",
+        )
+        marker_path = f"{path}.blocked.json"
+        if os.path.exists(marker_path) and not allow_blocked_legacy:
+            raise TargetGradientCoverageError(
+                "refusing to load coverage-blocked checkpoint for normal "
+                f"promotion/evaluation: {path}; marker={marker_path}. "
+                "Pass allow_blocked_legacy=True only for explicit historical "
+                "diagnostics."
+            )
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.ensemble.load_state_dict(ckpt["ensemble"])
         try:

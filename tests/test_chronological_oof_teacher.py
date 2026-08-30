@@ -61,6 +61,79 @@ class ChronologicalOOFTeacherTest(unittest.TestCase):
         self.assertFalse(first["provenance"]["in_sample"])
         self.assertEqual(first["metadata_by_row"][6]["fit_scheme"], "chronological_oof")
 
+    def test_origin_eligibility_is_independent_of_own_target_mask_or_value(self) -> None:
+        features = np.arange(10, dtype=np.float64).reshape(-1, 1)
+        labels = np.arange(10, dtype=np.float64)
+        valid_target_mask = np.ones(10, dtype=bool)
+        baseline = chronological_oof_predict(
+            features,
+            labels,
+            fit_predict=self._fit_predict,
+            min_train_size=2,
+            valid_target_mask=valid_target_mask,
+        )
+
+        masked_target = valid_target_mask.copy()
+        masked_target[5] = False
+        masked = chronological_oof_predict(
+            features,
+            labels,
+            fit_predict=self._fit_predict,
+            min_train_size=2,
+            valid_target_mask=masked_target,
+        )
+
+        nan_target = labels.copy()
+        nan_target[5] = np.nan
+        nan_value = chronological_oof_predict(
+            features,
+            nan_target,
+            fit_predict=self._fit_predict,
+            min_train_size=2,
+            valid_target_mask=valid_target_mask,
+        )
+
+        # Row 5 is decision-time eligible from its finite feature, even when
+        # its future target mask/value is unavailable.  The own row is never
+        # admitted to its training prefix, so its OOF state is invariant.
+        for changed in (masked, nan_value):
+            self.assertTrue(changed["prediction_eligibility_mask"][5])
+            self.assertTrue(changed["prediction_mask"][5])
+            self.assertEqual(baseline["train_count"][5], changed["train_count"][5])
+            np.testing.assert_array_equal(
+                baseline["predictions"][5], changed["predictions"][5]
+            )
+        self.assertEqual(
+            baseline["provenance"]["prediction_eligibility"]["count"],
+            masked["provenance"]["prediction_eligibility"]["count"],
+        )
+        self.assertEqual(
+            masked["provenance"]["training_label_eligibility"]["count"],
+            nan_value["provenance"]["training_label_eligibility"]["count"],
+        )
+        # The changed row is available to later training prefixes only in the
+        # baseline; this is the intended delayed effect of label availability.
+        self.assertNotEqual(
+            baseline["predictions"][6, 0], masked["predictions"][6, 0]
+        )
+        self.assertNotEqual(
+            baseline["predictions"][6, 0], nan_value["predictions"][6, 0]
+        )
+
+        incomplete_tail_mask = valid_target_mask.copy()
+        incomplete_tail_mask[-1] = False
+        incomplete_tail = chronological_oof_predict(
+            features,
+            labels,
+            fit_predict=self._fit_predict,
+            min_train_size=2,
+            valid_target_mask=incomplete_tail_mask,
+        )
+        # Target-completeness for scoring is a downstream contract; it must not
+        # suppress a decision-time prediction at an otherwise valid tail row.
+        self.assertTrue(incomplete_tail["prediction_eligibility_mask"][-1])
+        self.assertTrue(incomplete_tail["prediction_mask"][-1])
+
     def test_horizon_and_purge_exclude_incomplete_or_overlapping_labels(self) -> None:
         features = np.arange(20, dtype=np.float64).reshape(-1, 1)
         labels = np.arange(20, dtype=np.float64)

@@ -255,16 +255,24 @@ def chronological_oof_predict(
 
     A target at row ``i`` is assumed complete at ``i + horizon`` unless an
     explicit ``target_end`` (exclusive row index) is supplied.  The training
-    prefix must end at or before ``prediction_index - purge``.  No early-row
-    prediction is imputed: unavailable rows remain NaN and false in
-    ``prediction_mask``.  ``row_eligibility_mask`` is an optional strict bool
-    vector supplied by the caller (for example, a P0-A availability/window
-    mask). It is ANDed with the finite-target mask for both training rows and
-    prediction origins. A false origin never calls ``fit_predict`` and stays
-    NaN/false; unavailable values are never sidecar-zero-filled. For a
-    sequence/window representation, the caller must provide one eligibility
-    value per window (the first axis); this function does not infer window
-    eligibility from a sidecar or repair invalid windows.
+    prefix must end at or before ``prediction_index - purge`` and never
+    includes the origin row itself.  No early-row prediction is imputed:
+    unavailable rows remain NaN and false in ``prediction_mask``.
+    ``row_eligibility_mask`` is an optional strict bool vector supplied by the
+    caller (for example, a P0-A availability/window mask).  Prediction-origin
+    eligibility is only ``row_eligibility_mask & finite_features``; a future
+    target's value or validity mask cannot decide whether the decision-time
+    state is generated.  Training-label eligibility additionally requires the
+    strict ``valid_target_mask`` and finite targets.  Consequently, an
+    incomplete target tail can still receive a decision-time prediction when
+    its features/window are eligible; ``prediction_mask`` records only finite
+    callback output, not score/evaluation label completeness, so downstream
+    scoring/evaluation must apply its own label-completeness mask.  A false
+    origin never calls ``fit_predict`` and stays NaN/false; unavailable values
+    are never sidecar-zero-filled. For a sequence/window representation, the
+    caller must provide one eligibility value per window (the first axis); this
+    function does not infer window eligibility from a sidecar or repair
+    invalid windows.
     """
     x = np.asarray(features)
     if x.ndim == 1:
@@ -299,13 +307,14 @@ def chronological_oof_predict(
     if step < 1:
         raise ChronologicalOOFError("step must be >= 1")
 
-    row_valid = _as_row_mask(valid_target_mask, y)
+    target_valid = _as_row_mask(valid_target_mask, y)
     caller_row_mask, row_mask_supplied = _as_row_eligibility_mask(
         row_eligibility_mask,
         n_rows,
     )
     feature_valid = _finite_rows(x, name="features")
-    row_valid = row_valid & caller_row_mask & feature_valid
+    prediction_origin_valid = caller_row_mask & feature_valid
+    training_label_valid = prediction_origin_valid & target_valid
     if target_end is None:
         label_end = np.arange(n_rows, dtype=np.int64) + horizon
     else:
@@ -321,20 +330,47 @@ def chronological_oof_predict(
     eligibility_provenance = dict(row_eligibility_provenance or {})
     eligibility_source = eligibility_provenance.get(
         "source",
-        "caller" if row_mask_supplied else "finite_features_and_target_mask",
+        "caller" if row_mask_supplied else "finite_features",
     )
+
+    prediction_eligibility = {
+        "count": int(prediction_origin_valid.sum()),
+        "eligible_rows": int(prediction_origin_valid.sum()),
+        "n_rows": n_rows,
+        "source": eligibility_source,
+        "row_eligibility_mask_supplied": row_mask_supplied,
+        "feature_finite_guard": True,
+        "target_mask_applied": False,
+        "provenance": dict(eligibility_provenance),
+    }
+    training_label_eligibility = {
+        "count": int(training_label_valid.sum()),
+        "eligible_rows": int(training_label_valid.sum()),
+        "n_rows": n_rows,
+        "source": "prediction_eligibility_and_valid_target_mask",
+        "prediction_eligibility_source": eligibility_source,
+        "valid_target_mask_supplied": valid_target_mask is not None,
+        "valid_target_mask_applied": True,
+        "finite_target_guard": True,
+        "provenance": dict(eligibility_provenance),
+    }
 
     predictions = np.full((n_rows, n_outputs), np.nan, dtype=np.float64)
     prediction_mask = np.zeros(n_rows, dtype=bool)
     train_count = np.zeros(n_rows, dtype=np.int64)
+    row_indices = np.arange(n_rows, dtype=np.int64)
     origin_records: list[dict[str, Any]] = []
     metadata_by_row: list[Mapping[str, Any] | None] = [None] * n_rows
 
     for prediction_index in range(0, n_rows, step):
-        if not row_valid[prediction_index]:
+        if not prediction_origin_valid[prediction_index]:
             continue
         label_cutoff_exclusive = prediction_index - purge
-        eligible = np.flatnonzero(row_valid & (label_end <= label_cutoff_exclusive))
+        eligible = np.flatnonzero(
+            training_label_valid
+            & (row_indices < prediction_index)
+            & (label_end <= label_cutoff_exclusive)
+        )
         if train_window is not None and len(eligible) > train_window:
             eligible = eligible[-train_window:]
         if len(eligible) < min_train_size:
@@ -378,6 +414,10 @@ def chronological_oof_predict(
         "train_count": train_count,
         "origins": origin_records,
         "metadata_by_row": metadata_by_row,
+        "prediction_eligibility_mask": prediction_origin_valid.copy(),
+        "training_label_eligibility_mask": training_label_valid.copy(),
+        "prediction_eligibility": prediction_eligibility,
+        "training_label_eligibility": training_label_eligibility,
         "provenance": {
             "fit_scheme": "chronological_oof",
             "horizon": horizon,
@@ -394,8 +434,13 @@ def chronological_oof_predict(
             "row_eligibility_mask_source": eligibility_source,
             "row_eligibility_provenance": eligibility_provenance,
             "row_eligibility_mask_provenance": eligibility_provenance,
-            "row_eligibility_applied_with_target_mask": True,
-            "row_eligibility_eligible_rows": int(row_valid.sum()),
+            "row_eligibility_applied_with_target_mask": False,
+            "row_eligibility_eligible_rows": int(prediction_origin_valid.sum()),
+            "prediction_eligibility": prediction_eligibility,
+            "training_label_eligibility": training_label_eligibility,
+            "prediction_eligibility_count": int(prediction_origin_valid.sum()),
+            "training_label_eligibility_count": int(training_label_valid.sum()),
+            "training_label_eligibility_applied_with_target_mask": True,
         },
     }
     validate_oof_result(result, target_end=label_end)

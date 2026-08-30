@@ -157,6 +157,15 @@ class WorldModelTargetCoverageTest(unittest.TestCase):
                     self.assertFalse(marker_payload["promotable"])
                     self.assertTrue(Path(checkpoint).exists())
 
+                    # A marker is an active consumer-side block, not merely a
+                    # report.  Normal promotion/evaluation loading fails
+                    # closed; an explicit legacy override is required for a
+                    # historical diagnostic replay.
+                    reader = self._trainer()
+                    with self.assertRaises(TargetGradientCoverageError):
+                        reader.load(checkpoint)
+                    reader.load(checkpoint, allow_blocked_legacy=True)
+
     def test_coverage_context_and_head_steps_are_not_credited_when_head_skipped(self) -> None:
         rng = np.random.default_rng(8)
         dataset_without_returns = SequenceDataset(
