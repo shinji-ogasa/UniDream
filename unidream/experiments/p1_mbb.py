@@ -3066,11 +3066,53 @@ def bootstrap_p1_metric_seed_sensitivity(
     direction: Any = None,
     level_direction: Any = None,
     level_metric: Any = None,
+    provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Run synthetic equal-seed aggregation at all preregistered block lengths."""
+    """Run the production synthetic sensitivity set with external provenance."""
     results: dict[int, dict[str, Any]] = {}
     for length in P1_MBB_BLOCK_LENGTHS:
         results[length] = bootstrap_p1_metric_seed_aggregate(
+            metric,
+            unit=unit,
+            unit_code=unit_code,
+            support_id=support_id,
+            block_length=length,
+            seed_inputs=seed_inputs,
+            direction=direction,
+            level_direction=level_direction,
+            level_metric=level_metric,
+            provenance_by_seed=provenance_by_seed,
+        )
+    return {
+        "status": "ok",
+        "metric": _validate_recompute_metric(metric),
+        "direction": results[P1_MBB_BLOCK_LENGTHS[0]]["direction"],
+        "block_lengths": list(P1_MBB_BLOCK_LENGTHS),
+        "per_block_length": results,
+        "raw_p": max(float(result["p_value"]) for result in results.values()),
+        "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
+    }
+
+
+bootstrap_p1_metric_sensitivity_by_seed = bootstrap_p1_metric_seed_sensitivity
+bootstrap_p1_metric_seed_sensitivity_production = bootstrap_p1_metric_seed_sensitivity
+
+
+def bootstrap_p1_metric_seed_sensitivity_fixture(
+    metric: Any,
+    *,
+    unit: str | int | None = None,
+    unit_code: Any = None,
+    support_id: Any,
+    seed_inputs: Mapping[Any, Mapping[str, Any]],
+    direction: Any = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+) -> dict[str, Any]:
+    """Run synthetic sensitivity diagnostics explicitly as a non-production fixture."""
+    results: dict[int, dict[str, Any]] = {}
+    for length in P1_MBB_BLOCK_LENGTHS:
+        results[length] = bootstrap_p1_metric_seed_aggregate_fixture(
             metric,
             unit=unit,
             unit_code=unit_code,
@@ -3092,7 +3134,7 @@ def bootstrap_p1_metric_seed_sensitivity(
     }
 
 
-bootstrap_p1_metric_sensitivity_by_seed = bootstrap_p1_metric_seed_sensitivity
+bootstrap_p1_metric_sensitivity_by_seed_fixture = bootstrap_p1_metric_seed_sensitivity_fixture
 
 
 def _paired_bootstrap_mean_delta(
@@ -3249,8 +3291,74 @@ def paired_bootstrap_mean_delta_sensitivity(
     seed_ordinal: Any,
     metric: str,
     direction: str,
+    provenance: Mapping[str, Any] | None = None,
+    expected_common_mask_sha256: Any = None,
+    expected_common_mask_field: Any = None,
+    expected_source_result_sha256: Any = None,
+    expected_action_primitive_payload_sha256: Any = None,
+    expected_action_primitive_schema_sha256: Any = None,
+    expected_action_primitive_content_sha256: Any = None,
+    expected_forecast_artifact_sha256: Any = None,
+    expected_forecast_result_sha256: Any = None,
 ) -> dict[str, Any]:
-    """Evaluate the fixed L={8,16,32} diagnostic set and conservative raw p."""
+    """Evaluate production L={8,16,32} with the same external provenance."""
+    results: dict[int, dict[str, Any]] = {}
+    artifacts: dict[int, P1MBBIndexArtifact] = {}
+    for length in P1_MBB_BLOCK_LENGTHS:
+        artifact = build_p1_mbb_index_artifact(
+            len(np.asarray(candidate_values)),
+            unit=unit,
+            unit_code=unit_code,
+            support_id=support_id,
+            seed_ordinal=seed_ordinal,
+            block_length=length,
+        )
+        artifacts[length] = artifact
+        results[length] = _paired_bootstrap_mean_delta(
+            candidate_values,
+            baseline_values,
+            candidate_mask=candidate_mask,
+            baseline_mask=baseline_mask,
+            artifact=artifact,
+            metric=metric,
+            direction=direction,
+            production=True,
+            provenance=provenance,
+            expected_common_mask_sha256=expected_common_mask_sha256,
+            expected_common_mask_field=expected_common_mask_field,
+            expected_source_result_sha256=expected_source_result_sha256,
+            expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
+            expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
+            expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+            expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
+            expected_forecast_result_sha256=expected_forecast_result_sha256,
+        )
+    return {
+        "status": "ok",
+        "metric": _validate_metric(metric),
+        "direction": _validate_direction(direction),
+        "block_lengths": list(P1_MBB_BLOCK_LENGTHS),
+        "per_block_length": results,
+        "raw_p": max(float(result["p_value"]) for result in results.values()),
+        "index_artifacts": artifacts,
+        "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
+    }
+
+
+def paired_bootstrap_mean_delta_sensitivity_fixture(
+    candidate_values: Any,
+    baseline_values: Any,
+    *,
+    candidate_mask: Any,
+    baseline_mask: Any,
+    unit: str | int | None = None,
+    unit_code: Any = None,
+    support_id: Any,
+    seed_ordinal: Any,
+    metric: str,
+    direction: str,
+) -> dict[str, Any]:
+    """Evaluate sensitivity diagnostics explicitly outside production."""
     results: dict[int, dict[str, Any]] = {}
     artifacts: dict[int, P1MBBIndexArtifact] = {}
     for length in P1_MBB_BLOCK_LENGTHS:
@@ -3283,6 +3391,9 @@ def paired_bootstrap_mean_delta_sensitivity(
         "index_artifacts": artifacts,
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
     }
+
+
+paired_bootstrap_mean_delta_sensitivity_production = paired_bootstrap_mean_delta_sensitivity
 
 
 def reject_unpaired_or_generic_mbb(*_: Any, **__: Any) -> None:
@@ -3357,7 +3468,10 @@ __all__ = [
     "bootstrap_p1_metric_seed_aggregate_fixture",
     "bootstrap_p1_metric_seed_aggregate_production",
     "bootstrap_p1_metric_seed_sensitivity",
+    "bootstrap_p1_metric_seed_sensitivity_fixture",
+    "bootstrap_p1_metric_seed_sensitivity_production",
     "bootstrap_p1_metric_sensitivity_by_seed",
+    "bootstrap_p1_metric_sensitivity_by_seed_fixture",
     "derive_p1_seed",
     "derive_seed",
     "draw_non_circular_mbb_indices",
@@ -3372,6 +3486,8 @@ __all__ = [
     "paired_bootstrap_mean_delta_fixture",
     "paired_bootstrap_mean_delta_production",
     "paired_bootstrap_mean_delta_sensitivity",
+    "paired_bootstrap_mean_delta_sensitivity_fixture",
+    "paired_bootstrap_mean_delta_sensitivity_production",
     "recompute_agreement_delta",
     "recompute_agreement_mean",
     "recompute_logloss_delta",

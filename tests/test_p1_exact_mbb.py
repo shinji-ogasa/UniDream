@@ -31,7 +31,7 @@ from unidream.experiments.p1_mbb import (
     load_p1_mbb_index_artifact_fixture as load_p1_mbb_index_artifact,
     materialize_non_circular_mbb_indices,
     paired_bootstrap_mean_delta_fixture as paired_bootstrap_mean_delta,
-    paired_bootstrap_mean_delta_sensitivity,
+    paired_bootstrap_mean_delta_sensitivity_fixture as paired_bootstrap_mean_delta_sensitivity,
     p1_mask_sha256,
     recompute_agreement_delta,
     recompute_agreement_mean,
