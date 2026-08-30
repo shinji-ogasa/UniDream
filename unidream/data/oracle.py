@@ -15,6 +15,13 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from unidream.eval.action_execution import (
+    ActionExecutionContract,
+    ActionExecutionTrajectory,
+    replay_hindsight_selected_path,
+    replay_selected_path,
+)
+
 # 離散行動: ポジション比率
 ACTIONS = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
 N_ACTIONS = len(ACTIONS)
@@ -224,6 +231,73 @@ def compute_net_returns(
         prev_pos = pos
 
     return net_returns
+
+
+def conditional_oracle_teacher_path(
+    decision_block_scores: np.ndarray | pd.Series,
+    contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | pd.Series | None = None,
+    score_eligible: np.ndarray | pd.Series | None = None,
+) -> ActionExecutionTrajectory:
+    """Build a contract-compliant teacher from cumulative block forecasts.
+
+    ``decision_block_scores[t]`` is one causal/OOF cumulative expected-return
+    forecast for the delayed block earned after decision ``t``.  The full
+    length vector may contain arbitrary/NaN values at blocked or outcome bars;
+    the selector reads only complete decision-start cells.  It is intentionally
+    not a realized-return label.  The optimizer uses the shared P0-C
+    feasible-action/commitment/cost path and the resulting trajectory can be
+    replayed by the new Backtest without remapping actions.  Both eligibility
+    masks are required.  A missing delayed score/outcome bar excludes the
+    complete block; a missing decision feature skips execution while holding
+    the four-bar commitment and still scores finite outcomes.  Neither case
+    compresses the schedule.
+    """
+    if not isinstance(contract, ActionExecutionContract):
+        raise TypeError("contract must be an ActionExecutionContract")
+    return replay_selected_path(
+        decision_block_scores,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+
+
+def hindsight_upper_bound_path(
+    realized_returns: np.ndarray | pd.Series,
+    contract: ActionExecutionContract,
+    *,
+    decision_eligible: np.ndarray | pd.Series | None = None,
+    score_eligible: np.ndarray | pd.Series | None = None,
+) -> ActionExecutionTrajectory:
+    """Build U0 from realized returns using the shared contract trajectory.
+
+    This is an upper-bound diagnostic only.  Callers must not feed its
+    decisions, weights, thresholds, or feature values into model training.
+    Keeping U0 on the same replay geometry as the conditional teacher and
+    Backtest makes opportunity/regret comparisons mechanically meaningful;
+    its selector is intentionally hindsight-only and distinct from the
+    causal teacher selector.
+    A block with a missing delayed score/outcome is skipped without reading its
+    realized values; the next scheduled boundary remains unchanged.  A
+    decision-feature gap is a scored hold commitment, so finite realized
+    outcomes remain part of both the strategy and benchmark windows.
+    """
+    if not isinstance(contract, ActionExecutionContract):
+        raise TypeError("contract must be an ActionExecutionContract")
+    return replay_hindsight_selected_path(
+        realized_returns,
+        contract,
+        decision_eligible=decision_eligible,
+        score_eligible=score_eligible,
+    )
+
+
+# Short names used by experiment manifests.  They deliberately retain the
+# explicit ``path`` suffix so callers do not mistake a trajectory for labels.
+conditional_oracle_path = conditional_oracle_teacher_path
+u0_upper_bound_path = hindsight_upper_bound_path
 
 
 def oracle_positions(
