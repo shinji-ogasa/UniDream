@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+import hashlib
 import json
 import stat
 import unittest
@@ -72,10 +73,29 @@ class P1ExactMBBTests(unittest.TestCase):
     @staticmethod
     def _production_artifact(*, n: int = 19, block_length: int = 8):
         artifact = P1ExactMBBTests._artifact(n=n, block_length=block_length)
-        return P1MBBIndexArtifact.from_dict(
-            artifact.to_dict(),
-            expected_artifact_sha256=artifact.artifact_sha256,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "indices.npz"
+            file_digest = save_p1_mbb_index_artifact(path, artifact)
+            from unidream.experiments.p1_mbb import load_p1_mbb_index_artifact
+
+            return load_p1_mbb_index_artifact(
+                path,
+                expected_artifact_sha256=artifact.artifact_sha256,
+                expected_file_sha256=file_digest,
+            )
+
+    @staticmethod
+    def _persisted_production_artifact(artifact: P1MBBIndexArtifact) -> P1MBBIndexArtifact:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "indices.npz"
+            file_digest = save_p1_mbb_index_artifact(path, artifact)
+            from unidream.experiments.p1_mbb import load_p1_mbb_index_artifact
+
+            return load_p1_mbb_index_artifact(
+                path,
+                expected_artifact_sha256=artifact.artifact_sha256,
+                expected_file_sha256=file_digest,
+            )
 
     def test_exact_start_draw_and_c_order_materialization(self) -> None:
         n = 19
@@ -272,7 +292,8 @@ class P1ExactMBBTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "indices.npz"
             digest = save_p1_mbb_index_artifact(path, artifact)
-            self.assertEqual(digest, artifact.artifact_sha256)
+            self.assertEqual(digest, hashlib.sha256(path.read_bytes()).hexdigest())
+            self.assertNotEqual(digest, artifact.artifact_sha256)
             loaded = load_p1_mbb_index_artifact(path)
         np.testing.assert_array_equal(loaded.starts, artifact.starts)
         self.assertEqual(loaded.to_dict(include_starts=False), artifact.to_dict(include_starts=False))
@@ -316,7 +337,7 @@ class P1ExactMBBTests(unittest.TestCase):
             )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "indices.npz"
-            save_p1_mbb_index_artifact(path, artifact)
+            file_digest = save_p1_mbb_index_artifact(path, artifact)
             with self.assertRaises(P1MBBError):
                 from unidream.experiments.p1_mbb import load_p1_mbb_index_artifact
 
@@ -324,6 +345,7 @@ class P1ExactMBBTests(unittest.TestCase):
             strict_loaded = load_p1_mbb_index_artifact(
                 path,
                 expected_artifact_sha256=artifact.artifact_sha256,
+                expected_file_sha256=file_digest,
             )
             np.testing.assert_array_equal(strict_loaded.starts, artifact.starts)
 
@@ -817,6 +839,7 @@ class P1ExactMBBTests(unittest.TestCase):
             "action_primitive_schema_sha256": schema_digest,
             "action_primitive_content_sha256": content_digest,
             "source_result_sha256": source_digest,
+            "source_action_file_sha256": "5" * 64,
         }
         result = production_bootstrap_p1_metric(
             "policy_utility_delta",
@@ -833,6 +856,7 @@ class P1ExactMBBTests(unittest.TestCase):
             expected_action_primitive_payload_sha256=payload_digest,
             expected_action_primitive_schema_sha256=schema_digest,
             expected_action_primitive_content_sha256=content_digest,
+            expected_source_action_file_sha256="5" * 64,
         )
         self.assertEqual(result["provenance"]["kind"], "action")
         with self.assertRaises(P1MBBError):
@@ -849,6 +873,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 expected_action_primitive_payload_sha256=payload_digest,
                 expected_action_primitive_schema_sha256=schema_digest,
                 expected_action_primitive_content_sha256=content_digest,
+                expected_source_action_file_sha256="5" * 64,
             )
         wrong_mask = mask.copy()
         wrong_mask[0] = False
@@ -868,6 +893,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 expected_action_primitive_payload_sha256=payload_digest,
                 expected_action_primitive_schema_sha256=schema_digest,
                 expected_action_primitive_content_sha256=content_digest,
+                expected_source_action_file_sha256="5" * 64,
             )
 
     def test_production_forecast_provenance_is_distinct_from_action(self) -> None:
@@ -943,6 +969,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 "action_primitive_schema_sha256": "2" * 64,
                 "action_primitive_content_sha256": "3" * 64,
                 "source_result_sha256": "4" * 64,
+                "source_action_file_sha256": "5" * 64,
             },
             expected_common_mask_sha256=digest,
             expected_common_mask_field="common_mask",
@@ -950,22 +977,29 @@ class P1ExactMBBTests(unittest.TestCase):
             expected_action_primitive_payload_sha256="1" * 64,
             expected_action_primitive_schema_sha256="2" * 64,
             expected_action_primitive_content_sha256="3" * 64,
+            expected_source_action_file_sha256="5" * 64,
         )
         typed = P1MBBResultArtifact.from_result_production(result)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "result.npz"
             digest_result = save_p1_mbb_result_artifact(path, typed)
-            self.assertEqual(digest_result, typed.result_sha256)
+            self.assertEqual(digest_result, hashlib.sha256(path.read_bytes()).hexdigest())
+            self.assertNotEqual(digest_result, typed.result_sha256)
             with self.assertRaises(P1MBBError):
                 load_p1_mbb_result(path)
             loaded = load_p1_mbb_result(
                 path,
                 expected_result_sha256=typed.result_sha256,
+                expected_file_sha256=digest_result,
             )
             self.assertEqual(loaded.result_sha256, typed.result_sha256)
             np.testing.assert_array_equal(loaded.bootstrap_values, typed.bootstrap_values)
             with self.assertRaises(P1MBBError):
-                load_p1_mbb_result(path, expected_result_sha256="f" * 64)
+                load_p1_mbb_result(
+                    path,
+                    expected_result_sha256="f" * 64,
+                    expected_file_sha256=digest_result,
+                )
 
         fixture = self._fixture_policy_result()
         with tempfile.TemporaryDirectory() as directory:
@@ -1012,6 +1046,7 @@ class P1ExactMBBTests(unittest.TestCase):
                     "action_primitive_schema_sha256": f"{seed + 11:064x}",
                     "action_primitive_content_sha256": f"{seed + 21:064x}",
                     "source_result_sha256": f"{seed + 31:064x}",
+                    "source_action_file_sha256": f"{seed + 41:064x}",
                 },
                 "expected_common_mask_sha256": common_digest,
                 "expected_common_mask_field": "common_mask",
@@ -1019,6 +1054,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 "expected_action_primitive_schema_sha256": f"{seed + 11:064x}",
                 "expected_action_primitive_content_sha256": f"{seed + 21:064x}",
                 "expected_source_result_sha256": f"{seed + 31:064x}",
+                "expected_source_action_file_sha256": f"{seed + 41:064x}",
             }
             for seed in range(10)
         }
@@ -1031,10 +1067,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 seed_ordinal=seed,
                 block_length=8,
             )
-            index_artifacts[seed] = P1MBBIndexArtifact.from_dict(
-                raw_artifact.to_dict(),
-                expected_artifact_sha256=raw_artifact.artifact_sha256,
-            )
+            index_artifacts[seed] = self._persisted_production_artifact(raw_artifact)
         with self.assertRaises(P1MBBError):
             production_seed_aggregate(
                 "policy_utility_delta",
@@ -1050,6 +1083,9 @@ class P1ExactMBBTests(unittest.TestCase):
             for seed, artifact in index_artifacts.items()
         }
         bad_index_digests[3] = "f" * 64
+        index_file_digests = {
+            seed: artifact.file_sha256 for seed, artifact in index_artifacts.items()
+        }
         with self.assertRaises(P1MBBError):
             production_seed_aggregate(
                 "policy_utility_delta",
@@ -1061,6 +1097,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 provenance_by_seed=provenance_by_seed,
                 index_artifacts=index_artifacts,
                 expected_index_artifact_sha256_by_seed=bad_index_digests,
+                expected_index_artifact_file_sha256_by_seed=index_file_digests,
             )
         result = production_seed_aggregate(
             "policy_utility_delta",
@@ -1075,6 +1112,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 seed: artifact.artifact_sha256
                 for seed, artifact in index_artifacts.items()
             },
+            expected_index_artifact_file_sha256_by_seed=index_file_digests,
         )
         self.assertFalse(result["prereg_results_observed"])
         self.assertTrue(result["validation_results_observed"])
@@ -1082,10 +1120,11 @@ class P1ExactMBBTests(unittest.TestCase):
         typed = P1MBBResultArtifact.from_result_production(result)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "seed-result.npz"
-            save_p1_mbb_result_artifact(path, typed)
+            file_digest = save_p1_mbb_result_artifact(path, typed)
             loaded = load_p1_mbb_result(
                 path,
                 expected_result_sha256=typed.result_sha256,
+                expected_file_sha256=file_digest,
             )
             self.assertEqual(loaded.metadata["seed_count"], 10)
             self.assertEqual(set(loaded.metadata["provenance_by_seed"]), {str(i) for i in range(10)})
@@ -1130,6 +1169,7 @@ class P1ExactMBBTests(unittest.TestCase):
         }
         index_artifacts_by_length = {}
         expected_by_length = {}
+        expected_file_by_length = {}
         for length in P1_MBB_BLOCK_LENGTHS:
             loaded_by_seed = {}
             for seed in range(10):
@@ -1140,13 +1180,14 @@ class P1ExactMBBTests(unittest.TestCase):
                     seed_ordinal=seed,
                     block_length=length,
                 )
-                loaded_by_seed[seed] = P1MBBIndexArtifact.from_dict(
-                    raw_artifact.to_dict(),
-                    expected_artifact_sha256=raw_artifact.artifact_sha256,
-                )
+                loaded_by_seed[seed] = self._persisted_production_artifact(raw_artifact)
             index_artifacts_by_length[length] = loaded_by_seed
             expected_by_length[length] = {
                 seed: artifact.artifact_sha256
+                for seed, artifact in loaded_by_seed.items()
+            }
+            expected_file_by_length[length] = {
+                seed: artifact.file_sha256
                 for seed, artifact in loaded_by_seed.items()
             }
 
@@ -1159,6 +1200,7 @@ class P1ExactMBBTests(unittest.TestCase):
             provenance_by_seed=provenance_by_seed,
             index_artifacts_by_block_length=index_artifacts_by_length,
             expected_index_artifact_sha256_by_block_length=expected_by_length,
+            expected_index_artifact_file_sha256_by_block_length=expected_file_by_length,
         )
         self.assertEqual(result["block_lengths"], [8, 16, 32])
         self.assertFalse(result["prereg_results_observed"])

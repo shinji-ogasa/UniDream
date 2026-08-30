@@ -2214,39 +2214,19 @@ def _validate_typed_source_action_binding(
     expected_file_sha256: str,
     expected_hashes: Mapping[str, str],
 ) -> None:
-    """Cross-check a typed, path-bound action artifact when supplied.
+    """Reject the not-yet-authenticated typed action capability.
 
-    MBB consumes already materialized metric arrays, so the action artifact is
-    a provenance capability rather than an array source.  Requiring the
-    existing ``LoadedP1ActionArtifact`` type here prevents a plain mapping or
-    self-declared ``file_sha256`` field from being promoted.
+    ``LoadedP1ActionArtifact`` currently does not carry an identity-sealed
+    production marker: fixture loads and direct dataclass construction produce
+    the same runtime type.  Accepting it here would let a forged object bypass
+    the external source-file binding.  Until the action module exposes a
+    dedicated authenticated capability, production MBB records the strict
+    ``source_action_file_sha256`` placeholder instead and remains fail-closed.
     """
-    try:
-        from .p1_action_artifact import LoadedP1ActionArtifact
-    except ImportError as exc:  # pragma: no cover - package module is present
-        raise P1MBBError("typed P1 action artifact capability is unavailable") from exc
-    if not isinstance(source_action_artifact, LoadedP1ActionArtifact):
-        raise P1MBBError(
-            "source_action_artifact must be a LoadedP1ActionArtifact from the strict file-binding loader"
-        )
-    loaded_file = _strict_sha256(
-        source_action_artifact.file_sha256,
-        name="source_action_artifact.file_sha256",
+    del source_action_artifact, expected_file_sha256, expected_hashes
+    raise P1MBBError(
+        "typed source action artifact binding is blocked until an identity-authenticated production capability is available"
     )
-    if loaded_file != expected_file_sha256:
-        raise P1MBBError("source action artifact file SHA-256 does not match its external binding")
-    loaded_payload = source_action_artifact.artifact
-    if not isinstance(loaded_payload, Mapping):
-        raise P1MBBError("typed source action artifact payload is malformed")
-    for field, expected in expected_hashes.items():
-        actual = _strict_sha256(
-            loaded_payload.get(field),
-            name=f"source_action_artifact.{field}",
-        )
-        if actual != expected:
-            raise P1MBBError(
-                f"source action artifact {field} does not match its external binding"
-            )
 
 
 def _result_values_digest(values: np.ndarray) -> str:
