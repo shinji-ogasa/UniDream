@@ -443,6 +443,10 @@ class P1MBBIndexArtifact:
     # metadata or constructor.  Only the strict external-binding loader may
     # set it; internally built/fixture artifacts cannot enter production.
     _production_loaded: bool = field(default=False, init=False, repr=False, compare=False)
+    # The exact post-write file digest is an external-ledger value.  It is
+    # deliberately not part of ``metadata``/``to_dict`` so recording it can
+    # never make the file hash circular.
+    _file_sha256: str | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         unit, code = _normalize_unit(self.unit)
@@ -513,6 +517,11 @@ class P1MBBIndexArtifact:
     @property
     def artifact_sha256(self) -> str:
         return _artifact_digest(self.metadata(), self.starts)
+
+    @property
+    def file_sha256(self) -> str | None:
+        """Exact persisted-file SHA-256, when loaded from a bound path."""
+        return self._file_sha256
 
     def metadata(self) -> dict[str, Any]:
         return {
@@ -676,7 +685,9 @@ class P1MBBIndexArtifact:
             require_external_digest=True,
             verify_deterministic_starts=True,
         )
-        object.__setattr__(artifact, "_production_loaded", True)
+        # An in-memory mapping can authenticate the canonical content digest,
+        # but it has no file bytes to bind.  Promotion requires the path
+        # loader below, which additionally verifies expected_file_sha256.
         return artifact
 
     @classmethod
@@ -754,7 +765,13 @@ def build_p1_mbb_index_artifact(
 
 
 def save_p1_mbb_index_artifact(path: str | Path, artifact: P1MBBIndexArtifact) -> str:
-    """Persist all start vectors losslessly and atomically as a NumPy archive."""
+    """Persist all starts atomically and return the exact post-write file SHA.
+
+    ``artifact_sha256`` remains the canonical content digest embedded in the
+    metadata.  The returned digest is over the complete NPZ bytes and is
+    intentionally computed after the atomic rename, so callers can place it
+    in an independent artifact ledger without creating a circular payload.
+    """
     if not isinstance(artifact, P1MBBIndexArtifact):
         raise P1MBBError("save requires a P1MBBIndexArtifact")
     output = Path(path)
@@ -793,7 +810,7 @@ def save_p1_mbb_index_artifact(path: str | Path, artifact: P1MBBIndexArtifact) -
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
-    return artifact.artifact_sha256
+    return _sha256_regular_path(output, label="P1 MBB index artifact")
 
 
 def _inspect_index_archive(source: Any) -> tuple[zipfile.ZipInfo, zipfile.ZipInfo]:
@@ -982,19 +999,80 @@ def _assert_index_artifact_unchanged(handle: Any, signature: tuple[Any, ...]) ->
         raise P1MBBError("P1 MBB index artifact changed during parsing")
 
 
+def _hash_open_regular_file(
+    handle: Any,
+    source_size: int,
+    *,
+    label: str,
+) -> str:
+    """Hash exactly the bytes of an already-open regular file descriptor."""
+    if isinstance(source_size, bool) or not isinstance(source_size, int) or source_size < 0:
+        raise P1MBBError(f"{label} size is invalid")
+    digest = hashlib.sha256()
+    remaining = source_size
+    try:
+        handle.seek(0)
+        while remaining:
+            chunk = handle.read(min(remaining, 1024 * 1024))
+            if not chunk:
+                raise P1MBBError(f"{label} ended during hashing")
+            digest.update(chunk)
+            remaining -= len(chunk)
+        handle.seek(0)
+    except P1MBBError:
+        raise
+    except (OSError, ValueError, TypeError, OverflowError, MemoryError) as exc:
+        raise P1MBBError(f"could not hash {label}") from exc
+    return digest.hexdigest()
+
+
+def _sha256_regular_path(path: Path, *, label: str) -> str:
+    """Hash a regular, non-link path while guarding against replacement races."""
+    handle: Any = None
+    try:
+        handle, source_size, signature = _open_regular_index_artifact(path)
+        digest = _hash_open_regular_file(handle, source_size, label=label)
+        _assert_index_artifact_unchanged(handle, signature)
+        return digest
+    finally:
+        if handle is not None:
+            try:
+                handle.close()
+            except OSError:
+                pass
+
+
 def _load_p1_mbb_index_artifact(
     path: str | Path,
     *,
     expected_artifact_sha256: str | None,
+    expected_file_sha256: str | None,
     production: bool,
 ) -> P1MBBIndexArtifact:
     """Load a lossless P1 MBB start archive after bounded structural checks."""
     source = Path(path)
     handle: Any = None
     try:
+        if production and expected_file_sha256 is None:
+            raise P1MBBError(
+                "production P1 MBB index loading requires an external expected_file_sha256"
+            )
+        expected_file_digest = (
+            _strict_sha256(expected_file_sha256, name="expected_file_sha256")
+            if expected_file_sha256 is not None
+            else None
+        )
         handle, source_size, source_signature = _open_regular_index_artifact(source)
         if source_size > _P1_INDEX_ARTIFACT_MAX_BYTES:
             raise P1MBBError("P1 MBB index artifact exceeds the file-size limit")
+        actual_file_digest = _hash_open_regular_file(
+            handle,
+            source_size,
+            label="P1 MBB index artifact",
+        )
+        _assert_index_artifact_unchanged(handle, source_signature)
+        if expected_file_digest is not None and actual_file_digest != expected_file_digest:
+            raise P1MBBError("P1 MBB index artifact file SHA-256 mismatch")
         starts_info, metadata_info = _inspect_index_archive(handle)
         _assert_index_artifact_unchanged(handle, source_signature)
 
@@ -1063,6 +1141,9 @@ def _load_p1_mbb_index_artifact(
             )
         else:
             artifact = P1MBBIndexArtifact.from_dict_fixture(payload)
+        object.__setattr__(artifact, "_file_sha256", actual_file_digest)
+        if production:
+            object.__setattr__(artifact, "_production_loaded", True)
         if artifact.starts.shape != expected_shape or artifact.starts.nbytes != declared_bytes:
             raise P1MBBError("P1 MBB starts materialization contradicts its declared shape")
         if metadata_info.file_size > _P1_INDEX_METADATA_MAX_BYTES:
@@ -1084,11 +1165,13 @@ def load_p1_mbb_index_artifact(
     path: str | Path,
     *,
     expected_artifact_sha256: str | None = None,
+    expected_file_sha256: str | None = None,
 ) -> P1MBBIndexArtifact:
-    """Load a production index artifact with an independent digest binding."""
+    """Load a production index artifact with content and exact-file bindings."""
     return _load_p1_mbb_index_artifact(
         path,
         expected_artifact_sha256=expected_artifact_sha256,
+        expected_file_sha256=expected_file_sha256,
         production=True,
     )
 
@@ -1098,6 +1181,7 @@ def load_p1_mbb_index_artifact_fixture(path: str | Path) -> P1MBBIndexArtifact:
     return _load_p1_mbb_index_artifact(
         path,
         expected_artifact_sha256=None,
+        expected_file_sha256=None,
         production=False,
     )
 
@@ -1377,6 +1461,8 @@ def _validate_production_provenance(
     expected_action_primitive_payload_sha256: Any,
     expected_action_primitive_schema_sha256: Any,
     expected_action_primitive_content_sha256: Any,
+    expected_source_action_file_sha256: Any,
+    source_action_artifact: Any,
     expected_forecast_artifact_sha256: Any,
     expected_forecast_result_sha256: Any,
 ) -> dict[str, str]:
@@ -1428,12 +1514,29 @@ def _validate_production_provenance(
             "action_primitive_content_sha256": expected_action_primitive_content_sha256,
             "source_result_sha256": expected_source_result_sha256,
         }
+        source_action_file_digest = _strict_sha256(
+            expected_source_action_file_sha256,
+            name="expected_source_action_file_sha256",
+        )
         for name, expected in action_values.items():
             digest = _strict_sha256(expected, name=f"expected_{name}")
             if provenance.get(name) != digest:
                 raise P1MBBError(f"production provenance {name} mismatch")
             validated[name] = digest
+        if provenance.get("source_action_file_sha256") != source_action_file_digest:
+            raise P1MBBError("production provenance source action file digest mismatch")
+        if source_action_artifact is not None:
+            _validate_typed_source_action_binding(
+                source_action_artifact,
+                expected_file_sha256=source_action_file_digest,
+                expected_hashes=action_values,
+            )
+        validated["source_action_file_sha256"] = source_action_file_digest
     else:
+        if source_action_artifact is not None or expected_source_action_file_sha256 is not None:
+            raise P1MBBError(
+                "forecast provenance cannot declare a source action file binding"
+            )
         artifact_digest = _strict_sha256(
             expected_forecast_artifact_sha256,
             name="expected_forecast_artifact_sha256",
@@ -2070,6 +2173,11 @@ def _metric_result(
         "index_artifact_sha256": artifact.artifact_sha256,
         "bootstrap_values": np.array(samples, dtype="<f8", copy=True),
     }
+    if artifact.file_sha256 is not None:
+        result["index_artifact_file_sha256"] = _strict_sha256(
+            artifact.file_sha256,
+            name="index_artifact_file_sha256",
+        )
     result["bootstrap_values"].setflags(write=False)
     if extra:
         result.update(dict(extra))
@@ -2088,6 +2196,57 @@ def _fixture_result_status_fields() -> dict[str, bool]:
         "validation_results_observed": False,
         "outer_results_observed": False,
     }
+
+
+def _require_loaded_index_file_sha256(artifact: P1MBBIndexArtifact) -> str:
+    """Require the path-bound index capability used by production inference."""
+    if getattr(artifact, "_production_loaded", False) is not True:
+        raise P1MBBError(
+            "production P1 bootstrap requires an index artifact loaded through the strict file-binding loader"
+        )
+    digest = getattr(artifact, "_file_sha256", None)
+    return _strict_sha256(digest, name="loaded_index_file_sha256")
+
+
+def _validate_typed_source_action_binding(
+    source_action_artifact: Any,
+    *,
+    expected_file_sha256: str,
+    expected_hashes: Mapping[str, str],
+) -> None:
+    """Cross-check a typed, path-bound action artifact when supplied.
+
+    MBB consumes already materialized metric arrays, so the action artifact is
+    a provenance capability rather than an array source.  Requiring the
+    existing ``LoadedP1ActionArtifact`` type here prevents a plain mapping or
+    self-declared ``file_sha256`` field from being promoted.
+    """
+    try:
+        from .p1_action_artifact import LoadedP1ActionArtifact
+    except ImportError as exc:  # pragma: no cover - package module is present
+        raise P1MBBError("typed P1 action artifact capability is unavailable") from exc
+    if not isinstance(source_action_artifact, LoadedP1ActionArtifact):
+        raise P1MBBError(
+            "source_action_artifact must be a LoadedP1ActionArtifact from the strict file-binding loader"
+        )
+    loaded_file = _strict_sha256(
+        source_action_artifact.file_sha256,
+        name="source_action_artifact.file_sha256",
+    )
+    if loaded_file != expected_file_sha256:
+        raise P1MBBError("source action artifact file SHA-256 does not match its external binding")
+    loaded_payload = source_action_artifact.artifact
+    if not isinstance(loaded_payload, Mapping):
+        raise P1MBBError("typed source action artifact payload is malformed")
+    for field, expected in expected_hashes.items():
+        actual = _strict_sha256(
+            loaded_payload.get(field),
+            name=f"source_action_artifact.{field}",
+        )
+        if actual != expected:
+            raise P1MBBError(
+                f"source action artifact {field} does not match its external binding"
+            )
 
 
 def _result_values_digest(values: np.ndarray) -> str:
@@ -2185,6 +2344,8 @@ def _expected_provenance_kind(metric: str, level_metric: str | None) -> str:
 def _validate_result_index_binding_group(
     actual_digests: Any,
     expected_digests: Any,
+    actual_file_digests: Any,
+    expected_file_digests: Any,
     bindings: Any,
     *,
     expected_keys: set[str],
@@ -2205,6 +2366,14 @@ def _validate_result_index_binding_group(
         raise P1MBBError(
             f"production result {name} expected artifact digests must cover {sorted(expected_keys)}"
         )
+    if not isinstance(actual_file_digests, Mapping) or set(actual_file_digests) != expected_keys:
+        raise P1MBBError(
+            f"production result {name} file digests must cover {sorted(expected_keys)}"
+        )
+    if not isinstance(expected_file_digests, Mapping) or set(expected_file_digests) != expected_keys:
+        raise P1MBBError(
+            f"production result {name} expected file digests must cover {sorted(expected_keys)}"
+        )
     if not isinstance(bindings, Mapping) or set(bindings) != expected_keys:
         raise P1MBBError(
             f"production result {name} bindings must cover {sorted(expected_keys)}"
@@ -2222,6 +2391,18 @@ def _validate_result_index_binding_group(
             raise P1MBBError(
                 f"production result {name} artifact digest is not externally bound at {key}"
             )
+        actual_file = _strict_sha256(
+            actual_file_digests[key],
+            name=f"result {name} file_sha256[{key}]",
+        )
+        expected_file = _strict_sha256(
+            expected_file_digests[key],
+            name=f"result {name} expected_file_sha256[{key}]",
+        )
+        if actual_file != expected_file:
+            raise P1MBBError(
+                f"production result {name} file digest is not externally bound at {key}"
+            )
         binding = bindings[key]
         if not isinstance(binding, Mapping):
             raise P1MBBError(f"production result {name} binding {key} is not an object")
@@ -2229,6 +2410,10 @@ def _validate_result_index_binding_group(
             raise P1MBBError(f"production result {name} binding artifact mismatch at {key}")
         if binding.get("expected_artifact_sha256") != expected:
             raise P1MBBError(f"production result {name} binding expected digest mismatch at {key}")
+        if binding.get("file_sha256") != actual_file:
+            raise P1MBBError(f"production result {name} binding file digest mismatch at {key}")
+        if binding.get("expected_file_sha256") != expected_file:
+            raise P1MBBError(f"production result {name} binding expected file digest mismatch at {key}")
         _strict_sha256(
             binding.get("starts_sha256"),
             name=f"result {name} starts_sha256[{key}]",
@@ -2243,6 +2428,8 @@ def _validate_result_index_bindings(metadata: Mapping[str, Any]) -> None:
         _validate_result_index_binding_group(
             metadata.get("index_artifact_sha256_by_seed"),
             metadata.get("index_artifact_expected_sha256_by_seed"),
+            metadata.get("index_artifact_file_sha256_by_seed"),
+            metadata.get("index_artifact_expected_file_sha256_by_seed"),
             metadata.get("index_artifact_bindings"),
             expected_keys={str(index) for index in range(10)},
             name="by_seed",
@@ -2252,6 +2439,8 @@ def _validate_result_index_bindings(metadata: Mapping[str, Any]) -> None:
         _validate_result_index_binding_group(
             actual,
             metadata.get("index_artifact_expected_sha256_by_block_length"),
+            metadata.get("index_artifact_file_sha256_by_block_length"),
+            metadata.get("index_artifact_expected_file_sha256_by_block_length"),
             metadata.get("index_artifact_bindings"),
             expected_keys={str(length) for length in P1_MBB_BLOCK_LENGTHS},
             name="by_block_length",
@@ -2290,6 +2479,16 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
         raise P1MBBError(
             "production P1 result persistence requires authenticated provenance"
         )
+    has_index_group = (
+        "index_artifact_expected_sha256_by_seed" in metadata
+        or "index_artifact_expected_sha256_by_block_length" in metadata
+    )
+    has_nested_index_groups = isinstance(metadata.get("per_block_length"), Mapping)
+    if not has_index_group and not has_nested_index_groups:
+        _strict_sha256(
+            metadata.get("index_artifact_file_sha256"),
+            name="result index_artifact_file_sha256",
+        )
     provenance_items: list[Mapping[str, Any]] = []
     if "provenance" in metadata:
         provenance = metadata["provenance"]
@@ -2321,6 +2520,14 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
         )
         if provenance.get("common_mask_field") != "common_mask":
             raise P1MBBError("production result provenance must bind common_mask")
+        _strict_sha256(
+            provenance.get("index_artifact_file_sha256"),
+            name="result index_artifact_file_sha256",
+        )
+        if not has_index_group and not has_nested_index_groups and provenance.get("index_artifact_file_sha256") != metadata.get(
+            "index_artifact_file_sha256"
+        ):
+            raise P1MBBError("production result index file digest does not match its metadata")
         if kind == "action":
             for field in (
                 "action_primitive_payload_sha256",
@@ -2329,6 +2536,10 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
                 "source_result_sha256",
             ):
                 _strict_sha256(provenance.get(field), name=f"result {field}")
+            _strict_sha256(
+                provenance.get("source_action_file_sha256"),
+                name="result source_action_file_sha256",
+            )
         else:
             _strict_sha256(
                 provenance.get("forecast_artifact_sha256"),
@@ -2348,6 +2559,9 @@ class P1MBBResultArtifact:
     metadata: Mapping[str, Any]
     bootstrap_values: np.ndarray
     production: bool = False
+    # Exact file SHA-256 is assigned only by the path loader.  It is external
+    # ledger data and therefore never enters ``metadata`` or ``to_dict``.
+    _file_sha256: str | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.metadata, Mapping):
@@ -2391,6 +2605,11 @@ class P1MBBResultArtifact:
     @property
     def result_sha256(self) -> str:
         return _result_digest(self.metadata, self.bootstrap_values)
+
+    @property
+    def file_sha256(self) -> str | None:
+        """Exact persisted-file SHA-256, when loaded from a bound path."""
+        return self._file_sha256
 
     def to_dict(self, *, include_bootstrap_values: bool = False) -> dict[str, Any]:
         payload = dict(self.metadata)
@@ -2507,7 +2726,12 @@ def save_p1_mbb_result_artifact(
     path: str | Path,
     artifact: P1MBBResultArtifact,
 ) -> str:
-    """Atomically persist one typed result as a bounded NPZ archive."""
+    """Persist one typed result atomically and return its exact file SHA.
+
+    The canonical ``result_sha256`` remains inside metadata.  The returned
+    digest covers the complete post-rename NPZ bytes and is intended for an
+    independent ledger; it is never embedded back into the result payload.
+    """
     if not isinstance(artifact, P1MBBResultArtifact):
         raise P1MBBError("save requires a P1MBBResultArtifact")
     output = Path(path)
@@ -2547,7 +2771,7 @@ def save_p1_mbb_result_artifact(
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
-    return artifact.result_sha256
+    return _sha256_regular_path(output, label="P1 MBB result artifact")
 
 
 def save_p1_mbb_result(
@@ -2605,14 +2829,32 @@ def _load_p1_mbb_result_artifact(
     path: str | Path,
     *,
     expected_result_sha256: str | None,
+    expected_file_sha256: str | None,
     production: bool,
 ) -> P1MBBResultArtifact:
     source = Path(path)
     handle: Any = None
     try:
+        if production and expected_file_sha256 is None:
+            raise P1MBBError(
+                "production P1 result loading requires an external expected_file_sha256"
+            )
+        expected_file_digest = (
+            _strict_sha256(expected_file_sha256, name="expected_file_sha256")
+            if expected_file_sha256 is not None
+            else None
+        )
         handle, source_size, source_signature = _open_regular_index_artifact(source)
         if source_size > _P1_RESULT_ARTIFACT_MAX_BYTES:
             raise P1MBBError("P1 result artifact exceeds the file-size limit")
+        actual_file_digest = _hash_open_regular_file(
+            handle,
+            source_size,
+            label="P1 MBB result artifact",
+        )
+        _assert_index_artifact_unchanged(handle, source_signature)
+        if expected_file_digest is not None and actual_file_digest != expected_file_digest:
+            raise P1MBBError("P1 result artifact file SHA-256 mismatch")
         values_info, metadata_info = _inspect_result_archive(handle)
         _assert_index_artifact_unchanged(handle, source_signature)
         metadata_header_shape, metadata_payload_bytes = _inspect_npy_member_header(
@@ -2670,6 +2912,7 @@ def _load_p1_mbb_result_artifact(
             )
         else:
             artifact = P1MBBResultArtifact.from_dict_fixture(metadata, values)
+        object.__setattr__(artifact, "_file_sha256", actual_file_digest)
         return artifact
     except P1MBBError:
         raise
@@ -2687,11 +2930,13 @@ def load_p1_mbb_result(
     path: str | Path,
     *,
     expected_result_sha256: str | None = None,
+    expected_file_sha256: str | None = None,
 ) -> P1MBBResultArtifact:
-    """Load a stored production result; promotion must use this boundary."""
+    """Load a stored production result with content and exact-file bindings."""
     return _load_p1_mbb_result_artifact(
         path,
         expected_result_sha256=expected_result_sha256,
+        expected_file_sha256=expected_file_sha256,
         production=True,
     )
 
@@ -2701,6 +2946,7 @@ def load_p1_mbb_result_fixture(path: str | Path) -> P1MBBResultArtifact:
     return _load_p1_mbb_result_artifact(
         path,
         expected_result_sha256=None,
+        expected_file_sha256=None,
         production=False,
     )
 
@@ -2726,6 +2972,8 @@ def _bootstrap_p1_metric(
     expected_action_primitive_payload_sha256: Any = None,
     expected_action_primitive_schema_sha256: Any = None,
     expected_action_primitive_content_sha256: Any = None,
+    expected_source_action_file_sha256: Any = None,
+    source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
     **arrays: Any,
@@ -2741,10 +2989,9 @@ def _bootstrap_p1_metric(
     metric_name = _validate_recompute_metric(metric)
     if not isinstance(artifact, P1MBBIndexArtifact):
         raise P1MBBError("P1 metric bootstrap requires a P1MBBIndexArtifact")
-    if production and getattr(artifact, "_production_loaded", False) is not True:
-        raise P1MBBError(
-            "production P1 bootstrap requires an index artifact loaded through the strict external-binding loader"
-        )
+    loaded_index_file_sha256: str | None = None
+    if production:
+        loaded_index_file_sha256 = _require_loaded_index_file_sha256(artifact)
     if metric_name == "s2_contrast":
         level_name = _validate_s2_direction(level_direction)
         level_metric_name = _validate_s2_level_metric(level_metric or "mean")
@@ -2792,6 +3039,8 @@ def _bootstrap_p1_metric(
             expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
             expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
             expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+            expected_source_action_file_sha256=expected_source_action_file_sha256,
+            source_action_artifact=source_action_artifact,
             expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
             expected_forecast_result_sha256=expected_forecast_result_sha256,
         )
@@ -2838,6 +3087,8 @@ def _bootstrap_p1_metric(
     if production:
         result_extra.update(_production_result_status_fields())
     if validated_provenance is not None:
+        assert loaded_index_file_sha256 is not None
+        validated_provenance["index_artifact_file_sha256"] = loaded_index_file_sha256
         result_extra["provenance"] = validated_provenance
     return _metric_result(
         metric_name,
@@ -2866,6 +3117,8 @@ def bootstrap_p1_metric(
     expected_action_primitive_payload_sha256: Any = None,
     expected_action_primitive_schema_sha256: Any = None,
     expected_action_primitive_content_sha256: Any = None,
+    expected_source_action_file_sha256: Any = None,
+    source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
     **arrays: Any,
@@ -2888,6 +3141,8 @@ def bootstrap_p1_metric(
         expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
         expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
         expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+        expected_source_action_file_sha256=expected_source_action_file_sha256,
+        source_action_artifact=source_action_artifact,
         expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
         expected_forecast_result_sha256=expected_forecast_result_sha256,
         **arrays,
@@ -2937,6 +3192,7 @@ def _payload_grid_length(payload: Mapping[str, Any]) -> int:
 def _validate_external_index_artifacts(
     artifacts: Mapping[Any, Any] | None,
     expected_digests: Mapping[Any, Any] | None,
+    expected_file_digests: Mapping[Any, Any] | None,
     *,
     keys: set[int],
     unit: str,
@@ -2945,7 +3201,12 @@ def _validate_external_index_artifacts(
     grid_length: int,
     name: str,
     paths: Mapping[Any, Any] | None = None,
-) -> tuple[dict[int, P1MBBIndexArtifact], dict[int, str], dict[int, str] | None]:
+) -> tuple[
+    dict[int, P1MBBIndexArtifact],
+    dict[int, str],
+    dict[int, str],
+    dict[int, str] | None,
+]:
     """Authenticate a preloaded index artifact set at a production boundary.
 
     ``expected_digests`` is deliberately a separate input from the artifact
@@ -2962,6 +3223,10 @@ def _validate_external_index_artifacts(
         raise P1MBBError(
             f"production P1 MBB requires external expected {name} digests"
         )
+    if not isinstance(expected_file_digests, Mapping):
+        raise P1MBBError(
+            f"production P1 MBB requires external expected {name} file digests"
+        )
     if set(artifacts) != keys:
         raise P1MBBError(
             f"production {name} artifacts must contain exactly {sorted(keys)}"
@@ -2970,6 +3235,10 @@ def _validate_external_index_artifacts(
         raise P1MBBError(
             f"production expected {name} digests must contain exactly {sorted(keys)}"
         )
+    if set(expected_file_digests) != keys:
+        raise P1MBBError(
+            f"production expected {name} file digests must contain exactly {sorted(keys)}"
+        )
     if paths is not None:
         if not isinstance(paths, Mapping) or set(paths) != keys:
             raise P1MBBError(
@@ -2977,6 +3246,7 @@ def _validate_external_index_artifacts(
             )
     authenticated: dict[int, P1MBBIndexArtifact] = {}
     digests: dict[int, str] = {}
+    file_digests: dict[int, str] = {}
     normalized_paths: dict[int, str] | None = {} if paths is not None else None
     for ordinal in sorted(keys):
         artifact = artifacts[ordinal]
@@ -3006,19 +3276,33 @@ def _validate_external_index_artifacts(
             raise P1MBBError(
                 f"production {name} artifact {ordinal} does not match its independent digest"
             )
+        expected_file = _strict_sha256(
+            expected_file_digests[ordinal],
+            name=f"expected_{name}_file_sha256[{ordinal}]",
+        )
+        actual_file = _strict_sha256(
+            artifact.file_sha256,
+            name=f"{name}_file_sha256[{ordinal}]",
+        )
+        if actual_file != expected_file:
+            raise P1MBBError(
+                f"production {name} artifact {ordinal} does not match its independent file digest"
+            )
         authenticated[ordinal] = artifact
         digests[ordinal] = expected
+        file_digests[ordinal] = expected_file
         if normalized_paths is not None:
             normalized_paths[ordinal] = _strict_text(
                 paths[ordinal],
                 name=f"{name}_path[{ordinal}]",
             )
-    return authenticated, digests, normalized_paths
+    return authenticated, digests, file_digests, normalized_paths
 
 
 def _index_binding_metadata(
     artifacts: Mapping[int, P1MBBIndexArtifact],
     expected_digests: Mapping[int, str],
+    expected_file_digests: Mapping[int, str],
     paths: Mapping[int, str] | None = None,
 ) -> dict[str, dict[str, str]]:
     """Return explicit external index-digest bindings for result metadata."""
@@ -3027,6 +3311,8 @@ def _index_binding_metadata(
             "artifact_sha256": artifacts[ordinal].artifact_sha256,
             "starts_sha256": artifacts[ordinal].starts_sha256,
             "expected_artifact_sha256": expected_digests[ordinal],
+            "file_sha256": artifacts[ordinal].file_sha256,
+            "expected_file_sha256": expected_file_digests[ordinal],
             **({"source_path": paths[ordinal]} if paths is not None else {}),
         }
         for ordinal in sorted(artifacts)
@@ -3048,6 +3334,7 @@ def _bootstrap_p1_metric_seed_aggregate(
     provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
     index_artifacts: Mapping[Any, P1MBBIndexArtifact] | None = None,
     expected_index_artifact_sha256_by_seed: Mapping[Any, Any] | None = None,
+    expected_index_artifact_file_sha256_by_seed: Mapping[Any, Any] | None = None,
     index_artifact_paths_by_seed: Mapping[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Bootstrap ten synthetic seeds independently and equal-weight them.
@@ -3093,6 +3380,10 @@ def _bootstrap_p1_metric_seed_aggregate(
             raise P1MBBError(
                 "production synthetic aggregation requires external expected index artifact digests"
             )
+        if not isinstance(expected_index_artifact_file_sha256_by_seed, Mapping):
+            raise P1MBBError(
+                "production synthetic aggregation requires external expected index artifact file digests"
+            )
     try:
         raw_ordinals = list(seed_inputs.keys())
     except (TypeError, ValueError, OverflowError, MemoryError) as exc:
@@ -3123,6 +3414,7 @@ def _bootstrap_p1_metric_seed_aggregate(
     per_seed: dict[int, dict[str, Any]] = {}
     artifacts: dict[int, P1MBBIndexArtifact] = {}
     expected_index_digests: dict[int, str] | None = None
+    expected_index_file_digests: dict[int, str] | None = None
     normalized_index_paths: dict[int, str] | None = None
     grid_length: int | None = None
     for ordinal in range(10):
@@ -3159,10 +3451,12 @@ def _bootstrap_p1_metric_seed_aggregate(
             (
                 external_artifacts,
                 expected_index_digests,
+                expected_index_file_digests,
                 normalized_index_paths,
             ) = _validate_external_index_artifacts(
                 index_artifacts,
                 expected_index_artifact_sha256_by_seed,
+                expected_index_artifact_file_sha256_by_seed,
                 keys=set(range(10)),
                 unit=name,
                 support_id=support,
@@ -3208,6 +3502,8 @@ def _bootstrap_p1_metric_seed_aggregate(
                     "expected_action_primitive_payload_sha256",
                     "expected_action_primitive_schema_sha256",
                     "expected_action_primitive_content_sha256",
+                    "expected_source_action_file_sha256",
+                    "source_action_artifact",
                     "expected_forecast_artifact_sha256",
                     "expected_forecast_result_sha256",
                 )
@@ -3277,6 +3573,9 @@ def _bootstrap_p1_metric_seed_aggregate(
             "index_artifact_sha256_by_seed": {
                 ordinal: artifacts[ordinal].artifact_sha256 for ordinal in range(10)
             },
+            "index_artifact_file_sha256_by_seed": {
+                ordinal: artifacts[ordinal].file_sha256 for ordinal in range(10)
+            },
             "index_artifacts": artifacts,
             "per_seed": per_seed,
             "per_seed_point_estimates": {
@@ -3292,9 +3591,13 @@ def _bootstrap_p1_metric_seed_aggregate(
         result["index_artifact_expected_sha256_by_seed"] = dict(
             expected_index_digests or {}
         )
+        result["index_artifact_expected_file_sha256_by_seed"] = dict(
+            expected_index_file_digests or {}
+        )
         result["index_artifact_bindings"] = _index_binding_metadata(
             artifacts,
             expected_index_digests or {},
+            expected_index_file_digests or {},
             normalized_index_paths,
         )
     return result
@@ -3314,6 +3617,7 @@ def bootstrap_p1_metric_seed_aggregate(
     provenance_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
     index_artifacts: Mapping[Any, P1MBBIndexArtifact] | None = None,
     expected_index_artifact_sha256_by_seed: Mapping[Any, Any] | None = None,
+    expected_index_artifact_file_sha256_by_seed: Mapping[Any, Any] | None = None,
     index_artifact_paths_by_seed: Mapping[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the production ten-seed aggregate with external provenance."""
@@ -3331,6 +3635,7 @@ def bootstrap_p1_metric_seed_aggregate(
         provenance_by_seed=provenance_by_seed,
         index_artifacts=index_artifacts,
         expected_index_artifact_sha256_by_seed=expected_index_artifact_sha256_by_seed,
+        expected_index_artifact_file_sha256_by_seed=expected_index_artifact_file_sha256_by_seed,
         index_artifact_paths_by_seed=index_artifact_paths_by_seed,
     )
 
@@ -3386,6 +3691,9 @@ def bootstrap_p1_metric_seed_sensitivity(
     expected_index_artifact_sha256_by_block_length: Mapping[
         Any, Mapping[Any, Any]
     ] | None = None,
+    expected_index_artifact_file_sha256_by_block_length: Mapping[
+        Any, Mapping[Any, Any]
+    ] | None = None,
     index_artifact_paths_by_block_length: Mapping[
         Any, Mapping[Any, Any]
     ] | None = None,
@@ -3399,6 +3707,10 @@ def bootstrap_p1_metric_seed_sensitivity(
         raise P1MBBError(
             "production synthetic sensitivity requires external index artifact digests for every block length"
         )
+    if not isinstance(expected_index_artifact_file_sha256_by_block_length, Mapping):
+        raise P1MBBError(
+            "production synthetic sensitivity requires external index artifact file digests for every block length"
+        )
     required_lengths = set(P1_MBB_BLOCK_LENGTHS)
     if set(index_artifacts_by_block_length) != required_lengths:
         raise P1MBBError(
@@ -3407,6 +3719,10 @@ def bootstrap_p1_metric_seed_sensitivity(
     if set(expected_index_artifact_sha256_by_block_length) != required_lengths:
         raise P1MBBError(
             "production synthetic sensitivity index digests must cover L=8,16,32"
+        )
+    if set(expected_index_artifact_file_sha256_by_block_length) != required_lengths:
+        raise P1MBBError(
+            "production synthetic sensitivity index file digests must cover L=8,16,32"
         )
     if index_artifact_paths_by_block_length is not None and (
         not isinstance(index_artifact_paths_by_block_length, Mapping)
@@ -3432,6 +3748,9 @@ def bootstrap_p1_metric_seed_sensitivity(
             expected_index_artifact_sha256_by_seed=(
                 expected_index_artifact_sha256_by_block_length[length]
             ),
+            expected_index_artifact_file_sha256_by_seed=(
+                expected_index_artifact_file_sha256_by_block_length[length]
+            ),
             index_artifact_paths_by_seed=(
                 index_artifact_paths_by_block_length[length]
                 if index_artifact_paths_by_block_length is not None
@@ -3448,6 +3767,13 @@ def bootstrap_p1_metric_seed_sensitivity(
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
     }
     result.update(_production_result_status_fields())
+    # Keep one authenticated source binding at the sensitivity envelope as
+    # well as in each fixed-L child.  The child results independently retain
+    # every loaded index file binding.
+    result["provenance_by_seed"] = {
+        ordinal: dict(results[P1_MBB_BLOCK_LENGTHS[0]]["provenance_by_seed"][ordinal])
+        for ordinal in range(10)
+    }
     return result
 
 
@@ -3512,6 +3838,8 @@ def _paired_bootstrap_mean_delta(
     expected_action_primitive_payload_sha256: Any = None,
     expected_action_primitive_schema_sha256: Any = None,
     expected_action_primitive_content_sha256: Any = None,
+    expected_source_action_file_sha256: Any = None,
+    source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
 ) -> dict[str, Any]:
@@ -3561,6 +3889,8 @@ def _paired_bootstrap_mean_delta(
         expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
         expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
         expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+        expected_source_action_file_sha256=expected_source_action_file_sha256,
+        source_action_artifact=source_action_artifact,
         expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
         expected_forecast_result_sha256=expected_forecast_result_sha256,
         **{candidate_name: candidate, baseline_name: baseline},
@@ -3586,6 +3916,8 @@ def paired_bootstrap_mean_delta(
     expected_action_primitive_payload_sha256: Any = None,
     expected_action_primitive_schema_sha256: Any = None,
     expected_action_primitive_content_sha256: Any = None,
+    expected_source_action_file_sha256: Any = None,
+    source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
 ) -> dict[str, Any]:
@@ -3606,6 +3938,8 @@ def paired_bootstrap_mean_delta(
         expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
         expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
         expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+        expected_source_action_file_sha256=expected_source_action_file_sha256,
+        source_action_artifact=source_action_artifact,
         expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
         expected_forecast_result_sha256=expected_forecast_result_sha256,
     )
@@ -3656,12 +3990,15 @@ def paired_bootstrap_mean_delta_sensitivity(
     expected_action_primitive_payload_sha256: Any = None,
     expected_action_primitive_schema_sha256: Any = None,
     expected_action_primitive_content_sha256: Any = None,
+    expected_source_action_file_sha256: Any = None,
+    source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
     index_artifacts_by_block_length: Mapping[
         Any, P1MBBIndexArtifact
     ] | None = None,
     expected_index_artifact_sha256_by_block_length: Mapping[Any, Any] | None = None,
+    expected_index_artifact_file_sha256_by_block_length: Mapping[Any, Any] | None = None,
     index_artifact_paths_by_block_length: Mapping[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate production L={8,16,32} with the same external provenance."""
@@ -3673,6 +4010,10 @@ def paired_bootstrap_mean_delta_sensitivity(
         raise P1MBBError(
             "production sensitivity requires external index artifact digests for every block length"
         )
+    if not isinstance(expected_index_artifact_file_sha256_by_block_length, Mapping):
+        raise P1MBBError(
+            "production sensitivity requires external index artifact file digests for every block length"
+        )
     required_lengths = set(P1_MBB_BLOCK_LENGTHS)
     if set(index_artifacts_by_block_length) != required_lengths:
         raise P1MBBError(
@@ -3681,6 +4022,10 @@ def paired_bootstrap_mean_delta_sensitivity(
     if set(expected_index_artifact_sha256_by_block_length) != required_lengths:
         raise P1MBBError(
             "production sensitivity index digests must cover L=8,16,32"
+        )
+    if set(expected_index_artifact_file_sha256_by_block_length) != required_lengths:
+        raise P1MBBError(
+            "production sensitivity index file digests must cover L=8,16,32"
         )
     if index_artifact_paths_by_block_length is not None and (
         not isinstance(index_artifact_paths_by_block_length, Mapping)
@@ -3696,6 +4041,7 @@ def paired_bootstrap_mean_delta_sensitivity(
     results: dict[int, dict[str, Any]] = {}
     artifacts: dict[int, P1MBBIndexArtifact] = {}
     expected_digests: dict[int, str] = {}
+    expected_file_digests: dict[int, str] = {}
     paths: dict[int, str] | None = {} if index_artifact_paths_by_block_length is not None else None
     for length in P1_MBB_BLOCK_LENGTHS:
         if index_artifact_paths_by_block_length is not None:
@@ -3709,9 +4055,10 @@ def paired_bootstrap_mean_delta_sensitivity(
             raise P1MBBError(
                 "production paired sensitivity requires one artifact per block length"
             )
-        loaded, loaded_expected, loaded_paths = _validate_external_index_artifacts(
+        loaded, loaded_expected, loaded_file_expected, loaded_paths = _validate_external_index_artifacts(
             {normalized_seed: index_artifacts_by_block_length[length]},
             {normalized_seed: expected_index_artifact_sha256_by_block_length[length]},
+            {normalized_seed: expected_index_artifact_file_sha256_by_block_length[length]},
             keys={normalized_seed},
             unit=normalized_unit,
             support_id=normalized_support,
@@ -3723,6 +4070,7 @@ def paired_bootstrap_mean_delta_sensitivity(
         artifact = loaded[normalized_seed]
         artifacts[length] = artifact
         expected_digests[length] = loaded_expected[normalized_seed]
+        expected_file_digests[length] = loaded_file_expected[normalized_seed]
         if paths is not None and loaded_paths is not None:
             paths[length] = loaded_paths[normalized_seed]
         results[length] = _paired_bootstrap_mean_delta(
@@ -3741,6 +4089,8 @@ def paired_bootstrap_mean_delta_sensitivity(
             expected_action_primitive_payload_sha256=expected_action_primitive_payload_sha256,
             expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
             expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
+            expected_source_action_file_sha256=expected_source_action_file_sha256,
+            source_action_artifact=source_action_artifact,
             expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
             expected_forecast_result_sha256=expected_forecast_result_sha256,
         )
@@ -3754,11 +4104,17 @@ def paired_bootstrap_mean_delta_sensitivity(
         "index_artifacts": artifacts,
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
         "index_artifact_expected_sha256_by_block_length": expected_digests,
+        "index_artifact_file_sha256_by_block_length": {
+            length: artifacts[length].file_sha256 for length in P1_MBB_BLOCK_LENGTHS
+        },
+        "index_artifact_expected_file_sha256_by_block_length": expected_file_digests,
         "index_artifact_bindings": {
             str(length): {
                 "artifact_sha256": artifacts[length].artifact_sha256,
                 "starts_sha256": artifacts[length].starts_sha256,
                 "expected_artifact_sha256": expected_digests[length],
+                "file_sha256": artifacts[length].file_sha256,
+                "expected_file_sha256": expected_file_digests[length],
                 **({"source_path": paths[length]} if paths is not None else {}),
             }
             for length in P1_MBB_BLOCK_LENGTHS
@@ -3848,6 +4204,8 @@ def run_p1_mbb(*args: Any, **kwargs: Any) -> dict[str, Any]:
         "expected_action_primitive_payload_sha256",
         "expected_action_primitive_schema_sha256",
         "expected_action_primitive_content_sha256",
+        "expected_source_action_file_sha256",
+        "source_action_artifact",
         "expected_forecast_artifact_sha256",
         "expected_forecast_result_sha256",
     }
