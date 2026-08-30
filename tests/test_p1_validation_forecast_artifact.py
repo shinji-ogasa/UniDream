@@ -231,7 +231,9 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         self.assertFalse(loaded.artifact["prereg_results_observed"])
         self.assertTrue(loaded.artifact["validation_results_observed"])
         self.assertFalse(loaded.artifact["outer_results_observed"])
-        source = forecast.require_authenticated_forecast_action_source(loaded.action_source)
+        source = forecast.require_authenticated_forecast_action_source(
+            loaded.as_action_source("ridge")
+        )
         self.assertTrue(source.is_authenticated)
         np.testing.assert_array_equal(source.realized_returns, np.asarray(payload["realized_returns"]))
         self.assertFalse(np.array_equal(source.realized_returns, np.full(len(source.returns), -9.0)))
@@ -254,7 +256,9 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
             name="spot_bar_observed",
         )
         _, _, loaded = self._save_and_load(payload)
-        source = forecast.require_authenticated_forecast_action_source(loaded.action_source)
+        source = forecast.require_authenticated_forecast_action_source(
+            loaded.as_action_source("ridge")
+        )
         self.assertTrue(np.isnan(source.realized_returns[-1]))
         self.assertFalse(source.bar_available[-1])
         self.assertNotEqual(source.realized_returns[-1], 0.0)
@@ -370,8 +374,12 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
             metadata=self._metadata("S3", "zero_injection_control"),
         )
         del injected_path, control_path
-        injected_source = forecast.require_authenticated_forecast_action_source(injected_loaded.action_source)
-        control_source = forecast.require_authenticated_forecast_action_source(control_loaded.action_source)
+        injected_source = forecast.require_authenticated_forecast_action_source(
+            injected_loaded.as_action_source("ridge")
+        )
+        control_source = forecast.require_authenticated_forecast_action_source(
+            control_loaded.as_action_source("ridge")
+        )
         np.testing.assert_array_equal(injected_source.realized_returns, np.asarray(injected["realized_returns"]))
         np.testing.assert_array_equal(control_source.realized_returns, np.asarray(control["realized_returns"]))
         self.assertFalse(np.array_equal(injected_source.realized_returns, np.asarray(control["realized_returns"])))
@@ -380,7 +388,9 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
 
     def test_direct_or_mutated_capability_cannot_be_promoted(self) -> None:
         _, _, loaded = self._save_and_load(_fixture_artifact(self.contract))
-        source = loaded.action_source
+        with self.assertRaisesRegex(forecast.P1ForecastError, "ambiguous"):
+            _ = loaded.action_source
+        source = loaded.as_action_source("ridge")
         self.assertIsInstance(hash(source), int)
         forged = replace(source, _production_seal=None)
         with self.assertRaises(forecast.P1ForecastError):
@@ -393,6 +403,7 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
             scenario_id=source.scenario_id,
             arm=source.arm,
             seed=source.seed,
+            model_id=source.model_id,
             split_id=source.split_id,
             support_id=source.support_id,
             support_range=source.support_range,
@@ -421,9 +432,10 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         with self.assertRaises(forecast.P1ForecastError):
             forecast.require_authenticated_forecast_action_source(source)
         _, _, fresh = self._save_and_load(_fixture_artifact(self.contract))
+        fresh_source = fresh.as_action_source("ridge")
         forged_hash = replace(
-            fresh.action_source,
-            source_hashes={**fresh.action_source.source_hashes, "realized_returns_sha256": "0" * 64},
+            fresh_source,
+            source_hashes={**fresh_source.source_hashes, "realized_returns_sha256": "0" * 64},
         )
         with self.assertRaises(forecast.P1ForecastError):
             forecast.require_authenticated_forecast_action_source(forged_hash)
@@ -437,7 +449,7 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         self.assertFalse(loaded.promotion_allowed)
         self.assertEqual(loaded.validation["status"], "N/A")
         with self.assertRaises(forecast.P1ForecastError):
-            forecast.require_authenticated_forecast_action_source(loaded.action_source)
+            loaded.as_action_source("ridge")
 
     def test_producer_requires_exact_runner_dataset_and_internal_evidence(self) -> None:
         spec = self.contract.spec("S1", "known_high_snr_dgp")
@@ -545,9 +557,10 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
             expected_file_sha256=digest,
             require_production=False,
         )
-        self.assertFalse(loaded.action_source.is_authenticated)
+        source = loaded.action_sources["ridge"]
+        self.assertFalse(source.is_authenticated)
         with self.assertRaises(forecast.P1ForecastError):
-            forecast.require_authenticated_forecast_action_source(loaded.action_source)
+            forecast.require_authenticated_forecast_action_source(source)
 
 
 if __name__ == "__main__":

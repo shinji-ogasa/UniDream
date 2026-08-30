@@ -114,6 +114,11 @@ P1_ALLOWED_MODEL_TASK_KEYS = (
     ("ridge", "continuous"),
     ("logistic", "binary"),
 )
+P1_ACTION_MODEL_IDS = (
+    "zero_return",
+    "persistence_last_observed",
+    "ridge",
+)
 P1_REQUIRED_COST_MODES = ("off", "on")
 P1_COVERAGE_THRESHOLD_KEYS = (
     "eligible_origin_fraction",
@@ -2105,6 +2110,7 @@ class ForecastActionSource:
     scenario_id: str
     arm: str
     seed: int
+    model_id: str
     split_id: str
     support_id: str
     support_range: tuple[int, int]
@@ -2216,6 +2222,7 @@ def _action_source_binding_sha256(value: ForecastActionSource) -> str:
         "scenario_id": value.scenario_id,
         "arm": value.arm,
         "seed": value.seed,
+        "model_id": value.model_id,
         "split_id": value.split_id,
         "support_id": value.support_id,
         "support_range": list(value.support_range),
@@ -2272,14 +2279,24 @@ def _capability_from_loaded(
     validation: Mapping[str, Any],
     *,
     file_sha256: str,
+    model_id: str,
     sealed: bool = True,
 ) -> ForecastActionSource:
+    if model_id not in P1_ACTION_MODEL_IDS:
+        raise P1ForecastError(
+            "action source model_id must explicitly select a registered continuous action model"
+        )
     header = artifact["header"]
-    h4_record = next(
+    matches = [
         row
         for row in artifact["fits"]
-        if row["horizon"] == 4 and row["model_id"] == "ridge" and row["task"] == "continuous"
-    )
+        if row["horizon"] == 4
+        and row["model_id"] == model_id
+        and row["task"] == "continuous"
+    ]
+    if len(matches) != 1:
+        raise P1ForecastError("forecast artifact lacks one exact selected h4 action fit")
+    h4_record = matches[0]
     forecast = np.asarray(h4_record["predictions"], dtype=np.float64)
     forecast_mask = np.asarray(h4_record["prediction_mask"], dtype=np.bool_)
     context_mask = np.asarray(validation["context_mask"], dtype=np.bool_)
@@ -2310,6 +2327,7 @@ def _capability_from_loaded(
         "realized_returns_sha256": _array_sha256(realized, name="realized_returns"),
         "forecast_h4_sha256": _array_sha256(forecast, name="forecast_h4"),
         "forecast_h4_mask_sha256": _array_sha256(forecast_mask, name="forecast_h4_mask"),
+        "forecast_fit_record_sha256": hashlib.sha256(_json_bytes(h4_record)).hexdigest(),
         "context_mask_sha256": _array_sha256(context_mask, name="context_mask"),
         "target_h4_mask_sha256": _array_sha256(target_h4_mask, name="target_h4_mask"),
         "score_eligible_mask_sha256": _array_sha256(
@@ -2338,6 +2356,7 @@ def _capability_from_loaded(
         scenario_id=str(header["scenario_id"]),
         arm=str(header["arm"]),
         seed=_strict_int(header["seed"], name="seed"),
+        model_id=model_id,
         split_id=str(header["split_id"]),
         support_id=str(header["support_id"]),
         support_range=tuple(_strict_int(value, name="support_range") for value in header["support_range"]),
@@ -2372,16 +2391,29 @@ class LoadedP1ForecastArtifact:
     file_sha256: str
     artifact: Mapping[str, Any]
     validation: Mapping[str, Any]
-    action_source: ForecastActionSource
+    action_sources: Mapping[str, ForecastActionSource]
 
     @property
     def promotion_allowed(self) -> bool:
         return bool(self.validation.get("promotion_allowed"))
 
-    def as_action_source(self) -> ForecastActionSource:
-        if not self.action_source.promotion_allowed:
+    @property
+    def action_source(self) -> ForecastActionSource:
+        raise P1ForecastError(
+            "action_source is ambiguous; call as_action_source(model_id) explicitly"
+        )
+
+    def as_action_source(self, model_id: str) -> ForecastActionSource:
+        if model_id not in P1_ACTION_MODEL_IDS:
+            raise P1ForecastError(
+                "model_id must explicitly select zero_return, persistence_last_observed, or ridge"
+            )
+        source = self.action_sources.get(model_id)
+        if source is None:
+            raise P1ForecastError("selected action source is missing from the forecast artifact")
+        if not source.promotion_allowed:
             raise P1ForecastError("forecast action source is blocked until all validation gates pass")
-        return self.action_source
+        return source
 
 
 def save_p1_forecast_artifact(
@@ -2466,18 +2498,24 @@ def load_p1_forecast_artifact(
         expected_metadata=expected_metadata,
         require_production=require_production,
     )
-    action_source = _capability_from_loaded(
-        payload,
-        validation,
-        file_sha256=actual_digest,
-        sealed=require_production and bool(validation["promotion_allowed"]),
+    action_sources = MappingProxyType(
+        {
+            model_id: _capability_from_loaded(
+                payload,
+                validation,
+                file_sha256=actual_digest,
+                model_id=model_id,
+                sealed=require_production and bool(validation["promotion_allowed"]),
+            )
+            for model_id in P1_ACTION_MODEL_IDS
+        }
     )
     return LoadedP1ForecastArtifact(
         path=source,
         file_sha256=actual_digest,
         artifact=payload,
         validation=validation,
-        action_source=action_source,
+        action_sources=action_sources,
     )
 
 
@@ -2512,6 +2550,8 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
     expected_arms = set(P1_SCENARIO_ARMS)
     if scenario_arm not in expected_arms:
         raise P1ForecastError("forecast action source scenario/arm is not registered")
+    if value.model_id not in P1_ACTION_MODEL_IDS:
+        raise P1ForecastError("forecast action source model_id is not action-capable")
     expected_seeds = P1_S3_SEEDS if value.scenario_id == "S3" else P1_SYNTHETIC_SEEDS
     if _strict_int(value.seed, name="forecast action source seed") not in expected_seeds:
         raise P1ForecastError("forecast action source seed is not registered")
@@ -2588,6 +2628,7 @@ def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSo
         "realized_returns_sha256",
         "forecast_h4_sha256",
         "forecast_h4_mask_sha256",
+        "forecast_fit_record_sha256",
         "context_mask_sha256",
         "target_h4_mask_sha256",
         "score_eligible_mask_sha256",
@@ -2654,6 +2695,7 @@ __all__ = [
     "P1ForecastOuterBlocked",
     "P1ForecastActionSource",
     "P1_ALLOWED_MODEL_TASK_KEYS",
+    "P1_ACTION_MODEL_IDS",
     "P1_COMPARISON_REGISTRY_COUNT",
     "P1_COVERAGE_THRESHOLD_KEYS",
     "P1_FIXED_HORIZONS",
