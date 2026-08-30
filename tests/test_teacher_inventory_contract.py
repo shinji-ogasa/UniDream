@@ -67,6 +67,33 @@ class TeacherInventoryContractTest(unittest.TestCase):
                 log_ts=lambda: "00:00:00",
             )
 
+    def test_conditional_bundle_rejects_partial_finite_state_outside_mask(self) -> None:
+        partial = np.asarray([[1.0, np.nan]], dtype=np.float32)
+        unavailable = np.full((1, 2), np.nan, dtype=np.float32)
+        bundle = {
+            "train": partial,
+            "val": unavailable,
+            "test": unavailable,
+            "train_mask": np.asarray([False]),
+            "val_mask": np.asarray([False]),
+            "test_mask": np.asarray([False]),
+            "provenance": {
+                "fit_scheme": "chronological_oof",
+                "in_sample": False,
+            },
+        }
+        with self.assertRaises(ConditionalPathBlocked):
+            build_wm_predictive_state_bundle(
+                wm_trainer=object(),
+                wfo_dataset=object(),
+                z_train=np.zeros((1, 1), dtype=np.float32),
+                h_train=np.zeros((1, 1), dtype=np.float32),
+                seq_len=1,
+                ac_cfg={"conditional_oracle_path": True},
+                log_ts=lambda: "00:00:00",
+                oof_bundle=bundle,
+            )
+
     def test_conditional_fold_input_builder_blocks_before_hindsight_dp(self) -> None:
         with self.assertRaises(ConditionalPathBlocked):
             prepare_fold_inputs(

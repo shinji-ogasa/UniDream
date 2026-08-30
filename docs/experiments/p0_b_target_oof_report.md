@@ -49,6 +49,9 @@ expanding or rolling-origin prefix.  A target is label-complete at
 `target_end` (default `row + horizon`) and is eligible only when
 `target_end <= prediction_index - purge`; random K-fold is not used.  Early
 rows stay NaN/false in `prediction_mask`; no in-sample fill is performed.
+Mask外に一つでも finite な成分がある行（例: `[finite, NaN]`）も拒否し、
+partial fill を許さない。OOF validator、expanding standardizer、conditional
+predictive-state bundle の三つの入口でこの契約を検証する。
 Callback metadata is retained per origin for model, normalizer, calibrator,
 and teacher-weight provenance.
 
@@ -70,17 +73,16 @@ builder is blocked.
 Scoped tests:
 
 ```text
-uv run python -m unittest tests.test_world_model_target_coverage tests.test_chronological_oof_teacher tests.test_teacher_inventory_contract tests.test_world_model_gate0_validation tests.test_world_model_gate0_action_context -v
+uv run python -m unittest tests.test_chronological_oof_teacher tests.test_teacher_inventory_contract tests.test_world_model_target_coverage -v
 ```
 
 The new tests cover h64 zero target/gradient detection, output-specific
 gradient coverage, same-row future-label perturbation, horizon/purge
-eligibility, no early-row fill, and hindsight inventory rejection.  The two
-existing WM gate modules remain green.
+eligibility, no early-row fill, partial-finite values outside an OOF mask, and
+hindsight inventory rejection.
 
-Observed result: 11 new contract tests passed; combined with the two existing
-WM gate modules, 16 scoped tests passed.  The complete repository suite passed
-(134 tests).
+Observed result: 13 scoped contract tests passed.  The complete repository
+suite passed (136 tests).
 
 The full suite is required before promotion:
 

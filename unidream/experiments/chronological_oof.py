@@ -304,6 +304,10 @@ def validate_oof_result(
         raise ChronologicalOOFError("OOF predictions/mask have incompatible shapes")
     if np.any(mask & ~np.isfinite(predictions).all(axis=1)):
         raise ChronologicalOOFError("prediction_mask marks a non-finite OOF row")
+    if np.any(~mask & np.isfinite(predictions).any(axis=1)):
+        raise ChronologicalOOFError(
+            "finite OOF state exists outside the prediction mask; refusing a partial fill"
+        )
     origins = result.get("origins", [])
     provenance = result.get("provenance", {})
     purge = int(provenance.get("purge", 0))
@@ -343,8 +347,10 @@ def chronological_oof_standardize(
         raise ChronologicalOOFError("predictions/mask have incompatible shapes")
     if np.any(mask & ~np.isfinite(values).all(axis=1)):
         raise ChronologicalOOFError("usable OOF state contains a non-finite value")
-    if np.any(~mask & np.isfinite(values).all(axis=1)):
-        raise ChronologicalOOFError("finite state exists outside the OOF mask; refusing an implicit fill")
+    if np.any(~mask & np.isfinite(values).any(axis=1)):
+        raise ChronologicalOOFError(
+            "finite state exists outside the OOF mask; refusing a partial or implicit fill"
+        )
     min_history = int(min_history)
     if min_history < 1:
         raise ChronologicalOOFError("min_history must be >= 1")

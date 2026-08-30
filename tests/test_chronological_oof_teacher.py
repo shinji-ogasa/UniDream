@@ -8,6 +8,7 @@ from unidream.experiments.chronological_oof import (
     ChronologicalOOFError,
     chronological_oof_predict,
     chronological_oof_standardize,
+    validate_oof_result,
 )
 
 
@@ -90,8 +91,18 @@ class ChronologicalOOFTeacherTest(unittest.TestCase):
     def test_standardizer_rejects_finite_values_outside_oof_mask(self) -> None:
         with self.assertRaises(ChronologicalOOFError):
             chronological_oof_standardize(
-                np.asarray([[1.0], [2.0]], dtype=np.float64),
+                np.asarray([[1.0, np.nan], [2.0, 3.0]], dtype=np.float64),
                 np.asarray([False, True]),
+            )
+
+    def test_oof_validator_rejects_partial_finite_values_outside_mask(self) -> None:
+        with self.assertRaises(ChronologicalOOFError):
+            validate_oof_result(
+                {
+                    "predictions": np.asarray([[1.0, np.nan], [np.nan, np.nan]]),
+                    "prediction_mask": np.asarray([False, False]),
+                    "provenance": {"in_sample": False},
+                }
             )
 
     def test_invalid_callback_shape_fails_closed(self) -> None:

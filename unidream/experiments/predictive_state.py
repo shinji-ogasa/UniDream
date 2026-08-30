@@ -59,9 +59,9 @@ def _conditional_oof_state_bundle(
         if np.any(mask & ~np.isfinite(values).all(axis=1)):
             raise ConditionalPathBlocked(f"conditional OOF {split} contains a non-finite usable row")
         # A finite state without a mask would be an implicit in-sample fill.
-        if np.any(~mask & np.isfinite(values).all(axis=1)):
+        if np.any(~mask & np.isfinite(values).any(axis=1)):
             raise ConditionalPathBlocked(
-                f"conditional OOF {split} has finite values outside its OOF mask"
+                f"conditional OOF {split} has finite or partially finite values outside its OOF mask"
             )
         splits[split] = values
         masks[split] = mask
