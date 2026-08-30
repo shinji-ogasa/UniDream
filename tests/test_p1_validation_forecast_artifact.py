@@ -48,7 +48,14 @@ def _fixture_artifact(
         np.arange(count, dtype=np.int64) * np.timedelta64(15, "m")
     )
     support_timestamps = [str(np.datetime_as_string(value, unit="ns")) for value in ticks]
-    realized_returns = (np.arange(count, dtype=np.float64) + 1.0) * (1e-7 if scenario_id != "S3" else 2e-7)
+    return_scale = (
+        1e-7
+        if scenario_id != "S3"
+        else 2e-7
+        if arm == "injected"
+        else 3e-7
+    )
+    realized_returns = (np.arange(count, dtype=np.float64) + 1.0) * return_scale
     source_arrays = {name: f"{index + 1:064x}" for index, name in enumerate(_SOURCE_ARRAY_NAMES)}
     provenance: dict[str, object] = {
         "scenario_id": scenario_id,
@@ -70,6 +77,8 @@ def _fixture_artifact(
         body_sha = ("f" if arm == "injected" else "e") * 64
         provenance["source_body_sha256"] = body_sha
         body_provenance["source_body_sha256"] = body_sha
+        provenance["runtime"] = {}
+        body_provenance["runtime"] = {}
     evidence: dict[str, object] = {
         "status": "passed",
         "method": "fixture",
@@ -271,7 +280,7 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
     def test_mask_timestamp_and_coverage_tampering_is_rejected(self) -> None:
         base = _fixture_artifact(self.contract)
         bad_mask = deepcopy(base)
-        bad_mask["fits"][0]["prediction_mask"][0] = True
+        bad_mask["fits"][0]["eligible_mask"][0] = False
         with self.assertRaises(forecast.P1ForecastError):
             forecast.save_p1_forecast_artifact(Path(tempfile.mkdtemp()) / "mask.json", bad_mask, expected_metadata=self._metadata())
         bad_timestamp = deepcopy(base)
