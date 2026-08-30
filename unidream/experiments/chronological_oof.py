@@ -48,6 +48,9 @@ _ARTIFACT_DIGEST_FIELDS = {"artifact_sha256", "artifact_hash"}
 _MAX_ARTIFACT_ARRAY_ELEMENTS = 10_000_000
 _MAX_ARTIFACT_ARRAY_BYTES = 256 * 1024 * 1024
 _MAX_ARTIFACT_FILE_BYTES = 512 * 1024 * 1024
+_MAX_ARTIFACT_TOTAL_ARRAY_ELEMENTS = 20_000_000
+_MAX_ARTIFACT_TOTAL_ARRAY_BYTES = 512 * 1024 * 1024
+_MAX_ARTIFACT_JSON_NODES = 1_000_000
 _MAX_ARTIFACT_JSON_DEPTH = 64
 _MAX_ARTIFACT_ARRAY_NDIM = 8
 _CONDITIONAL_OOF_ENVELOPE_KEYS = frozenset(
@@ -425,7 +428,48 @@ def _action_contract_payload(contract: Any) -> dict[str, Any] | None:
         raise
 
 
-def _contract_digest(contract: Any, *, explicit_hash: str | None = None) -> str:
+def _canonical_action_contract_payload(contract: Any) -> dict[str, Any]:
+    """Return an exact canonical P0-C mapping, rejecting ignored aliases.
+
+    ``ActionExecutionContract.from_config`` intentionally accepts a few
+    backwards-compatible aliases and ignores derived fields when constructing
+    the dataclass.  That is useful for ordinary config parsing, but unsafe at
+    an artifact boundary: a forged ``transition_cost_rate`` or
+    ``countdown_reset`` must not be silently discarded before hashing.  The
+    persisted/external strict mapping therefore has to be byte-for-byte
+    equivalent (modulo JSON scalar representation) to ``to_dict()``.
+    """
+    payload = _action_contract_payload(contract)
+    if payload is None:
+        raise ConditionalOOFArtifactError(
+            "action_execution_contract must contain canonical semantic fields"
+        )
+    if isinstance(contract, Mapping):
+        raw = {str(key): value for key, value in contract.items()}
+        if set(raw) != set(payload) or _artifact_json_value(raw) != _artifact_json_value(payload):
+            unknown = sorted(set(raw) - set(payload))
+            missing = sorted(set(payload) - set(raw))
+            detail = []
+            if unknown:
+                detail.append("unknown=" + ",".join(unknown))
+            if missing:
+                detail.append("missing=" + ",".join(missing))
+            if not detail:
+                detail.append("values differ from canonical to_dict()")
+            raise ConditionalOOFArtifactError(
+                "action_execution_contract mapping is not the canonical payload ("
+                + "; ".join(detail)
+                + ")"
+            )
+    return dict(payload)
+
+
+def _contract_digest(
+    contract: Any,
+    *,
+    explicit_hash: str | None = None,
+    require_canonical_mapping: bool = False,
+) -> str:
     """Resolve a contract and verify aliases against canonical content."""
     resolved_from_contract: str | None = None
     if contract is not None:
@@ -448,7 +492,11 @@ def _contract_digest(contract: Any, *, explicit_hash: str | None = None) -> str:
                 raise ConditionalOOFArtifactError(
                     "ActionExecutionContract hash aliases in the mapping differ"
                 )
-            payload = _action_contract_payload(contract)
+            payload = (
+                _canonical_action_contract_payload(contract)
+                if require_canonical_mapping
+                else _action_contract_payload(contract)
+            )
             if payload is not None:
                 resolved_from_contract = _action_contract_from_config(payload).contract_hash
                 if aliases and aliases[0] != resolved_from_contract:
@@ -583,19 +631,51 @@ def _coverage_rows(
                 row[field] = rate
         if require_promotable:
             required_fields = (
+                "target_count",
+                "total_target_slots",
+                "masked_target_slots",
+                "valid_targets",
+                "finite_targets",
+                "finite_masked_targets",
+                "finite_target_count",
                 "gradient_steps",
                 "nonzero_gradient_steps",
+                "finite_loss_steps",
                 "target_coverage",
                 "gradient_coverage",
+                "pass",
                 "status",
+                "block_reason",
             )
             missing = [field for field in required_fields if field not in row]
             if missing:
                 raise ConditionalOOFArtifactError(
                     "strict coverage row is missing: " + ", ".join(missing)
                 )
-            if row["target_count"] <= 0:
-                raise ConditionalOOFArtifactError("coverage.target_count must be > 0")
+            if row["total_target_slots"] <= 0:
+                raise ConditionalOOFArtifactError(
+                    "coverage.total_target_slots must be > 0"
+                )
+            if not row["masked_target_slots"] >= row["valid_targets"] > 0:
+                raise ConditionalOOFArtifactError(
+                    "coverage.masked_target_slots must be >= valid_targets > 0"
+                )
+            if row["finite_masked_targets"] != row["masked_target_slots"]:
+                raise ConditionalOOFArtifactError(
+                    "coverage.finite_masked_targets must equal masked_target_slots"
+                )
+            if row["finite_targets"] < row["valid_targets"]:
+                raise ConditionalOOFArtifactError(
+                    "coverage.finite_targets must be >= valid_targets"
+                )
+            if row["finite_target_count"] != row["finite_targets"]:
+                raise ConditionalOOFArtifactError(
+                    "coverage.finite_target_count must equal finite_targets"
+                )
+            if row["target_count"] != row["valid_targets"]:
+                raise ConditionalOOFArtifactError(
+                    "coverage.target_count must equal valid_targets"
+                )
             if row["gradient_steps"] <= 0:
                 raise ConditionalOOFArtifactError("coverage.gradient_steps must be > 0")
             if not 0 < row["nonzero_gradient_steps"] <= row["gradient_steps"]:
@@ -606,8 +686,18 @@ def _coverage_rows(
                 raise ConditionalOOFArtifactError("coverage.target_coverage must be > 0")
             if row["gradient_coverage"] <= 0.0:
                 raise ConditionalOOFArtifactError("coverage.gradient_coverage must be > 0")
+            if type(row["pass"]) is not bool or row["pass"] is not True:
+                raise ConditionalOOFArtifactError("coverage.pass must be exactly true")
             if row["status"] != "pass":
                 raise ConditionalOOFArtifactError("coverage.status must be exactly 'pass'")
+            if row["block_reason"] is not None:
+                raise ConditionalOOFArtifactError(
+                    "coverage.block_reason must be null for a passing row"
+                )
+            if row["finite_loss_steps"] <= 0:
+                raise ConditionalOOFArtifactError(
+                    "coverage.finite_loss_steps must be > 0"
+                )
 
         # Counts/rates are independently persisted by train_wm.py.  When a
         # denominator is present, do not accept an internally contradictory
@@ -772,7 +862,11 @@ def build_conditional_oof_artifact(
         action_execution_contract,
         explicit_hash=action_execution_contract_hash,
     )
-    contract_payload = _action_contract_payload(action_execution_contract)
+    contract_payload = (
+        _canonical_action_contract_payload(action_execution_contract)
+        if isinstance(action_execution_contract, Mapping)
+        else _action_contract_payload(action_execution_contract)
+    )
     if contract_payload is None and isinstance(action_execution_contract, Mapping):
         # A hash-only mapping is allowed for a low-level producer diagnostic,
         # but the strict consumer will reject it because canonical semantic
@@ -955,6 +1049,14 @@ def validate_conditional_oof_artifact(
     except ChronologicalOOFError as exc:
         raise ConditionalOOFArtifactError(f"raw OOF contract failed: {exc}") from exc
     predictions = np.asarray(artifact["predictions"])
+    if predictions.ndim != 2:
+        raise ConditionalOOFArtifactError(
+            "conditional OOF predictions must be a 2-D array"
+        )
+    if predictions.shape[0] <= 0 or predictions.shape[1] <= 0:
+        raise ConditionalOOFArtifactError(
+            "conditional OOF predictions must have positive rows and outputs"
+        )
     n_rows = len(predictions)
     prediction_mask = strict_bool_array(
         artifact.get("prediction_mask", artifact.get("oof_mask")),
@@ -986,6 +1088,33 @@ def validate_conditional_oof_artifact(
         raise ConditionalOOFArtifactError("conditional OOF artifact provenance is missing")
     if strict_bool_value(provenance.get("in_sample"), name="provenance.in_sample"):
         raise ConditionalOOFArtifactError("conditional OOF artifact is marked in_sample")
+    if require_nonzero_coverage:
+        # Component-level provenance is independently fitted state.  A nested
+        # mapping without an explicit out-of-sample declaration must not be
+        # treated as safe merely because the artifact root says in_sample=false.
+        component_tokens = (
+            "normalizer",
+            "calibrator",
+            "teacher",
+            "checkpoint",
+            "model",
+            "world_model",
+            "predictive_state",
+        )
+        for component_name, component in provenance.items():
+            if not isinstance(component, Mapping):
+                continue
+            normalized_name = str(component_name).strip().lower()
+            if not any(token in normalized_name for token in component_tokens):
+                continue
+            if "in_sample" not in component:
+                raise ConditionalOOFArtifactError(
+                    f"provenance.{component_name}.in_sample must be explicitly false"
+                )
+            if type(component["in_sample"]) is not bool or component["in_sample"] is not False:
+                raise ConditionalOOFArtifactError(
+                    f"provenance.{component_name}.in_sample must be false"
+                )
     horizon = strict_integer_value(provenance.get("horizon"), name="provenance.horizon")
     if horizon < 1:
         raise ConditionalOOFArtifactError("provenance.horizon must be >= 1")
@@ -1094,20 +1223,32 @@ def validate_conditional_oof_artifact(
         raise ConditionalOOFArtifactError("ActionExecutionContract hash aliases do not match")
     contract_mapping = provenance.get("action_execution_contract")
     root_contract_mapping = artifact.get("action_execution_contract")
-    if not isinstance(contract_mapping, Mapping) or not isinstance(root_contract_mapping, Mapping):
+    if contract_mapping is None and root_contract_mapping is None:
         if require_nonzero_coverage:
             raise ConditionalOOFArtifactError(
                 "strict conditional OOF consumer requires canonical "
                 "ActionExecutionContract mappings"
             )
     else:
-        canonical_contract_hash = _contract_digest(contract_mapping)
-        root_canonical_contract_hash = _contract_digest(root_contract_mapping)
+        if not isinstance(contract_mapping, Mapping) or not isinstance(root_contract_mapping, Mapping):
+            raise ConditionalOOFArtifactError(
+                "ActionExecutionContract mappings must be present at both root and provenance"
+            )
+        canonical_payload = _canonical_action_contract_payload(contract_mapping)
+        root_canonical_payload = _canonical_action_contract_payload(root_contract_mapping)
+        canonical_contract_hash = _contract_digest(
+            contract_mapping,
+            require_canonical_mapping=True,
+        )
+        root_canonical_contract_hash = _contract_digest(
+            root_contract_mapping,
+            require_canonical_mapping=True,
+        )
         if canonical_contract_hash != contract_hash or root_canonical_contract_hash != contract_hash:
             raise ConditionalOOFArtifactError(
                 "ActionExecutionContract mapping content does not match its claimed hash"
             )
-        if _artifact_json_value(contract_mapping) != _artifact_json_value(root_contract_mapping):
+        if canonical_payload != root_canonical_payload:
             raise ConditionalOOFArtifactError(
                 "ActionExecutionContract mappings differ between artifact root and provenance"
             )
@@ -1115,6 +1256,10 @@ def validate_conditional_oof_artifact(
         expected_contract_hash = _contract_digest(
             expected_action_execution_contract,
             explicit_hash=expected_action_execution_contract_hash,
+            require_canonical_mapping=isinstance(
+                expected_action_execution_contract,
+                Mapping,
+            ),
         )
         if expected_contract_hash != contract_hash:
             raise ConditionalOOFArtifactError(
@@ -1190,7 +1335,20 @@ def _encode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
     )
 
 
-def _decode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
+def _decode_artifact_json(
+    value: Any,
+    *,
+    _depth: int = 0,
+    _budget: dict[str, int] | None = None,
+) -> Any:
+    """Decode typed JSON with per-array and shared recursive budgets."""
+    if _budget is None:
+        _budget = {"nodes": 0, "elements": 0, "bytes": 0}
+    _budget["nodes"] += 1
+    if _budget["nodes"] > _MAX_ARTIFACT_JSON_NODES:
+        raise ConditionalOOFArtifactError(
+            f"artifact JSON exceeds maximum of {_MAX_ARTIFACT_JSON_NODES} nodes"
+        )
     if _depth > _MAX_ARTIFACT_JSON_DEPTH:
         raise ConditionalOOFArtifactError(
             f"artifact JSON exceeds maximum nesting depth {_MAX_ARTIFACT_JSON_DEPTH}"
@@ -1201,28 +1359,44 @@ def _decode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
             if not isinstance(dtype_value, str):
                 raise ConditionalOOFArtifactError("persisted ndarray dtype is missing or invalid")
             shape_value = value.get("shape")
-            dtype, _elements, expected_nbytes = _validate_array_layout(
+            dtype, elements, expected_nbytes = _validate_array_layout(
                 dtype_value,
                 shape_value,
                 name="persisted ndarray",
             )
+            _budget["elements"] += elements
+            _budget["bytes"] += expected_nbytes
+            if _budget["elements"] > _MAX_ARTIFACT_TOTAL_ARRAY_ELEMENTS:
+                raise ConditionalOOFArtifactError(
+                    "persisted ndarray payloads exceed the aggregate element budget"
+                )
+            if _budget["bytes"] > _MAX_ARTIFACT_TOTAL_ARRAY_BYTES:
+                raise ConditionalOOFArtifactError(
+                    "persisted ndarray payloads exceed the aggregate byte budget"
+                )
             encoded = value.get("data_b64")
             if not isinstance(encoded, str):
                 raise ConditionalOOFArtifactError("persisted ndarray data is missing")
-            # Reject an oversized textual payload before base64 decoding so a
-            # malformed artifact cannot allocate more than the bounded array
-            # budget merely through its 4/3 encoding overhead.
-            max_encoded_length = ((_MAX_ARTIFACT_ARRAY_BYTES + 2) // 3) * 4 + 4
+            # The encoded length is derived from the declared byte length, not
+            # the maximum possible array size.  This rejects an oversized
+            # textual payload before base64 decoding and avoids allocating a
+            # large temporary buffer for a small declared shape.
+            max_encoded_length = 4 * ((expected_nbytes + 2) // 3)
             if len(encoded) > max_encoded_length:
                 raise ConditionalOOFArtifactError(
-                    f"persisted ndarray base64 payload exceeds {_MAX_ARTIFACT_ARRAY_BYTES} bytes"
+                    "persisted ndarray base64 payload exceeds its declared shape"
                 )
             try:
-                raw = base64.b64decode(encoded.encode("ascii"), validate=True)
+                encoded_bytes = encoded.encode("ascii")
+                raw = base64.b64decode(encoded_bytes, validate=True)
             except (ValueError, UnicodeError, binascii.Error) as exc:
                 raise ConditionalOOFArtifactError("persisted ndarray data is not valid base64") from exc
             if len(raw) != expected_nbytes:
                 raise ConditionalOOFArtifactError("persisted ndarray byte length does not match shape")
+            if base64.b64encode(raw) != encoded_bytes:
+                raise ConditionalOOFArtifactError(
+                    "persisted ndarray data is not canonical base64"
+                )
             try:
                 return np.frombuffer(raw, dtype=dtype).reshape(tuple(shape_value)).copy()
             except (TypeError, ValueError, OverflowError) as exc:
@@ -1230,12 +1404,20 @@ def _decode_artifact_json(value: Any, *, _depth: int = 0) -> Any:
                     "persisted ndarray payload cannot be reshaped"
                 ) from exc
         return {
-            str(key): _decode_artifact_json(item, _depth=_depth + 1)
+            str(key): _decode_artifact_json(
+                item,
+                _depth=_depth + 1,
+                _budget=_budget,
+            )
             for key, item in value.items()
         }
     if isinstance(value, list):
         return [
-            _decode_artifact_json(item, _depth=_depth + 1)
+            _decode_artifact_json(
+                item,
+                _depth=_depth + 1,
+                _budget=_budget,
+            )
             for item in value
         ]
     return value
@@ -1401,7 +1583,6 @@ def _conditional_config_sections(config: Mapping[str, Any]) -> list[Mapping[str,
     for name in (
         "conditional_oof",
         "conditional_oof_artifact_contract",
-        "conditional_oof_artifact",
         "conditional_oracle",
         "oracle",
     ):
@@ -1555,31 +1736,21 @@ def _strict_conditional_bindings(
             "action_execution_contract_sha256",
         ),
     )
-    hash_contract = expected_hashes.get("action_execution_contract_sha256")
-    hash_alias = expected_hashes.get("action_execution_contract_hash")
-    if hash_contract is not None and hash_alias is not None and hash_contract != hash_alias:
+    if expected_contract is None:
         raise ConditionalOOFArtifactError(
-            "expected ActionExecutionContract hash aliases differ"
+            "strict conditional config requires canonical expected ActionExecutionContract mapping"
         )
+    if isinstance(expected_contract, str):
+        raise ConditionalOOFArtifactError(
+            "strict conditional config cannot bind ActionExecutionContract by hash only"
+        )
+    # This both validates the mapping and rejects ignored derived aliases such
+    # as transition_cost_rate/countdown_reset when they are inconsistent.
+    expected_contract = _canonical_action_contract_payload(expected_contract)
     if expected_contract_hash is None:
-        expected_contract_hash = hash_contract or hash_alias
-    else:
-        expected_contract_hash = _sha256_text(
-            expected_contract_hash,
-            name="expected_action_execution_contract_hash",
-        )
-    if expected_contract is not None and isinstance(expected_contract, str):
-        expected_contract_hash_from_string = _sha256_text(
-            expected_contract,
-            name="expected_action_execution_contract_hash",
-        )
-        if expected_contract_hash is not None and expected_contract_hash != expected_contract_hash_from_string:
-            raise ConditionalOOFArtifactError(
-                "expected action contract string and hash differ"
-            )
-        expected_contract_hash = expected_contract_hash_from_string
-        expected_contract = None
-    if expected_contract_hash is None:
+        # An action hash hidden inside expected_hashes is not an independent
+        # external binding.  Strict promotion requires the explicit mapping
+        # and explicit hash fields in the config contract.
         raise ConditionalOOFArtifactError(
             "strict conditional config requires expected ActionExecutionContract hash"
         )
@@ -1587,6 +1758,26 @@ def _strict_conditional_bindings(
         expected_contract_hash,
         name="expected_action_execution_contract_hash",
     )
+    hash_contract = expected_hashes.get("action_execution_contract_sha256")
+    hash_alias = expected_hashes.get("action_execution_contract_hash")
+    if hash_contract is not None and hash_alias is not None and hash_contract != hash_alias:
+        raise ConditionalOOFArtifactError(
+            "expected ActionExecutionContract hash aliases differ"
+        )
+    for alias in (hash_contract, hash_alias):
+        if alias is not None and alias != expected_contract_hash:
+            raise ConditionalOOFArtifactError(
+                "expected ActionExecutionContract hash differs from explicit config hash"
+            )
+    derived_contract_hash = _contract_digest(
+        expected_contract,
+        explicit_hash=expected_contract_hash,
+        require_canonical_mapping=True,
+    )
+    if derived_contract_hash != expected_contract_hash:
+        raise ConditionalOOFArtifactError(
+            "expected ActionExecutionContract mapping does not match its hash"
+        )
     return expected_contract, expected_contract_hash, expected_hashes, expected_heads
 
 
@@ -1602,14 +1793,22 @@ def _require_explicit_artifact_bindings(
         raise ConditionalOOFArtifactError("strict consumer requires expected_heads_horizons")
     normalized_heads = _normalize_expected_heads_horizons(expected_heads_horizons)
     normalized_hashes = _normalize_expected_hashes(expected_hashes)
+    if expected_action_execution_contract is None:
+        raise ConditionalOOFArtifactError(
+            "strict consumer requires canonical expected ActionExecutionContract mapping"
+        )
+    if isinstance(expected_action_execution_contract, str):
+        raise ConditionalOOFArtifactError(
+            "strict consumer cannot bind ActionExecutionContract by hash only"
+        )
     contract_hash = expected_action_execution_contract_hash
     if contract_hash is None:
-        contract_hash = normalized_hashes.get("action_execution_contract_sha256")
-    if contract_hash is None:
-        contract_hash = normalized_hashes.get("action_execution_contract_hash")
-    if contract_hash is None and expected_action_execution_contract is None:
         raise ConditionalOOFArtifactError(
-            "strict consumer requires expected ActionExecutionContract hash"
+            "strict consumer requires explicit expected ActionExecutionContract hash"
+        )
+    if isinstance(expected_action_execution_contract, Mapping):
+        expected_action_execution_contract = _canonical_action_contract_payload(
+            expected_action_execution_contract
         )
     supplied_contract_aliases = [
         value
@@ -1635,6 +1834,10 @@ def _require_explicit_artifact_bindings(
     resolved_hash = _contract_digest(
         expected_action_execution_contract,
         explicit_hash=contract_hash,
+        require_canonical_mapping=isinstance(
+            expected_action_execution_contract,
+            Mapping,
+        ),
     )
     if any(value != resolved_hash for value in supplied_contract_aliases):
         raise ConditionalOOFArtifactError(
@@ -1650,7 +1853,7 @@ def _require_explicit_artifact_bindings(
     )
 
 
-def require_conditional_oof_artifact(
+def _require_conditional_oof_artifact_impl(
     *,
     config: Mapping[str, Any] | None,
     artifact: Mapping[str, Any] | None,
@@ -1706,6 +1909,36 @@ def require_conditional_oof_artifact(
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: OOF artifact contract "
             f"is invalid ({exc})"
+        ) from exc
+
+
+def require_conditional_oof_artifact(
+    *,
+    config: Mapping[str, Any] | None,
+    artifact: Mapping[str, Any] | None,
+    caller: str,
+    expected_action_execution_contract: Any | None = None,
+    expected_action_execution_contract_hash: str | None = None,
+    expected_hashes: Mapping[str, str] | None = None,
+    expected_heads_horizons: Iterable[tuple[str, int]] | None = None,
+) -> None:
+    """Normalize malformed in-memory strict inputs to ``ConditionalPathBlocked``."""
+    try:
+        return _require_conditional_oof_artifact_impl(
+            config=config,
+            artifact=artifact,
+            caller=caller,
+            expected_action_execution_contract=expected_action_execution_contract,
+            expected_action_execution_contract_hash=expected_action_execution_contract_hash,
+            expected_hashes=expected_hashes,
+            expected_heads_horizons=expected_heads_horizons,
+        )
+    except ConditionalPathBlocked:
+        raise
+    except (OverflowError, ChronologicalOOFError, ValueError, TypeError, KeyError, IndexError) as exc:
+        raise ConditionalPathBlocked(
+            f"{caller} is blocked for conditional Oracle: malformed in-memory "
+            f"OOF artifact/config ({exc})"
         ) from exc
 
 
@@ -1766,7 +1999,7 @@ def conditional_path_enabled(config: Mapping[str, Any] | None) -> bool:
     return False
 
 
-def require_conditional_oof_inputs(
+def _require_conditional_oof_inputs_impl(
     *,
     config: Mapping[str, Any] | None,
     oof_bundle: Mapping[str, Any] | None,
@@ -1859,6 +2092,28 @@ def require_conditional_oof_inputs(
         raise ConditionalPathBlocked(
             f"{caller} is blocked for conditional Oracle: in-sample state is forbidden"
         )
+
+
+def require_conditional_oof_inputs(
+    *,
+    config: Mapping[str, Any] | None,
+    oof_bundle: Mapping[str, Any] | None,
+    caller: str,
+) -> None:
+    """Validate conditional OOF input and normalize malformed config errors."""
+    try:
+        return _require_conditional_oof_inputs_impl(
+            config=config,
+            oof_bundle=oof_bundle,
+            caller=caller,
+        )
+    except ConditionalPathBlocked:
+        raise
+    except (OverflowError, ChronologicalOOFError, ValueError, TypeError, KeyError, IndexError) as exc:
+        raise ConditionalPathBlocked(
+            f"{caller} is blocked for conditional Oracle: malformed in-memory "
+            f"OOF input/config ({exc})"
+        ) from exc
 
 
 def _as_2d_targets(targets: np.ndarray, n_rows: int) -> np.ndarray:
@@ -2156,6 +2411,12 @@ def validate_oof_result(
     contract.
     """
     predictions = np.asarray(result.get("predictions"))
+    if predictions.ndim != 2:
+        raise ChronologicalOOFError("OOF predictions must be a 2-D array")
+    if predictions.shape[0] <= 0 or predictions.shape[1] <= 0:
+        raise ChronologicalOOFError(
+            "OOF predictions must have positive rows and outputs"
+        )
     prediction_mask_present = "prediction_mask" in result
     oof_mask_present = "oof_mask" in result
     if not prediction_mask_present and not oof_mask_present:

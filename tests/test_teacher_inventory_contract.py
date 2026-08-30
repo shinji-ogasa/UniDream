@@ -25,22 +25,27 @@ class TeacherInventoryContractTest(unittest.TestCase):
             return [0.0]
 
         raw = chronological_oof_predict(
-            np.arange(3, dtype=np.float64).reshape(-1, 1),
-            np.arange(3, dtype=np.float64),
+            np.arange(6, dtype=np.float64).reshape(-1, 1),
+            np.arange(6, dtype=np.float64),
             fit_predict=fit_predict,
             min_train_size=1,
         )
         bundle = dict(raw)
-        for split in ("train", "val", "test"):
-            bundle[split] = raw["predictions"].copy()
-            bundle[f"{split}_row_indices"] = np.arange(3, dtype=np.int64)
-            bundle[f"{split}_mask"] = raw["prediction_mask"].copy()
+        split_indices = {
+            "train": np.asarray([1, 2], dtype=np.int64),
+            "val": np.asarray([3, 4], dtype=np.int64),
+            "test": np.asarray([5], dtype=np.int64),
+        }
+        for split, row_indices in split_indices.items():
+            bundle[split] = raw["predictions"][row_indices].copy()
+            bundle[f"{split}_row_indices"] = row_indices
+            bundle[f"{split}_mask"] = raw["prediction_mask"][row_indices].copy()
             bundle[f"{split}_prediction_eligibility_mask"] = raw[
                 "prediction_eligibility_mask"
-            ].copy()
+            ][row_indices].copy()
             bundle[f"{split}_training_label_eligibility_mask"] = raw[
                 "training_label_eligibility_mask"
-            ].copy()
+            ][row_indices].copy()
         return bundle
 
     def test_teacher_and_hindsight_inventory_sources_are_rejected(self) -> None:
@@ -262,7 +267,7 @@ class TeacherInventoryContractTest(unittest.TestCase):
             log_ts=lambda: "00:00:00",
             oof_bundle=accepted,
         )
-        np.testing.assert_array_equal(accepted_result["val_row_indices"], [0, 1, 2])
+        np.testing.assert_array_equal(accepted_result["val_row_indices"], [3, 4])
 
         transformed_metadata = self._complete_oof_bundle()
         transformed_metadata["mean"] = np.zeros((1, 1), dtype=np.float64)

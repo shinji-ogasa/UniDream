@@ -67,11 +67,20 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                     "head": "return",
                     "horizon": 1,
                     "target_count": 8,
+                    "total_target_slots": 10,
+                    "masked_target_slots": 8,
+                    "valid_targets": 8,
+                    "finite_targets": 10,
+                    "finite_masked_targets": 8,
+                    "finite_target_count": 10,
+                    "finite_loss_steps": 8,
                     "gradient_steps": 8,
                     "nonzero_gradient_steps": 8,
                     "target_coverage": 0.8,
                     "gradient_coverage": 1.0,
+                    "pass": True,
                     "status": "pass",
+                    "block_reason": None,
                 }
             ],
         )
@@ -88,6 +97,7 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
                 "calibrator_sha256": _sha("calibrator"),
                 "teacher_weight_sha256": _sha("teacher"),
             },
+            "expected_action_execution_contract": ActionExecutionContract.canonical().to_dict(),
             "expected_action_execution_contract_hash": ActionExecutionContract.canonical().contract_hash,
         }
 
