@@ -116,6 +116,12 @@ class ActionExecutionContractTest(unittest.TestCase):
             dataclasses.replace(self.contract, execution_delay_bars=0)
         with self.assertRaisesRegex(ValueError, "initial_countdown"):
             dataclasses.replace(self.contract, initial_countdown=5)
+        with self.assertRaisesRegex(ValueError, "position bounds"):
+            dataclasses.replace(self.contract, position_min=0.4)
+        with self.assertRaisesRegex(ValueError, "canonical P0-C grid"):
+            dataclasses.replace(self.contract, candidate_deltas=(-0.08, -0.04, 0.0, 0.04, 0.06))
+        with self.assertRaisesRegex(ValueError, "p_start"):
+            dataclasses.replace(self.contract, p_start=0.9)
 
     def test_candidate_grid_clips_then_deduplicates(self) -> None:
         np.testing.assert_allclose(

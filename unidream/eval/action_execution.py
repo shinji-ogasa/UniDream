@@ -31,6 +31,13 @@ import numpy as np
 
 _FLOAT_TOL = 1e-9
 _CANONICAL_CANDIDATE_DELTAS = (-0.08, -0.04, 0.0, 0.04, 0.08)
+_CANONICAL_POSITION_MIN = 0.50
+_CANONICAL_POSITION_MAX = 1.00
+_CANONICAL_H_DECISION = 4
+_CANONICAL_COMMITMENT_BARS = 4
+_CANONICAL_EXECUTION_DELAY_BARS = 1
+_CANONICAL_P_START = 1.00
+_CANONICAL_INITIAL_COUNTDOWN = 0
 
 
 def _as_real(value: Any, *, name: str) -> float:
@@ -166,6 +173,33 @@ class ActionExecutionContract:
         if len({round(delta, 12) for delta in deltas}) != len(deltas):
             raise ValueError("candidate_deltas must not contain duplicate values")
         object.__setattr__(self, "candidate_deltas", deltas)
+        if not np.isclose(
+            self.position_min,
+            _CANONICAL_POSITION_MIN,
+            atol=_FLOAT_TOL,
+            rtol=0.0,
+        ) or not np.isclose(
+            self.position_max,
+            _CANONICAL_POSITION_MAX,
+            atol=_FLOAT_TOL,
+            rtol=0.0,
+        ):
+            raise ValueError("position bounds must be the canonical [0.5, 1.0]")
+        if len(deltas) != len(_CANONICAL_CANDIDATE_DELTAS) or not all(
+            np.isclose(a, b, atol=_FLOAT_TOL, rtol=0.0)
+            for a, b in zip(deltas, _CANONICAL_CANDIDATE_DELTAS)
+        ):
+            raise ValueError("candidate_deltas must use the canonical P0-C grid")
+        if self.h_decision != _CANONICAL_H_DECISION:
+            raise ValueError("h_decision must be 4 for the registered P0-C contract")
+        if self.commitment_bars != _CANONICAL_COMMITMENT_BARS:
+            raise ValueError("commitment_bars must be 4 for the registered P0-C contract")
+        if self.execution_delay_bars != _CANONICAL_EXECUTION_DELAY_BARS:
+            raise ValueError("execution_delay_bars must be 1 for the registered P0-C contract")
+        if not np.isclose(self.p_start, _CANONICAL_P_START, atol=_FLOAT_TOL, rtol=0.0):
+            raise ValueError("p_start must be 1.0 for the registered P0-C contract")
+        if self.initial_countdown != _CANONICAL_INITIAL_COUNTDOWN:
+            raise ValueError("initial_countdown must be 0 for the registered P0-C contract")
         for name, value in (
             ("fill_policy", self.fill_policy),
             ("partial_fill_policy", self.partial_fill_policy),
