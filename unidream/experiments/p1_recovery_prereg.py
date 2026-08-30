@@ -30,7 +30,7 @@ DEFAULT_MANIFEST_PATH = (
 # Filled from the committed manifest after its canonical JSON digest is
 # calculated.  Keeping this independently pinned is what makes an edited
 # ``manifest_sha256`` field fail closed as well.
-REGISTERED_MANIFEST_SHA256 = "3d9c725cd948179bfc04e3a3fb06efe512b77c01d3f6f678cbea987a8b06987b"
+REGISTERED_MANIFEST_SHA256 = "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d"
 REGISTERED_BASE_REVISION = "881e5e08e9b413b51b0a2faf5c49592ce13329d1"
 
 REQUIRED_TOP_LEVEL_FIELDS = (
@@ -159,6 +159,15 @@ def validate_pinned_artifacts(
         raise P1PreregistrationError("v4 frozen schema digest echo is immutable")
     if v4_load.get("frozen_content_digests") != v4_parent.get("content_digests"):
         raise P1PreregistrationError("v4 frozen content digest echo is immutable")
+    local_snapshot = _require_mapping(v4_load, "known_cache_local_snapshot")
+    if local_snapshot.get("metadata_sha256") != "bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450":
+        raise P1PreregistrationError("known cache-local metadata hash is immutable")
+    if local_snapshot.get("source_provenance_digest") != "1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db":
+        raise P1PreregistrationError("known cache-local source digest is immutable")
+    if local_snapshot.get("schema_digest") != v4_parent.get("schema_digest") or local_snapshot.get("content_digests") != v4_parent.get("content_digests"):
+        raise P1PreregistrationError("known cache-local content/schema digest baseline is immutable")
+    if local_snapshot.get("rows") != v4_parent.get("feature_rows") or local_snapshot.get("sidecar_rows") != v4_parent.get("sidecar_rows"):
+        raise P1PreregistrationError("known cache-local row-count baseline is immutable")
     if "metadata_path=metadata_path" not in str(v4_load.get("load_call", "")):
         raise P1PreregistrationError("v4 load call must pass the frozen metadata path")
     if "never pass cache-local metadata as metadata_path" not in str(v4_load.get("cache_local_metadata_policy", "")):
@@ -302,6 +311,15 @@ def validate_fixed_manifest(
         raise P1PreregistrationError("v4 frozen schema digest echo is immutable")
     if v4_load.get("frozen_content_digests") != v4_parent.get("content_digests"):
         raise P1PreregistrationError("v4 frozen content digest echo is immutable")
+    local_snapshot = _require_mapping(v4_load, "known_cache_local_snapshot")
+    if local_snapshot.get("metadata_sha256") != "bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450":
+        raise P1PreregistrationError("known cache-local metadata hash is immutable")
+    if local_snapshot.get("source_provenance_digest") != "1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db":
+        raise P1PreregistrationError("known cache-local source digest is immutable")
+    if local_snapshot.get("schema_digest") != v4_parent.get("schema_digest") or local_snapshot.get("content_digests") != v4_parent.get("content_digests"):
+        raise P1PreregistrationError("known cache-local content/schema digest baseline is immutable")
+    if local_snapshot.get("rows") != v4_parent.get("feature_rows") or local_snapshot.get("sidecar_rows") != v4_parent.get("sidecar_rows"):
+        raise P1PreregistrationError("known cache-local row-count baseline is immutable")
     if "metadata_path=metadata_path" not in str(v4_load.get("load_call", "")):
         raise P1PreregistrationError("v4 load call must pass the frozen metadata path")
     if "never pass cache-local metadata as metadata_path" not in str(v4_load.get("cache_local_metadata_policy", "")):

@@ -5,7 +5,7 @@
   "status": "preregistered",
   "registered_date": "2026-08-30",
   "base_revision": "881e5e08e9b413b51b0a2faf5c49592ce13329d1",
-  "manifest_sha256": "3d9c725cd948179bfc04e3a3fb06efe512b77c01d3f6f678cbea987a8b06987b",
+  "manifest_sha256": "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d",
   "critical_field_paths": [
     "common.data_frequency",
     "common.return_unit",
@@ -176,6 +176,20 @@
         "features": "8a7aad5809c7a21e614da7d836629309cda9c2de74553bf1fbc6934f7b07f5e2",
         "returns": "c33a00cac4cf169f01e3ba5823a3f6d9bae17da5add5f8d5a3538d4142a0fabb",
         "availability": "630de125ae9bc04cd0376404c7cff07f8e7d06c3bec2eece1b546e05959e292f"
+      },
+      "known_cache_local_snapshot": {
+        "role": "untrusted cache-local metadata snapshot observed during preregistration review; not an authority and not a committed input",
+        "metadata_sha256": "bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450",
+        "source_provenance_digest": "1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db",
+        "schema_digest": "1c1c41a9aca3e8af22b357a8483ea6419745ee4b24c10c09c47289df3744c616",
+        "content_digests": {
+          "features": "8a7aad5809c7a21e614da7d836629309cda9c2de74553bf1fbc6934f7b07f5e2",
+          "returns": "c33a00cac4cf169f01e3ba5823a3f6d9bae17da5add5f8d5a3538d4142a0fabb",
+          "availability": "630de125ae9bc04cd0376404c7cff07f8e7d06c3bec2eece1b546e05959e292f"
+        },
+        "rows": 173111,
+        "sidecar_rows": 210336,
+        "difference_from_frozen": "metadata_sha256 and source_provenance_digest differ from the repo-frozen values because the local source-probe ledger revision differs; schema/content digests and row counts match"
       },
       "load_call": "load_cache_v4(cache_tag=cache_tag, feature_path=feature_path, returns_path=returns_path, availability_path=availability_path, metadata_path=metadata_path)",
       "cache_local_metadata_policy": "read only when present; echo cache-local file SHA, source-provenance digest, schema digest, content digests, and row counts separately; never pass cache-local metadata as metadata_path or replace the frozen metadata",

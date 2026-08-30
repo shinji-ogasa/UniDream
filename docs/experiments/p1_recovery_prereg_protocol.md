@@ -347,6 +347,15 @@ for explicit disposition before promotion.  The raw v4 body files are not
 committed to this preregistration branch; their caller-supplied explicit paths
 and all echoed digests are mandatory runtime inputs.
 
+The cache-local snapshot available during preregistration review had metadata
+SHA-256 `bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450`
+and source-provenance digest
+`1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db`.  The
+repo-frozen values are the SHA-256 and source-provenance digest given above;
+the known snapshot's schema/content digests and row counts match.  This
+difference is recorded as provenance evidence only, not as permission to
+select the local metadata or to claim a new dataset revision.
+
 The canonical action execution
 contract is `action_execution_contract.json` (the path and canonical-content
 SHA-256 are pinned in the manifest) and is shared by optimizer, teacher,

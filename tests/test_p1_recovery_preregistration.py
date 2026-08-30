@@ -79,6 +79,7 @@ class P1PreregistrationTests(unittest.TestCase):
             "common.v4_load_contract.feature_path": "checkpoints/data_cache/other_features.parquet",
             "common.v4_load_contract.metadata_path": "checkpoints/data_cache/local_metadata.json",
             "common.v4_load_contract.require_explicit_paths": False,
+            "common.v4_load_contract.known_cache_local_snapshot.source_provenance_digest": "wrong-revision",
             "common.runner_contract.outer_test_selection_allowed": True,
             "synthetic_contract.n_rows": 20000,
             "synthetic_contract.availability.gap_block_count": 100,
@@ -183,6 +184,14 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertEqual(contract["frozen_source_provenance_digest"], parent["source_provenance_digest"])
         self.assertEqual(contract["frozen_schema_digest"], parent["schema_digest"])
         self.assertEqual(contract["frozen_content_digests"], parent["content_digests"])
+        local = contract["known_cache_local_snapshot"]
+        self.assertEqual(local["metadata_sha256"], "bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450")
+        self.assertEqual(local["source_provenance_digest"], "1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db")
+        self.assertEqual(local["schema_digest"], contract["frozen_schema_digest"])
+        self.assertEqual(local["content_digests"], contract["frozen_content_digests"])
+        self.assertEqual(local["rows"], parent["feature_rows"])
+        self.assertEqual(local["sidecar_rows"], parent["sidecar_rows"])
+        self.assertIn("differ", local["difference_from_frozen"])
         self.assertNotEqual(contract["cache_local_metadata_path"], contract["metadata_path"])
         self.assertIn("never pass cache-local metadata as metadata_path", contract["cache_local_metadata_policy"])
         self.assertIn("do not hide", contract["cache_local_frozen_difference_policy"])
@@ -204,7 +213,7 @@ class P1PreregistrationTests(unittest.TestCase):
 
     def test_production_loader_succeeds_and_freezes_pinned_manifest(self) -> None:
         manifest = load_fixed_manifest()
-        self.assertEqual(manifest["manifest_sha256"], "3d9c725cd948179bfc04e3a3fb06efe512b77c01d3f6f678cbea987a8b06987b")
+        self.assertEqual(manifest["manifest_sha256"], "9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d")
         with self.assertRaises(TypeError):
             manifest["common"] = {}  # type: ignore[index]
 
