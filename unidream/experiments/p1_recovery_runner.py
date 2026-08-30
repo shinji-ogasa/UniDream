@@ -25,6 +25,8 @@ from sklearn.preprocessing import StandardScaler
 
 from .p1_recovery_prereg import (
     DEFAULT_MANIFEST_PATH,
+    P1_V4_RUNTIME_VALIDATION_ENTRYPOINT,
+    REGISTERED_MANIFEST_SHA256,
     load_fixed_manifest,
 )
 
@@ -43,6 +45,9 @@ SYNTHETIC_ROWS = 120_000
 FEATURE_DIMENSION = 17
 CONTEXT_BARS = 64
 PURGE_BARS = 16
+MIN_HISTORY_ROWS = 16_384
+BAR_NS = 15 * 60 * 1_000_000_000
+SYNTHETIC_START = np.datetime64("2018-01-01T00:00:00", "ns")
 FORECAST_HORIZONS = (1, 4, 8, 16)
 OOF_ORIGINS = (20_000, 30_000, 40_000, 50_000, 60_000, 70_000, 80_000, 90_000)
 OOF_BATCH_SPAN = 10_000
@@ -60,7 +65,67 @@ MODEL_TASKS: Mapping[str, Literal["continuous", "binary"]] = MappingProxyType(
         "logistic": "binary",
     }
 )
+_MODEL_ALLOWED_TASKS: Mapping[str, tuple[Literal["continuous", "binary"], ...]] = MappingProxyType(
+    {
+        "zero_return": ("continuous", "binary"),
+        "persistence_last_observed": ("continuous", "binary"),
+        "ridge": ("continuous",),
+        "logistic": ("binary",),
+    }
+)
 PROBABILITY_CLIP_EPS = 1e-6
+S3_SIGNAL_FEATURE = "close_ret"
+S3_INJECTION_BETA = 0.0005
+S3_PREFIX_ROWS_MIN = 256
+V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT = (
+    "unidream.experiments.runtime.validate_v4_runtime_inputs"
+)
+
+
+def validate_15m_timestamps(
+    timestamps: Any,
+    *,
+    n_rows: int | None = None,
+    label: str = "timestamps",
+) -> np.ndarray:
+    """Validate a strictly ordered datetime64 index for the 15-minute body.
+
+    The full-grid body is allowed to contain a timestamp gap.  Window
+    builders use :func:`timestamp_edge_mask` to invalidate every context or
+    target window which crosses that gap while retaining the original rows.
+    This keeps timestamp evidence and sidecar masks aligned instead of
+    silently compressing a missing bar.
+    """
+
+    try:
+        array = np.asarray(timestamps)
+    except (TypeError, ValueError) as exc:
+        raise P1RunnerError(f"{label} must be a one-dimensional datetime64 array") from exc
+    if array.ndim != 1 or not np.issubdtype(array.dtype, np.datetime64):
+        raise P1RunnerError(f"{label} must be a one-dimensional datetime64 array")
+    if n_rows is not None and len(array) != n_rows:
+        raise P1RunnerError(f"{label} is not row-aligned")
+    try:
+        normalized = np.asarray(array, dtype=np.dtype("datetime64[ns]") ).copy()
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise P1RunnerError(f"{label} cannot be represented as datetime64[ns]") from exc
+    if np.isnat(normalized).any():
+        raise P1RunnerError(f"{label} must not contain NaT")
+    if len(normalized) > 1:
+        ticks = normalized.astype(np.int64)
+        if np.any(np.diff(ticks) <= 0):
+            raise P1RunnerError(f"{label} must be strictly increasing and unique")
+    return _read_only(normalized, dtype=np.dtype("datetime64[ns]"))
+
+
+def timestamp_edge_mask(timestamps: Any) -> np.ndarray:
+    """Return exact 15-minute adjacency for each ``t -> t+1`` edge."""
+
+    normalized = validate_15m_timestamps(timestamps)
+    if len(normalized) < 2:
+        return _read_only(np.zeros(0, dtype=np.bool_), dtype=np.bool_)
+    ticks = normalized.astype(np.int64)
+    return _read_only(np.diff(ticks) == BAR_NS, dtype=np.bool_)
 
 
 def _strict_seed(seed: Any) -> int:
@@ -97,6 +162,46 @@ def _read_only(array: Any, *, dtype: np.dtype | None = None) -> np.ndarray:
 
 def _mapping_proxy(value: Mapping[str, Any]) -> Mapping[str, Any]:
     return MappingProxyType(dict(value))
+
+
+def _is_deeply_frozen(value: Any) -> bool:
+    if isinstance(value, MappingProxyType):
+        return all(_is_deeply_frozen(item) for item in value.values())
+    if isinstance(value, tuple):
+        return all(_is_deeply_frozen(item) for item in value)
+    if isinstance(value, (dict, list, set, bytearray)):
+        return False
+    return True
+
+
+def _require_authenticated_manifest(manifest: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Require the exact fixed, deeply frozen manifest at the runner boundary."""
+    if not isinstance(manifest, MappingProxyType) or not _is_deeply_frozen(manifest):
+        raise P1RunnerError(
+            "P1 runner requires the deeply frozen manifest from load_fixed_manifest"
+        )
+    if manifest.get("manifest_sha256") != REGISTERED_MANIFEST_SHA256:
+        raise P1RunnerError("P1 runner manifest digest is not the registered digest")
+    if manifest.get("results_observed") is not False:
+        raise P1RunnerError("P1 runner requires results_observed=false")
+    common = manifest.get("common")
+    if not isinstance(common, Mapping):
+        raise P1RunnerError("P1 runner manifest common contract is missing")
+    v4_load = common.get("v4_load_contract")
+    if not isinstance(v4_load, Mapping):
+        raise P1RunnerError("P1 runner v4 load contract is missing")
+    if v4_load.get("runtime_validation_entrypoint") != P1_V4_RUNTIME_VALIDATION_ENTRYPOINT:
+        raise P1RunnerError("P1 runner authenticated v4 entrypoint is not pinned")
+    if v4_load.get("runtime_body_validator_entrypoint") != V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT:
+        raise P1RunnerError("P1 runner v4 body validator entrypoint is not pinned")
+    runner_contract = common.get("runner_contract")
+    if not isinstance(runner_contract, Mapping):
+        raise P1RunnerError("P1 runner contract is missing")
+    if runner_contract.get("v4_runtime_validation_entrypoint") != P1_V4_RUNTIME_VALIDATION_ENTRYPOINT:
+        raise P1RunnerError("P1 runner contract bypasses authenticated v4 validation")
+    if runner_contract.get("v4_runtime_body_validator_entrypoint") != V4_RUNTIME_BODY_VALIDATOR_ENTRYPOINT:
+        raise P1RunnerError("P1 runner contract body validator is not pinned")
+    return manifest
 
 
 @dataclass(frozen=True)
@@ -154,8 +259,7 @@ class RunnerPlan:
 
 
 def _manifest_echo(manifest: Mapping[str, Any]) -> ManifestEcho:
-    if not isinstance(manifest, Mapping):
-        raise P1RunnerError("manifest must be a mapping")
+    _require_authenticated_manifest(manifest)
     values: dict[str, str] = {}
     for field in ("manifest_id", "manifest_sha256", "base_revision"):
         value = manifest.get(field)
@@ -168,20 +272,32 @@ def _manifest_echo(manifest: Mapping[str, Any]) -> ManifestEcho:
 def load_runner_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> Mapping[str, Any]:
     """Load and validate the immutable preregistration for the runner."""
 
-    return load_fixed_manifest(path)
+    try:
+        loaded = load_fixed_manifest(path)
+    except (OSError, TypeError, ValueError) as exc:
+        raise P1RunnerError("P1 runner could not load the fixed manifest") from exc
+    return _require_authenticated_manifest(loaded)
 
 
 def manifest_echo(manifest: Mapping[str, Any] | None = None) -> dict[str, str]:
     """Return the fixed manifest provenance fields for a result envelope."""
 
-    loaded = load_runner_manifest() if manifest is None else manifest
+    if manifest is not None:
+        raise P1RunnerError(
+            "arbitrary manifest injection is forbidden; load the fixed manifest by path"
+        )
+    loaded = load_runner_manifest()
     return _manifest_echo(loaded).as_dict()
 
 
 def build_runner_plan(manifest: Mapping[str, Any] | None = None) -> RunnerPlan:
     """Build the fixed OOF plan; no data, model, or result operation runs."""
 
-    loaded = load_runner_manifest() if manifest is None else manifest
+    if manifest is not None:
+        raise P1RunnerError(
+            "arbitrary manifest injection is forbidden; build the plan from the fixed manifest"
+        )
+    loaded = load_runner_manifest()
     echo = _manifest_echo(loaded)
     try:
         common = loaded["common"]
@@ -277,14 +393,16 @@ def _make_availability(seed: int) -> tuple[Mapping[str, tuple[int, ...]], Mappin
     }
     # The registered range is deliberately expressed in output coordinates.
     # Its lower bound leaves the first post-burn-in context region untouched.
-    possible_starts = np.arange(
-        SYNTHETIC_BURN_IN,
-        SYNTHETIC_ROWS - 2,
-        dtype=np.int64,
-    )
+    possible_start_count = (SYNTHETIC_ROWS - 2) - SYNTHETIC_BURN_IN
     for source, offset in source_offsets.items():
         gap_rng = np.random.default_rng(seed + 50_000 + offset)
-        starts = gap_rng.choice(possible_starts, size=40, replace=False)
+        relative_starts = gap_rng.choice(
+            possible_start_count,
+            size=40,
+            replace=False,
+            shuffle=True,
+        )
+        starts = np.asarray(relative_starts, dtype=np.int64) + SYNTHETIC_BURN_IN
         starts_by_source[source] = tuple(int(v) for v in starts)
         mask = np.ones(SYNTHETIC_ROWS, dtype=np.bool_)
         for start in starts:
@@ -297,8 +415,8 @@ def _make_availability(seed: int) -> tuple[Mapping[str, tuple[int, ...]], Mappin
 def _generate_synthetic_base_cached(seed: int) -> SyntheticBase:
     # Keep this draw order in lockstep with synthetic_contract.draw_order.
     rng = np.random.default_rng(seed + 100)
-    z0 = float(rng.normal())
-    xi = np.asarray(rng.normal(size=SYNTHETIC_RAW_ROWS - 1), dtype=np.float64)
+    z0 = float(rng.standard_normal())
+    xi = np.asarray(rng.standard_normal(SYNTHETIC_RAW_ROWS - 1), dtype=np.float64)
     z_raw = np.empty(SYNTHETIC_RAW_ROWS, dtype=np.float64)
     z_raw[0] = z0
     innovation_std = float(np.sqrt(1.0 - 0.95**2))
@@ -307,11 +425,11 @@ def _generate_synthetic_base_cached(seed: int) -> SyntheticBase:
     for index in range(1, SYNTHETIC_RAW_ROWS):
         z_raw[index] = 0.95 * z_raw[index - 1] + innovation_std * xi[index - 1]
     noise_features = np.asarray(
-        rng.normal(size=(SYNTHETIC_RAW_ROWS, FEATURE_DIMENSION - 1)),
+        rng.standard_normal((SYNTHETIC_RAW_ROWS, FEATURE_DIMENSION - 1)),
         dtype=np.float64,
         order="C",
     )
-    epsilon = np.asarray(rng.normal(size=SYNTHETIC_RAW_ROWS), dtype=np.float64)
+    epsilon = np.asarray(rng.standard_normal(SYNTHETIC_RAW_ROWS), dtype=np.float64)
     gap_starts, availability = _make_availability(seed)
     return SyntheticBase(
         seed=seed,
@@ -336,6 +454,7 @@ class SyntheticDataset:
 
     seed: int
     beta: float
+    timestamps: np.ndarray
     base: SyntheticBase
     features: np.ndarray
     returns: np.ndarray
@@ -376,11 +495,13 @@ class SyntheticDataset:
             returns,
             self.spot_bar_observed,
             horizons=FORECAST_HORIZONS,
+            timestamps=self.timestamps,
         )
         labels = binary_labels_from_targets(target_values)
         return SyntheticDataset(
             seed=self.seed,
             beta=self.beta,
+            timestamps=self.timestamps,
             base=self.base,
             features=self.features,
             returns=_read_only(np.asarray(returns, dtype=np.float64)),
@@ -397,12 +518,16 @@ def build_target_arrays(
     spot_bar_observed: Any,
     *,
     horizons: Sequence[int] = FORECAST_HORIZONS,
+    timestamps: Any | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build full-grid t+h+1-exclusive targets with a Spot-only mask.
+    """Build full-grid ``t+h+1``-exclusive targets with a Spot-only mask.
 
     A finite zero return is a valid target value.  A false Spot mask or a
     non-finite return in any target bar invalidates the complete horizon, while
-    funding/mark availability is intentionally not consulted here.
+    funding/mark availability is intentionally not consulted here.  When
+    timestamps are supplied, every edge ``t -> t+1`` through
+    ``t+h-1 -> t+h`` must be exactly 15 minutes; the following edge
+    ``t+h -> t+h+1`` is deliberately not inspected.
     """
 
     returns_array = np.asarray(returns)
@@ -414,6 +539,11 @@ def build_target_arrays(
         raise P1RunnerError("spot_bar_observed must be a strict bool array aligned to returns")
     horizon_values = tuple(_strict_horizon(h) for h in horizons)
     n_rows = len(returns_array)
+    timestamp_array = (
+        None
+        if timestamps is None
+        else validate_15m_timestamps(timestamps, n_rows=n_rows)
+    )
     target_values = np.full((n_rows, len(horizon_values)), np.nan, dtype=np.float64)
     target_mask = np.zeros((n_rows, len(horizon_values)), dtype=np.bool_)
     target_end = np.empty((n_rows, len(horizon_values)), dtype=np.int64)
@@ -426,6 +556,12 @@ def build_target_arrays(
     bad_spot_prefix = np.concatenate(
         ([0], np.cumsum((~spot).astype(np.int64), dtype=np.int64))
     )
+    bad_edge_prefix = None
+    if timestamp_array is not None:
+        edges = timestamp_edge_mask(timestamp_array)
+        bad_edge_prefix = np.concatenate(
+            ([0], np.cumsum((~edges).astype(np.int64), dtype=np.int64))
+        )
     rows = np.arange(n_rows, dtype=np.int64)
     for column, horizon in enumerate(horizon_values):
         ends = rows + horizon + 1
@@ -438,6 +574,15 @@ def build_target_arrays(
         valid = (
             bad_returns_prefix[end_values] - bad_returns_prefix[starts] == 0
         ) & (bad_spot_prefix[end_values] - bad_spot_prefix[starts] == 0)
+        if bad_edge_prefix is not None:
+            # ``end_values - 1`` is the exclusive prefix endpoint for the
+            # h edges beginning at decision row t.  Using ``end_values``
+            # would incorrectly require t+h -> t+h+1 as well.
+            valid &= (
+                bad_edge_prefix[end_values - 1]
+                - bad_edge_prefix[rows[inside]]
+                == 0
+            )
         values = return_prefix[end_values] - return_prefix[starts]
         valid_rows = rows[inside][valid]
         target_values[valid_rows, column] = values[valid]
@@ -470,8 +615,15 @@ def build_context_mask(
     availability: Mapping[str, Any],
     *,
     context_bars: int = CONTEXT_BARS,
+    timestamps: Any | None = None,
 ) -> np.ndarray:
-    """Return the all-three-source, finite 64-bar context eligibility mask."""
+    """Return the all-three-source, finite, timestamp-complete context mask.
+
+    For decision row ``t`` the current-inclusive window is ``[t-63, t]``.
+    Every one of its 63 inter-row edges must be exactly 15 minutes when a
+    timestamp array is supplied.  A later edge is not part of this context
+    contract.
+    """
 
     feature_array = validate_current_row_features(features)
     if isinstance(context_bars, (bool, np.bool_)) or not isinstance(
@@ -491,18 +643,31 @@ def build_context_mask(
     except (KeyError, TypeError) as exc:
         raise P1RunnerError("all three availability masks are required") from exc
     n_rows = len(feature_array)
+    timestamp_array = (
+        None
+        if timestamps is None
+        else validate_15m_timestamps(timestamps, n_rows=n_rows)
+    )
     for name, source in zip(required_sources, source_arrays):
         if source.dtype != np.dtype(np.bool_) or source.ndim != 1 or len(source) != n_rows:
             raise P1RunnerError(f"{name} must be a strict bool array aligned to features")
     finite_rows = np.isfinite(feature_array).all(axis=1)
     all_three = source_arrays[0] & source_arrays[1] & source_arrays[2] & finite_rows
     bad_prefix = np.concatenate(([0], np.cumsum((~all_three).astype(np.int64))))
+    bad_edge_prefix = None
+    if timestamp_array is not None:
+        edges = timestamp_edge_mask(timestamp_array)
+        bad_edge_prefix = np.concatenate(
+            ([0], np.cumsum((~edges).astype(np.int64), dtype=np.int64))
+        )
     rows = np.arange(n_rows, dtype=np.int64)
     eligible = np.zeros(n_rows, dtype=np.bool_)
     enough_history = rows >= context_bars_int - 1
     current = rows[enough_history]
     starts = current - context_bars_int + 1
     eligible[current] = bad_prefix[current + 1] - bad_prefix[starts] == 0
+    if bad_edge_prefix is not None:
+        eligible[current] &= bad_edge_prefix[current] - bad_edge_prefix[starts] == 0
     return _read_only(eligible, dtype=np.bool_)
 
 
@@ -550,18 +715,29 @@ def build_synthetic_dataset(seed: int, beta: float = 0.0) -> SyntheticDataset:
     returns_raw = np.empty(SYNTHETIC_RAW_ROWS, dtype=np.float64)
     returns_raw[0] = 0.001 * base.epsilon[0]
     returns_raw[1:] = beta_float * base.z_raw[:-1] + 0.001 * base.epsilon[1:]
+    timestamps = _read_only(
+        SYNTHETIC_START
+        + np.arange(SYNTHETIC_ROWS, dtype=np.int64) * np.timedelta64(15, "m"),
+        dtype=np.dtype("datetime64[ns]"),
+    )
     features = _read_only(features_raw[SYNTHETIC_BURN_IN:], dtype=np.float64)
     returns = _read_only(returns_raw[SYNTHETIC_BURN_IN:], dtype=np.float64)
     targets, target_mask, target_end = build_target_arrays(
         returns,
         base.spot_bar_observed,
         horizons=FORECAST_HORIZONS,
+        timestamps=timestamps,
     )
     labels = binary_labels_from_targets(targets)
-    context_mask = build_context_mask(features, base.availability)
+    context_mask = build_context_mask(
+        features,
+        base.availability,
+        timestamps=timestamps,
+    )
     return SyntheticDataset(
         seed=seed_int,
         beta=beta_float,
+        timestamps=timestamps,
         base=base,
         features=features,
         returns=returns,
@@ -591,13 +767,26 @@ def _ensure_dataset(dataset: SyntheticDataset) -> SyntheticDataset:
         raise P1RunnerError("runner model APIs require a SyntheticDataset")
     features = validate_current_row_features(dataset.features)
     n_rows = len(features)
-    if dataset.returns.shape != (n_rows,):
+    timestamps = validate_15m_timestamps(dataset.timestamps, n_rows=n_rows)
+    returns = np.asarray(dataset.returns)
+    if returns.shape != (n_rows,) or not np.issubdtype(returns.dtype, np.number):
         raise P1RunnerError("dataset returns are not row-aligned")
-    if dataset.targets.shape != (n_rows, len(FORECAST_HORIZONS)):
+    targets = np.asarray(dataset.targets)
+    if (
+        targets.shape != (n_rows, len(FORECAST_HORIZONS))
+        or not np.issubdtype(targets.dtype, np.number)
+    ):
         raise P1RunnerError("dataset targets do not cover all fixed horizons")
-    if dataset.target_end.shape != dataset.targets.shape or dataset.target_mask.shape != dataset.targets.shape:
+    target_end = np.asarray(dataset.target_end)
+    target_mask = np.asarray(dataset.target_mask)
+    if (
+        target_end.shape != targets.shape
+        or target_mask.shape != targets.shape
+        or target_end.dtype != np.dtype(np.int64)
+    ):
         raise P1RunnerError("dataset target arrays are not shape-aligned")
-    if dataset.context_mask.shape != (n_rows,):
+    context_mask = np.asarray(dataset.context_mask)
+    if context_mask.shape != (n_rows,):
         raise P1RunnerError("dataset context mask is not row-aligned")
     for name, mask in (
         ("target_mask", dataset.target_mask),
@@ -605,6 +794,60 @@ def _ensure_dataset(dataset: SyntheticDataset) -> SyntheticDataset:
     ):
         if np.asarray(mask).dtype != np.dtype(np.bool_):
             raise P1RunnerError(f"dataset {name} must have strict bool dtype")
+    if targets.dtype != np.dtype(np.float64):
+        raise P1RunnerError("dataset targets must use float64 values")
+    expected_end = (
+        np.arange(n_rows, dtype=np.int64)[:, None]
+        + np.asarray(FORECAST_HORIZONS, dtype=np.int64)[None, :]
+        + 1
+    )
+    if not np.array_equal(target_end, expected_end):
+        raise P1RunnerError("dataset target_end must equal row + horizon + 1 for every row")
+
+    try:
+        availability = dataset.availability
+        required_sources = (
+            "spot_bar_observed",
+            "funding_rate_available",
+            "mark_close_available",
+        )
+        for name in required_sources:
+            source = np.asarray(availability[name])
+            if source.dtype != np.dtype(np.bool_) or source.shape != (n_rows,):
+                raise P1RunnerError(
+                    f"dataset availability {name} must be a strict bool row vector"
+                )
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise P1RunnerError("dataset availability masks are incomplete") from exc
+
+    expected_targets, expected_target_mask, expected_target_end = build_target_arrays(
+        returns,
+        availability["spot_bar_observed"],
+        horizons=FORECAST_HORIZONS,
+        timestamps=timestamps,
+    )
+    if not np.array_equal(target_end, expected_target_end):
+        raise P1RunnerError("dataset target_end does not match the fixed horizon contract")
+    if not np.array_equal(target_mask, expected_target_mask):
+        raise P1RunnerError("dataset target_mask does not match returns, Spot, and timestamps")
+    if not np.array_equal(targets, expected_targets, equal_nan=True):
+        raise P1RunnerError("dataset targets do not equal the canonical return sums")
+
+    binary_labels = np.asarray(dataset.binary_labels)
+    if binary_labels.shape != targets.shape or binary_labels.dtype != np.dtype(np.int8):
+        raise P1RunnerError("dataset binary labels are not shape/dtype aligned")
+    expected_labels = binary_labels_from_targets(expected_targets)
+    if not np.array_equal(binary_labels, expected_labels):
+        raise P1RunnerError("dataset binary labels do not match canonical targets")
+
+    expected_context_mask = build_context_mask(
+        features,
+        availability,
+        context_bars=CONTEXT_BARS,
+        timestamps=timestamps,
+    )
+    if not np.array_equal(context_mask, expected_context_mask):
+        raise P1RunnerError("dataset context_mask does not match availability, features, and timestamps")
     return dataset
 
 
@@ -721,6 +964,35 @@ def _prediction_mask(
     return prediction_mask_for_range(dataset, horizon, start=start, end=end)
 
 
+def _na_model_fit(
+    *,
+    model_id: str,
+    task: Literal["continuous", "binary"],
+    horizon: int,
+    origin: int,
+    train_mask: np.ndarray,
+    eligible_mask: np.ndarray,
+    predictions: np.ndarray,
+    reason: str,
+) -> ModelFit:
+    """Construct a read-only N/A fit without fitting or scoring a model."""
+
+    return ModelFit(
+        model_id=model_id,
+        task=task,
+        horizon=horizon,
+        origin=origin,
+        train_mask=train_mask,
+        eligible_mask=eligible_mask,
+        prediction_mask=_read_only(np.zeros(len(predictions), dtype=np.bool_)),
+        predictions=_read_only(predictions, dtype=np.float64),
+        status="N/A",
+        reason=reason,
+        scaler=None,
+        estimator=None,
+    )
+
+
 def fit_model_at_origin(
     dataset: SyntheticDataset,
     model_id: str,
@@ -744,8 +1016,9 @@ def fit_model_at_origin(
     resolved_task = expected_task if task is None else task
     if resolved_task not in {"continuous", "binary"}:
         raise P1RunnerError("task must be 'continuous' or 'binary'")
-    if resolved_task != expected_task:
-        raise P1RunnerError(f"model {model_id} has fixed task {expected_task}")
+    if resolved_task not in _MODEL_ALLOWED_TASKS[model_id]:
+        allowed = ", ".join(_MODEL_ALLOWED_TASKS[model_id])
+        raise P1RunnerError(f"model {model_id} only supports task(s): {allowed}")
     horizon_int = _strict_horizon(horizon)
     origin_int = _strict_origin(origin)
     if origin_int > len(data.features):
@@ -766,13 +1039,25 @@ def fit_model_at_origin(
     estimator: Ridge | LogisticRegression | None = None
     reason: str | None = None
 
+    if np.count_nonzero(train_mask) < MIN_HISTORY_ROWS:
+        return _na_model_fit(
+            model_id=model_id,
+            task=resolved_task,
+            horizon=horizon_int,
+            origin=origin_int,
+            train_mask=train_mask,
+            eligible_mask=eligible_mask,
+            predictions=predictions,
+            reason=f"fewer than {MIN_HISTORY_ROWS} admissible training rows",
+        )
+
     if model_id == "zero_return":
-        predictions[eligible_mask] = 0.0
+        predictions[eligible_mask] = 0.0 if resolved_task == "continuous" else 0.5
         prediction_mask = eligible_mask.copy()
     elif model_id == "persistence_last_observed":
         if resolved_task == "continuous":
             predictions[eligible_mask] = horizon_int * data.returns[eligible_mask]
-        else:  # fixed task guard above keeps this branch unreachable
+        else:
             positive = data.returns[eligible_mask] > 0.0
             predictions[eligible_mask] = np.where(
                 positive,
@@ -784,19 +1069,15 @@ def fit_model_at_origin(
         X_train = data.features[train_mask]
         y_train = data.targets[train_mask, column]
         if len(X_train) == 0:
-            return ModelFit(
-                model_id,
-                resolved_task,
-                horizon_int,
-                origin_int,
-                train_mask,
-                eligible_mask,
-                prediction_mask,
-                _read_only(predictions, dtype=np.float64),
-                "N/A",
-                "no admissible training rows",
-                None,
-                None,
+            return _na_model_fit(
+                model_id=model_id,
+                task=resolved_task,
+                horizon=horizon_int,
+                origin=origin_int,
+                train_mask=train_mask,
+                eligible_mask=eligible_mask,
+                predictions=predictions,
+                reason="no admissible training rows",
             )
         scaler = StandardScaler(with_mean=True, with_std=True)
         X_scaled = scaler.fit_transform(X_train)
@@ -823,19 +1104,15 @@ def fit_model_at_origin(
         classes = np.unique(labels)
         if len(classes) < 2:
             reason = "one observed class in admissible prefix"
-            return ModelFit(
-                model_id,
-                resolved_task,
-                horizon_int,
-                origin_int,
-                train_mask,
-                eligible_mask,
-                prediction_mask,
-                _read_only(predictions, dtype=np.float64),
-                "N/A",
-                reason,
-                None,
-                None,
+            return _na_model_fit(
+                model_id=model_id,
+                task=resolved_task,
+                horizon=horizon_int,
+                origin=origin_int,
+                train_mask=train_mask,
+                eligible_mask=eligible_mask,
+                predictions=predictions,
+                reason=reason,
             )
         X_train = data.features[train_mask]
         scaler = StandardScaler(with_mean=True, with_std=True)
