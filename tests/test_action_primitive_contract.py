@@ -116,6 +116,17 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         with self.assertRaises(ActionPrimitiveImplementationBlocked):
             run_action_primitive_mbb([broken], block_length=16)
 
+    def test_grid_order_requires_zero_based_four_bar_starts(self) -> None:
+        for starts in ((-4, 0), (1,), (0, 4, 100)):
+            with self.subTest(starts=starts):
+                records = [_record(index) for index in range(len(starts))]
+                for record, decision_index in zip(records, starts):
+                    record["decision_index"] = decision_index
+                    record["fill_index"] = decision_index + 1
+                    record["end_index"] = decision_index + 4
+                with self.assertRaisesRegex(ActionPrimitiveContractError, "start at 0"):
+                    action_primitive_content_sha256(records)
+
     def test_validator_is_fail_closed_for_schema_empty_rows_and_omitted_hashes(self) -> None:
         records = [_record(0)]
         schema = json.loads(

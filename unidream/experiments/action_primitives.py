@@ -221,9 +221,9 @@ def _validate_grid_order(columns: Mapping[str, Sequence[Any]], row_count: int) -
     decision = [_strict_int(value, field="decision_index") for value in columns["decision_index"]]
     fill = [_strict_int(value, field="fill_index") for value in columns["fill_index"]]
     end = [_strict_int(value, field="end_index") for value in columns["end_index"]]
-    if any(next_value - value != 4 for value, next_value in zip(decision, decision[1:])):
+    if decision[0] != 0 or decision != [4 * index for index in range(row_count)]:
         raise ActionPrimitiveContractError(
-            "decision_index must retain scheduled four-bar starts in chronological order"
+            "decision_index must start at 0 and retain exact scheduled four-bar starts 0,4,..."
         )
     if any(
         fill_value != decision_value + 1 or end_value != decision_value + 4
