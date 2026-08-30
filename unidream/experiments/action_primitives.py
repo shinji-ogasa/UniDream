@@ -125,6 +125,15 @@ ACTION_PRIMITIVE_ARM_FIELDS: tuple[str, ...] = (
     "cost_mode",
     "cost_contract_hash",
 )
+ACTION_PRIMITIVE_PRODUCTION_METADATA_FIELDS: tuple[str, ...] = (
+    *ACTION_PRIMITIVE_ARM_FIELDS,
+    "support_start",
+    "support_range",
+    "trial_id",
+    "source_binding_sha256",
+    "paired_common_mask_sha256",
+)
+ACTION_PRIMITIVE_SOURCE_BINDING_SCHEMA_ID = "p1-forecast-action-source-binding-v1"
 
 # Production input expectations are deliberately separate from generated
 # output hashes.  The forecast loader integration supplies the sealed source
@@ -1851,17 +1860,18 @@ def produce_action_primitive_grid(
 def produce_authenticated_action_primitive_grid(
     *,
     action_source: Any = None,
+    cost_mode: str | None = None,
+    paired_common_mask: Sequence[Any] | None = None,
     expected_metadata: Mapping[str, Any] | None = None,
     expected_output_hashes: Mapping[str, Any] | None = None,
     **action_inputs: Any,
 ) -> dict[str, Any]:
-    """Reserved production boundary for the forecast-loader integration.
+    """Materialise one production grid from a sealed forecast capability.
 
-    The validation-forecast branch owns the sealed ``ForecastActionSource``
-    loader.  Until that capability is integrated here, no mapping, raw v4
-    body, or caller-provided path can be promoted into an action artifact.
-    Keeping this boundary explicit prevents the generic fixture producer from
-    becoming an accidental research runner.
+    Model selection is already fixed in ``action_source``; this function never
+    scans the artifact for a winner.  ``cost_mode`` is the exact registered
+    trial arm.  Raw arrays, paths, output-hash expectations, and alternate
+    metadata are rejected before any action is materialised.
     """
     if action_inputs:
         runtime_fields = {
@@ -1884,10 +1894,216 @@ def produce_authenticated_action_primitive_grid(
                 "raw v4 runtime paths/body values cannot enter the production action boundary: "
                 + ", ".join(supplied)
             )
-    raise ActionPrimitiveImplementationBlocked(
-        "authenticated ForecastActionSource integration is not implemented; "
-        "generic action primitives remain fixture-only"
+        raise ActionPrimitiveContractError(
+            "production action boundary contains unknown inputs: "
+            + ", ".join(sorted(action_inputs))
+        )
+    if expected_output_hashes is not None:
+        raise ActionPrimitiveContractError(
+            "a producer cannot accept expectations for its own action output hashes"
+        )
+    try:
+        from .p1_validation_forecast import (
+            authenticate_p1_forecast_contract,
+            require_authenticated_forecast_action_source,
+        )
+
+        source = require_authenticated_forecast_action_source(action_source)
+        forecast_contract = authenticate_p1_forecast_contract()
+    except Exception as exc:
+        raise ActionPrimitiveContractError(
+            "production action input is not an authenticated forecast capability"
+        ) from exc
+    if cost_mode not in ACTION_PRIMITIVE_COST_CONTRACT_PATHS:
+        raise ActionPrimitiveContractError("cost_mode must explicitly select 'off' or 'on'")
+    matching_trials = [
+        row
+        for row in forecast_contract.registry.trials
+        if row.get("scenario_id") == source.scenario_id
+        and row.get("arm") == source.arm
+        and row.get("model_id") == source.model_id
+        and row.get("cost_mode") == cost_mode
+    ]
+    if len(matching_trials) != 1 or matching_trials[0].get("action_mapper") == "none_binary_diagnostic":
+        raise ActionPrimitiveContractError(
+            "selected forecast/cost arm is not one registered action trial"
+        )
+    trial_id = matching_trials[0].get("trial_id")
+    if not isinstance(trial_id, str) or not trial_id:
+        raise ActionPrimitiveContractError("registered action trial_id is malformed")
+    contract_obj = _canonical_contract(None, cost_mode=cost_mode)
+    source_binding = _forecast_action_source_binding(source)
+    source_binding_sha256 = action_source_binding_sha256(source_binding)
+    derived_metadata = {
+        "scenario_id": source.scenario_id,
+        "seed": source.seed,
+        "split_id": source.split_id,
+        "support_id": source.support_id,
+        "model_id": source.model_id,
+        "cost_mode": cost_mode,
+        "cost_contract_hash": contract_obj.contract_hash,
+        "support_start": source.support_range[0],
+        "support_range": list(source.support_range),
+        "trial_id": trial_id,
+        "source_binding_sha256": source_binding_sha256,
+    }
+    if paired_common_mask is None:
+        raise ActionPrimitiveContractError(
+            "production action input requires an explicit paired_common_mask"
+        )
+    block_count = len(complete_decision_starts(len(source.timestamps), contract_obj))
+    paired_common_mask = _as_bool_vector(
+        paired_common_mask,
+        name="paired_common_mask",
+        length=block_count,
     )
+    paired_common_mask_sha256 = hashlib.sha256(
+        np.ascontiguousarray(paired_common_mask, dtype=np.bool_).tobytes(order="C")
+    ).hexdigest()
+    derived_metadata["paired_common_mask_sha256"] = paired_common_mask_sha256
+    if not isinstance(expected_metadata, Mapping) or dict(expected_metadata) != derived_metadata:
+        raise ActionPrimitiveContractError(
+            "production expected_metadata must exactly match the authenticated registered trial"
+        )
+    artifact = produce_action_primitive_grid(
+        returns=source.realized_returns,
+        support_start=source.support_range[0],
+        decision_block_scores=source.forecast_h4,
+        decision_eligible=source.origin_mask,
+        score_eligible=source.bar_available,
+        paired_common_mask=paired_common_mask,
+        scenario_id=source.scenario_id,
+        seed=source.seed,
+        split_id=source.split_id,
+        support_id=source.support_id,
+        model_id=source.model_id,
+        cost_mode=cost_mode,
+        cost_contract_hash=contract_obj.contract_hash,
+        contract=contract_obj,
+        require_production=False,
+    )
+    header = artifact["header"]
+    header["source_role"] = "validated_stored_action_inputs"
+    header["action_primitive_producer_status"] = "validated_production_input"
+    header["metric_source"] = "recomputed_from_realized_returns"
+    header["trial_id"] = trial_id
+    header["source_binding"] = source_binding
+    header["source_binding_sha256"] = source_binding_sha256
+    header["paired_common_mask_sha256"] = paired_common_mask_sha256
+    validate_action_primitive_semantics(
+        artifact,
+        expected_metadata=derived_metadata,
+        expected_source_binding=source_binding,
+        authenticated_action_source=source,
+        realized_returns=source.realized_returns,
+        decision_block_scores=source.forecast_h4,
+        decision_eligible=source.origin_mask,
+        score_eligible=source.bar_available,
+        expected_common_mask=paired_common_mask,
+        require_production=True,
+    )
+    return artifact
+
+
+def _forecast_action_source_binding(source: Any) -> dict[str, Any]:
+    source_hashes = getattr(source, "source_hashes", None)
+    if not isinstance(source_hashes, Mapping):
+        raise ActionPrimitiveContractError("forecast source hashes are unavailable")
+    hashes = {str(key): _strict_sha256(value, field=f"source hash {key}") for key, value in source_hashes.items()}
+    return {
+        "schema_id": ACTION_PRIMITIVE_SOURCE_BINDING_SCHEMA_ID,
+        "source_role": "authenticated_p1_forecast_action_source",
+        "scenario_id": source.scenario_id,
+        "arm": source.arm,
+        "seed": int(source.seed),
+        "model_id": source.model_id,
+        "split_id": source.split_id,
+        "support_id": source.support_id,
+        "support_range": list(source.support_range),
+        "fit_origin": int(source.fit_origin),
+        "prereg_results_observed": source.prereg_results_observed,
+        "validation_results_observed": source.validation_results_observed,
+        "outer_results_observed": source.outer_results_observed,
+        "validation_status": source.validation_status,
+        "promotion_allowed": source.promotion_allowed,
+        "capability_binding_sha256": _strict_sha256(
+            source.binding_sha256,
+            field="capability_binding_sha256",
+        ),
+        "source_hashes": dict(sorted(hashes.items())),
+    }
+
+
+def action_source_binding_sha256(binding: Mapping[str, Any]) -> str:
+    if not isinstance(binding, Mapping):
+        raise ActionPrimitiveContractError("action source binding must be a mapping")
+    try:
+        encoded = json.dumps(
+            dict(binding),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, OverflowError, UnicodeError) as exc:
+        raise ActionPrimitiveContractError("action source binding is not canonical JSON") from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def expected_authenticated_action_metadata(
+    action_source: Any,
+    *,
+    cost_mode: str,
+    paired_common_mask: Sequence[Any],
+) -> Mapping[str, Any]:
+    """Return the exact registry-bound metadata required by the producer."""
+    try:
+        from .p1_validation_forecast import (
+            authenticate_p1_forecast_contract,
+            require_authenticated_forecast_action_source,
+        )
+
+        source = require_authenticated_forecast_action_source(action_source)
+        forecast_contract = authenticate_p1_forecast_contract()
+    except Exception as exc:
+        raise ActionPrimitiveContractError("action metadata requires an authenticated source") from exc
+    if cost_mode not in ACTION_PRIMITIVE_COST_CONTRACT_PATHS:
+        raise ActionPrimitiveContractError("cost_mode must explicitly select 'off' or 'on'")
+    rows = [
+        row
+        for row in forecast_contract.registry.trials
+        if row.get("scenario_id") == source.scenario_id
+        and row.get("arm") == source.arm
+        and row.get("model_id") == source.model_id
+        and row.get("cost_mode") == cost_mode
+    ]
+    if len(rows) != 1 or rows[0].get("action_mapper") == "none_binary_diagnostic":
+        raise ActionPrimitiveContractError("source/cost selection is not a registered action trial")
+    contract_obj = _canonical_contract(None, cost_mode=cost_mode)
+    block_count = len(complete_decision_starts(len(source.timestamps), contract_obj))
+    paired_mask = _as_bool_vector(
+        paired_common_mask,
+        name="paired_common_mask",
+        length=block_count,
+    )
+    paired_common_mask_sha256 = hashlib.sha256(
+        np.ascontiguousarray(paired_mask, dtype=np.bool_).tobytes(order="C")
+    ).hexdigest()
+    binding = _forecast_action_source_binding(source)
+    return {
+        "scenario_id": source.scenario_id,
+        "seed": source.seed,
+        "split_id": source.split_id,
+        "support_id": source.support_id,
+        "model_id": source.model_id,
+        "cost_mode": cost_mode,
+        "cost_contract_hash": contract_obj.contract_hash,
+        "support_start": source.support_range[0],
+        "support_range": list(source.support_range),
+        "trial_id": rows[0]["trial_id"],
+        "source_binding_sha256": action_source_binding_sha256(binding),
+        "paired_common_mask_sha256": paired_common_mask_sha256,
+    }
 
 
 def validate_action_primitive_semantics(
@@ -1895,6 +2111,8 @@ def validate_action_primitive_semantics(
     *,
     header: Mapping[str, Any] | None = None,
     expected_metadata: Mapping[str, Any] | None = None,
+    expected_source_binding: Mapping[str, Any] | None = None,
+    authenticated_action_source: Any = None,
     schema: Mapping[str, Any] | None = None,
     contract: ActionExecutionContract | Mapping[str, Any] | None = None,
     realized_returns: Sequence[Any] | None = None,
@@ -1925,12 +2143,26 @@ def validate_action_primitive_semantics(
     their registered domains (outcome-complete utility versus scored-action
     comparison metrics).
     """
-    if require_production:
-        # The sealed ForecastActionSource and its runtime/source-specific
-        # bindings are integrated in the forecast/result boundary.  This
-        # low-level validator must not be promoted by a caller mapping alone.
+    authenticated_source = None
+    if authenticated_action_source is not None:
+        try:
+            from .p1_validation_forecast import require_authenticated_forecast_action_source
+
+            authenticated_source = require_authenticated_forecast_action_source(
+                authenticated_action_source
+            )
+        except Exception as exc:
+            raise ActionPrimitiveContractError(
+                "authenticated_action_source is not a sealed forecast capability"
+            ) from exc
+        derived_binding = _forecast_action_source_binding(authenticated_source)
+        if not isinstance(expected_source_binding, Mapping) or dict(expected_source_binding) != derived_binding:
+            raise ActionPrimitiveContractError(
+                "expected_source_binding must exactly match the sealed forecast capability"
+            )
+    elif require_production:
         raise ActionPrimitiveContractError(
-            "production validation requires the authenticated ForecastActionSource integration"
+            "production validation requires a sealed authenticated_action_source"
         )
     output_expected = _normalise_output_hash_expectations(
         expected_output_hashes,
@@ -2044,12 +2276,74 @@ def validate_action_primitive_semantics(
         raise ActionPrimitiveContractError("cost_contract_hash does not match cost_mode contract")
 
     source_role = header.get("source_role")
-    production_source = source_role == "validated_stored_action_inputs"
+    production_role = source_role == "validated_stored_action_inputs"
+    if production_role:
+        if authenticated_source is None:
+            raise ActionPrimitiveContractError(
+                "validated production source_role requires a sealed forecast capability"
+            )
+        derived_binding = _forecast_action_source_binding(authenticated_source)
+        stored_binding = header.get("source_binding")
+        if not isinstance(stored_binding, Mapping) or dict(stored_binding) != derived_binding:
+            raise ActionPrimitiveContractError(
+                "header.source_binding does not match the sealed forecast capability"
+            )
+        binding_sha256 = action_source_binding_sha256(derived_binding)
+        if header.get("source_binding_sha256") != binding_sha256:
+            raise ActionPrimitiveContractError("header.source_binding_sha256 mismatch")
+        derived_metadata = expected_authenticated_action_metadata(
+            authenticated_source,
+            cost_mode=arm["cost_mode"],
+            paired_common_mask=expected_common_mask,
+        )
+        if not isinstance(expected_metadata, Mapping) or dict(expected_metadata) != dict(derived_metadata):
+            raise ActionPrimitiveContractError(
+                "production expected_metadata is not the exact registered trial binding"
+            )
+        if header.get("trial_id") != derived_metadata["trial_id"]:
+            raise ActionPrimitiveContractError("header.trial_id mismatch")
+        if decision_deltas is not None or selected_deltas is not None:
+            raise ActionPrimitiveContractError(
+                "production action source cannot inject caller-selected decision deltas"
+            )
+        source_arrays = (
+            ("realized_returns", realized_returns, authenticated_source.realized_returns),
+            ("decision_block_scores", decision_block_scores, authenticated_source.forecast_h4),
+            ("decision_eligible", decision_eligible, authenticated_source.origin_mask),
+            ("score_eligible", score_eligible, authenticated_source.bar_available),
+        )
+        for name, supplied_values, source_values in source_arrays:
+            if supplied_values is None:
+                raise ActionPrimitiveContractError(
+                    f"production validation is missing authenticated {name}"
+                )
+            supplied_array = np.asarray(supplied_values)
+            source_array = np.asarray(source_values)
+            if (
+                supplied_array.shape != source_array.shape
+                or supplied_array.dtype != source_array.dtype
+                or not np.array_equal(supplied_array, source_array, equal_nan=True)
+            ):
+                raise ActionPrimitiveContractError(
+                    f"production {name} differs from the sealed forecast capability"
+                )
+    elif any(
+        field in header
+        for field in (
+            "source_binding",
+            "source_binding_sha256",
+            "paired_common_mask_sha256",
+            "trial_id",
+        )
+    ):
+        raise ActionPrimitiveContractError(
+            "fixture action artifact cannot carry production source bindings"
+        )
     support_start_int = _resolve_support_start(
         header.get("support_start"),
         arm=arm,
         bar_count=bar_count,
-        require_registered_support=production_source,
+        require_registered_support=production_role,
     )
     if header.get("support_range") != [support_start_int, support_start_int + bar_count]:
         raise ActionPrimitiveContractError(
@@ -2467,6 +2761,7 @@ __all__ = [
     "ACTION_PRIMITIVE_SYNTHETIC_INPUT_EXPECTED_FIELDS",
     "ACTION_PRIMITIVE_S3_INPUT_EXPECTED_FIELDS",
     "ACTION_PRIMITIVE_PRODUCTION_INPUT_EXPECTED_FIELDS",
+    "ACTION_PRIMITIVE_PRODUCTION_METADATA_FIELDS",
     "ACTION_PRIMITIVE_PRODUCTION_OUTPUT_EXPECTED_FIELDS",
     "ACTION_PRIMITIVE_PRODUCTION_EXPECTED_FIELDS",
     "ACTION_PRIMITIVE_EXECUTION_STATUS",
@@ -2481,11 +2776,13 @@ __all__ = [
     "ACTION_PRIMITIVE_METRIC_MASK_REGISTRY",
     "ACTION_PRIMITIVE_RECORD_FIELDS",
     "ACTION_PRIMITIVE_STRING_ARM_FIELDS",
+    "ACTION_PRIMITIVE_SOURCE_BINDING_SCHEMA_ID",
     "ACTION_PRIMITIVE_UTILITY_FIELDS",
     "ACTION_PRIMITIVE_VALUE_FIELDS",
     "ActionPrimitiveContractError",
     "ActionPrimitiveImplementationBlocked",
     "action_primitive_content_sha256",
+    "action_source_binding_sha256",
     "action_primitive_envelope_sha256",
     "action_primitive_payload_sha256",
     "build_action_primitive_grid",
@@ -2493,6 +2790,7 @@ __all__ = [
     "canonical_action_primitive_envelope_bytes",
     "canonical_action_primitive_payload_bytes",
     "canonical_action_primitive_schema_sha256",
+    "expected_authenticated_action_metadata",
     "produce_action_primitive_artifact",
     "produce_authenticated_action_primitive_grid",
     "produce_action_primitive_grid",
