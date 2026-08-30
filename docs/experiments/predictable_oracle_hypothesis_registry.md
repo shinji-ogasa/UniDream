@@ -2,7 +2,7 @@
 
 **Registry opened:** 2026-08-30
 
-**Base revision:** `8e95cda`
+**Base revision:** `881e5e0`
 
 **Scope:** hypotheses in `predictable_data_conditional_oracle_roadmap_2026.md`; BTCUSDT 15m first
 
@@ -17,6 +17,7 @@ This registry defines what “all hypotheses” means for the current research p
 | `confirmed-defect` | current implementation violates the new contract; evidence already exists |
 | `running` | an isolated branch is implementing or testing the preregistered check |
 | `ready` | prerequisites pass and the experiment manifest is frozen |
+| `partial` | the boundary/fixture is verified, but a required end-to-end promotion dependency remains |
 | `not-started` | testable later, but an earlier gate has not passed |
 | `blocked-data` | required point-in-time data is not locally available or historically verifiable |
 | `failed` | preregistered gate ran and did not pass |
@@ -26,15 +27,17 @@ This registry defines what “all hypotheses” means for the current research p
 
 | id | hypothesis / falsifier | required evidence | current status |
 | --- | --- | --- | --- |
-| P0-A1 | v4 availability can reach row and sequence eligibility without changing the canonical 17 model columns. Falsified if unavailable rows enter a training window, timestamps are compacted, or `obs_dim != 17`. | sidecar/window fixtures, full test suite, P0-A report | `running` |
-| P0-A2 | missing external data remains distinguishable from an observed numeric zero. Falsified by fill/backfill or a missing/non-boolean mask being accepted. | zero-vs-missing and fail-closed fixtures | `running` |
-| P0-B1 | every enabled WM head has nonzero valid-target and gradient coverage. Current h64 and position-utility-h64 are expected to falsify the legacy configuration, not to report low accuracy. | per-head machine-readable coverage artifact | `confirmed-defect`; remediation `running` |
-| P0-B2 | a train row's future label cannot influence its own predictive state, normalizer, calibrator, Q, teacher weight or action. | chronological OOF perturbation test with purge | `confirmed-defect`; remediation `running` |
-| P0-B3 | current inventory comes from benchmark/policy replay rather than a hindsight teacher path. | inventory provenance guard and trajectory fixture | `confirmed-defect`; remediation `running` |
-| P0-C1 | target, U0, O1-O3 and Backtest share `decision t -> fill t+1 -> returns t+1..t+4`, four-bar commitment and identical incomplete-tail exclusion. | hand-calculated trajectory fixture and contract hash | `confirmed-defect`; remediation `running` |
-| P0-C2 | the new path uses one explicit cost/initial-state contract and cannot fall back to legacy `5/2/0.0004`, delay 0 or flat start. | fail-closed config tests and cost fixture | `confirmed-defect`; remediation `running` |
+| P0-A1 | v4 availability can reach row and sequence eligibility without changing the canonical 17 model columns. Falsified if unavailable rows enter a training window, timestamps are compacted, or `obs_dim != 17`. | sidecar/window fixtures, full test suite, P0-A report, and P0 integration report with real-cache counts/digests | `passed` |
+| P0-A2 | missing external data remains distinguishable from an observed numeric zero. Falsified by fill/backfill or a missing/non-boolean mask being accepted. | zero-vs-missing, fail-closed, and sparse-body/full-grid integration fixtures | `passed` |
+| P0-B1 | every enabled WM head has nonzero valid-target and gradient coverage. Current h64 and position-utility-h64 are expected to falsify the legacy configuration, not to report low accuracy. | per-head machine-readable coverage artifact; P0-B report | `partial` (legacy h64/utility-h64 remains a confirmed defect; conditional runner is not connected) |
+| P0-B2 | a train row's future label cannot influence its own predictive state, normalizer, calibrator, Q, teacher weight or action. | chronological OOF perturbation test with purge and P0 integration fixture | `partial` (boundary guard passes; full per-fold WM OOF/normalizer/calibrator/student replay remains) |
+| P0-B3 | current inventory comes from benchmark/policy replay rather than a hindsight teacher path. | inventory provenance guard, trajectory fixture, and P0 integration fixture | `partial` (new guard passes; legacy hindsight path remains diagnostic-only) |
+| P0-C1 | target, U0, O1-O3 and Backtest share `decision t -> fill t+1 -> returns t+1..t+4`, four-bar commitment and identical incomplete-tail exclusion. | hand-calculated trajectory fixture, real-cache replay, and canonical contract/mask hashes | `passed` |
+| P0-C2 | the new path uses one explicit cost/initial-state contract and cannot fall back to legacy `5/2/0.0004`, delay 0 or flat start. | fail-closed config tests, cost fixture, tracked contract artifact, and P0 integration report | `passed` |
 
-P0 passes only if every P0 row is `passed`. A partial implementation or explicit blocker is useful evidence but does not unlock market-accuracy experiments.
+P0 passes only if every P0 row is `passed`. The integration report demonstrates
+that P0-A and P0-C are mechanically joined, but P0-B remains `partial` and
+does not unlock market-accuracy experiments.
 
 ## P1 — controlled recoverability hypotheses
 
@@ -83,5 +86,6 @@ For every P2 row, primary evidence is an OOS proper-score delta and the net util
 | `exp/p0-a-availability-20260830` | Luna max P0-A | availability sidecar -> row/window eligibility |
 | `exp/p0-b-target-oof-20260830` | Luna max P0-B | target/gradient coverage, OOF teacher gate, inventory provenance |
 | `exp/p0-c-action-execution-20260830` | Luna max P0-C | shared action/execution/cost/commitment contract |
+| `exp/p0-integration-audit-20260830` | Luna max integration audit | v4 full-grid eligibility to P0-C parity and P0-B boundary guard |
 
 Each owner commits and pushes coherent units on its branch. The lead inspects the complete diff, reruns tests and merges only after the branch's scoped gate passes. Failed and blocked rows remain in this registry; they are not deleted from the candidate history.
