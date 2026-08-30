@@ -325,6 +325,19 @@ class RuntimeV4Test(unittest.TestCase):
             )
 
             forged = copy.deepcopy(fixed)
+            forged["manifest_sha256"] = "0" * 64
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                return_value=fixed,
+            ):
+                with self.assertRaisesRegex(V4RuntimeInputError, "manifest_sha256"):
+                    validate_p1_v4_runtime_inputs(
+                        forged,
+                        root=root,
+                        path_overrides=explicit,
+                    )
+
+            forged = copy.deepcopy(fixed)
             forged["results_observed"] = True
             with mock.patch(
                 "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
@@ -349,6 +362,51 @@ class RuntimeV4Test(unittest.TestCase):
                         root=root,
                         path_overrides=explicit,
                     )
+
+    def test_authenticated_p1_wrapper_orders_loader_before_body_with_frozen_lists(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            metadata, _, _ = _v4_fixture(root)
+            candidate = _runtime_manifest(root, metadata)
+            candidate.update(
+                {
+                    "manifest_id": "fixture-p1",
+                    "manifest_sha256": "f" * 64,
+                    "base_revision": "b" * 40,
+                    "results_observed": False,
+                }
+            )
+
+            def freeze(value):
+                if isinstance(value, dict):
+                    return {key: freeze(item) for key, item in value.items()}
+                if isinstance(value, list):
+                    return tuple(freeze(item) for item in value)
+                return value
+
+            frozen = freeze(candidate)
+            events: list[str] = []
+
+            def loader(_path):
+                events.append("load_fixed_manifest")
+                return frozen
+
+            def body(manifest, **_kwargs):
+                events.append("validate_v4_runtime_inputs")
+                self.assertIs(manifest, frozen)
+                return {"v4_runtime_validation_status": "passed"}
+
+            with mock.patch(
+                "unidream.experiments.p1_recovery_prereg.load_fixed_manifest",
+                side_effect=loader,
+            ), mock.patch(
+                "unidream.experiments.runtime.validate_v4_runtime_inputs",
+                side_effect=body,
+            ):
+                result = validate_p1_v4_runtime_inputs(candidate, root=root)
+
+            self.assertEqual(events, ["load_fixed_manifest", "validate_v4_runtime_inputs"])
+            self.assertEqual(result["manifest_sha256"], "f" * 64)
 
     def test_legacy_v3_cache_is_explicitly_unverified(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -249,6 +249,15 @@ def _v4_runtime_require_mapping(value: Any, label: str) -> Mapping[str, Any]:
     return value
 
 
+def _v4_runtime_plain(value: Any) -> Any:
+    """Normalize frozen tuples/mappings for authenticated identity checks."""
+    if isinstance(value, Mapping):
+        return {key: _v4_runtime_plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_v4_runtime_plain(item) for item in value]
+    return value
+
+
 def _v4_runtime_body_metadata_matches(
     candidate: Mapping[str, Any],
     expected: Mapping[str, Any],
@@ -610,11 +619,14 @@ def validate_p1_v4_runtime_inputs(
             )
         manifest_path = manifest
 
-    selected_manifest_path = (
-        Path(manifest_path)
-        if manifest_path is not None
-        else p1_recovery_prereg.DEFAULT_MANIFEST_PATH
-    )
+    try:
+        selected_manifest_path = (
+            Path(manifest_path)
+            if manifest_path is not None
+            else p1_recovery_prereg.DEFAULT_MANIFEST_PATH
+        )
+    except (TypeError, ValueError) as exc:
+        raise V4RuntimeInputError("P1 manifest path must be path-like") from exc
     try:
         fixed_manifest = p1_recovery_prereg.load_fixed_manifest(selected_manifest_path)
     except (p1_recovery_prereg.P1PreregistrationError, OSError, TypeError, ValueError) as exc:
@@ -636,7 +648,7 @@ def validate_p1_v4_runtime_inputs(
             "manifest_sha256"
         ):
             raise V4RuntimeInputError("P1 manifest_sha256 differs from the pinned manifest")
-        if dict(candidate_manifest) != dict(fixed_manifest):
+        if _v4_runtime_plain(candidate_manifest) != _v4_runtime_plain(fixed_manifest):
             raise V4RuntimeInputError(
                 "supplied P1 manifest differs from the authenticated fixed manifest"
             )
@@ -659,6 +671,10 @@ def validate_p1_v4_runtime_inputs(
     )
     result.update(
         {
+            "manifest_id": fixed_manifest.get("manifest_id"),
+            "manifest_sha256": fixed_manifest.get("manifest_sha256"),
+            "base_revision": fixed_manifest.get("base_revision"),
+            "results_observed": fixed_manifest.get("results_observed"),
             "p1_manifest_id": fixed_manifest.get("manifest_id"),
             "p1_manifest_sha256": fixed_manifest.get("manifest_sha256"),
             "p1_base_revision": fixed_manifest.get("base_revision"),
