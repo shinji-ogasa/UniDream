@@ -17,12 +17,27 @@ from unidream.experiments.p1_mbb import (
     P1MBBError,
     P1MBBImplementationBlocked,
     build_p1_mbb_index_artifact,
+    bootstrap_p1_metric,
+    bootstrap_p1_metric_seed_aggregate,
     derive_p1_seed,
     draw_non_circular_mbb_starts,
     load_p1_mbb_index_artifact,
     materialize_non_circular_mbb_indices,
     paired_bootstrap_mean_delta,
     paired_bootstrap_mean_delta_sensitivity,
+    recompute_agreement_delta,
+    recompute_agreement_mean,
+    recompute_logloss_delta,
+    recompute_logloss_mean,
+    recompute_mse_delta,
+    recompute_normalized_regret,
+    recompute_policy_utility_delta,
+    recompute_s2_level_contrast,
+    recompute_s2_normalized_regret_contrast,
+    recompute_s2_skill_contrast,
+    recompute_s3_skill_did,
+    recompute_s3_utility_did,
+    recompute_skill,
     reject_unpaired_or_generic_mbb,
     save_p1_mbb_index_artifact,
 )
@@ -262,6 +277,382 @@ class P1ExactMBBTests(unittest.TestCase):
             result["raw_p"],
             max(row["p_value"] for row in result["per_block_length"].values()),
         )
+
+    def test_preregistered_metric_recomputation_is_per_replicate(self) -> None:
+        n = 35
+        artifact = self._artifact(n=n, block_length=8)
+        mask = np.ones(n, dtype=np.bool_)
+        candidate_se = np.linspace(1.0, 2.0, n, dtype="<f8")
+        baseline_se = np.linspace(2.0, 3.0, n, dtype="<f8")
+        candidate_logloss = np.linspace(0.1, 0.5, n, dtype="<f8")
+        baseline_logloss = np.linspace(0.2, 0.6, n, dtype="<f8")
+        candidate_agreement = np.linspace(0.7, 0.9, n, dtype="<f8")
+        baseline_agreement = np.linspace(0.6, 0.8, n, dtype="<f8")
+        candidate_utility = np.linspace(-0.2, 0.8, n, dtype="<f8")
+        benchmark_hold = np.linspace(-0.1, 0.4, n, dtype="<f8")
+        regret = np.linspace(0.1, 0.4, n, dtype="<f8")
+        opportunity = np.linspace(0.5, 1.5, n, dtype="<f8")
+
+        cases = {
+            "mse_delta": {
+                "candidate_se": candidate_se,
+                "baseline_se": baseline_se,
+            },
+            "skill": {"model_se": candidate_se, "zero_se": baseline_se},
+            "logloss": {
+                "candidate_logloss": candidate_logloss,
+                "baseline_logloss": baseline_logloss,
+            },
+            "agreement": {
+                "candidate_agreement": candidate_agreement,
+                "baseline_agreement": baseline_agreement,
+            },
+            "policy_utility_delta": {
+                "candidate_utility": candidate_utility,
+                "benchmark_hold_utility": benchmark_hold,
+            },
+            "s2_contrast": {
+                "level_a_values": candidate_agreement,
+                "level_b_values": baseline_agreement,
+            },
+            "normalized_regret": {"regret": regret, "opportunity": opportunity},
+            "s3_skill_did": {
+                "injected_model_se": candidate_se,
+                "injected_zero_se": baseline_se,
+                "control_model_se": baseline_se,
+                "control_zero_se": candidate_se,
+            },
+            "s3_utility_did": {
+                "injected_candidate_utility": candidate_utility,
+                "injected_benchmark_hold_utility": benchmark_hold,
+                "control_candidate_utility": benchmark_hold,
+                "control_benchmark_hold_utility": np.zeros(n, dtype="<f8"),
+            },
+        }
+        directions = {
+            "mse_delta": "negative",
+            "skill": "positive",
+            "logloss": "negative",
+            "agreement": "positive",
+            "policy_utility_delta": "positive",
+            "s2_contrast": "positive",
+            "normalized_regret": "negative",
+            "s3_skill_did": "positive",
+            "s3_utility_did": "positive",
+        }
+        level_direction = {"s2_contrast": "high_ge_medium"}
+        for metric, arrays in cases.items():
+            with self.subTest(metric=metric):
+                result = bootstrap_p1_metric(
+                    metric,
+                    artifact=artifact,
+                    mask=mask,
+                    direction=directions[metric],
+                    level_direction=level_direction.get(metric),
+                    **arrays,
+                )
+                self.assertEqual(result["status"], "ok")
+                self.assertEqual(result["bootstrap_values"].shape, (2000,))
+                if metric == "mse_delta":
+                    expected = recompute_mse_delta(candidate_se, baseline_se, mask)
+                    replicate = recompute_mse_delta(
+                        candidate_se,
+                        baseline_se,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "skill":
+                    expected = recompute_skill(candidate_se, baseline_se, mask)
+                    replicate = recompute_skill(
+                        candidate_se,
+                        baseline_se,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "logloss":
+                    expected = recompute_logloss_delta(
+                        candidate_logloss, baseline_logloss, mask
+                    )
+                    replicate = recompute_logloss_delta(
+                        candidate_logloss,
+                        baseline_logloss,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "agreement":
+                    expected = recompute_agreement_delta(
+                        candidate_agreement, baseline_agreement, mask
+                    )
+                    replicate = recompute_agreement_delta(
+                        candidate_agreement,
+                        baseline_agreement,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "policy_utility_delta":
+                    expected = recompute_policy_utility_delta(
+                        candidate_utility, benchmark_hold, mask
+                    )
+                    replicate = recompute_policy_utility_delta(
+                        candidate_utility,
+                        benchmark_hold,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "s2_contrast":
+                    expected = recompute_s2_level_contrast(
+                        candidate_agreement,
+                        baseline_agreement,
+                        mask,
+                        level_direction="high_ge_medium",
+                    )
+                    replicate = recompute_s2_level_contrast(
+                        candidate_agreement,
+                        baseline_agreement,
+                        mask,
+                        level_direction="high_ge_medium",
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "normalized_regret":
+                    expected = recompute_normalized_regret(regret, opportunity, mask)
+                    replicate = recompute_normalized_regret(
+                        regret,
+                        opportunity,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                elif metric == "s3_skill_did":
+                    expected = recompute_s3_skill_did(
+                        candidate_se,
+                        baseline_se,
+                        baseline_se,
+                        candidate_se,
+                        mask,
+                    )
+                    replicate = recompute_s3_skill_did(
+                        candidate_se,
+                        baseline_se,
+                        baseline_se,
+                        candidate_se,
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                else:
+                    expected = recompute_s3_utility_did(
+                        candidate_utility,
+                        benchmark_hold,
+                        benchmark_hold,
+                        np.zeros(n, dtype="<f8"),
+                        mask,
+                    )
+                    replicate = recompute_s3_utility_did(
+                        candidate_utility,
+                        benchmark_hold,
+                        benchmark_hold,
+                        np.zeros(n, dtype="<f8"),
+                        mask,
+                        indices=artifact.indices_for(0),
+                    )
+                self.assertAlmostEqual(result["point_estimate"], expected)
+                self.assertAlmostEqual(result["bootstrap_values"][0], replicate)
+
+        self.assertAlmostEqual(
+            recompute_logloss_mean(candidate_logloss, mask),
+            float(np.mean(candidate_logloss)),
+        )
+        self.assertAlmostEqual(
+            recompute_agreement_mean(candidate_agreement, mask),
+            float(np.mean(candidate_agreement)),
+        )
+
+    def test_metric_contract_blocks_bad_denominators_masks_and_unregistered_fields(self) -> None:
+        n = 35
+        artifact = self._artifact(n=n)
+        mask = np.ones(n, dtype=np.bool_)
+        ones = np.ones(n, dtype="<f8")
+        zeros = np.zeros(n, dtype="<f8")
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "skill",
+                artifact=artifact,
+                mask=mask,
+                model_se=ones,
+                zero_se=zeros,
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "normalized_regret",
+                artifact=artifact,
+                mask=mask,
+                regret=ones,
+                opportunity=zeros,
+            )
+        mismatched = mask.copy()
+        mismatched[-1] = False
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "mse_delta",
+                artifact=artifact,
+                mask=mask,
+                candidate_mask=mask,
+                baseline_mask=mismatched,
+                candidate_se=ones,
+                baseline_se=ones,
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "mse_delta",
+                artifact=artifact,
+                mask=mask,
+                candidate_se=ones,
+                baseline_se=ones,
+                reducer=lambda values: float(np.mean(values)),
+            )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "s2_contrast",
+                artifact=artifact,
+                mask=mask,
+                level_direction="high_le_medium",
+                direction="positive",
+                level_a_values=ones,
+                level_b_values=zeros,
+            )
+
+    def test_s2_skill_and_normalized_regret_recompute_before_level_contrast(self) -> None:
+        n = 35
+        artifact = self._artifact(n=n, block_length=8)
+        mask = np.ones(n, dtype=np.bool_)
+        zeros = np.zeros(n, dtype="<f8")
+        level_a_model = np.full(n, 1.0, dtype="<f8")
+        level_a_zero = np.full(n, 4.0, dtype="<f8")
+        level_b_model = np.full(n, 2.0, dtype="<f8")
+        level_b_zero = np.full(n, 4.0, dtype="<f8")
+        skill_result = bootstrap_p1_metric(
+            "s2_contrast",
+            artifact=artifact,
+            mask=mask,
+            level_direction="high_ge_medium",
+            level_metric="skill",
+            level_a_model_se=level_a_model,
+            level_a_zero_se=level_a_zero,
+            level_b_model_se=level_b_model,
+            level_b_zero_se=level_b_zero,
+        )
+        expected_skill = recompute_s2_skill_contrast(
+            level_a_model,
+            level_a_zero,
+            level_b_model,
+            level_b_zero,
+            mask,
+            level_direction="high_ge_medium",
+        )
+        expected_skill_replicate = recompute_s2_skill_contrast(
+            level_a_model,
+            level_a_zero,
+            level_b_model,
+            level_b_zero,
+            mask,
+            level_direction="high_ge_medium",
+            indices=artifact.indices_for(0),
+        )
+        self.assertAlmostEqual(skill_result["point_estimate"], expected_skill)
+        self.assertAlmostEqual(
+            skill_result["bootstrap_values"][0], expected_skill_replicate
+        )
+        level_a_regret = np.full(n, 1.0, dtype="<f8")
+        level_a_opportunity = np.full(n, 2.0, dtype="<f8")
+        level_b_regret = np.full(n, 1.5, dtype="<f8")
+        level_b_opportunity = np.full(n, 2.0, dtype="<f8")
+        regret_result = bootstrap_p1_metric(
+            "s2_contrast",
+            artifact=artifact,
+            mask=mask,
+            level_direction="high_le_medium",
+            level_metric="normalized_regret",
+            level_a_regret=level_a_regret,
+            level_a_opportunity=level_a_opportunity,
+            level_b_regret=level_b_regret,
+            level_b_opportunity=level_b_opportunity,
+        )
+        expected_regret = recompute_s2_normalized_regret_contrast(
+            level_a_regret,
+            level_a_opportunity,
+            level_b_regret,
+            level_b_opportunity,
+            mask,
+            level_direction="high_le_medium",
+        )
+        self.assertAlmostEqual(regret_result["point_estimate"], expected_regret)
+        self.assertAlmostEqual(
+            regret_result["bootstrap_values"][0],
+            recompute_s2_normalized_regret_contrast(
+                level_a_regret,
+                level_a_opportunity,
+                level_b_regret,
+                level_b_opportunity,
+                mask,
+                level_direction="high_le_medium",
+                indices=artifact.indices_for(0),
+            ),
+        )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric(
+                "s2_contrast",
+                artifact=artifact,
+                mask=mask,
+                level_direction="high_ge_medium",
+                level_metric="normalized_regret",
+                level_a_regret=level_a_regret,
+                level_a_opportunity=zeros,
+                level_b_regret=level_b_regret,
+                level_b_opportunity=level_b_opportunity,
+            )
+
+    def test_synthetic_seed_aggregation_is_independent_and_equal_weighted(self) -> None:
+        n = 35
+        mask = np.ones(n, dtype=np.bool_)
+        seed_inputs = {
+            seed: {
+                "mask": mask.copy(),
+                "candidate_utility": np.full(n, float(seed + 1), dtype="<f8"),
+                "benchmark_hold_utility": np.zeros(n, dtype="<f8"),
+            }
+            for seed in range(10)
+        }
+        result = bootstrap_p1_metric_seed_aggregate(
+            "policy_utility_delta",
+            unit="synthetic_action",
+            support_id="synthetic_validation",
+            block_length=8,
+            seed_inputs=seed_inputs,
+            direction="positive",
+        )
+        self.assertEqual(result["seed_count"], 10)
+        self.assertEqual(result["seed_ordinals"], list(range(10)))
+        self.assertAlmostEqual(result["point_estimate"], 5.5)
+        expected = np.mean(
+            np.stack(
+                [result["per_seed"][seed]["bootstrap_values"] for seed in range(10)],
+                axis=0,
+            ),
+            axis=0,
+        )
+        np.testing.assert_array_equal(result["bootstrap_values"], expected)
+        self.assertEqual(len(result["index_artifact_sha256_by_seed"]), 10)
+        self.assertEqual(
+            len(set(result["index_artifact_sha256_by_seed"].values())),
+            10,
+        )
+        with self.assertRaises(P1MBBError):
+            bootstrap_p1_metric_seed_aggregate(
+                "policy_utility_delta",
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                block_length=8,
+                seed_inputs={seed: payload for seed, payload in seed_inputs.items() if seed != 9},
+                direction="positive",
+            )
 
     def test_raw_start_helpers_require_exact_int64_and_non_circular_range(self) -> None:
         rng = np.random.default_rng(20260830)
