@@ -221,6 +221,12 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         header = artifact["header"]
         records = artifact["records"]
         self.assertEqual(header["record_count"], 4)
+        self.assertEqual(header["support_start"], 0)
+        self.assertEqual(header["support_range"], [0, 17])
+        self.assertEqual(
+            header["source_role"],
+            "deterministic_fixture_realized_return_inputs",
+        )
         self.assertEqual([row["decision_index"] for row in records], [0, 4, 8, 12])
         self.assertEqual([row["fill_index"] for row in records], [1, 5, 9, 13])
         self.assertEqual([row["end_index"] for row in records], [4, 8, 12, 16])
@@ -242,6 +248,12 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             realized_returns=self._fixture_returns(),
         )
         self.assertEqual(result["semantic_validation_status"], "passed")
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "production validation"):
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=self._fixture_returns(),
+                require_production=True,
+            )
 
         off = self._fixture(cost_mode="off")
         self.assertEqual(
@@ -341,16 +353,71 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             contract=contract,
         )
 
-    def test_grid_order_requires_zero_based_four_bar_starts(self) -> None:
-        for starts in ((-4, 0), (1,), (0, 4, 100)):
+    def test_grid_order_requires_one_global_start_and_four_bar_spacing(self) -> None:
+        for starts in ((-4, 0), (1, 6), (0, 4, 100)):
             with self.subTest(starts=starts):
                 records = [_record(index) for index in range(len(starts))]
                 for record, decision_index in zip(records, starts):
                     record["decision_index"] = decision_index
                     record["fill_index"] = decision_index + 1
                     record["end_index"] = decision_index + 4
-                with self.assertRaisesRegex(ActionPrimitiveContractError, "start at 0"):
+                with self.assertRaisesRegex(ActionPrimitiveContractError, "global support start"):
                     action_primitive_content_sha256(records)
+
+        shifted = [_record(index) for index in range(2)]
+        for record, decision_index in zip(shifted, (90_000, 90_004)):
+            record["decision_index"] = decision_index
+            record["fill_index"] = decision_index + 1
+            record["end_index"] = decision_index + 4
+        self.assertEqual(len(action_primitive_content_sha256(shifted)), 64)
+
+    def test_production_artifact_binds_registered_global_support(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        n_bars = 10_000
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[np.arange(0, n_bars - 4, 4, dtype=np.int64)] = 0.001
+        artifact = produce_action_primitive_grid(
+            returns=np.full(n_bars, 0.0001, dtype=np.float64),
+            support_start=90_000,
+            decision_block_scores=scores,
+            decision_eligible=np.ones(n_bars, dtype=bool),
+            score_eligible=np.ones(n_bars, dtype=bool),
+            scenario_id="S1",
+            seed=20260830,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="ridge",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+            require_production=True,
+        )
+        self.assertEqual(artifact["header"]["source_role"], "validated_stored_action_inputs")
+        self.assertEqual(artifact["records"][0]["decision_index"], 90_000)
+        self.assertEqual(artifact["records"][-1]["decision_index"], 99_992)
+        self.assertEqual(
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=np.full(n_bars, 0.0001, dtype=np.float64),
+                require_production=True,
+            )["semantic_validation_status"],
+            "passed",
+        )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "preregistered support range"):
+            produce_action_primitive_grid(
+                returns=np.full(17, 0.0001, dtype=np.float64),
+                support_start=0,
+                decision_block_scores=np.zeros(4, dtype=np.float64),
+                decision_eligible=np.ones(17, dtype=bool),
+                score_eligible=np.ones(17, dtype=bool),
+                scenario_id="S1",
+                seed=20260830,
+                split_id="validation",
+                support_id="synthetic_validation",
+                model_id="ridge",
+                cost_mode="on",
+                cost_contract_hash=contract.contract_hash,
+                require_production=True,
+            )
 
     def test_validator_is_fail_closed_for_schema_empty_rows_and_omitted_hashes(self) -> None:
         records = [_record(0)]

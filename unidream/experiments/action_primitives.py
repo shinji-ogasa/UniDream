@@ -1,11 +1,10 @@
 """Canonical deterministic P1 action primitive producer and validator.
 
-The producer only materialises stored fixture inputs under the registered h4
-action/execution contract.  It does not fit a model, create a teacher, run a
-clairvoyant policy, or bootstrap records.  The moving-block runner remains
-blocked until its separately audited implementation is landed.  Invalid or
-gapped scheduled rows are retained with false masks and are never compressed
-before hashing.
+The producer materialises stored fixture or externally authenticated runner
+inputs under the registered h4 action/execution contract.  It does not fit a
+model, create a teacher, run a hindsight policy, or bootstrap records.  The
+moving-block runner remains a separate boundary.  Invalid or gapped scheduled
+rows are retained with false masks and are never compressed before hashing.
 """
 from __future__ import annotations
 
@@ -97,6 +96,14 @@ ACTION_PRIMITIVE_COST_CONTRACT_PATHS: dict[str, str] = {
 ACTION_PRIMITIVE_COST_CONTRACT_SHA256: dict[str, str] = {
     "on": "6f5beb7865fceac5ecbcfbb31dd11e8fdada02e1841fecac1c17e22377bb624f",
     "off": "0d0508fa38b4d98bc7736add7916ed1afd7bedcddbf0c47bdadf8ff1183ccdcc",
+}
+
+# The two inferential action supports are fixed by the P1 preregistration.
+# Stored record indices are raw/global body coordinates, while input vectors
+# are split-local arrays.  A production artifact must bind both views exactly.
+ACTION_PRIMITIVE_PRIMARY_SUPPORT_RANGES: dict[str, tuple[int, int]] = {
+    "synthetic_validation": (90_000, 100_000),
+    "s3_validation": (104_528, 139_568),
 }
 
 ACTION_PRIMITIVE_ARTIFACT_TYPE = "p1_action_primitive"
@@ -274,9 +281,9 @@ def _validate_grid_order(columns: Mapping[str, Sequence[Any]], row_count: int) -
     decision = [_strict_int(value, field="decision_index") for value in columns["decision_index"]]
     fill = [_strict_int(value, field="fill_index") for value in columns["fill_index"]]
     end = [_strict_int(value, field="end_index") for value in columns["end_index"]]
-    if decision[0] != 0 or decision != [4 * index for index in range(row_count)]:
+    if decision[0] < 0 or decision != [decision[0] + 4 * index for index in range(row_count)]:
         raise ActionPrimitiveContractError(
-            "decision_index must start at 0 and retain exact scheduled four-bar starts 0,4,..."
+            "decision_index must retain one non-negative global support start and exact four-bar spacing"
         )
     if any(
         fill_value != decision_value + 1 or end_value != decision_value + 4
@@ -906,14 +913,56 @@ def _infer_bar_count(
     return candidates[0][1]
 
 
-def _header_schedule(contract: ActionExecutionContract) -> dict[str, Any]:
+def _resolve_support_start(
+    value: Any,
+    *,
+    arm: Mapping[str, Any],
+    bar_count: int,
+    require_registered_support: bool,
+) -> int:
+    if value is None:
+        if require_registered_support:
+            raise ActionPrimitiveContractError(
+                "production action primitives require an explicit support_start"
+            )
+        support_start = 0
+    else:
+        support_start = _strict_int(value, field="support_start")
+    if support_start < 0:
+        raise ActionPrimitiveContractError("support_start must be non-negative")
+    if require_registered_support:
+        if arm.get("split_id") != "validation":
+            raise ActionPrimitiveContractError(
+                "production action primitives are restricted to the registered validation split"
+            )
+        support_id = arm.get("support_id")
+        expected = ACTION_PRIMITIVE_PRIMARY_SUPPORT_RANGES.get(str(support_id))
+        if expected is None:
+            raise ActionPrimitiveContractError(
+                "production action primitive support_id is not preregistered"
+            )
+        if (support_start, support_start + bar_count) != expected:
+            raise ActionPrimitiveContractError(
+                "production support_start/bar_count do not match the preregistered support range"
+            )
+    return support_start
+
+
+def _header_schedule(
+    contract: ActionExecutionContract,
+    *,
+    support_start: int,
+) -> dict[str, Any]:
     return {
-        "decision_start": int(contract.initial_countdown),
+        "local_decision_start": int(contract.initial_countdown),
+        "global_decision_start": int(support_start + contract.initial_countdown),
+        "support_start": int(support_start),
         "decision_step": int(contract.commitment_bars),
         "fill_delay_bars": int(contract.execution_delay_bars),
         "commitment_bars": int(contract.commitment_bars),
         "tail_policy": contract.tail_policy,
         "record_rule": "one record per complete scheduled four-bar block",
+        "index_rule": "global decision index = support_start + split-local decision index",
         "target_rule": "decision t -> fill t+1 -> returns[t+1:t+5]",
     }
 
@@ -977,6 +1026,7 @@ def produce_action_primitive_grid(
     *,
     returns: Sequence[Any] | None = None,
     n_bars: int | None = None,
+    support_start: int | None = None,
     decision_block_scores: Sequence[Any] | None = None,
     decision_deltas: Sequence[Any] | None = None,
     selected_deltas: Sequence[Any] | None = None,
@@ -1010,7 +1060,9 @@ def produce_action_primitive_grid(
     replays inventory over a resampled sequence.  The separate P1 moving
     block bootstrap/runner remains blocked.
 
-    ``returns`` and ``score_eligible`` are full bar-length vectors.  Scores and
+    ``returns`` and ``score_eligible`` are split-local full bar-length vectors.
+    Persisted decision/fill/end indices are global coordinates obtained by
+    adding ``support_start`` to the scheduled local grid.  Scores and
     selected deltas may be full bar-length vectors (only scheduled starts are
     read) or one value per scheduled block.  Explicit masks may use either
     representation; all output rows are always the complete scheduled grid.
@@ -1060,8 +1112,14 @@ def produce_action_primitive_grid(
         returns=returns,
         score_eligible=score_eligible,
     )
-    starts = complete_decision_starts(bar_count, contract_obj)
-    if not starts:
+    support_start_int = _resolve_support_start(
+        support_start,
+        arm=arm,
+        bar_count=bar_count,
+        require_registered_support=require_production,
+    )
+    local_starts = complete_decision_starts(bar_count, contract_obj)
+    if not local_starts:
         raise ActionPrimitiveContractError(
             "inputs must contain at least one complete scheduled four-bar block"
         )
@@ -1091,7 +1149,7 @@ def produce_action_primitive_grid(
         origin_input,
         name="origin_eligible_mask",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
         role="origin",
         fill_delay=contract_obj.execution_delay_bars,
         commitment_bars=contract_obj.commitment_bars,
@@ -1102,13 +1160,13 @@ def produce_action_primitive_grid(
         decision_block_scores,
         name="decision_block_scores",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
     )
     delta_block = _normalise_block_action(
         direct_delta_input,
         name="decision_deltas",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
     )
     if score_block is None and delta_block is None:
         raise ActionPrimitiveContractError(
@@ -1118,7 +1176,7 @@ def produce_action_primitive_grid(
         forecast_finite_mask,
         name="forecast_finite_mask",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
         role="origin",
         fill_delay=contract_obj.execution_delay_bars,
         commitment_bars=contract_obj.commitment_bars,
@@ -1141,7 +1199,7 @@ def produce_action_primitive_grid(
         forecast_block = explicit_forecast_block
 
     expected_fill_block = np.asarray(
-        [score_eligible_arr[start + contract_obj.execution_delay_bars] for start in starts],
+        [score_eligible_arr[start + contract_obj.execution_delay_bars] for start in local_starts],
         dtype=bool,
     )
     expected_outcome_block = np.asarray(
@@ -1165,7 +1223,7 @@ def produce_action_primitive_grid(
                     )
                 )
             )
-            for start in starts
+            for start in local_starts
         ],
         dtype=bool,
     )
@@ -1173,7 +1231,7 @@ def produce_action_primitive_grid(
         fill_complete_mask,
         name="fill_complete_mask",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
         role="fill",
         fill_delay=contract_obj.execution_delay_bars,
         commitment_bars=contract_obj.commitment_bars,
@@ -1188,7 +1246,7 @@ def produce_action_primitive_grid(
         outcome_complete_mask,
         name="outcome_complete_mask",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
         role="outcome",
         fill_delay=contract_obj.execution_delay_bars,
         commitment_bars=contract_obj.commitment_bars,
@@ -1209,13 +1267,13 @@ def produce_action_primitive_grid(
     )
     paired_supplied = paired_input is not None
     if paired_input is None:
-        paired_block = np.ones(len(starts), dtype=bool)
+        paired_block = np.ones(len(local_starts), dtype=bool)
     else:
         paired_block = _normalise_block_mask(
             paired_input,
             name="paired_common_mask",
             n_bars=bar_count,
-            starts=starts,
+            starts=local_starts,
             role="origin",
             fill_delay=contract_obj.execution_delay_bars,
             commitment_bars=contract_obj.commitment_bars,
@@ -1237,16 +1295,19 @@ def produce_action_primitive_grid(
                 values,
                 name=field,
                 n_bars=bar_count,
-                starts=starts,
+                starts=local_starts,
             )
             assert normalised is not None
             metric_overrides[field] = normalised
 
     records: list[dict[str, Any]] = []
     current = float(contract_obj.p_start)
-    for row_index, start in enumerate(starts):
-        fill = start + contract_obj.execution_delay_bars
-        end = fill + contract_obj.commitment_bars
+    for row_index, local_start in enumerate(local_starts):
+        local_fill = local_start + contract_obj.execution_delay_bars
+        local_end = local_fill + contract_obj.commitment_bars
+        decision_index = support_start_int + local_start
+        fill_index = support_start_int + local_fill
+        end_index = support_start_int + local_end - 1
         previous_position = current
         scored = bool(scored_block[row_index])
         if scored:
@@ -1304,8 +1365,8 @@ def produce_action_primitive_grid(
                     previous_position=previous_position,
                     selected_position=selected_position,
                     returns=returns_arr,
-                    fill=fill,
-                    end=end,
+                    fill=local_fill,
+                    end=local_end,
                     contract=contract_obj,
                 )
             else:
@@ -1357,9 +1418,9 @@ def produce_action_primitive_grid(
 
         record: dict[str, Any] = {
             "primitive_index": int(row_index),
-            "decision_index": int(start),
-            "fill_index": int(fill),
-            "end_index": int(end - 1),
+            "decision_index": int(decision_index),
+            "fill_index": int(fill_index),
+            "end_index": int(end_index),
             "previous_position": float(previous_position),
             "selected_delta": float(chosen_delta),
             "selected_position": float(selected_position),
@@ -1387,6 +1448,8 @@ def produce_action_primitive_grid(
         "record_fields": list(ACTION_PRIMITIVE_RECORD_FIELDS),
         "record_count": len(records),
         "bar_count": int(bar_count),
+        "support_start": int(support_start_int),
+        "support_range": [int(support_start_int), int(support_start_int + bar_count)],
         "contract_hash": contract_obj.contract_hash,
         "contract_path": contract_path,
         "contract": contract_obj.to_dict(),
@@ -1394,7 +1457,7 @@ def produce_action_primitive_grid(
         "cooldown": _header_cooldown(contract_obj),
         "execution": _header_execution(contract_obj),
         "cost": _header_cost(contract_obj),
-        "schedule": _header_schedule(contract_obj),
+        "schedule": _header_schedule(contract_obj, support_start=support_start_int),
         "mask_logic": dict(_ACTION_PRIMITIVE_MASK_LOGIC),
         "paired_common_mask_supplied": bool(paired_supplied),
         "paired_common_mask": paired_common_header,
@@ -1402,19 +1465,25 @@ def produce_action_primitive_grid(
         **arm,
         "source_role": (
             "validated_stored_action_inputs"
-            if returns_arr is not None
-            else "deterministic_fixture_stored_action_inputs"
+            if require_production
+            else (
+                "deterministic_fixture_realized_return_inputs"
+                if returns_arr is not None
+                else "deterministic_fixture_stored_action_inputs"
+            )
         ),
         "teacher_oracle_execution": "not_run",
         "action_primitive_producer_status": (
-            "validated_production_input"
-            if returns_arr is not None
-            else "deterministic_fixture_only"
+            "validated_production_input" if require_production else "deterministic_fixture_only"
         ),
         "metric_source": (
             "recomputed_from_realized_returns"
-            if returns_arr is not None
-            else "caller_supplied_fixture_metrics"
+            if require_production
+            else (
+                "recomputed_from_fixture_realized_returns"
+                if returns_arr is not None
+                else "caller_supplied_fixture_metrics"
+            )
         ),
         "moving_block_bootstrap_status": ACTION_PRIMITIVE_EXECUTION_STATUS,
         "contract_json_sha256": contract_obj.contract_hash,
@@ -1567,23 +1636,39 @@ def validate_action_primitive_semantics(
     if arm["cost_contract_hash"] != contract_obj.contract_hash:
         raise ActionPrimitiveContractError("cost_contract_hash does not match cost_mode contract")
 
+    source_role = header.get("source_role")
+    production_source = source_role == "validated_stored_action_inputs"
+    support_start_int = _resolve_support_start(
+        header.get("support_start"),
+        arm=arm,
+        bar_count=bar_count,
+        require_registered_support=production_source,
+    )
+    if header.get("support_range") != [support_start_int, support_start_int + bar_count]:
+        raise ActionPrimitiveContractError(
+            "header.support_range must equal [support_start, support_start+bar_count)"
+        )
+
     for field, expected_value in (
         ("action_grid", _header_action_grid(contract_obj)),
         ("cooldown", _header_cooldown(contract_obj)),
         ("execution", _header_execution(contract_obj)),
         ("cost", _header_cost(contract_obj)),
-        ("schedule", _header_schedule(contract_obj)),
+        ("schedule", _header_schedule(contract_obj, support_start=support_start_int)),
         ("mask_logic", _ACTION_PRIMITIVE_MASK_LOGIC),
     ):
         if header.get(field) != expected_value:
             raise ActionPrimitiveContractError(f"header.{field} does not match the contract")
-    source_role = header.get("source_role")
     producer_status = header.get("action_primitive_producer_status")
     metric_source = header.get("metric_source")
     allowed_status = {
         "deterministic_fixture_stored_action_inputs": (
             "deterministic_fixture_only",
             "caller_supplied_fixture_metrics",
+        ),
+        "deterministic_fixture_realized_return_inputs": (
+            "deterministic_fixture_only",
+            "recomputed_from_fixture_realized_returns",
         ),
         "validated_stored_action_inputs": (
             "validated_production_input",
@@ -1614,8 +1699,8 @@ def validate_action_primitive_semantics(
             "unspecified paired common mask must be all true"
         )
 
-    starts = complete_decision_starts(bar_count, contract_obj)
-    if len(starts) != record_count:
+    local_starts = complete_decision_starts(bar_count, contract_obj)
+    if len(local_starts) != record_count:
         raise ActionPrimitiveContractError(
             "header.bar_count does not produce exactly the persisted complete block grid"
         )
@@ -1626,7 +1711,8 @@ def validate_action_primitive_semantics(
         expected_content_sha256=header_hashes["action_primitive_content_sha256"],
         expected_payload_sha256=header_hashes["action_primitive_payload_sha256"],
     )
-    if tuple(_strict_int(value, field="decision_index") for value in starts) != tuple(
+    expected_global_starts = tuple(support_start_int + value for value in local_starts)
+    if expected_global_starts != tuple(
         _strict_int(record["decision_index"], field="decision_index") for record in records
     ):
         raise ActionPrimitiveContractError("records do not cover the complete scheduled action grid")
@@ -1665,7 +1751,7 @@ def validate_action_primitive_semantics(
             decision_eligible,
             name="decision_eligible",
             n_bars=bar_count,
-            starts=starts,
+            starts=local_starts,
             role="origin",
             fill_delay=contract_obj.execution_delay_bars,
             commitment_bars=contract_obj.commitment_bars,
@@ -1677,7 +1763,7 @@ def validate_action_primitive_semantics(
             decision_block_scores,
             name="decision_block_scores",
             n_bars=bar_count,
-            starts=starts,
+            starts=local_starts,
         )
         assert score_block is not None
         forecast_expected = np.isfinite(score_block)
@@ -1690,14 +1776,14 @@ def validate_action_primitive_semantics(
         ),
         name="decision_deltas",
         n_bars=bar_count,
-        starts=starts,
+        starts=local_starts,
     )
     if expected_common_mask is not None:
         expected_common_block = _normalise_block_mask(
             expected_common_mask,
             name="expected_common_mask",
             n_bars=bar_count,
-            starts=starts,
+            starts=local_starts,
             role="origin",
             fill_delay=contract_obj.execution_delay_bars,
             commitment_bars=contract_obj.commitment_bars,
@@ -1707,16 +1793,19 @@ def validate_action_primitive_semantics(
         expected_common_block = None
 
     current = float(contract_obj.p_start)
-    for row_index, (start, record) in enumerate(zip(starts, records)):
-        fill = start + contract_obj.execution_delay_bars
-        end = fill + contract_obj.commitment_bars
+    for row_index, (local_start, record) in enumerate(zip(local_starts, records)):
+        local_fill = local_start + contract_obj.execution_delay_bars
+        local_end = local_fill + contract_obj.commitment_bars
+        decision_index = support_start_int + local_start
+        fill_index = support_start_int + local_fill
+        end_index = support_start_int + local_end - 1
         if _strict_int(record["primitive_index"], field="primitive_index") != row_index:
             raise ActionPrimitiveContractError("primitive_index does not match row order")
-        if _strict_int(record["decision_index"], field="decision_index") != start:
+        if _strict_int(record["decision_index"], field="decision_index") != decision_index:
             raise ActionPrimitiveContractError("decision_index does not match schedule")
-        if _strict_int(record["fill_index"], field="fill_index") != fill:
+        if _strict_int(record["fill_index"], field="fill_index") != fill_index:
             raise ActionPrimitiveContractError("fill_index does not equal decision t+1")
-        if _strict_int(record["end_index"], field="end_index") != end - 1:
+        if _strict_int(record["end_index"], field="end_index") != end_index:
             raise ActionPrimitiveContractError("end_index does not equal inclusive t+4")
         for field in ACTION_PRIMITIVE_ARM_FIELDS:
             if record[field] != arm[field]:
@@ -1779,16 +1868,16 @@ def validate_action_primitive_semantics(
         if forecast_expected is not None and forecast_finite != bool(forecast_expected[row_index]):
             raise ActionPrimitiveContractError(f"row {row_index} forecast finite mask disagrees with source score")
         if score_eligible_arr is not None:
-            expected_fill = bool(score_eligible_arr[fill])
+            expected_fill = bool(score_eligible_arr[local_fill])
             expected_outcome = bool(
-                score_eligible_arr[fill:end].all()
-                and (returns_arr is None or np.all(np.isfinite(returns_arr[fill:end])))
+                score_eligible_arr[local_fill:local_end].all()
+                and (returns_arr is None or np.all(np.isfinite(returns_arr[local_fill:local_end])))
             )
             if fill_complete != expected_fill:
                 raise ActionPrimitiveContractError(f"row {row_index} fill mask disagrees with score availability")
             if outcome_complete != expected_outcome:
                 raise ActionPrimitiveContractError(f"row {row_index} outcome mask disagrees with score/return availability")
-        elif returns_arr is not None and outcome_complete and not np.all(np.isfinite(returns_arr[fill:end])):
+        elif returns_arr is not None and outcome_complete and not np.all(np.isfinite(returns_arr[local_fill:local_end])):
             raise ActionPrimitiveContractError(f"row {row_index} outcome mask accepts a non-finite return")
         if expected_common_block is not None and common != bool(expected_common_block[row_index]):
             raise ActionPrimitiveContractError(f"row {row_index} common mask disagrees with expected mask")
@@ -1848,8 +1937,8 @@ def validate_action_primitive_semantics(
                     previous_position=previous,
                     selected_position=selected,
                     returns=returns_arr,
-                    fill=fill,
-                    end=end,
+                    fill=local_fill,
+                    end=local_end,
                     contract=contract_obj,
                 )
                 for field in ACTION_PRIMITIVE_METRIC_FIELDS:
@@ -1880,10 +1969,10 @@ produce_action_primitive_artifact = produce_action_primitive_grid
 
 
 def require_action_primitive_implementation(*args: Any, **kwargs: Any) -> None:
-    """Fail closed until a separately audited producer/bootstrap is landed."""
+    """Fail closed until the separately audited MBB/result integration is landed."""
     raise ActionPrimitiveImplementationBlocked(
-        "P1 action primitive producer and moving-block bootstrap are not implemented; "
-        "the generic MBB path is forbidden"
+        "P1 action primitive moving-block/result integration is not implemented; "
+        "the generic MBB path remains forbidden"
     )
 
 
@@ -1903,6 +1992,7 @@ __all__ = [
     "ACTION_PRIMITIVE_ARM_FIELDS",
     "ACTION_PRIMITIVE_COST_CONTRACT_PATHS",
     "ACTION_PRIMITIVE_COST_CONTRACT_SHA256",
+    "ACTION_PRIMITIVE_PRIMARY_SUPPORT_RANGES",
     "ACTION_PRIMITIVE_EXECUTION_STATUS",
     "ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH",
     "ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256",
