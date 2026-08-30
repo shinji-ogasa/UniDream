@@ -16,6 +16,18 @@ class P1ValidationForecastSpecTests(unittest.TestCase):
         self.assertEqual(len(self.contract.registry.trials), 56)
         self.assertEqual(len(self.contract.registry.comparisons), 16)
         self.assertEqual(len(self.contract.specs), 7)
+        self.assertEqual(self.contract.trial_registry_sha256, forecast.P1_REGISTERED_TRIAL_REGISTRY_SHA256)
+        self.assertEqual(self.contract.comparison_registry_sha256, forecast.P1_REGISTERED_COMPARISON_REGISTRY_SHA256)
+
+    def test_exact_registered_validation_arm_keys(self) -> None:
+        keys = self.contract.validation_arm_keys
+        self.assertEqual(len(keys), forecast.P1_VALIDATION_ARM_COUNT)
+        self.assertEqual(len(set(keys)), forecast.P1_VALIDATION_ARM_COUNT)
+        self.assertEqual(sum(key[0] == "S0" for key in keys), 10)
+        self.assertEqual(sum(key[0] == "S1" for key in keys), 10)
+        self.assertEqual(sum(key[0].startswith("S2-") for key in keys), 30)
+        self.assertEqual(sum(key[0] == "S3" for key in keys), 2)
+        self.assertEqual(keys, forecast.registered_validation_arm_keys(self.contract))
 
     def test_exact_arm_seed_beta_origin_and_support_schedule(self) -> None:
         synthetic = {
