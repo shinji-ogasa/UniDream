@@ -11,7 +11,10 @@ import numpy as np
 import pandas as pd
 
 from unidream.data.cache_v4 import MODEL_FEATURE_COLUMNS, cache_v4_paths, write_cache_v4
-from unidream.data.oracle import conditional_oracle_teacher_path
+from unidream.data.oracle import (
+    conditional_oracle_teacher_path,
+    hindsight_upper_bound_path,
+)
 from unidream.eval.action_execution import ActionExecutionContract
 from unidream.experiments.chronological_oof import (
     chronological_oof_predict,
@@ -219,6 +222,12 @@ class P0IntegrationAuditTest(unittest.TestCase):
 
         # A realized-future U0 path cannot become the current inventory for a
         # conditional transition target, even when hidden under policy_replay.
+        u0 = hindsight_upper_bound_path(
+            labels,
+            contract,
+            decision_eligible=np.ones(n_rows, dtype=bool),
+            score_eligible=np.ones(n_rows, dtype=bool),
+        )
         for source in ("hindsight_teacher", "teacher", "oracle"):
             with self.subTest(source=source):
                 with self.assertRaises(TeacherInventoryContractError):
@@ -226,7 +235,7 @@ class P0IntegrationAuditTest(unittest.TestCase):
         with self.assertRaises(TeacherInventoryContractError):
             current_inventory_from_replay(
                 source="policy_replay",
-                positions=teacher_base.effective_positions,
+                positions=u0.effective_positions,
                 benchmark_position=contract.p_start,
                 initial_position=contract.p_start,
                 provenance={"producer": "hindsight_oracle"},
