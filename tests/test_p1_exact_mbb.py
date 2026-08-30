@@ -24,8 +24,10 @@ from unidream.experiments.p1_mbb import (
     build_p1_mbb_index_artifact,
     bootstrap_p1_metric as production_bootstrap_p1_metric,
     bootstrap_p1_metric_seed_aggregate as production_seed_aggregate,
+    bootstrap_p1_metric_seed_sensitivity as production_seed_sensitivity,
     bootstrap_p1_metric_fixture as bootstrap_p1_metric,
     bootstrap_p1_metric_seed_aggregate_fixture as bootstrap_p1_metric_seed_aggregate,
+    bootstrap_p1_metric_seed_sensitivity_fixture as bootstrap_p1_metric_seed_sensitivity,
     derive_p1_seed,
     draw_non_circular_mbb_starts,
     load_p1_mbb_index_artifact_fixture as load_p1_mbb_index_artifact,
@@ -1095,6 +1097,85 @@ class P1ExactMBBTests(unittest.TestCase):
                     typed.bootstrap_values,
                     expected_result_sha256=typed.result_sha256,
                 )
+
+    def test_production_seed_sensitivity_executes_and_has_validation_state(self) -> None:
+        n = 35
+        mask = np.ones(n, dtype=np.bool_)
+        common_digest = p1_mask_sha256(mask)
+        seed_inputs = {
+            seed: {
+                "mask": mask.copy(),
+                "candidate_mask": mask.copy(),
+                "baseline_mask": mask.copy(),
+                "candidate_se": np.ones(n, dtype="<f8"),
+                "baseline_se": np.full(n, 2.0, dtype="<f8"),
+            }
+            for seed in range(10)
+        }
+        provenance_by_seed = {
+            seed: {
+                "provenance": {
+                    "kind": "forecast",
+                    "common_mask_sha256": common_digest,
+                    "common_mask_field": "common_mask",
+                    "forecast_artifact_sha256": f"{seed + 1:064x}",
+                    "forecast_result_sha256": f"{seed + 11:064x}",
+                },
+                "expected_common_mask_sha256": common_digest,
+                "expected_common_mask_field": "common_mask",
+                "expected_forecast_artifact_sha256": f"{seed + 1:064x}",
+                "expected_forecast_result_sha256": f"{seed + 11:064x}",
+            }
+            for seed in range(10)
+        }
+        index_artifacts_by_length = {}
+        expected_by_length = {}
+        for length in P1_MBB_BLOCK_LENGTHS:
+            loaded_by_seed = {}
+            for seed in range(10):
+                raw_artifact = build_p1_mbb_index_artifact(
+                    n,
+                    unit="synthetic_forecast",
+                    support_id="synthetic_validation",
+                    seed_ordinal=seed,
+                    block_length=length,
+                )
+                loaded_by_seed[seed] = P1MBBIndexArtifact.from_dict(
+                    raw_artifact.to_dict(),
+                    expected_artifact_sha256=raw_artifact.artifact_sha256,
+                )
+            index_artifacts_by_length[length] = loaded_by_seed
+            expected_by_length[length] = {
+                seed: artifact.artifact_sha256
+                for seed, artifact in loaded_by_seed.items()
+            }
+
+        result = production_seed_sensitivity(
+            "mse_delta",
+            unit="synthetic_forecast",
+            support_id="synthetic_validation",
+            seed_inputs=seed_inputs,
+            direction="negative",
+            provenance_by_seed=provenance_by_seed,
+            index_artifacts_by_block_length=index_artifacts_by_length,
+            expected_index_artifact_sha256_by_block_length=expected_by_length,
+        )
+        self.assertEqual(result["block_lengths"], [8, 16, 32])
+        self.assertFalse(result["prereg_results_observed"])
+        self.assertTrue(result["validation_results_observed"])
+        self.assertFalse(result["outer_results_observed"])
+
+        fixture_result = bootstrap_p1_metric_seed_sensitivity(
+            "mse_delta",
+            unit="synthetic_forecast",
+            support_id="synthetic_validation",
+            seed_inputs=seed_inputs,
+            direction="negative",
+        )
+        self.assertFalse(fixture_result["prereg_results_observed"])
+        self.assertFalse(fixture_result["validation_results_observed"])
+        self.assertFalse(fixture_result["outer_results_observed"])
+
     def test_s2_skill_and_normalized_regret_recompute_before_level_contrast(self) -> None:
         n = 35
         artifact = self._artifact(n=n, block_length=8)

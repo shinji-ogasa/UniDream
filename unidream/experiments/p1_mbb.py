@@ -2081,6 +2081,15 @@ def _production_result_status_fields() -> dict[str, bool]:
     return dict(_P1_PRODUCTION_RESULT_STATUS)
 
 
+def _fixture_result_status_fields() -> dict[str, bool]:
+    """Mark a relaxed fixture as outside the validation/outer result state."""
+    return {
+        "prereg_results_observed": False,
+        "validation_results_observed": False,
+        "outer_results_observed": False,
+    }
+
+
 def _result_values_digest(values: np.ndarray) -> str:
     return hashlib.sha256(values.tobytes(order="C")).hexdigest()
 
@@ -3438,8 +3447,7 @@ def bootstrap_p1_metric_seed_sensitivity(
         "raw_p": max(float(result["p_value"]) for result in results.values()),
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
     }
-    if production:
-        result.update(_production_result_status_fields())
+    result.update(_production_result_status_fields())
     return result
 
 
@@ -3480,6 +3488,7 @@ def bootstrap_p1_metric_seed_sensitivity_fixture(
         "per_block_length": results,
         "raw_p": max(float(result["p_value"]) for result in results.values()),
         "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
+        **_fixture_result_status_fields(),
     }
 
 
