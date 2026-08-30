@@ -16,13 +16,14 @@
 
 ## 読む順番
 
-1. [SPEC.md](../SPEC.md) — 学習・評価・リーク防止の固定契約
-2. [plan011_v31_investor_evidence.md](plan011_v31_investor_evidence.md) — 開発 WFO と holdout の総合 evidence
-3. [plan011_v31_holdout_2024_2026.md](plan011_v31_holdout_2024_2026.md) — 2024–2026 holdout の結果
-4. [policy_family_holdout_comparison.md](policy_family_holdout_comparison.md) — policy family 比較
-5. [risk_aware_rl_unidream_holdout_2026.md](risk_aware_rl_unidream_holdout_2026.md) — 別系統の risk-aware RL probe
-6. [project_map.md](project_map.md) — research / Space / web の責務分担
-7. [statistical_gate_contract.md](statistical_gate_contract.md) — development-only statistical robustness gate contract (explicit trial count and even-fold CSCV requirement)
+1. [SPEC.md](../SPEC.md) — 現行学習・評価・リーク防止の固定契約
+2. [predictable_data_conditional_oracle_roadmap_2026.md](predictable_data_conditional_oracle_roadmap_2026.md) — 次期の predictable data → conditional Oracle 実験契約、段階ゲート、Agent 分担
+3. [plan011_v31_investor_evidence.md](plan011_v31_investor_evidence.md) — 開発 WFO と holdout の historical evidence
+4. [plan011_v31_holdout_2024_2026.md](plan011_v31_holdout_2024_2026.md) — 2024–2026 holdout の historical result
+5. [policy_family_holdout_comparison.md](policy_family_holdout_comparison.md) — policy family 比較
+6. [risk_aware_rl_unidream_holdout_2026.md](risk_aware_rl_unidream_holdout_2026.md) — 別系統の risk-aware RL probe
+7. [project_map.md](project_map.md) — research / Space / web の責務分担
+8. [statistical_gate_contract.md](statistical_gate_contract.md) — development-only statistical robustness gate contract (explicit trial count and even-fold CSCV requirement)
 
 図表は [fold0–12](figures/plan011_v31_folds0_12/README.md) と [holdout folds15–23](figures/plan011_v31_holdout_folds15_23/README.md) にまとまっています。図表の `checkpoint` 表記は、その時点の実験で使った生成物を示す履歴情報です。現在はローカル checkpoint を削除済みなので、再生成する場合は下記の学習コマンドを先に実行してください。
 
