@@ -6,11 +6,13 @@ from dataclasses import replace
 import hashlib
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 import numpy as np
 
 from unidream.experiments import p1_validation_forecast as forecast
+from unidream.experiments import p1_recovery_runner as runner
 
 
 _SOURCE_ARRAY_NAMES = (
@@ -342,9 +344,41 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
     def test_direct_or_mutated_capability_cannot_be_promoted(self) -> None:
         _, _, loaded = self._save_and_load(_fixture_artifact(self.contract))
         source = loaded.action_source
+        self.assertIsInstance(hash(source), int)
         forged = replace(source, _production_seal=None)
         with self.assertRaises(forecast.P1ForecastError):
             forecast.require_authenticated_forecast_action_source(forged)
+        replaced = replace(source, _production_seal=forecast._FORECAST_ACTION_SOURCE_SEAL)
+        self.assertFalse(forecast.is_authenticated_forecast_action_source(replaced))
+        with self.assertRaises(forecast.P1ForecastError):
+            forecast.require_authenticated_forecast_action_source(replaced)
+        direct = forecast.ForecastActionSource(
+            scenario_id=source.scenario_id,
+            arm=source.arm,
+            seed=source.seed,
+            split_id=source.split_id,
+            support_id=source.support_id,
+            support_range=source.support_range,
+            fit_origin=source.fit_origin,
+            timestamps=source.timestamps,
+            realized_returns=source.realized_returns,
+            forecast_h4=source.forecast_h4,
+            forecast_h4_mask=source.forecast_h4_mask,
+            origin_mask=source.origin_mask,
+            score_mask=source.score_mask,
+            common_mask=source.common_mask,
+            source_hashes=source.source_hashes,
+            prereg_results_observed=source.prereg_results_observed,
+            validation_results_observed=source.validation_results_observed,
+            outer_results_observed=source.outer_results_observed,
+            validation_status=source.validation_status,
+            promotion_allowed=source.promotion_allowed,
+            _production_seal=forecast._FORECAST_ACTION_SOURCE_SEAL,
+            binding_sha256=source.binding_sha256,
+        )
+        self.assertFalse(forecast.is_authenticated_forecast_action_source(direct))
+        with self.assertRaises(forecast.P1ForecastError):
+            forecast.require_authenticated_forecast_action_source(direct)
         source.realized_returns.setflags(write=True)
         source.realized_returns[0] += 1.0
         with self.assertRaises(forecast.P1ForecastError):
@@ -367,6 +401,101 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         self.assertEqual(loaded.validation["status"], "N/A")
         with self.assertRaises(forecast.P1ForecastError):
             forecast.require_authenticated_forecast_action_source(loaded.action_source)
+
+    def test_producer_requires_exact_runner_dataset_and_internal_evidence(self) -> None:
+        spec = self.contract.spec("S1", "known_high_snr_dgp")
+        fake = SimpleNamespace(
+            seed=20260830,
+            beta=spec.beta,
+            timestamps=np.asarray([np.datetime64("2024-01-01", "ns")]),
+            features=np.ones((1, 1), dtype=np.float64),
+            returns=np.full(1, 7.0, dtype=np.float64),
+        )
+        with self.assertRaises(forecast.P1ForecastError):
+            forecast.build_p1_forecast_artifact(self.contract, spec, fake, {})
+
+        dataset = runner.build_synthetic_dataset(20260830, spec.beta)
+        self.assertEqual(forecast._validate_registered_dataset(spec, dataset), 20260830)
+        with self.assertRaises(forecast.P1ForecastError):
+            forecast.build_p1_forecast_artifact(
+                self.contract,
+                spec,
+                dataset,
+                {},
+                future_perturbation_evidence={"status": "passed"},
+            )
+
+    def test_fit_must_match_fresh_runner_refit_and_registered_train_body(self) -> None:
+        spec = self.contract.spec("S1", "known_high_snr_dgp")
+        dataset = runner.build_synthetic_dataset(20260830, spec.beta)
+        horizon = 4
+        train_mask = runner.train_mask_for_origin(
+            dataset,
+            spec.fit_origin,
+            horizon,
+            train_start=spec.train_start,
+        )
+        eligible_mask = runner.prediction_mask_for_range(
+            dataset,
+            horizon,
+            start=spec.support_range[0],
+            end=spec.support_range[1],
+        )
+        outer_train = np.ones(len(dataset.features), dtype=np.bool_)
+        predictions = np.where(eligible_mask, 0.0, np.nan).astype(np.float64)
+        forged_outer = runner.ModelFit(
+            model_id="ridge",
+            task="continuous",
+            horizon=horizon,
+            origin=spec.fit_origin,
+            train_start=spec.train_start,
+            train_mask=outer_train,
+            eligible_mask=eligible_mask,
+            prediction_mask=eligible_mask,
+            predictions=predictions,
+            status="ok",
+            reason=None,
+            scaler=None,
+            estimator=None,
+        )
+        with self.assertRaises(forecast.P1ForecastError):
+            forecast._fit_record(
+                forged_outer,
+                dataset=dataset,
+                spec=spec,
+                horizon=horizon,
+                model_id="ridge",
+                task="continuous",
+                expected_train_mask=train_mask,
+                expected_prediction_mask=eligible_mask,
+            )
+
+        forged_prediction = runner.ModelFit(
+            model_id="ridge",
+            task="continuous",
+            horizon=horizon,
+            origin=spec.fit_origin,
+            train_start=spec.train_start,
+            train_mask=train_mask,
+            eligible_mask=eligible_mask,
+            prediction_mask=eligible_mask,
+            predictions=predictions,
+            status="ok",
+            reason=None,
+            scaler=None,
+            estimator=None,
+        )
+        with self.assertRaises(forecast.P1ForecastError):
+            forecast._fit_record(
+                forged_prediction,
+                dataset=dataset,
+                spec=spec,
+                horizon=horizon,
+                model_id="ridge",
+                task="continuous",
+                expected_train_mask=train_mask,
+                expected_prediction_mask=eligible_mask,
+            )
 
     def test_nonproduction_fixture_load_does_not_emit_authenticated_capability(self) -> None:
         payload = _fixture_artifact(self.contract)
