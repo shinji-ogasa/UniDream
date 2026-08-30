@@ -28,6 +28,7 @@ import stat
 import tempfile
 from types import MappingProxyType
 from typing import Any, Literal
+import weakref
 
 import numpy as np
 
@@ -912,6 +913,77 @@ def _scenario_provenance(spec: ValidationScenarioSpec, dataset: Any) -> Mapping[
     return MappingProxyType(result)
 
 
+def _arrays_exact(actual: Any, expected: Any, *, name: str) -> None:
+    """Require a runner-owned array to match byte-level shape/dtype/content."""
+
+    actual_array = np.asarray(actual)
+    expected_array = np.asarray(expected)
+    if actual_array.shape != expected_array.shape or actual_array.dtype != expected_array.dtype:
+        raise P1ForecastError(f"{name} does not match the canonical runner source")
+    equal_nan = np.issubdtype(expected_array.dtype, np.inexact)
+    if not np.array_equal(actual_array, expected_array, equal_nan=equal_nan):
+        raise P1ForecastError(f"{name} does not match the canonical runner source")
+
+
+def _validate_registered_dataset(spec: ValidationScenarioSpec, dataset: Any) -> int:
+    """Bind a producer to the exact recovery-runner dataset and registered arm."""
+
+    runner = _runner_module()
+    if spec.data_kind == "synthetic":
+        if type(dataset) is not runner.SyntheticDataset:
+            raise P1ForecastError("synthetic production forecasts require an exact SyntheticDataset")
+        seed = _dataset_seed(dataset, spec)
+        if dataset.beta != spec.beta:
+            raise P1ForecastError("synthetic dataset beta differs from the registered arm")
+        try:
+            expected = runner.build_synthetic_dataset(seed, spec.beta)
+        except Exception as exc:
+            raise P1ForecastError("could not regenerate the registered synthetic source") from exc
+        try:
+            for name in (
+                "timestamps",
+                "features",
+                "returns",
+                "targets",
+                "target_end",
+                "target_mask",
+                "binary_labels",
+                "context_mask",
+            ):
+                _arrays_exact(getattr(dataset, name), getattr(expected, name), name=f"synthetic {name}")
+            if type(dataset.base) is not type(expected.base) or dataset.base.seed != expected.base.seed:
+                raise P1ForecastError("synthetic dataset base does not match the registered seed")
+            for name in ("z_raw", "xi", "noise_features", "epsilon", "gap_starts"):
+                _arrays_exact(getattr(dataset.base, name), getattr(expected.base, name), name=f"synthetic base {name}")
+            for name in ("spot_bar_observed", "funding_rate_available", "mark_close_available"):
+                _arrays_exact(
+                    dataset.availability[name],
+                    expected.availability[name],
+                    name=f"synthetic availability.{name}",
+                )
+        except P1ForecastError:
+            raise
+        except Exception as exc:
+            raise P1ForecastError("synthetic dataset source fields are malformed") from exc
+        try:
+            runner._ensure_dataset(dataset)
+        except Exception as exc:
+            raise P1ForecastError("synthetic dataset failed the runner validation boundary") from exc
+        return seed
+
+    if type(dataset) is not runner.S3ArmDataset:
+        raise P1ForecastError("S3 production forecasts require an exact S3ArmDataset")
+    seed = _dataset_seed(dataset, spec)
+    if dataset.arm != spec.arm or dataset.beta != spec.beta:
+        raise P1ForecastError("S3 dataset arm/beta differs from the registered scenario")
+    try:
+        runner._require_production_s3_arm(dataset)
+        runner._ensure_dataset(dataset)
+    except Exception as exc:
+        raise P1ForecastError("S3 dataset is not bound to the authenticated runner source") from exc
+    return seed
+
+
 def _future_evidence(
     dataset: Any,
     fit: Any,
@@ -984,7 +1056,20 @@ def _future_evidence(
         )
 
 
-def _fit_record(fit: Any, *, dataset: Any, spec: ValidationScenarioSpec, horizon: int, model_id: str, task: str) -> dict[str, Any]:
+def _fit_record(
+    fit: Any,
+    *,
+    dataset: Any,
+    spec: ValidationScenarioSpec,
+    horizon: int,
+    model_id: str,
+    task: str,
+    expected_train_mask: np.ndarray | None = None,
+    expected_prediction_mask: np.ndarray | None = None,
+) -> dict[str, Any]:
+    runner = _runner_module()
+    if type(fit) is not runner.ModelFit:
+        raise P1ForecastError("production forecast fits require an exact recovery-runner ModelFit")
     if fit.model_id != model_id or fit.task != task or fit.horizon != horizon or fit.origin != spec.fit_origin:
         raise P1ForecastError("fit identity does not match the registered key")
     if fit.train_start != spec.train_start:
@@ -1003,12 +1088,54 @@ def _fit_record(fit: Any, *, dataset: Any, spec: ValidationScenarioSpec, horizon
     for name, mask in (("train_mask", train_mask), ("eligible_mask", eligible_mask), ("prediction_mask", prediction_mask)):
         if mask.dtype != np.dtype(np.bool_):
             raise P1ForecastError(f"fit {name} must use strict bool dtype")
+    if expected_train_mask is None:
+        try:
+            expected_train_mask = runner.train_mask_for_origin(
+                dataset,
+                spec.fit_origin,
+                horizon,
+                train_start=spec.train_start,
+            )
+        except Exception as exc:
+            raise P1ForecastError("could not derive the registered fit train mask") from exc
+    if expected_prediction_mask is None:
+        try:
+            expected_prediction_mask = runner.prediction_mask_for_range(
+                dataset,
+                horizon,
+                start=spec.support_range[0],
+                end=spec.support_range[1],
+            )
+        except Exception as exc:
+            raise P1ForecastError("could not derive the registered prediction mask") from exc
+    if not np.array_equal(train_mask, expected_train_mask):
+        raise P1ForecastError("fit train_mask differs from the registered runner chronology")
+    if not np.array_equal(eligible_mask, expected_prediction_mask):
+        raise P1ForecastError("fit eligible_mask differs from the registered prediction range")
+    if fit.status == "ok" and not np.array_equal(prediction_mask, expected_prediction_mask):
+        raise P1ForecastError("fit prediction_mask differs from the registered prediction range")
     if predictions.dtype != np.dtype(np.float64) or not np.array_equal(np.isfinite(predictions), prediction_mask):
         raise P1ForecastError("fit predictions must be float64 and finite exactly at prediction_mask")
     if fit.status not in {"ok", "N/A"}:
         raise P1ForecastError("fit status must be ok or N/A")
     if fit.status == "N/A" and np.any(prediction_mask):
         raise P1ForecastError("N/A fit cannot carry predictions")
+    try:
+        canonical_fit = runner.fit_model_at_origin(
+            dataset,
+            model_id,
+            spec.fit_origin,
+            horizon,
+            task=task,
+            prediction_range=spec.support_range,
+            train_start=spec.train_start,
+        )
+    except Exception as exc:
+        raise P1ForecastError("could not reproduce the registered runner fit") from exc
+    if fit.status != canonical_fit.status or fit.reason != canonical_fit.reason:
+        raise P1ForecastError("fit status/reason differs from the registered runner fit")
+    for name in ("train_mask", "eligible_mask", "prediction_mask", "predictions"):
+        _arrays_exact(getattr(fit, name), getattr(canonical_fit, name), name=f"fit {name}")
     support_train = _support_slice(train_mask, spec, name="train_mask")
     support_eligible = _support_slice(eligible_mask, spec, name="eligible_mask")
     support_prediction = _support_slice(prediction_mask, spec, name="prediction_mask")
@@ -1047,7 +1174,11 @@ def build_p1_forecast_artifact(
         raise P1ForecastError("artifact scenario/arm is not from the authenticated contract")
     if spec.n_rows <= 0 or spec.n_rows > P1_FORECAST_FILE_MAX_ROWS:
         raise P1ForecastError("registered body row count is outside the artifact bound")
-    seed = _dataset_seed(dataset, spec)
+    if future_perturbation_evidence is not None:
+        raise P1ForecastError(
+            "production future perturbation evidence must be generated internally"
+        )
+    seed = _validate_registered_dataset(spec, dataset)
     timestamps = np.asarray(dataset.timestamps)
     if len(timestamps) != spec.n_rows:
         raise P1ForecastError("dataset timestamps are not aligned to the registered body")
@@ -1084,6 +1215,26 @@ def build_p1_forecast_artifact(
         missing = sorted(expected_keys - set(fits))
         extra = sorted(set(fits) - expected_keys)
         raise P1ForecastError(f"forecast fit grid is not complete (missing={missing}, extra={extra})")
+    expected_masks: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    runner = _runner_module()
+    for horizon in contract.horizons:
+        try:
+            expected_masks[horizon] = (
+                runner.train_mask_for_origin(
+                    dataset,
+                    spec.fit_origin,
+                    horizon,
+                    train_start=spec.train_start,
+                ),
+                runner.prediction_mask_for_range(
+                    dataset,
+                    horizon,
+                    start=spec.support_range[0],
+                    end=spec.support_range[1],
+                ),
+            )
+        except Exception as exc:
+            raise P1ForecastError("could not derive the registered runner fit boundaries") from exc
     records: list[dict[str, Any]] = []
     coverage: dict[str, Any] = {}
     for horizon in contract.horizons:
@@ -1096,6 +1247,8 @@ def build_p1_forecast_artifact(
                 horizon=horizon,
                 model_id=model_id,
                 task=task,
+                expected_train_mask=expected_masks[horizon][0],
+                expected_prediction_mask=expected_masks[horizon][1],
             )
             records.append(record)
             summary = _coverage_for_fit(
@@ -1108,47 +1261,14 @@ def build_p1_forecast_artifact(
                 thresholds=contract.coverage_thresholds,
             )
             coverage[_fit_key(horizon, model_id, task)] = summary.as_dict()
-    if future_perturbation_evidence is not None and not isinstance(future_perturbation_evidence, Mapping):
-        raise P1ForecastError("future perturbation evidence must be a mapping")
-    evidence = (
-        dict(future_perturbation_evidence)
-        if future_perturbation_evidence is not None
-        else dict(_future_evidence(
+    evidence = dict(
+        _future_evidence(
             dataset,
             fits[(4, "ridge", "continuous")],
             spec=spec,
             horizon=4,
-        ))
+        )
     )
-    if evidence.get("status") == "passed":
-        evidence.setdefault("origin", spec.fit_origin)
-        evidence.setdefault("horizon", 4)
-        evidence.setdefault("perturb_start", spec.support_range[1])
-        probe_fit = fits[(4, "ridge", "continuous")]
-        probe_train_mask = np.asarray(probe_fit.train_mask)
-        probe_prediction_mask = np.asarray(probe_fit.prediction_mask)
-        probe_predictions = np.asarray(probe_fit.predictions)
-        evidence.setdefault(
-            "fitted_prefix_mask_sha256",
-            _array_sha256(probe_train_mask[: spec.fit_origin], name="fitted_prefix_mask"),
-        )
-        evidence.setdefault(
-            "earlier_prediction_mask_sha256",
-            _array_sha256(probe_prediction_mask[: spec.support_range[1]], name="earlier_prediction_mask"),
-        )
-        evidence.setdefault(
-            "earlier_prediction_sha256",
-            _array_sha256(
-                np.where(
-                    probe_prediction_mask[: spec.support_range[1]],
-                    probe_predictions[: spec.support_range[1]],
-                    0.0,
-                ),
-                name="earlier_predictions",
-            ),
-        )
-        if spec.data_kind == "s3":
-            evidence.setdefault("source_body_sha256", getattr(dataset, "source_body_sha256", None))
     if evidence.get("status") not in {"passed", "N/A"}:
         raise P1ForecastError("future perturbation evidence has an invalid status")
     provenance = _scenario_provenance(spec, dataset)
@@ -1842,9 +1962,14 @@ def _decode_payload(encoded: bytes) -> Mapping[str, Any]:
     return payload
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class ForecastActionSource:
     """Sealed action-source capability emitted by a validated forecast load."""
+
+    # Capabilities are tracked by object identity, never by equality of their
+    # mutable NumPy payloads.  This also means ``dataclasses.replace`` creates
+    # an unregistered object instead of inheriting authentication implicitly.
+    __hash__ = object.__hash__
 
     scenario_id: str
     arm: str
@@ -1871,7 +1996,7 @@ class ForecastActionSource:
 
     @property
     def is_authenticated(self) -> bool:
-        return self._production_seal is _FORECAST_ACTION_SOURCE_SEAL
+        return _is_registered_forecast_action_source(self)
 
     # Names used by the downstream action boundary.  These aliases do not
     # create alternate sources; every value still points at this sealed,
@@ -1906,6 +2031,9 @@ class _ForecastActionSourceSeal:
 
 
 _FORECAST_ACTION_SOURCE_SEAL = _ForecastActionSourceSeal()
+_AUTHENTICATED_FORECAST_SOURCES: weakref.WeakKeyDictionary[ForecastActionSource, str] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def _action_source_binding_sha256(value: ForecastActionSource) -> str:
@@ -1935,6 +2063,21 @@ def _action_source_binding_sha256(value: ForecastActionSource) -> str:
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _is_registered_forecast_action_source(value: Any) -> bool:
+    """Check loader registration and binding, not merely the module sentinel."""
+
+    if not isinstance(value, ForecastActionSource) or value._production_seal is not _FORECAST_ACTION_SOURCE_SEAL:
+        return False
+    try:
+        registered_binding = _AUTHENTICATED_FORECAST_SOURCES.get(value)
+        if registered_binding is None:
+            return False
+        current_binding = _action_source_binding_sha256(value)
+    except Exception:
+        return False
+    return registered_binding == value.binding_sha256 == current_binding
 
 
 def _read_only(array: Any, *, dtype: np.dtype | None = None) -> np.ndarray:
@@ -2011,7 +2154,10 @@ def _capability_from_loaded(
         promotion_allowed=bool(validation["promotion_allowed"]),
         _production_seal=_FORECAST_ACTION_SOURCE_SEAL if sealed else None,
     )
-    return replace(capability, binding_sha256=_action_source_binding_sha256(capability))
+    capability = replace(capability, binding_sha256=_action_source_binding_sha256(capability))
+    if sealed:
+        _AUTHENTICATED_FORECAST_SOURCES[capability] = capability.binding_sha256
+    return capability
 
 
 @dataclass(frozen=True)
@@ -2138,7 +2284,7 @@ def execute_p1_outer_report(*_: Any, **__: Any) -> None:
 def is_authenticated_forecast_action_source(value: Any) -> bool:
     """Return whether ``value`` is the sealed capability emitted by a load."""
 
-    return isinstance(value, ForecastActionSource) and value._production_seal is _FORECAST_ACTION_SOURCE_SEAL
+    return _is_registered_forecast_action_source(value)
 
 
 def require_authenticated_forecast_action_source(value: Any) -> ForecastActionSource:
