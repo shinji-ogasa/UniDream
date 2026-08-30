@@ -80,7 +80,7 @@ existing WM gate modules remain green.
 
 Observed result: 11 new contract tests passed; combined with the two existing
 WM gate modules, 16 scoped tests passed.  The complete repository suite passed
-(132 tests).
+(134 tests).
 
 The full suite is required before promotion:
 
