@@ -81,6 +81,7 @@ ACTION_PRIMITIVE_HASH_FIELDS: tuple[str, ...] = (
     "action_primitive_schema_sha256",
     "action_primitive_content_sha256",
 )
+ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD = "action_primitive_envelope_sha256"
 ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH = (
     "docs/experiments/action_primitive_schema.json"
 )
@@ -118,6 +119,100 @@ ACTION_PRIMITIVE_ARM_FIELDS: tuple[str, ...] = (
     "cost_mode",
     "cost_contract_hash",
 )
+
+# Production input expectations are deliberately separate from generated
+# output hashes.  The forecast loader integration supplies the sealed source
+# capability in a later boundary; this module only publishes the names and
+# canonical hash contracts that that adapter must satisfy.  In particular, a
+# producer must never be asked to predict its own content/payload hash.
+ACTION_PRIMITIVE_AUTHENTICATED_SOURCE_FIELDS: tuple[str, ...] = (
+    "action_source_role",
+    "action_source_artifact_sha256",
+    "action_source_result_sha256",
+    "action_source_realized_returns_sha256",
+    "action_source_timestamps_sha256",
+    "action_source_mask_sha256",
+    "action_source_returns_arm",
+    "validation_results_observed",
+    "outer_results_observed",
+    "prereg_results_observed",
+)
+ACTION_PRIMITIVE_RUNTIME_PROVENANCE_FIELDS: tuple[str, ...] = (
+    "status",
+    "manifest_id",
+    "manifest_sha256",
+    "base_revision",
+    "results_observed",
+    "v4_runtime_validation_status",
+    "v4_runtime_provenance_disposition",
+    "v4_runtime_body_match",
+    "v4_runtime_loaded_body_match",
+    "v4_runtime_source_provenance_match",
+    "v4_runtime_frozen_metadata_sha256",
+    "v4_runtime_cache_local_metadata_sha256",
+    "v4_runtime_cache_local_source_provenance_digest",
+    "v4_runtime_cache_local_schema_digest",
+    "v4_runtime_cache_local_content_digests",
+    "v4_runtime_cache_local_row_counts",
+    "v4_feature_path",
+    "v4_returns_path",
+    "v4_availability_path",
+    "v4_frozen_metadata_path",
+    "v4_frozen_metadata_sha256",
+    "v4_frozen_source_provenance_digest",
+    "v4_cache_local_metadata_path",
+    "v4_cache_local_metadata_sha256",
+    "v4_cache_local_source_provenance_digest",
+    "v4_cache_local_schema_digest",
+    "v4_cache_local_content_digests",
+    "v4_cache_local_row_counts",
+)
+ACTION_PRIMITIVE_PRODUCTION_COMMON_INPUT_EXPECTED_FIELDS: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        (
+            *ACTION_PRIMITIVE_ARM_FIELDS,
+            "manifest_id",
+            "manifest_sha256",
+            "base_revision",
+            "prereg_results_observed",
+            "support_range",
+            "timestamp_sha256",
+            "timestamp_count",
+            "timestamp_start_ns",
+            "timestamp_end_ns",
+            "forecast_horizon",
+            "forecast_source_id",
+            "forecast_result_sha256",
+            "paired_common_mask_sha256",
+            *ACTION_PRIMITIVE_AUTHENTICATED_SOURCE_FIELDS,
+        )
+    )
+)
+ACTION_PRIMITIVE_SYNTHETIC_INPUT_EXPECTED_FIELDS: tuple[str, ...] = (
+    *ACTION_PRIMITIVE_PRODUCTION_COMMON_INPUT_EXPECTED_FIELDS,
+)
+ACTION_PRIMITIVE_S3_INPUT_EXPECTED_FIELDS: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        (
+            *ACTION_PRIMITIVE_PRODUCTION_COMMON_INPUT_EXPECTED_FIELDS,
+            *ACTION_PRIMITIVE_RUNTIME_PROVENANCE_FIELDS,
+        )
+    )
+)
+ACTION_PRIMITIVE_PRODUCTION_INPUT_EXPECTED_FIELDS: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        (
+            *ACTION_PRIMITIVE_PRODUCTION_COMMON_INPUT_EXPECTED_FIELDS,
+            *ACTION_PRIMITIVE_RUNTIME_PROVENANCE_FIELDS,
+        )
+    )
+)
+ACTION_PRIMITIVE_PRODUCTION_OUTPUT_EXPECTED_FIELDS: tuple[str, ...] = (
+    *ACTION_PRIMITIVE_HASH_FIELDS,
+    ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD,
+)
+# Compatibility name for callers that have not yet selected a source role.
+ACTION_PRIMITIVE_PRODUCTION_EXPECTED_FIELDS = ACTION_PRIMITIVE_PRODUCTION_INPUT_EXPECTED_FIELDS
 ACTION_PRIMITIVE_METRIC_FIELDS: tuple[str, ...] = (
     "candidate_utility",
     "benchmark_hold_utility",
@@ -145,6 +240,7 @@ _ACTION_PRIMITIVE_MASK_LOGIC = {
 
 _MAGIC_CONTENT = b"UNIDREAM-P1-ACTION-PRIMITIVE-CONTENT\x00"
 _MAGIC_PAYLOAD = b"UNIDREAM-P1-ACTION-PRIMITIVE-PAYLOAD\x00"
+_MAGIC_ENVELOPE = b"UNIDREAM-P1-ACTION-PRIMITIVE-ENVELOPE\x00"
 _U64 = struct.Struct("<Q")
 
 
@@ -399,6 +495,70 @@ def action_primitive_payload_sha256(
             schema_sha256=schema_sha256,
             content_sha256=content_sha256,
         )
+    ).hexdigest()
+
+
+def _canonical_json_value(value: Any, *, field: str) -> Any:
+    """Convert header scalars without silently stringifying forged values."""
+    if isinstance(value, Mapping):
+        if any(not isinstance(key, str) for key in value):
+            raise ActionPrimitiveContractError(f"{field} mapping keys must be strings")
+        return {
+            key: _canonical_json_value(item, field=f"{field}.{key}")
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_json_value(item, field=field) for item in value]
+    if isinstance(value, (bool, str)) or value is None:
+        return value
+    if isinstance(value, (int, np.integer)) and not isinstance(value, (bool, np.bool_)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        converted = float(value)
+        if not np.isfinite(converted):
+            raise ActionPrimitiveContractError(f"{field} must contain finite numbers")
+        return converted
+    raise ActionPrimitiveContractError(
+        f"{field} contains unsupported value type {type(value).__name__}"
+    )
+
+
+def canonical_action_primitive_envelope_bytes(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    header: Mapping[str, Any],
+) -> bytes:
+    """Serialize the complete non-self-referential header and record content.
+
+    The legacy payload hash binds only schema/content declarations.  This
+    separate envelope binds every production provenance field, including the
+    authenticated source and runtime echoes.  Only the payload and envelope
+    declarations themselves are excluded to avoid a hash cycle.
+    """
+    if not isinstance(header, Mapping):
+        raise ActionPrimitiveContractError("action primitive envelope header must be an object")
+    body = dict(header)
+    body.pop("action_primitive_payload_sha256", None)
+    body.pop(ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD, None)
+    encoded_header = json.dumps(
+        _canonical_json_value(body, field="action primitive envelope header"),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return _MAGIC_ENVELOPE + _frame(encoded_header) + _frame(
+        canonical_action_primitive_content_bytes(records)
+    )
+
+
+def action_primitive_envelope_sha256(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    header: Mapping[str, Any],
+) -> str:
+    return hashlib.sha256(
+        canonical_action_primitive_envelope_bytes(records, header=header)
     ).hexdigest()
 
 
@@ -1036,6 +1196,51 @@ def _canonical_metric_dict(values: Mapping[str, Any]) -> dict[str, float]:
     return result
 
 
+def _normalise_output_hash_expectations(
+    expected_output_hashes: Mapping[str, Any] | None,
+    *,
+    expected_schema_sha256: str | None = None,
+    expected_content_sha256: str | None = None,
+    expected_payload_sha256: str | None = None,
+    expected_envelope_sha256: str | None = None,
+) -> dict[str, str] | None:
+    """Normalize post-materialisation hashes independently from producer inputs."""
+    values: dict[str, Any] = {
+        "action_primitive_schema_sha256": expected_schema_sha256,
+        "action_primitive_content_sha256": expected_content_sha256,
+        "action_primitive_payload_sha256": expected_payload_sha256,
+        ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD: expected_envelope_sha256,
+    }
+    if expected_output_hashes is not None:
+        if not isinstance(expected_output_hashes, Mapping):
+            raise ActionPrimitiveContractError("expected output hashes must be a mapping")
+        unknown = set(expected_output_hashes) - set(values)
+        if unknown:
+            raise ActionPrimitiveContractError(
+                "expected output hashes contain unknown fields: "
+                + ", ".join(sorted(str(item) for item in unknown))
+            )
+        for field in values:
+            if field in expected_output_hashes:
+                if values[field] is not None and values[field] != expected_output_hashes[field]:
+                    raise ActionPrimitiveContractError(
+                        f"conflicting expected output hash for {field}"
+                    )
+                values[field] = expected_output_hashes[field]
+    present = [value is not None for value in values.values()]
+    if not any(present):
+        return None
+    if not all(present):
+        missing = [field for field, value in values.items() if value is None]
+        raise ActionPrimitiveContractError(
+            "external output hashes are incomplete: " + ", ".join(missing)
+        )
+    return {
+        field: _strict_sha256(value, field=f"expected {field}")
+        for field, value in values.items()
+    }
+
+
 def produce_action_primitive_grid(
     *,
     returns: Sequence[Any] | None = None,
@@ -1081,6 +1286,11 @@ def produce_action_primitive_grid(
     read) or one value per scheduled block.  Explicit masks may use either
     representation; all output rows are always the complete scheduled grid.
     """
+    if require_production:
+        raise ActionPrimitiveContractError(
+            "generic produce_action_primitive_grid is fixture-only; "
+            "the authenticated forecast-source adapter is required for production"
+        )
     origin_input = _resolve_alias(
         origin_eligible_mask,
         decision_eligible,
@@ -1507,12 +1717,17 @@ def produce_action_primitive_grid(
         schema_sha256=schema_sha256,
         content_sha256=header["action_primitive_content_sha256"],
     )
+    header[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD] = action_primitive_envelope_sha256(
+        records,
+        header=header,
+    )
     artifact = {
         "header": header,
         "records": records,
         "action_primitive_schema_sha256": header["action_primitive_schema_sha256"],
         "action_primitive_content_sha256": header["action_primitive_content_sha256"],
         "action_primitive_payload_sha256": header["action_primitive_payload_sha256"],
+        ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD: header[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD],
     }
     validate_action_primitive_semantics(
         artifact,
@@ -1527,6 +1742,48 @@ def produce_action_primitive_grid(
         require_production=require_production,
     )
     return artifact
+
+
+def produce_authenticated_action_primitive_grid(
+    *,
+    action_source: Any = None,
+    expected_metadata: Mapping[str, Any] | None = None,
+    expected_output_hashes: Mapping[str, Any] | None = None,
+    **action_inputs: Any,
+) -> dict[str, Any]:
+    """Reserved production boundary for the forecast-loader integration.
+
+    The validation-forecast branch owns the sealed ``ForecastActionSource``
+    loader.  Until that capability is integrated here, no mapping, raw v4
+    body, or caller-provided path can be promoted into an action artifact.
+    Keeping this boundary explicit prevents the generic fixture producer from
+    becoming an accidental research runner.
+    """
+    if action_inputs:
+        runtime_fields = {
+            "manifest",
+            "manifest_path",
+            "root",
+            "paths",
+            "path_overrides",
+            "feature_path",
+            "returns_path",
+            "availability_path",
+            "metadata_path",
+            "cache_local_metadata_path",
+            "provenance_disposition",
+            "returns",
+        }
+        supplied = sorted(runtime_fields.intersection(action_inputs))
+        if supplied:
+            raise ActionPrimitiveContractError(
+                "raw v4 runtime paths/body values cannot enter the production action boundary: "
+                + ", ".join(supplied)
+            )
+    raise ActionPrimitiveImplementationBlocked(
+        "authenticated ForecastActionSource integration is not implemented; "
+        "generic action primitives remain fixture-only"
+    )
 
 
 def validate_action_primitive_semantics(
@@ -1544,6 +1801,11 @@ def validate_action_primitive_semantics(
     decision_eligible: Sequence[Any] | None = None,
     score_eligible: Sequence[Any] | None = None,
     expected_common_mask: Sequence[Any] | None = None,
+    expected_schema_sha256: str | None = None,
+    expected_content_sha256: str | None = None,
+    expected_payload_sha256: str | None = None,
+    expected_envelope_sha256: str | None = None,
+    expected_output_hashes: Mapping[str, Any] | None = None,
     require_production: bool = False,
 ) -> dict[str, Any]:
     """Fail-closed validation of the action primitive semantics and hashes.
@@ -1556,6 +1818,20 @@ def validate_action_primitive_semantics(
     forecast/action semantics; without them, the persisted row-level
     invariants are still checked.
     """
+    if require_production:
+        # The sealed ForecastActionSource and its runtime/source-specific
+        # bindings are integrated in the forecast/result boundary.  This
+        # low-level validator must not be promoted by a caller mapping alone.
+        raise ActionPrimitiveContractError(
+            "production validation requires the authenticated ForecastActionSource integration"
+        )
+    output_expected = _normalise_output_hash_expectations(
+        expected_output_hashes,
+        expected_schema_sha256=expected_schema_sha256,
+        expected_content_sha256=expected_content_sha256,
+        expected_payload_sha256=expected_payload_sha256,
+        expected_envelope_sha256=expected_envelope_sha256,
+    )
     artifact_hashes: Mapping[str, Any] = {}
     if isinstance(artifact_or_records, Mapping):
         records = artifact_or_records.get("records")
@@ -1605,8 +1881,38 @@ def validate_action_primitive_semantics(
             raise ActionPrimitiveContractError(
                 f"artifact {field} does not match the header declaration"
             )
+        if output_expected is not None and value != output_expected[field]:
+            raise ActionPrimitiveContractError(
+                f"header.{field} does not match the external expected digest"
+            )
     if header_hashes["action_primitive_schema_sha256"] != schema_sha256:
         raise ActionPrimitiveContractError("header external schema SHA-256 mismatch")
+
+    envelope_value = header.get(ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD)
+    if envelope_value is not None:
+        envelope_value = _strict_sha256(
+            envelope_value,
+            field=f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD}",
+        )
+        if (
+            ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD in artifact_hashes
+            and artifact_hashes[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD] != envelope_value
+        ):
+            raise ActionPrimitiveContractError(
+                f"artifact {ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} does not match the header declaration"
+            )
+        if output_expected is not None and envelope_value != output_expected[ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD]:
+            raise ActionPrimitiveContractError(
+                f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} does not match the external expected digest"
+            )
+        if envelope_value != action_primitive_envelope_sha256(records, header=header):
+            raise ActionPrimitiveContractError(
+                f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} does not match the complete header/content envelope"
+            )
+    elif output_expected is not None:
+        raise ActionPrimitiveContractError(
+            f"header.{ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD} is required with external output hashes"
+        )
 
     arm_mapping = header.get("arm_metadata")
     if not isinstance(arm_mapping, Mapping):
@@ -2003,9 +2309,18 @@ __all__ = [
     "ACTION_PRIMITIVE_COST_CONTRACT_PATHS",
     "ACTION_PRIMITIVE_COST_CONTRACT_SHA256",
     "ACTION_PRIMITIVE_PRIMARY_SUPPORT_RANGES",
+    "ACTION_PRIMITIVE_AUTHENTICATED_SOURCE_FIELDS",
+    "ACTION_PRIMITIVE_RUNTIME_PROVENANCE_FIELDS",
+    "ACTION_PRIMITIVE_PRODUCTION_COMMON_INPUT_EXPECTED_FIELDS",
+    "ACTION_PRIMITIVE_SYNTHETIC_INPUT_EXPECTED_FIELDS",
+    "ACTION_PRIMITIVE_S3_INPUT_EXPECTED_FIELDS",
+    "ACTION_PRIMITIVE_PRODUCTION_INPUT_EXPECTED_FIELDS",
+    "ACTION_PRIMITIVE_PRODUCTION_OUTPUT_EXPECTED_FIELDS",
+    "ACTION_PRIMITIVE_PRODUCTION_EXPECTED_FIELDS",
     "ACTION_PRIMITIVE_EXECUTION_STATUS",
     "ACTION_PRIMITIVE_EXTERNAL_SCHEMA_PATH",
     "ACTION_PRIMITIVE_EXTERNAL_SCHEMA_SHA256",
+    "ACTION_PRIMITIVE_ENVELOPE_HASH_FIELD",
     "ACTION_PRIMITIVE_HASH_FIELDS",
     "ACTION_PRIMITIVE_INTEGER_ARM_FIELDS",
     "ACTION_PRIMITIVE_INDEX_FIELDS",
@@ -2016,12 +2331,15 @@ __all__ = [
     "ActionPrimitiveContractError",
     "ActionPrimitiveImplementationBlocked",
     "action_primitive_content_sha256",
+    "action_primitive_envelope_sha256",
     "action_primitive_payload_sha256",
     "build_action_primitive_grid",
     "canonical_action_primitive_content_bytes",
+    "canonical_action_primitive_envelope_bytes",
     "canonical_action_primitive_payload_bytes",
     "canonical_action_primitive_schema_sha256",
     "produce_action_primitive_artifact",
+    "produce_authenticated_action_primitive_grid",
     "produce_action_primitive_grid",
     "require_action_primitive_implementation",
     "run_action_primitive_mbb",

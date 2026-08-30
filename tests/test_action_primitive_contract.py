@@ -15,6 +15,7 @@ from unidream.experiments.action_primitives import (
     ActionPrimitiveContractError,
     ActionPrimitiveImplementationBlocked,
     action_primitive_content_sha256,
+    action_primitive_envelope_sha256,
     action_primitive_payload_sha256,
     build_action_primitive_grid,
     canonical_action_primitive_schema_sha256,
@@ -107,6 +108,38 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         reordered = [records[1], records[0]]
         with self.assertRaisesRegex(ActionPrimitiveContractError, "primitive_index"):
             action_primitive_content_sha256(reordered)
+
+    def test_output_hash_expectations_are_external_and_non_circular(self) -> None:
+        artifact = self._fixture()
+        header = artifact["header"]
+        assert isinstance(header, dict)
+        expected = {
+            field: header[field]
+            for field in (
+                "action_primitive_schema_sha256",
+                "action_primitive_content_sha256",
+                "action_primitive_payload_sha256",
+                "action_primitive_envelope_sha256",
+            )
+        }
+        result = validate_action_primitive_semantics(
+            artifact,
+            realized_returns=self._fixture_returns(),
+            expected_output_hashes=expected,
+        )
+        self.assertEqual(result["semantic_validation_status"], "passed")
+        for field in expected:
+            incomplete = dict(expected)
+            incomplete.pop(field)
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ActionPrimitiveContractError,
+                "external output hashes are incomplete",
+            ):
+                validate_action_primitive_semantics(
+                    artifact,
+                    realized_returns=self._fixture_returns(),
+                    expected_output_hashes=incomplete,
+                )
 
     def test_missing_common_mask_and_bootstrap_are_blocked(self) -> None:
         broken = _record(0)
@@ -213,8 +246,11 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         )
         header["action_primitive_content_sha256"] = content
         header["action_primitive_payload_sha256"] = payload
+        envelope = action_primitive_envelope_sha256(records, header=header)
+        header["action_primitive_envelope_sha256"] = envelope
         artifact["action_primitive_content_sha256"] = content
         artifact["action_primitive_payload_sha256"] = payload
+        artifact["action_primitive_envelope_sha256"] = envelope
 
     def test_deterministic_producer_preserves_grid_masks_state_and_cost_off(self) -> None:
         artifact = self._fixture()
@@ -373,42 +409,13 @@ class ActionPrimitiveContractTests(unittest.TestCase):
 
     def test_production_artifact_binds_registered_global_support(self) -> None:
         contract = ActionExecutionContract.canonical()
-        n_bars = 10_000
-        scores = np.full(n_bars, np.nan, dtype=np.float64)
-        scores[np.arange(0, n_bars - 4, 4, dtype=np.int64)] = 0.001
-        artifact = produce_action_primitive_grid(
-            returns=np.full(n_bars, 0.0001, dtype=np.float64),
-            support_start=90_000,
-            decision_block_scores=scores,
-            decision_eligible=np.ones(n_bars, dtype=bool),
-            score_eligible=np.ones(n_bars, dtype=bool),
-            scenario_id="S1",
-            seed=20260830,
-            split_id="validation",
-            support_id="synthetic_validation",
-            model_id="ridge",
-            cost_mode="on",
-            cost_contract_hash=contract.contract_hash,
-            require_production=True,
-        )
-        self.assertEqual(artifact["header"]["source_role"], "validated_stored_action_inputs")
-        self.assertEqual(artifact["records"][0]["decision_index"], 90_000)
-        self.assertEqual(artifact["records"][-1]["decision_index"], 99_992)
-        self.assertEqual(
-            validate_action_primitive_semantics(
-                artifact,
-                realized_returns=np.full(n_bars, 0.0001, dtype=np.float64),
-                require_production=True,
-            )["semantic_validation_status"],
-            "passed",
-        )
-        with self.assertRaisesRegex(ActionPrimitiveContractError, "preregistered support range"):
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "fixture-only"):
             produce_action_primitive_grid(
-                returns=np.full(17, 0.0001, dtype=np.float64),
-                support_start=0,
-                decision_block_scores=np.zeros(4, dtype=np.float64),
-                decision_eligible=np.ones(17, dtype=bool),
-                score_eligible=np.ones(17, dtype=bool),
+                returns=np.full(10_000, 0.0001, dtype=np.float64),
+                support_start=90_000,
+                decision_block_scores=np.full(10_000, 0.001, dtype=np.float64),
+                decision_eligible=np.ones(10_000, dtype=bool),
+                score_eligible=np.ones(10_000, dtype=bool),
                 scenario_id="S1",
                 seed=20260830,
                 split_id="validation",
@@ -417,6 +424,13 @@ class ActionPrimitiveContractTests(unittest.TestCase):
                 cost_mode="on",
                 cost_contract_hash=contract.contract_hash,
                 require_production=True,
+            )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "raw v4 runtime"):
+            from unidream.experiments.action_primitives import produce_authenticated_action_primitive_grid
+
+            produce_authenticated_action_primitive_grid(
+                expected_metadata={"forged": True},
+                manifest_path="/tmp/forged-manifest.json",
             )
 
     def test_validator_is_fail_closed_for_schema_empty_rows_and_omitted_hashes(self) -> None:
