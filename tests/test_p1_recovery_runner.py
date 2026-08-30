@@ -157,6 +157,81 @@ class P1RecoveryRunnerContractTests(unittest.TestCase):
         )
         np.testing.assert_array_equal(persistence.predictions[persistence.prediction_mask], expected)
 
+    def test_production_fit_rejects_pre_origin_empty_and_nonempty_coverage_bypass(self):
+        with self.assertRaises(runner.P1RunnerError):
+            runner.fit_model_at_origin(
+                self.dataset,
+                "zero_return",
+                20000,
+                4,
+                task="continuous",
+                prediction_range=(19999, 20010),
+            )
+        with self.assertRaises(runner.P1RunnerError):
+            runner.fit_model_at_origin(
+                self.dataset,
+                "zero_return",
+                20000,
+                4,
+                task="continuous",
+                prediction_range=(20000, 20000),
+            )
+        # The range is non-empty but no h4 target fits before its end.
+        with self.assertRaises(runner.P1RunnerError):
+            runner.fit_model_at_origin(
+                self.dataset,
+                "zero_return",
+                20000,
+                4,
+                task="continuous",
+                prediction_range=(20000, 20001),
+            )
+
+    def test_production_fit_rejects_nonfinite_returns_and_nonfixed_purge(self):
+        returns = np.array(self.dataset.returns, copy=True)
+        returns[20000] = np.nan
+        malformed = self.dataset.with_returns(returns)
+        with self.assertRaises(runner.P1RunnerError):
+            runner.fit_model_at_origin(
+                malformed,
+                "persistence_last_observed",
+                20000,
+                4,
+                task="binary",
+                prediction_range=(20000, 20010),
+            )
+        with self.assertRaises(runner.P1RunnerError):
+            runner.train_mask_for_origin(
+                self.dataset,
+                20000,
+                4,
+                purge_bars=0,
+            )
+
+    def test_timestamp_free_builders_are_explicitly_fixture_only(self):
+        returns = np.zeros(6, dtype=np.float64)
+        spot = np.ones(6, dtype=np.bool_)
+        with self.assertRaises(runner.P1RunnerError):
+            runner.build_target_arrays(returns, spot, horizons=(1,))
+        fixture_targets, fixture_mask, fixture_end = runner.build_target_arrays_fixture(
+            returns,
+            spot,
+            horizons=(1,),
+        )
+        self.assertEqual(fixture_targets.shape, (6, 1))
+        self.assertTrue(fixture_mask[0, 0])
+        self.assertEqual(fixture_end[0, 0], 2)
+
+        features = np.zeros((64, runner.FEATURE_DIMENSION), dtype=np.float64)
+        availability = {
+            name: np.ones(64, dtype=np.bool_)
+            for name in REQUIRED_AVAILABILITY_COLUMNS
+        }
+        with self.assertRaises(runner.P1RunnerError):
+            runner.build_context_mask(features, availability)
+        fixture_context = runner.build_context_mask_fixture(features, availability)
+        self.assertTrue(fixture_context[63])
+
     def test_oof_keeps_binary_and_continuous_baseline_tasks_distinct(self):
         fake_dataset = SimpleNamespace(features=np.zeros((5, runner.FEATURE_DIMENSION)))
         fake_plan = SimpleNamespace(origins=(0,), horizons=(1,))
@@ -178,6 +253,14 @@ class P1RecoveryRunnerContractTests(unittest.TestCase):
         )
         self.assertEqual(run.get(0, 1, "zero_return", "binary"), fit)
         self.assertEqual(run.get(0, 1, "zero_return", "continuous"), fit)
+        for bad_origin, bad_horizon, bad_task in (
+            ("0", 1, "continuous"),
+            (0, "1", "continuous"),
+            (0, 1, None),
+            (0, 1, "continuous-but-unknown"),
+        ):
+            with self.assertRaises(runner.P1RunnerError):
+                run.get(bad_origin, bad_horizon, "zero_return", bad_task)
         self.assertEqual(
             {call.kwargs["task"] for call in fit_call.call_args_list},
             {"continuous", "binary"},
@@ -221,6 +304,11 @@ class P1RecoveryRunnerContractTests(unittest.TestCase):
         )
         self.assertEqual(evidence["status"], "passed")
         self.assertGreater(evidence["earlier_prediction_count"], 0)
+
+    def test_synthetic_oof_is_explicitly_fixture_diagnostic_scope(self):
+        self.assertEqual(runner.SYNTHETIC_OOF_SCOPE, "fixture_diagnostic_only")
+        self.assertIs(runner.run_synthetic_oof_fixture, runner.run_synthetic_oof)
+        self.assertIn("fixture/diagnostic", runner.run_synthetic_oof.__doc__)
 
 
 def _fake_authenticated_s3_result(rows=400):
