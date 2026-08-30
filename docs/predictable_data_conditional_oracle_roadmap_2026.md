@@ -8,6 +8,8 @@
 
 **Selection contract:** train/validation select; development test is report-only; a new untouched holdout is opened once
 
+The live pass/fail and blocked-data ledger is [`experiments/predictable_oracle_hypothesis_registry.md`](experiments/predictable_oracle_hypothesis_registry.md). A hypothesis absent from that registry is not part of the current candidate family until it is added before results are opened.
+
 ## Executive decision
 
 UniDream の次の研究順序を、次のように固定する。
