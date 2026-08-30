@@ -12,6 +12,45 @@ from unidream.data.cache_v4 import MODEL_FEATURE_COLUMNS, REQUIRED_AVAILABILITY_
 from unidream.experiments import p1_recovery_runner as runner
 
 
+def _with_future_outcome_gap(
+    dataset: runner.SyntheticDataset,
+    row: int,
+    *,
+    nan_return: bool,
+) -> runner.SyntheticDataset:
+    """Create a deliberate future outcome gap without changing prior rows."""
+
+    returns = np.array(dataset.returns, dtype=np.float64, copy=True)
+    if nan_return:
+        returns[row] = np.nan
+    availability = {
+        name: np.array(values, dtype=np.bool_, copy=True)
+        for name, values in dataset.availability.items()
+    }
+    availability["spot_bar_observed"][row] = False
+    availability = MappingProxyType(availability)
+    targets, target_mask, target_end = runner.build_target_arrays(
+        returns,
+        availability["spot_bar_observed"],
+        horizons=runner.FORECAST_HORIZONS,
+        timestamps=dataset.timestamps,
+    )
+    return replace(
+        dataset,
+        base=replace(dataset.base, availability=availability),
+        returns=runner._read_only(returns, dtype=np.float64),
+        targets=targets,
+        target_mask=target_mask,
+        target_end=target_end,
+        binary_labels=runner.binary_labels_from_targets(targets),
+        context_mask=runner.build_context_mask(
+            dataset.features,
+            availability,
+            timestamps=dataset.timestamps,
+        ),
+    )
+
+
 class P1RecoveryRunnerContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -156,6 +195,116 @@ class P1RecoveryRunnerContractTests(unittest.TestCase):
             runner.PROBABILITY_CLIP_EPS,
         )
         np.testing.assert_array_equal(persistence.predictions[persistence.prediction_mask], expected)
+
+    def test_na_fit_keeps_score_mask_but_has_no_inference_rows(self):
+        fit = runner.fit_model_at_origin(
+            self.dataset,
+            "zero_return",
+            64,
+            4,
+            task="continuous",
+            prediction_range=(64, 80),
+        )
+        self.assertEqual(fit.status, "N/A")
+        self.assertTrue(np.any(fit.score_eligible_mask))
+        self.assertFalse(np.any(fit.inference_mask))
+        self.assertTrue(np.isnan(fit.predictions).all())
+
+    def test_inference_range_uses_only_context_and_known_split_tail(self):
+        start, end = 20000, 20020
+        rows = np.arange(len(self.dataset.features), dtype=np.int64)
+        for horizon in runner.FORECAST_HORIZONS:
+            inference = runner.inference_mask_for_range(
+                self.dataset,
+                horizon,
+                start=start,
+                end=end,
+            )
+            expected = self.dataset.context_mask & (
+                rows + horizon + 1 <= end
+            ) & (rows >= start) & (rows < end)
+            np.testing.assert_array_equal(inference, expected)
+            self.assertFalse(inference[end - horizon])
+            last_valid = end - horizon - 1
+            if last_valid >= start and self.dataset.context_mask[last_valid]:
+                self.assertTrue(inference[last_valid])
+
+    def test_future_outcome_gap_keeps_prior_inference_and_prediction_but_not_score(self):
+        origin, gap_row = 20000, 20001
+        original_score = runner.score_eligible_mask_for_range(
+            self.dataset,
+            4,
+            start=origin,
+            end=origin + 20,
+        )
+        self.assertTrue(original_score[origin])
+        original_fit = runner.fit_model_at_origin(
+            self.dataset,
+            "ridge",
+            origin,
+            4,
+            prediction_range=(origin, origin + 20),
+        )
+        prefix = np.arange(len(self.dataset.features), dtype=np.int64) < gap_row
+        for nan_return in (True, False):
+            changed = _with_future_outcome_gap(
+                self.dataset,
+                gap_row,
+                nan_return=nan_return,
+            )
+            changed_score = runner.score_eligible_mask_for_range(
+                changed,
+                4,
+                start=origin,
+                end=origin + 20,
+            )
+            self.assertFalse(changed_score[origin])
+            changed_fit = runner.fit_model_at_origin(
+                changed,
+                "ridge",
+                origin,
+                4,
+                prediction_range=(origin, origin + 20),
+            )
+            np.testing.assert_array_equal(
+                original_fit.train_mask,
+                changed_fit.train_mask,
+            )
+            np.testing.assert_array_equal(
+                original_fit.inference_mask[prefix],
+                changed_fit.inference_mask[prefix],
+            )
+            np.testing.assert_allclose(
+                original_fit.predictions[original_fit.inference_mask & prefix],
+                changed_fit.predictions[changed_fit.inference_mask & prefix],
+                rtol=0.0,
+                atol=1e-15,
+            )
+            self.assertTrue(changed_fit.inference_mask[origin])
+            self.assertFalse(changed_fit.score_eligible_mask[origin])
+
+    def test_direct_model_fit_with_score_rows_outside_inference_is_rejected(self):
+        n_rows = len(self.dataset.features)
+        eligible = np.zeros(n_rows, dtype=np.bool_)
+        eligible[20000] = True
+        prediction_mask = np.zeros(n_rows, dtype=np.bool_)
+        predictions = np.full(n_rows, np.nan, dtype=np.float64)
+        with self.assertRaisesRegex(runner.P1RunnerError, "exceeds prediction_mask"):
+            runner.ModelFit(
+                model_id="zero_return",
+                task="continuous",
+                horizon=4,
+                origin=20000,
+                train_start=0,
+                train_mask=np.zeros(n_rows, dtype=np.bool_),
+                eligible_mask=eligible,
+                prediction_mask=prediction_mask,
+                predictions=predictions,
+                status="ok",
+                reason=None,
+                scaler=None,
+                estimator=None,
+            )
 
     def test_production_fit_rejects_pre_origin_empty_and_nonempty_coverage_bypass(self):
         with self.assertRaises(runner.P1RunnerError):

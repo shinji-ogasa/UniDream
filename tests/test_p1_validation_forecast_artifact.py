@@ -46,6 +46,9 @@ def _fixture_artifact(
     targets = np.where(target_mask, 0.001 * horizons[None, :], np.nan)
     labels = np.where(target_mask, 1, -1).astype(np.int8)
     context_mask = np.ones(count, dtype=np.bool_)
+    origin_mask = context_mask & (target_end[:, 1] <= end)
+    score_eligible_mask = origin_mask & target_mask[:, 1]
+    spot_bar_observed = np.ones(count, dtype=np.bool_)
     ticks = np.datetime64("2024-01-01T00:00:00", "ns") + (
         np.arange(count, dtype=np.int64) * np.timedelta64(15, "m")
     )
@@ -97,11 +100,12 @@ def _fixture_artifact(
     coverage: dict[str, object] = {}
     for horizon in forecast.P1_FIXED_HORIZONS:
         column = forecast.P1_FIXED_HORIZONS.index(horizon)
-        eligible = target_end[:, column] <= end
+        inference = context_mask & (target_end[:, column] <= end)
+        eligible = inference & target_mask[:, column]
         for model_id, task in forecast.P1_ALLOWED_MODEL_TASK_KEYS:
             key = (horizon, model_id, task)
             is_na = key in na_keys
-            prediction_mask = np.zeros(count, dtype=np.bool_) if is_na else eligible.copy()
+            prediction_mask = np.zeros(count, dtype=np.bool_) if is_na else inference.copy()
             value = 0.5 if task == "binary" else 0.0
             predictions = [value if flag else None for flag in prediction_mask]
             record: dict[str, object] = {
@@ -130,8 +134,8 @@ def _fixture_artifact(
             )
     header: dict[str, object] = {
         "artifact_type": "p1_validation_forecast",
-        "schema_id": "p1-validation-forecast-v1",
-        "schema_version": 1,
+        "schema_id": forecast.P1_FORECAST_SCHEMA_ID,
+        "schema_version": forecast.P1_FORECAST_FILE_VERSION,
         "scenario_id": scenario_id,
         "arm": arm,
         "seed": seed,
@@ -154,7 +158,7 @@ def _fixture_artifact(
     }
     return {
         "format": forecast.P1_FORECAST_FILE_FORMAT,
-        "format_version": 1,
+        "format_version": forecast.P1_FORECAST_FILE_VERSION,
         "header": header,
         "manifest_sha256": contract.manifest_sha256,
         "trial_registry_sha256": contract.trial_registry_sha256,
@@ -169,6 +173,22 @@ def _fixture_artifact(
         "target_mask": target_mask.tolist(),
         "binary_labels": labels.tolist(),
         "context_mask": context_mask.tolist(),
+        "origin_mask": origin_mask.tolist(),
+        "score_eligible_mask": score_eligible_mask.tolist(),
+        "spot_bar_observed": spot_bar_observed.tolist(),
+        "mask_hashes": {
+            "context_mask": forecast._array_sha256(context_mask, name="context_mask"),
+            "origin_mask": forecast._array_sha256(origin_mask, name="origin_mask"),
+            "score_eligible_mask": forecast._array_sha256(
+                score_eligible_mask,
+                name="score_eligible_mask",
+            ),
+            "target_mask": forecast._array_sha256(target_mask, name="target_mask"),
+            "spot_bar_observed": forecast._array_sha256(
+                spot_bar_observed,
+                name="spot_bar_observed",
+            ),
+        },
         "fits": fits,
         "coverage": coverage,
     }
@@ -219,8 +239,25 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         self.assertEqual(source.forecast_h4_mask.shape, source.timestamps.shape)
         self.assertEqual(source.origin_mask.shape, source.timestamps.shape)
         self.assertEqual(source.score_mask.shape, source.timestamps.shape)
+        np.testing.assert_array_equal(source.action_score_mask, source.score_mask)
         self.assertEqual(source.common_mask.shape, source.timestamps.shape)
         self.assertEqual(source.source_hashes["manifest_sha256"], forecast.REGISTERED_MANIFEST_SHA256)
+        with self.assertRaisesRegex(forecast.P1ForecastError, "ambiguous"):
+            _ = source.score_eligible
+
+    def test_unavailable_spot_return_roundtrips_as_null_without_zero_fill(self) -> None:
+        payload = _fixture_artifact(self.contract)
+        payload["realized_returns"][-1] = None
+        payload["spot_bar_observed"][-1] = False
+        payload["mask_hashes"]["spot_bar_observed"] = forecast._array_sha256(
+            np.asarray(payload["spot_bar_observed"], dtype=np.bool_),
+            name="spot_bar_observed",
+        )
+        _, _, loaded = self._save_and_load(payload)
+        source = forecast.require_authenticated_forecast_action_source(loaded.action_source)
+        self.assertTrue(np.isnan(source.realized_returns[-1]))
+        self.assertFalse(source.bar_available[-1])
+        self.assertNotEqual(source.realized_returns[-1], 0.0)
 
     def test_external_sha_regular_file_and_missing_metadata_fail_closed(self) -> None:
         payload = _fixture_artifact(self.contract)
