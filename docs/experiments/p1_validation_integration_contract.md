@@ -37,13 +37,14 @@ closed on omission, replay, or byte tampering.  The loaded index capability
 exposes `file_sha256`; production MBB provenance records it alongside the
 internal index digest.
 
-The existing `LoadedP1ActionArtifact` type currently has no identity-sealed
-production marker (fixture loads and direct dataclass construction have the
-same runtime type).  MBB therefore requires the strict external
-`source_action_file_sha256` placeholder binding for action metrics but rejects
-that typed object until an authenticated action capability is added.  This is
-an intentional integration stop condition, not an invitation to trust a
-self-declared action file hash.
+The authenticated action-artifact path now exposes an identity-sealed
+production capability.  MBB accepts a typed action input only after that
+capability has been loaded with the externally pinned file SHA, three
+inferential hashes, source binding, and field-specific mask registry.  Fixture
+loads, direct dataclass construction, and self-declared file hashes remain
+fail-closed and cannot promote.  A bare `LoadedP1ActionArtifact` is therefore
+not sufficient evidence; production callers must pass the sealed capability
+returned by the strict loader.
 
 ## Result-state semantics
 
