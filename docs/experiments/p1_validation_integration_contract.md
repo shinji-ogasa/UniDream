@@ -92,10 +92,42 @@ cannot select a different source array.  Inventory is carried only over the
 stored chronological scheduled grid.  Bootstrap never replays inventory over
 resampled indices; it resamples the stored primitive metrics.
 
+The persisted action artifact retains the current exact top-level contract and
+exactly the three inferential action hashes (schema, content, and payload).
+Its exact header also retains `metric_mask_registry` and, for production
+artifacts, the registered `trial_id`, `source_binding`,
+`source_binding_sha256`, and `paired_common_mask_sha256`.  The source binding
+is a canonical projection of the sealed forecast capability: its source
+schema/role, selected scenario/arm/seed/model/support identity, result-state
+fields, capability binding digest, and complete registered source-hash map are
+all pinned externally.  The source-binding digest is canonical JSON metadata;
+it is not an action-output hash and it is never used as a self-referential file
+digest.
+
+Production action persistence requires the caller-pinned file SHA, all three
+action hashes, exact production metadata, exact source binding, and the
+identity-sealed `ForecastActionSource`.  The raw arrays passed to the wrapper
+must be byte-for-byte/dtype-equal to that sealed capability; fixture arrays,
+directly constructed forecast capabilities, and caller-selected action deltas
+are rejected.  A successful production load registers an identity-sealed
+`LoadedP1ActionArtifact` capability.  Fixture loads, direct constructors, and
+`dataclasses.replace` copies cannot promote, even if they copy the private
+seal fields.
+
+The authenticated capability exposes an immutable typed MBB input.  Each
+selected metric returns only its declared value fields and its effective mask:
+utility fields use `outcome_complete_mask AND common_mask`, while action
+comparison fields use `scored_action_mask AND common_mask`.  The input carries
+the external file/action/source provenance alongside read-only arrays, so the
+downstream MBB boundary cannot substitute a bare raw array or a common mask
+from a different action artifact.
+
 Action input expectations bind source/forecast/support/timestamp/common-mask
 digests.  The producer computes schema/content/payload/envelope output hashes.
-Only the subsequent persistence/load boundary may require those output hashes
-and the exact action-artifact file digest.
+The action writer returns the exact post-rename file SHA-256 to the external
+ledger, never embedding it in the JSON payload.  Only the subsequent
+persistence/load boundary may require the three output hashes and the exact
+action-artifact file digest.
 
 For every unit, support, seed ordinal, and `L in {8,16,32}`, all 2,000
 non-circular block-start vectors are atomically stored before a production
