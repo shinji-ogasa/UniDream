@@ -382,9 +382,9 @@ class Backtest:
                     raise ValueError(
                         f"{name} legacy override must equal the action execution contract"
                     )
-            if execution_delay_bars is not _UNSET and self.execution_delay_bars != 0:
+            if execution_delay_bars is not _UNSET:
                 raise ValueError(
-                    "execution_delay_bars legacy override must be zero in contract mode"
+                    "execution_delay_bars legacy override is forbidden in contract mode"
                 )
         self.action_positions_are_deltas = action_positions_are_deltas
         if self.action_positions_are_deltas is not None and not isinstance(

@@ -23,6 +23,7 @@ import numpy as np
 from unidream.eval.action_execution import (
     ActionExecutionContract,
     complete_decision_starts,
+    derive_action_block_masks,
 )
 
 
@@ -1485,35 +1486,44 @@ def produce_action_primitive_grid(
             )
         forecast_block = explicit_forecast_block
 
-    expected_fill_block = np.asarray(
-        [score_eligible_arr[start + contract_obj.execution_delay_bars] for start in local_starts],
-        dtype=bool,
+    paired_input = _resolve_alias(
+        paired_common_mask,
+        common_mask,
+        first_name="paired_common_mask",
+        second_name="common_mask",
     )
-    expected_outcome_block = np.asarray(
-        [
-            bool(
-                score_eligible_arr[
-                    start + contract_obj.execution_delay_bars :
-                    start + contract_obj.execution_delay_bars + contract_obj.commitment_bars
-                ].all()
-                and (
-                    returns_arr is None
-                    or np.all(
-                        np.isfinite(
-                            returns_arr[
-                                start + contract_obj.execution_delay_bars :
-                                start
-                                + contract_obj.execution_delay_bars
-                                + contract_obj.commitment_bars
-                            ]
-                        )
-                    )
-                )
-            )
-            for start in local_starts
-        ],
-        dtype=bool,
+    paired_supplied = paired_input is not None
+    if paired_input is None:
+        paired_block = np.ones(len(local_starts), dtype=bool)
+    else:
+        paired_block = _normalise_block_mask(
+            paired_input,
+            name="paired_common_mask",
+            n_bars=bar_count,
+            starts=local_starts,
+            role="origin",
+            fill_delay=contract_obj.execution_delay_bars,
+            commitment_bars=contract_obj.commitment_bars,
+        )
+        assert paired_block is not None
+
+    origin_full = np.zeros(bar_count, dtype=bool)
+    forecast_full = np.zeros(bar_count, dtype=bool)
+    for row_index, start in enumerate(local_starts):
+        origin_full[start] = bool(origin_block[row_index])
+        forecast_full[start] = bool(forecast_block[row_index])
+    derived_masks = derive_action_block_masks(
+        bar_count,
+        contract_obj,
+        origin_mask=origin_full,
+        forecast_finite_mask=forecast_full,
+        bar_available=score_eligible_arr,
+        realized_returns=returns_arr,
+        common_mask=paired_block,
     )
+    start_index = np.asarray(local_starts, dtype=np.int64)
+    expected_fill_block = derived_masks.fill_complete_mask[start_index]
+    expected_outcome_block = derived_masks.outcome_complete_mask[start_index]
     fill_block = _normalise_block_mask(
         fill_complete_mask,
         name="fill_complete_mask",
@@ -1545,39 +1555,26 @@ def produce_action_primitive_grid(
             "outcome_complete_mask must equal the complete delayed score/return window"
         )
     # Keep the causal decision, delayed execution, and retrospective outcome
-    # masks separate.  In particular, an outcome gap is not a reason to erase
-    # a decision that was already executed at t+1.
-    decision_block = origin_block & forecast_block
-    executed_block = decision_block & fill_block
-    scored_block = executed_block & outcome_block
-
-    paired_input = _resolve_alias(
-        paired_common_mask,
-        common_mask,
-        first_name="paired_common_mask",
-        second_name="common_mask",
-    )
-    paired_supplied = paired_input is not None
-    if paired_input is None:
-        paired_block = np.ones(len(local_starts), dtype=bool)
-    else:
-        paired_block = _normalise_block_mask(
-            paired_input,
-            name="paired_common_mask",
-            n_bars=bar_count,
-            starts=local_starts,
-            role="origin",
-            fill_delay=contract_obj.execution_delay_bars,
-            commitment_bars=contract_obj.commitment_bars,
-        )
-        assert paired_block is not None
+    # masks separate.  These values come from the shared replay helper rather
+    # than a second producer-specific implementation.
+    decision_block = derived_masks.decision_block_mask[start_index]
+    executed_block = derived_masks.executed_block_mask[start_index]
+    scored_block = derived_masks.scored_action_mask[start_index]
     # ``common_mask`` is the fixed paired-grid mask, independent of which
     # metric is currently being reduced.  Utility fields use
     # ``outcome_complete_mask & common_mask`` so a finite active-hold utility
     # row is not discarded; action-agreement/regret fields additionally use
     # ``scored_action_mask``.  Reusing one scored mask for every metric would
     # silently drop valid hold PnL during downstream bootstrap reduction.
-    common_block = paired_block.copy()
+    common_block = derived_masks.common_mask[start_index]
+    if not np.array_equal(
+        derived_masks.utility_metric_mask[start_index],
+        outcome_block & paired_block,
+    ) or not np.array_equal(
+        derived_masks.action_metric_mask[start_index],
+        scored_block & paired_block,
+    ):
+        raise ActionPrimitiveContractError("shared action metric masks are inconsistent")
 
     metric_overrides: dict[str, np.ndarray] = {}
     if metrics is not None:
@@ -2494,6 +2491,45 @@ def validate_action_primitive_semantics(
     else:
         expected_common_block = None
 
+    derived_source_masks = None
+    if score_eligible_arr is not None:
+        source_origin_block = (
+            origin_expected
+            if origin_expected is not None
+            else np.asarray(
+                [
+                    _strict_bool(record["origin_eligible_mask"], field="origin_eligible_mask")
+                    for record in records
+                ],
+                dtype=bool,
+            )
+        )
+        source_forecast_block = (
+            forecast_expected
+            if forecast_expected is not None
+            else np.asarray(
+                [
+                    _strict_bool(record["forecast_finite_mask"], field="forecast_finite_mask")
+                    for record in records
+                ],
+                dtype=bool,
+            )
+        )
+        source_origin_full = np.zeros(bar_count, dtype=bool)
+        source_forecast_full = np.zeros(bar_count, dtype=bool)
+        for row_index, start in enumerate(local_starts):
+            source_origin_full[start] = bool(source_origin_block[row_index])
+            source_forecast_full[start] = bool(source_forecast_block[row_index])
+        derived_source_masks = derive_action_block_masks(
+            bar_count,
+            contract_obj,
+            origin_mask=source_origin_full,
+            forecast_finite_mask=source_forecast_full,
+            bar_available=score_eligible_arr,
+            realized_returns=returns_arr,
+            common_mask=paired_block,
+        )
+
     current = float(contract_obj.p_start)
     for row_index, (local_start, record) in enumerate(zip(local_starts, records)):
         local_fill = local_start + contract_obj.execution_delay_bars
@@ -2548,16 +2584,23 @@ def validate_action_primitive_semantics(
             raise ActionPrimitiveContractError(f"row {row_index} origin mask disagrees with source mask")
         if forecast_expected is not None and forecast_finite != bool(forecast_expected[row_index]):
             raise ActionPrimitiveContractError(f"row {row_index} forecast finite mask disagrees with source score")
-        if score_eligible_arr is not None:
-            expected_fill = bool(score_eligible_arr[local_fill])
-            expected_outcome = bool(
-                score_eligible_arr[local_fill:local_end].all()
-                and (returns_arr is None or np.all(np.isfinite(returns_arr[local_fill:local_end])))
-            )
-            if fill_complete != expected_fill:
-                raise ActionPrimitiveContractError(f"row {row_index} fill mask disagrees with score availability")
-            if outcome_complete != expected_outcome:
-                raise ActionPrimitiveContractError(f"row {row_index} outcome mask disagrees with score/return availability")
+        if derived_source_masks is not None:
+            if decision != bool(derived_source_masks.decision_block_mask[local_start]):
+                raise ActionPrimitiveContractError(
+                    f"row {row_index} decision mask disagrees with source masks"
+                )
+            if fill_complete != bool(derived_source_masks.fill_complete_mask[local_start]):
+                raise ActionPrimitiveContractError(
+                    f"row {row_index} fill mask disagrees with bar availability"
+                )
+            if outcome_complete != bool(derived_source_masks.outcome_complete_mask[local_start]):
+                raise ActionPrimitiveContractError(
+                    f"row {row_index} outcome mask disagrees with bar/return availability"
+                )
+            if scored != bool(derived_source_masks.scored_action_mask[local_start]):
+                raise ActionPrimitiveContractError(
+                    f"row {row_index} scored action mask disagrees with shared mask graph"
+                )
         elif returns_arr is not None and outcome_complete and not np.all(np.isfinite(returns_arr[local_fill:local_end])):
             raise ActionPrimitiveContractError(f"row {row_index} outcome mask accepts a non-finite return")
         if expected_common_block is not None and common != bool(expected_common_block[row_index]):
@@ -2655,6 +2698,15 @@ def validate_action_primitive_semantics(
             metric_values[field] = _strict_float(record[field], field=field)
         utility_metric_eligible = bool(outcome_complete and paired_block[row_index])
         action_metric_eligible = bool(scored and paired_block[row_index])
+        if derived_source_masks is not None:
+            if utility_metric_eligible != bool(
+                derived_source_masks.utility_metric_mask[local_start]
+            ) or action_metric_eligible != bool(
+                derived_source_masks.action_metric_mask[local_start]
+            ):
+                raise ActionPrimitiveContractError(
+                    f"row {row_index} metric masks disagree with shared mask graph"
+                )
         expected_metrics: dict[str, float] = {}
         if returns_arr is not None and utility_metric_eligible:
             expected_metrics = _expected_block_metrics(

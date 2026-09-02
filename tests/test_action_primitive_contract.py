@@ -8,7 +8,11 @@ import unittest
 
 import numpy as np
 
-from unidream.eval.action_execution import ActionExecutionContract
+from unidream.eval.action_execution import (
+    ActionExecutionContract,
+    replay_action_path,
+    select_block_decisions,
+)
 from unidream.experiments.action_primitives import (
     ACTION_PRIMITIVE_COST_CONTRACT_SHA256,
     ACTION_PRIMITIVE_HASH_FIELDS,
@@ -440,6 +444,32 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             )["semantic_validation_status"],
             "passed",
         )
+
+        # The shared replay and primitive producer must describe the same
+        # chronological path.  The gap is after the fill, so it can change
+        # only outcome/action scoring masks and never the selected state.
+        intent = select_block_decisions(
+            scores,
+            contract,
+            decision_eligible=common_inputs["decision_eligible"],
+            score_eligible=common_inputs["score_eligible"],
+        )
+        replay = replay_action_path(
+            gapped_returns,
+            intent,
+            contract,
+            decision_eligible=common_inputs["decision_eligible"],
+            score_eligible=common_inputs["score_eligible"],
+            forecast_finite_mask=np.isfinite(scores),
+        )
+        for row, start in zip(gapped_rows, (0, 4, 8, 12), strict=True):
+            fill = start + contract.execution_delay_bars
+            self.assertEqual(row["fill_complete_mask"], replay.fill_block_eligible_mask[start])
+            self.assertEqual(row["outcome_complete_mask"], replay.score_block_eligible_mask[start])
+            self.assertEqual(row["scored_action_mask"], bool(replay.scored_mask[fill]))
+            self.assertAlmostEqual(row["selected_delta"], replay.decision_deltas[start])
+            self.assertAlmostEqual(row["selected_position"], replay.effective_positions[fill])
+            self.assertAlmostEqual(row["previous_position"], replay.effective_positions[start])
 
     def test_fill_gap_does_not_execute_causal_action_or_fabricate_fill(self) -> None:
         contract = ActionExecutionContract.canonical()

@@ -18,6 +18,7 @@ from unidream.eval.action_execution import (
     replay_action_path,
     replay_contract_absolute_path,
     run_contract_backtest,
+    select_block_decisions,
     transition_cost,
     _candidate_position,
 )
@@ -280,6 +281,18 @@ class ActionExecutionContractTest(unittest.TestCase):
                 score_eligible=score_eligible,
                 interval="1d",
             )
+        with self.assertRaisesRegex(ValueError, "execution_delay_bars legacy override"):
+            Backtest(
+                returns,
+                deltas,
+                execution_delay_bars=0,
+                benchmark_positions=np.zeros(6),
+                action_execution_contract=self.contract,
+                action_positions_are_deltas=True,
+                decision_eligible=decision_eligible,
+                score_eligible=score_eligible,
+                interval="1d",
+            )
         metrics = Backtest(
             returns,
             deltas,
@@ -476,7 +489,7 @@ class ActionExecutionContractTest(unittest.TestCase):
                 score_eligible=np.ones(n_bars, dtype=np.int64),
             )
 
-    def test_ineligible_block_is_excluded_without_compressing_schedule(self) -> None:
+    def test_outcome_gap_is_unscored_without_cancelling_execution(self) -> None:
         n_bars = 10
         returns = np.zeros(n_bars, dtype=np.float64)
         returns[1:5] = np.nan  # Must not be read for the excluded first block.
@@ -502,11 +515,11 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(
             trajectory.block_eligible_mask,
-            [False, False, False, False, True, False, False, False, False, False],
+            [True, False, False, False, True, False, False, False, False, False],
         )
         np.testing.assert_array_equal(
             trajectory.decision_mask,
-            [False, False, False, False, True, False, False, False, False, False],
+            [True, False, False, False, True, False, False, False, False, False],
         )
         np.testing.assert_array_equal(
             trajectory.fill_mask,
@@ -522,7 +535,8 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         self.assertEqual(trajectory.n_scheduled_decisions, 2)
         self.assertEqual(trajectory.n_eligible_decisions, 2)
-        self.assertEqual(trajectory.n_eligible_blocks, 1)
+        self.assertEqual(trajectory.n_eligible_blocks, 2)
+        self.assertEqual(trajectory.n_fill_complete_blocks, 2)
         self.assertEqual(trajectory.n_excluded_blocks, 1)
         self.assertEqual(trajectory.n_scored_bars, 4)
         self.assertEqual(
@@ -530,7 +544,8 @@ class ActionExecutionContractTest(unittest.TestCase):
             {
                 "scheduled_decisions": 2,
                 "eligible_decisions": 2,
-                "eligible_blocks": 1,
+                "eligible_blocks": 2,
+                "fill_complete_blocks": 2,
                 "scorable_blocks": 1,
                 "filled_blocks": 1,
                 "execution_skipped_blocks": 0,
@@ -543,16 +558,19 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertAlmostEqual(trajectory.transition_costs[5], 0.00055 * 0.08)
         self.assertTrue(np.all(np.isfinite(trajectory.net_pnl)))
 
-        bad_deltas = deltas.copy()
-        bad_deltas[0] = -0.08
-        with self.assertRaisesRegex(ValueError, "ineligible block"):
-            replay_action_path(
-                returns,
-                bad_deltas,
-                self.contract,
-                decision_eligible=decision_eligible,
-                score_eligible=score_eligible,
-            )
+        executing_deltas = deltas.copy()
+        executing_deltas[0] = -0.08
+        executing = replay_action_path(
+            returns,
+            executing_deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        self.assertAlmostEqual(executing.decision_deltas[0], -0.08)
+        self.assertAlmostEqual(executing.effective_positions[1], 0.92)
+        self.assertAlmostEqual(executing.effective_positions[5], 0.84)
+        self.assertFalse(executing.scored_mask[1:5].any())
 
         absolute = np.ones(n_bars, dtype=np.float64)
         absolute[4:] = 0.92
@@ -564,15 +582,99 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         self.assertAlmostEqual(converted[0], 0.0)
         self.assertAlmostEqual(converted[4], -0.08)
-        bad_absolute = absolute.copy()
-        bad_absolute[0] = 0.92
-        with self.assertRaisesRegex(ValueError, "ineligible block"):
-            decision_deltas_from_positions(
-                bad_absolute,
-                self.contract,
-                decision_eligible=decision_eligible,
-                score_eligible=score_eligible,
-            )
+        executing_absolute = np.full(n_bars, 0.92, dtype=np.float64)
+        executing_absolute[4:] = 0.84
+        executing_converted = decision_deltas_from_positions(
+            executing_absolute,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        np.testing.assert_allclose(executing_converted[[0, 4]], [-0.08, -0.08])
+
+    def test_future_outcome_availability_cannot_change_causal_selection(self) -> None:
+        n_bars = 9
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4]] = (-1.0, 1.0)
+        decision_eligible, complete = self._all_masks(n_bars)
+        outcome_gap = complete.copy()
+        outcome_gap[2] = False  # fill t+1 exists; only a later outcome is absent
+
+        complete_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=complete,
+        )
+        gapped_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=outcome_gap,
+        )
+        np.testing.assert_array_equal(gapped_intent, complete_intent)
+
+        returns = np.zeros(n_bars, dtype=np.float64)
+        returns[2] = np.nan
+        complete_path = replay_action_path(
+            np.nan_to_num(returns),
+            complete_intent,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=complete,
+        )
+        gapped_path = replay_action_path(
+            returns,
+            gapped_intent,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=outcome_gap,
+        )
+        np.testing.assert_allclose(
+            gapped_path.decision_deltas[[0, 4]],
+            complete_path.decision_deltas[[0, 4]],
+        )
+        np.testing.assert_allclose(
+            gapped_path.effective_positions,
+            complete_path.effective_positions,
+        )
+        self.assertFalse(gapped_path.scored_mask[1:5].any())
+        self.assertTrue(gapped_path.scored_mask[5:9].all())
+
+    def test_fill_gap_preserves_intent_but_prevents_state_mutation(self) -> None:
+        n_bars = 9
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4]] = (-1.0, 1.0)
+        decision_eligible, complete = self._all_masks(n_bars)
+        fill_gap = complete.copy()
+        fill_gap[1] = False
+
+        complete_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=complete,
+        )
+        gapped_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=fill_gap,
+        )
+        self.assertEqual(gapped_intent[0], complete_intent[0])
+        self.assertNotEqual(gapped_intent[0], 0.0)
+
+        trajectory = replay_action_path(
+            np.zeros(n_bars, dtype=np.float64),
+            gapped_intent,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=fill_gap,
+        )
+        self.assertTrue(trajectory.decision_mask[0])
+        self.assertFalse(trajectory.fill_block_eligible_mask[0])
+        self.assertEqual(trajectory.decision_deltas[0], 0.0)
+        np.testing.assert_allclose(trajectory.effective_positions[1:5], 1.0)
 
     def test_decision_feature_gap_holds_commitment_but_keeps_finite_outcomes_scored(self) -> None:
         n_bars = 13
@@ -723,6 +825,7 @@ class ActionExecutionContractTest(unittest.TestCase):
         decision_eligible, score_eligible = self._all_masks(n_bars)
         score_eligible[2] = False
         scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[0] = 0.0
         scores[4] = -0.01
         realized_returns = np.zeros(n_bars, dtype=np.float64)
         realized_returns[1:5] = np.nan
@@ -772,7 +875,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             u0.score_block_eligible_mask[[0, 4, 8]], [True, False, True]
         )
         np.testing.assert_array_equal(
-            u0.block_eligible_mask[[0, 4, 8]], [True, False, True]
+            u0.block_eligible_mask[[0, 4, 8]], [True, True, True]
         )
         np.testing.assert_allclose(
             u0.decision_deltas[[0, 4, 8]], [-0.08, 0.0, 0.0]
@@ -815,7 +918,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             interval="1d",
         ).run()
         self.assertEqual(direct.scheduled_decisions, 2)
-        self.assertEqual(direct.eligible_blocks, 1)
+        self.assertEqual(direct.eligible_blocks, 2)
         self.assertEqual(direct.excluded_blocks, 1)
         self.assertEqual(direct.scored_bars, 4)
         self.assertEqual(wrapped.to_dict(), direct.to_dict())
@@ -850,7 +953,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             interval="1d",
         ).run()
         self.assertEqual(metrics.scheduled_decisions, 2)
-        self.assertEqual(metrics.eligible_blocks, 1)
+        self.assertEqual(metrics.eligible_blocks, 2)
         self.assertEqual(metrics.excluded_blocks, 1)
         self.assertEqual(metrics.scored_bars, 4)
 

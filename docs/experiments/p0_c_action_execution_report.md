@@ -1,10 +1,15 @@
 # P0-C action/execution contract
 
-Status: implemented as an explicit opt-in path; no existing Plan011 run is
-silently migrated. This report describes the mask-aware implementation from
-code commits `7a04e1b`, `0d2333a`, and `1b650b9` (latest) on branch
-`exp/p0-c-action-execution-20260830`; the documentation commit is pushed
-separately.
+Status: legacy implementation snapshot; it is retained for historical
+provenance and is not the current P1 production contract. The current
+mask-aware implementation lives on
+`exp/p1-production-chain-20260831`; its outcome-gap policy and counts supersede
+this snapshot. Do not use this document as evidence for an experiment result
+or as the source of truth for replay behavior.
+
+Current source of truth:
+[`p1_validation_integration_contract.md`](p1_validation_integration_contract.md)
+and [`action_primitive_implementation_notes.md`](action_primitive_implementation_notes.md).
 
 ## Canonical contract
 
@@ -19,10 +24,11 @@ revision is:
 
 The tracked machine-readable artifact is
 [`action_execution_contract.json`](action_execution_contract.json). The
-availability/skip policies are part of the hashed contract: a missing decision
-feature is an explicit scored hold commitment, while a missing delayed
-score/outcome excludes the complete block. This prevents a consumer from
-treating either case as an implicit legacy fallback.
+availability/skip policies are part of the hashed contract. A missing decision
+feature is an explicit scored hold commitment. A missing delayed fill prevents
+execution, while an outcome gap after a successful fill preserves the executed
+inventory and excludes only retrospective scoring. This prevents a consumer
+from treating either case as an implicit legacy fallback.
 
 The canonical fields are:
 
@@ -90,19 +96,14 @@ inspect all realized complete bars for an upper-bound-only diagnostic. Both
 paths share bounds, delay, commitment, cost, tail mask, and replay geometry,
 but action equality is not a contract.
 
-The new path also requires full-length boolean `decision_eligible[T]` and
-`score_eligible[T]` masks. A scheduled start is outcome/scoring-eligible when
-every delayed score cell in `t+1:t+5` is eligible. If its decision feature is
-unavailable, `execution_skip_policy=hold_commitment` keeps the current
-inventory, performs no fill/cost, and still scores the finite four-bar
-outcome; the next scheduled start remains `t+4`. If any delayed score/outcome
-cell is unavailable, `outcome_unavailable_policy=exclude_block` excludes the
-whole block from PnL without reading its returns, changes no inventory, and
-also keeps the next start at `t+4`. Finite values are mandatory on every
-scored block. The trajectory exposes `scheduled_decision_mask`, both input
-masks, `eligible_decision_mask`, `block_eligible_mask`,
-`score_block_eligible_mask`, `execution_skipped_mask`, `scored_mask`, count
-properties, and an `eligibility_mask_hash`.
+The historical path described by this snapshot required full-length boolean
+`decision_eligible[T]` and `score_eligible[T]` masks. In the current contract,
+the shared helper derives `decision`, `fill_complete`, `outcome_complete`,
+`executed`, and `scored_action` from explicit origin/forecast/bar-availability
+inputs plus realized-return finiteness. A feature gap holds and can score its
+finite outcome; a fill gap emits no fill; and a later outcome gap carries the
+filled position but is excluded from PnL. The schedule remains `t+4` and is
+never compressed. See the current source-of-truth documents linked above.
 
 Counts are intentionally distinct: `scheduled_decisions` is the fixed
 schedule, `eligible_decisions` is the decision-feature count,
