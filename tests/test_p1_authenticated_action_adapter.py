@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ import unittest
 import numpy as np
 
 from tests.test_p1_validation_forecast_artifact import _fixture_artifact
+from tests.test_p1_validation_forecast_artifact import _external_bindings
 from unidream.eval.action_execution import ActionExecutionContract, complete_decision_starts
 from unidream.experiments import p1_validation_forecast as forecast
 from unidream.experiments.action_primitives import (
@@ -33,15 +35,20 @@ class P1AuthenticatedActionAdapterTests(unittest.TestCase):
             20260830,
         )
         path = root / "forecast.json"
+        bindings = _external_bindings(payload)
+        expected_digest = hashlib.sha256(forecast._json_bytes(payload)).hexdigest()
         digest = forecast.save_p1_forecast_artifact(
             path,
             payload,
             expected_metadata=metadata,
+            expected_file_sha256=expected_digest,
+            expected_bindings=bindings,
         )
         return forecast.load_p1_forecast_artifact(
             path,
             expected_file_sha256=digest,
             expected_metadata=metadata,
+            expected_bindings=bindings,
         )
 
     def test_model_selection_is_explicit_and_every_action_arm_is_registry_bound(self) -> None:

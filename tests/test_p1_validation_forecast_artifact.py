@@ -40,14 +40,7 @@ def _fixture_artifact(
     start, end = spec.support_range
     count = end - start
     rows = np.arange(start, end, dtype=np.int64)
-    horizons = np.asarray(forecast.P1_FIXED_HORIZONS, dtype=np.int64)
-    target_end = rows[:, None] + horizons[None, :] + 1
-    target_mask = target_end <= spec.n_rows
-    targets = np.where(target_mask, 0.001 * horizons[None, :], np.nan)
-    labels = np.where(target_mask, 1, -1).astype(np.int8)
     context_mask = np.ones(count, dtype=np.bool_)
-    origin_mask = context_mask & (target_end[:, 1] <= end)
-    score_eligible_mask = origin_mask & target_mask[:, 1]
     spot_bar_observed = np.ones(count, dtype=np.bool_)
     ticks = np.datetime64("2024-01-01T00:00:00", "ns") + (
         np.arange(count, dtype=np.int64) * np.timedelta64(15, "m")
@@ -61,6 +54,17 @@ def _fixture_artifact(
         else 3e-7
     )
     realized_returns = (np.arange(count, dtype=np.float64) + 1.0) * return_scale
+    local_targets, target_mask, local_target_end = runner.build_target_arrays(
+        realized_returns,
+        spot_bar_observed,
+        horizons=forecast.P1_FIXED_HORIZONS,
+        timestamps=ticks,
+    )
+    targets = np.asarray(local_targets, dtype=np.float64)
+    target_end = np.asarray(local_target_end, dtype=np.int64) + start
+    labels = runner.binary_labels_from_targets(targets)
+    origin_mask = context_mask & (target_end[:, 1] <= end)
+    score_eligible_mask = origin_mask & target_mask[:, 1]
     source_arrays = {name: f"{index + 1:064x}" for index, name in enumerate(_SOURCE_ARRAY_NAMES)}
     provenance: dict[str, object] = {
         "scenario_id": scenario_id,
@@ -84,12 +88,18 @@ def _fixture_artifact(
         body_provenance["source_body_sha256"] = body_sha
         provenance["runtime"] = {}
         body_provenance["runtime"] = {}
+    h4_inference = context_mask & (target_end[:, 1] <= end)
     evidence: dict[str, object] = {
         "status": "passed",
-        "method": "fixture",
+        "method": "sealed_prefix_digest_probe" if spec.data_kind == "s3" else "causal_refit_probe",
         "origin": spec.fit_origin,
         "horizon": 4,
         "perturb_start": end,
+        "earlier_prediction_count": (
+            0
+            if (4, "ridge", "continuous") in na_keys
+            else int(np.count_nonzero(h4_inference))
+        ),
         "fitted_prefix_mask_sha256": "a" * 64,
         "earlier_prediction_mask_sha256": "b" * 64,
         "earlier_prediction_sha256": "c" * 64,
@@ -168,7 +178,11 @@ def _fixture_artifact(
         "outer_results_observed": False,
         "support_timestamps": support_timestamps,
         "realized_returns": realized_returns.tolist(),
-        "targets": targets.tolist(),
+        "targets": forecast._encode_float_array(
+            targets,
+            mask=target_mask,
+            name="targets",
+        ),
         "target_end": target_end.tolist(),
         "target_mask": target_mask.tolist(),
         "binary_labels": labels.tolist(),
@@ -200,6 +214,70 @@ def _canonical_write(path: Path, payload: dict[str, object]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _external_bindings(payload: dict[str, object]) -> dict[str, object]:
+    return dict(forecast.expected_forecast_bindings(payload))
+
+
+def _refresh_support_targets(payload: dict[str, object]) -> None:
+    start = int(payload["header"]["support_range"][0])
+    timestamps = np.asarray(payload["support_timestamps"], dtype="datetime64[ns]")
+    returns = np.asarray(
+        [np.nan if value is None else value for value in payload["realized_returns"]],
+        dtype=np.float64,
+    )
+    spot = np.asarray(payload["spot_bar_observed"], dtype=np.bool_)
+    targets, mask, target_end = runner.build_target_arrays(
+        returns,
+        spot,
+        horizons=forecast.P1_FIXED_HORIZONS,
+        timestamps=timestamps,
+    )
+    labels = runner.binary_labels_from_targets(targets)
+    payload["targets"] = forecast._encode_float_array(
+        np.asarray(targets, dtype=np.float64),
+        mask=np.asarray(mask, dtype=np.bool_),
+        name="targets",
+    )
+    payload["target_mask"] = np.asarray(mask, dtype=np.bool_).tolist()
+    payload["target_end"] = (np.asarray(target_end, dtype=np.int64) + start).tolist()
+    payload["binary_labels"] = np.asarray(labels, dtype=np.int8).tolist()
+    target_end_global = np.asarray(target_end, dtype=np.int64) + start
+    context = np.asarray(payload["context_mask"], dtype=np.bool_)
+    origin = context & (target_end_global[:, 1] <= int(payload["header"]["support_range"][1]))
+    score = origin & np.asarray(mask, dtype=np.bool_)[:, 1]
+    payload["origin_mask"] = origin.tolist()
+    payload["score_eligible_mask"] = score.tolist()
+    for record in payload["fits"]:
+        horizon = int(record["horizon"])
+        column = forecast.P1_FIXED_HORIZONS.index(horizon)
+        inference = context & (target_end_global[:, column] <= int(payload["header"]["support_range"][1]))
+        record["eligible_mask"] = (inference & np.asarray(mask, dtype=np.bool_)[:, column]).tolist()
+        key = forecast._fit_key(horizon, record["model_id"], record["task"])
+        payload["coverage"][key] = forecast._coverage_expected(
+            support_range=tuple(payload["header"]["support_range"]),
+            target_end=target_end_global,
+            target_mask=np.asarray(mask, dtype=np.bool_),
+            context_mask=context,
+            record=record,
+            horizon=horizon,
+            model_id=record["model_id"],
+            task=record["task"],
+            data_kind=payload["header"]["scenario_provenance"]["data_kind"],
+        )
+    payload["mask_hashes"]["target_mask"] = forecast._array_sha256(
+        np.asarray(mask, dtype=np.bool_),
+        name="target_mask",
+    )
+    payload["mask_hashes"]["origin_mask"] = forecast._array_sha256(
+        origin,
+        name="origin_mask",
+    )
+    payload["mask_hashes"]["score_eligible_mask"] = forecast._array_sha256(
+        np.asarray(payload["score_eligible_mask"], dtype=np.bool_),
+        name="score_eligible_mask",
+    )
+
+
 class P1ValidationForecastArtifactTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -213,11 +291,20 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         path = Path(directory.name) / "forecast.json"
-        digest = forecast.save_p1_forecast_artifact(path, payload, expected_metadata=metadata)
+        digest = hashlib.sha256(forecast._json_bytes(payload)).hexdigest()
+        bindings = _external_bindings(payload)
+        digest = forecast.save_p1_forecast_artifact(
+            path,
+            payload,
+            expected_metadata=metadata,
+            expected_file_sha256=digest,
+            expected_bindings=bindings,
+        )
         loaded = forecast.load_p1_forecast_artifact(
             path,
             expected_file_sha256=digest,
             expected_metadata=metadata,
+            expected_bindings=bindings,
         )
         return path, digest, loaded
 
@@ -255,6 +342,7 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
             np.asarray(payload["spot_bar_observed"], dtype=np.bool_),
             name="spot_bar_observed",
         )
+        _refresh_support_targets(payload)
         _, _, loaded = self._save_and_load(payload)
         source = forecast.require_authenticated_forecast_action_source(
             loaded.as_action_source("ridge")
@@ -268,7 +356,15 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         path = Path(directory.name) / "forecast.json"
-        digest = forecast.save_p1_forecast_artifact(path, payload, expected_metadata=self._metadata())
+        bindings = _external_bindings(payload)
+        digest = hashlib.sha256(forecast._json_bytes(payload)).hexdigest()
+        digest = forecast.save_p1_forecast_artifact(
+            path,
+            payload,
+            expected_metadata=self._metadata(),
+            expected_file_sha256=digest,
+            expected_bindings=bindings,
+        )
         with self.assertRaises(forecast.P1ForecastError):
             forecast.load_p1_forecast_artifact(path, expected_file_sha256="0" * 64, expected_metadata=self._metadata())
         with self.assertRaises(forecast.P1ForecastError):
@@ -276,9 +372,20 @@ class P1ValidationForecastArtifactTests(unittest.TestCase):
         link = Path(directory.name) / "link.json"
         link.symlink_to(path)
         with self.assertRaises(forecast.P1ForecastError):
-            forecast.load_p1_forecast_artifact(link, expected_file_sha256=digest, expected_metadata=self._metadata())
+            forecast.load_p1_forecast_artifact(
+                link,
+                expected_file_sha256=digest,
+                expected_metadata=self._metadata(),
+                expected_bindings=bindings,
+            )
         with self.assertRaises(forecast.P1ForecastError):
-            forecast.save_p1_forecast_artifact(link, payload, expected_metadata=self._metadata())
+            forecast.save_p1_forecast_artifact(
+                link,
+                payload,
+                expected_metadata=self._metadata(),
+                expected_file_sha256=digest,
+                expected_bindings=bindings,
+            )
 
     def test_expected_seed_spec_and_registered_hashes_cannot_be_bypassed(self) -> None:
         payload = _fixture_artifact(self.contract)
