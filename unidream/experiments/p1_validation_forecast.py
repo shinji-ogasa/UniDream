@@ -223,6 +223,49 @@ def _json_bytes(payload: Mapping[str, Any]) -> bytes:
     return encoded
 
 
+class _BuilderAuthenticatedPayload(dict[str, Any]):
+    """In-process identity returned only by the canonical artifact builder.
+
+    The seal is deliberately not serialized.  Persisted files therefore need
+    an external digest binding when they are loaded in another process, while
+    a caller cannot turn an arbitrary mapping into a producer-authenticated
+    payload merely by copying the builder's fields.
+    """
+
+    __slots__ = ("_seal", "_canonical_sha256", "_bindings")
+
+    def __init__(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        canonical_sha256: str,
+        bindings: Mapping[str, Any],
+    ) -> None:
+        super().__init__(payload)
+        self._seal = _BUILDER_PAYLOAD_SEAL
+        self._canonical_sha256 = canonical_sha256
+        self._bindings = MappingProxyType(dict(bindings))
+
+
+# A module-local object is used instead of a payload field, so the authority
+# cannot be copied into JSON or echoed by an untrusted producer.
+_BUILDER_PAYLOAD_SEAL = object()
+_BUILDER_OUTPUT_BINDINGS: dict[str, Mapping[str, Any]] = {}
+
+
+def _builder_payload_is_authentic(payload: Any) -> bool:
+    if type(payload) is not _BuilderAuthenticatedPayload:
+        return False
+    if payload._seal is not _BUILDER_PAYLOAD_SEAL:
+        return False
+    try:
+        encoded = _json_bytes(payload)
+        digest = hashlib.sha256(encoded).hexdigest()
+    except Exception:
+        return False
+    return digest == payload._canonical_sha256
+
+
 def _encode_float_array(value: Any, *, mask: Any | None, name: str) -> Any:
     """Encode float arrays with null only at explicitly unmasked cells."""
 
@@ -885,6 +928,43 @@ def _support_slice(values: Any, spec: ValidationScenarioSpec, *, name: str) -> n
     return np.array(array[start:end], copy=True)
 
 
+def _recompute_support_targets(
+    *,
+    support_returns: np.ndarray,
+    support_spot_bar_observed: np.ndarray,
+    support_timestamps: np.ndarray,
+    support_start: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Rebuild support targets from only realized returns, Spot, and time.
+
+    The runner deliberately does not inspect the edge after ``t+h``.  Adding
+    the support offset back to its local ``target_end`` values preserves the
+    registered global row coordinates and leaves every target whose endpoint
+    is outside the persisted support masked/NaN instead of guessing from an
+    unavailable tail.
+    """
+
+    try:
+        targets, target_mask, target_end = _runner_module().build_target_arrays(
+            support_returns,
+            support_spot_bar_observed,
+            horizons=P1_FIXED_HORIZONS,
+            timestamps=support_timestamps,
+        )
+    except Exception as exc:
+        raise P1ForecastError(
+            "support targets cannot be recomputed from returns, Spot, and timestamps"
+        ) from exc
+    target_end_global = np.asarray(target_end, dtype=np.int64) + int(support_start)
+    labels = _runner_module().binary_labels_from_targets(targets)
+    return (
+        np.asarray(targets, dtype=np.float64),
+        np.asarray(target_mask, dtype=np.bool_),
+        target_end_global,
+        np.asarray(labels, dtype=np.int8),
+    )
+
+
 def _scenario_provenance(spec: ValidationScenarioSpec, dataset: Any) -> Mapping[str, Any]:
     seed = _dataset_seed(dataset, spec)
     returns = np.asarray(dataset.returns)
@@ -1182,7 +1262,7 @@ def build_p1_forecast_artifact(
     fits: Mapping[tuple[int, str, str], Any],
     *,
     future_perturbation_evidence: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
+) -> Mapping[str, Any]:
     """Build one canonical forecast artifact from a complete fit grid."""
 
     if not isinstance(contract, P1ForecastContract):
@@ -1199,10 +1279,27 @@ def build_p1_forecast_artifact(
     timestamps = np.asarray(dataset.timestamps)
     if len(timestamps) != spec.n_rows:
         raise P1ForecastError("dataset timestamps are not aligned to the registered body")
-    support_timestamps = _timestamp_strings(timestamps[spec.support_range[0] : spec.support_range[1]])
+    support_timestamp_array = np.asarray(
+        timestamps[spec.support_range[0] : spec.support_range[1]],
+        dtype=np.dtype("datetime64[ns]"),
+    )
+    support_timestamps = _timestamp_strings(support_timestamp_array)
     support_returns = _support_slice(dataset.returns, spec, name="returns")
-    support_features = _support_slice(dataset.features, spec, name="features")
-    del support_features  # features are bound by the body provenance, not duplicated in the forecast file
+    support_spot = _support_slice(
+        dataset.availability["spot_bar_observed"],
+        spec,
+        name="spot_bar_observed",
+    )
+    # Recompute the persisted support targets from the values that actually
+    # cross the support boundary.  Full-body target arrays may contain values
+    # beyond the artifact's right edge; carrying those values would make the
+    # loader depend on an unavailable support tail.
+    support_targets, support_mask, support_end, support_labels = _recompute_support_targets(
+        support_returns=support_returns,
+        support_spot_bar_observed=support_spot,
+        support_timestamps=support_timestamp_array,
+        support_start=spec.support_range[0],
+    )
     target_mask_full = np.asarray(dataset.target_mask)
     target_values_full = np.asarray(dataset.targets)
     target_end_full = np.asarray(dataset.target_end)
@@ -1218,10 +1315,6 @@ def build_p1_forecast_artifact(
         raise P1ForecastError("dataset binary labels are not canonical")
     if context_full.dtype != np.dtype(np.bool_) or context_full.shape != (spec.n_rows,):
         raise P1ForecastError("dataset context mask is not canonical")
-    support_mask = _support_slice(target_mask_full, spec, name="target_mask")
-    support_targets = _support_slice(target_values_full, spec, name="targets")
-    support_end = _support_slice(target_end_full, spec, name="target_end")
-    support_labels = _support_slice(labels_full, spec, name="binary_labels")
     support_context = _support_slice(context_full, spec, name="context_mask")
     try:
         origin_full = _runner_module().inference_mask_for_range(
@@ -1240,11 +1333,6 @@ def build_p1_forecast_artifact(
         raise P1ForecastError("could not derive the registered causal/score support masks") from exc
     support_origin = _support_slice(origin_full, spec, name="origin_mask")
     support_score = _support_slice(score_full, spec, name="score_eligible_mask")
-    support_spot = _support_slice(
-        dataset.availability["spot_bar_observed"],
-        spec,
-        name="spot_bar_observed",
-    )
     if not np.array_equal(support_score, support_origin & support_mask[:, 1]):
         raise P1ForecastError("h4 score eligibility is not origin mask AND target mask")
     if not np.array_equal(support_origin, support_context & (support_end[:, 1] <= spec.support_range[1])):
@@ -1393,12 +1481,21 @@ def build_p1_forecast_artifact(
         "fits": records,
         "coverage": coverage,
     }
-    _validate_forecast_payload(
+    validation = _validate_forecast_payload(
         artifact,
         expected_metadata=_expected_metadata(contract, spec, seed=seed),
         require_production=True,
     )
-    return artifact
+    encoded = _json_bytes(artifact)
+    payload_digest = hashlib.sha256(encoded).hexdigest()
+    bindings = validation.get("external_bindings")
+    if not isinstance(bindings, Mapping):
+        raise P1ForecastError("builder could not create external forecast bindings")
+    return _BuilderAuthenticatedPayload(
+        artifact,
+        canonical_sha256=payload_digest,
+        bindings=bindings,
+    )
 
 
 def _fit_key(horizon: int, model_id: str, task: str) -> str:
@@ -1470,6 +1567,36 @@ _FIT_FIELDS = (
     "predictions",
 )
 
+_FORECAST_ARTIFACT_ARRAY_BINDING_NAMES = (
+    "support_timestamps",
+    "realized_returns",
+    "spot_bar_observed",
+    "targets",
+    "target_mask",
+    "target_end",
+    "binary_labels",
+    "context_mask",
+    "origin_mask",
+    "score_eligible_mask",
+)
+_FORECAST_SOURCE_ARRAY_NAMES = (
+    "timestamps",
+    "features",
+    "returns",
+    "availability.spot_bar_observed",
+    "availability.funding_rate_available",
+    "availability.mark_close_available",
+)
+_FORECAST_BINDING_FIELDS = frozenset(
+    {
+        "source_array_sha256",
+        "source_body_sha256",
+        "artifact_array_sha256",
+        "fit_record_sha256",
+        "future_evidence_sha256",
+    }
+)
+
 _SELF_BINDING_KEYS = frozenset(
     {
         "file_sha256",
@@ -1481,6 +1608,138 @@ _SELF_BINDING_KEYS = frozenset(
 )
 _MAX_PROVENANCE_DEPTH = 32
 _MAX_PROVENANCE_NODES = 1_000_000
+
+
+def _compute_forecast_bindings(
+    header: Mapping[str, Any],
+    *,
+    timestamps: np.ndarray,
+    realized_returns: np.ndarray,
+    spot_bar_observed: np.ndarray,
+    targets: np.ndarray,
+    target_mask: np.ndarray,
+    target_end: np.ndarray,
+    binary_labels: np.ndarray,
+    context_mask: np.ndarray,
+    origin_mask: np.ndarray,
+    score_eligible_mask: np.ndarray,
+    fits: Mapping[tuple[int, str, str], Mapping[str, Any]],
+    evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return all caller-pinned digests for one decoded forecast payload."""
+
+    provenance = header.get("scenario_provenance")
+    body = header.get("body_provenance")
+    if not isinstance(provenance, Mapping) or not isinstance(body, Mapping):
+        raise P1ForecastError("forecast source provenance is missing")
+    source_arrays = provenance.get("source_array_sha256")
+    if not isinstance(source_arrays, Mapping):
+        raise P1ForecastError("forecast source-array provenance is missing")
+    source_body = provenance.get("source_body_sha256")
+    if source_body is not None:
+        _strict_sha256(source_body, name="source_body_sha256")
+    artifact_arrays: dict[str, str] = {
+        "support_timestamps": _array_sha256(timestamps, name="support_timestamps"),
+        "realized_returns": _array_sha256(realized_returns, name="realized_returns"),
+        "spot_bar_observed": _array_sha256(spot_bar_observed, name="spot_bar_observed"),
+        "targets": _array_sha256(targets, name="targets"),
+        "target_mask": _array_sha256(target_mask, name="target_mask"),
+        "target_end": _array_sha256(target_end, name="target_end"),
+        "binary_labels": _array_sha256(binary_labels, name="binary_labels"),
+        "context_mask": _array_sha256(context_mask, name="context_mask"),
+        "origin_mask": _array_sha256(origin_mask, name="origin_mask"),
+        "score_eligible_mask": _array_sha256(
+            score_eligible_mask,
+            name="score_eligible_mask",
+        ),
+    }
+    fit_digests = {
+        _fit_key(*key): hashlib.sha256(_json_bytes(record)).hexdigest()
+        for key, record in sorted(fits.items())
+    }
+    return {
+        "source_array_sha256": dict(source_arrays),
+        "source_body_sha256": source_body,
+        "artifact_array_sha256": artifact_arrays,
+        "fit_record_sha256": fit_digests,
+        "future_evidence_sha256": hashlib.sha256(_json_bytes(evidence)).hexdigest(),
+    }
+
+
+def _validate_external_bindings(
+    expected: Mapping[str, Any],
+    actual: Mapping[str, Any],
+    *,
+    spec: ValidationScenarioSpec | None,
+) -> None:
+    """Compare caller-supplied digest expectations, never artifact echoes."""
+
+    if not isinstance(expected, Mapping) or set(expected) != _FORECAST_BINDING_FIELDS:
+        raise P1ForecastError("external forecast bindings must use the exact digest schema")
+    if not isinstance(actual, Mapping) or set(actual) != _FORECAST_BINDING_FIELDS:
+        raise P1ForecastError("internal forecast binding schema is incomplete")
+    expected_source = expected.get("source_array_sha256")
+    actual_source = actual.get("source_array_sha256")
+    if (
+        not isinstance(expected_source, Mapping)
+        or set(expected_source) != set(_FORECAST_SOURCE_ARRAY_NAMES)
+        or not isinstance(actual_source, Mapping)
+        or set(actual_source) != set(_FORECAST_SOURCE_ARRAY_NAMES)
+    ):
+        raise P1ForecastError("external source-array binding fields are not exact")
+    for name in _FORECAST_SOURCE_ARRAY_NAMES:
+        _strict_sha256(expected_source[name], name=f"expected source_array_sha256.{name}")
+        _strict_sha256(actual_source[name], name=f"actual source_array_sha256.{name}")
+    if dict(expected_source) != dict(actual_source):
+        raise P1ForecastError("forecast source arrays disagree with external bindings")
+    expected_body = expected.get("source_body_sha256")
+    actual_body = actual.get("source_body_sha256")
+    if spec is not None and spec.data_kind == "s3":
+        _strict_sha256(expected_body, name="expected source_body_sha256")
+        _strict_sha256(actual_body, name="actual source_body_sha256")
+    elif expected_body is not None or actual_body is not None:
+        raise P1ForecastError("synthetic forecasts must not carry a source body digest")
+    if expected_body != actual_body:
+        raise P1ForecastError("forecast source body disagrees with external bindings")
+    expected_arrays = expected.get("artifact_array_sha256")
+    actual_arrays = actual.get("artifact_array_sha256")
+    if (
+        not isinstance(expected_arrays, Mapping)
+        or set(expected_arrays) != set(_FORECAST_ARTIFACT_ARRAY_BINDING_NAMES)
+        or not isinstance(actual_arrays, Mapping)
+        or set(actual_arrays) != set(_FORECAST_ARTIFACT_ARRAY_BINDING_NAMES)
+    ):
+        raise P1ForecastError("external artifact-array binding fields are not exact")
+    for name in _FORECAST_ARTIFACT_ARRAY_BINDING_NAMES:
+        _strict_sha256(expected_arrays[name], name=f"expected artifact_array_sha256.{name}")
+        _strict_sha256(actual_arrays[name], name=f"actual artifact_array_sha256.{name}")
+    if dict(expected_arrays) != dict(actual_arrays):
+        raise P1ForecastError("forecast arrays disagree with external bindings")
+    expected_fits = expected.get("fit_record_sha256")
+    actual_fits = actual.get("fit_record_sha256")
+    if (
+        not isinstance(expected_fits, Mapping)
+        or not isinstance(actual_fits, Mapping)
+        or set(expected_fits) != set(actual_fits)
+        or len(expected_fits) != len(P1_FIXED_HORIZONS) * len(P1_ALLOWED_MODEL_TASK_KEYS)
+    ):
+        raise P1ForecastError("external fit-record bindings do not cover the fixed grid")
+    expected_fit_keys = {
+        _fit_key(horizon, model_id, task)
+        for horizon in P1_FIXED_HORIZONS
+        for model_id, task in P1_ALLOWED_MODEL_TASK_KEYS
+    }
+    if set(expected_fits) != expected_fit_keys or set(actual_fits) != expected_fit_keys:
+        raise P1ForecastError("external fit-record bindings have incomplete keys")
+    for key in expected_fit_keys:
+        _strict_sha256(expected_fits[key], name=f"expected fit_record_sha256.{key}")
+        _strict_sha256(actual_fits[key], name=f"actual fit_record_sha256.{key}")
+    if dict(expected_fits) != dict(actual_fits):
+        raise P1ForecastError("forecast fit outputs disagree with external bindings")
+    _strict_sha256(expected.get("future_evidence_sha256"), name="expected future_evidence_sha256")
+    _strict_sha256(actual.get("future_evidence_sha256"), name="actual future_evidence_sha256")
+    if expected["future_evidence_sha256"] != actual["future_evidence_sha256"]:
+        raise P1ForecastError("future perturbation evidence disagrees with external bindings")
 
 
 def _reject_self_binding_keys(value: Any, *, path: str = "artifact") -> None:
@@ -1719,6 +1978,63 @@ def _validate_provenance(header: Mapping[str, Any], spec: ValidationScenarioSpec
             raise P1ForecastError("S3 runtime provenance is not echoed consistently")
 
 
+def _validate_source_dataset_against_payload(
+    *,
+    source_dataset: Any,
+    spec: ValidationScenarioSpec,
+    header: Mapping[str, Any],
+    timestamps: np.ndarray,
+    realized_returns: np.ndarray,
+    spot_bar_observed: np.ndarray,
+    targets: np.ndarray,
+    target_mask: np.ndarray,
+    target_end: np.ndarray,
+    binary_labels: np.ndarray,
+    context_mask: np.ndarray,
+) -> None:
+    """Recompute every source-derived support field when a source is supplied."""
+
+    _validate_registered_dataset(spec, source_dataset)
+    expected_provenance = _scenario_provenance(spec, source_dataset)
+    if _plain(header.get("scenario_provenance")) != _plain(expected_provenance):
+        raise P1ForecastError("forecast provenance does not match the externally supplied source")
+    source_body = header.get("body_provenance")
+    expected_body: dict[str, Any] = {
+        "data_kind": spec.data_kind,
+        "body_rows": spec.n_rows,
+        "support_range": list(spec.support_range),
+        "source_array_sha256": expected_provenance["source_array_sha256"],
+    }
+    if "source_body_sha256" in expected_provenance:
+        expected_body["source_body_sha256"] = expected_provenance["source_body_sha256"]
+    if "runtime" in expected_provenance:
+        expected_body["runtime"] = expected_provenance["runtime"]
+    if _plain(source_body) != _plain(expected_body):
+        raise P1ForecastError("forecast body provenance does not match the external source")
+    start, end = spec.support_range
+    source_timestamps = np.asarray(source_dataset.timestamps[start:end], dtype=np.dtype("datetime64[ns]"))
+    source_returns = np.asarray(source_dataset.returns[start:end], dtype=np.float64)
+    source_spot = np.asarray(
+        source_dataset.availability["spot_bar_observed"][start:end],
+        dtype=np.bool_,
+    )
+    _arrays_exact(timestamps, source_timestamps, name="support timestamps")
+    _arrays_exact(realized_returns, source_returns, name="support realized returns")
+    _arrays_exact(spot_bar_observed, source_spot, name="support Spot availability")
+    source_targets, source_target_mask, source_target_end, source_labels = _recompute_support_targets(
+        support_returns=source_returns,
+        support_spot_bar_observed=source_spot,
+        support_timestamps=source_timestamps,
+        support_start=start,
+    )
+    _arrays_exact(targets, source_targets, name="support targets")
+    _arrays_exact(target_mask, source_target_mask, name="support target mask")
+    _arrays_exact(target_end, source_target_end, name="support target_end")
+    _arrays_exact(binary_labels, source_labels, name="support binary labels")
+    source_context = np.asarray(source_dataset.context_mask[start:end], dtype=np.bool_)
+    _arrays_exact(context_mask, source_context, name="support context mask")
+
+
 def _coverage_expected(
     *,
     support_range: tuple[int, int],
@@ -1790,17 +2106,72 @@ def _validate_future_evidence(
     *,
     spec: ValidationScenarioSpec | None,
     header: Mapping[str, Any],
+    h4_record: Mapping[str, Any] | None = None,
+    strict: bool = True,
 ) -> None:
-    if evidence.get("status") not in {"passed", "N/A"}:
+    status = evidence.get("status")
+    if status not in {"passed", "N/A"}:
         raise P1ForecastError("future perturbation evidence is missing or invalid")
     if evidence.get("origin") != header.get("fit_origin") or evidence.get("horizon") != 4:
         raise P1ForecastError("future perturbation evidence has the wrong fit identity")
     if evidence.get("perturb_start") != header.get("support_range", [None, None])[1]:
         raise P1ForecastError("future perturbation evidence has the wrong perturbation boundary")
-    if evidence.get("status") == "N/A":
+    if status == "N/A":
+        if strict and (evidence.get("method") != "probe_failed" or set(evidence) != {
+            "status",
+            "method",
+            "origin",
+            "horizon",
+            "perturb_start",
+            "reason",
+        }):
+            raise P1ForecastError("N/A future perturbation evidence schema is not exact")
         if not isinstance(evidence.get("reason"), str) or not evidence.get("reason"):
             raise P1ForecastError("N/A future perturbation evidence requires a reason")
         return
+    expected_method = "sealed_prefix_digest_probe"
+    if spec is not None and spec.data_kind == "synthetic":
+        expected_method = "causal_refit_probe"
+    required = {
+        "status",
+        "method",
+        "origin",
+        "horizon",
+        "perturb_start",
+        "earlier_prediction_count",
+        "fitted_prefix_mask_sha256",
+        "earlier_prediction_mask_sha256",
+        "earlier_prediction_sha256",
+    }
+    if spec is not None and spec.data_kind == "s3":
+        required.add("source_body_sha256")
+    if strict and (evidence.get("method") != expected_method or set(evidence) != required):
+        raise P1ForecastError("future perturbation evidence method/schema is not exact")
+    if not strict and evidence.get("method") not in {
+        "fixture",
+        "causal_refit_probe",
+        "sealed_prefix_digest_probe",
+    }:
+        raise P1ForecastError("future perturbation evidence method is unsupported")
+    count: int | None = None
+    if strict or "earlier_prediction_count" in evidence:
+        count = _strict_int(
+            evidence.get("earlier_prediction_count"),
+            name="future_perturbation_evidence.earlier_prediction_count",
+        )
+        if count < 0:
+            raise P1ForecastError("future perturbation evidence count must be non-negative")
+    if h4_record is not None and count is not None:
+        prediction_mask = _decode_bool_array(
+            h4_record.get("prediction_mask"),
+            shape=(header["support_range"][1] - header["support_range"][0],),
+            name="h4 prediction_mask",
+        )
+        expected_count = int(np.count_nonzero(prediction_mask))
+        if count != expected_count:
+            raise P1ForecastError(
+                "future perturbation evidence count disagrees with the h4 inference mask"
+            )
     for name in ("fitted_prefix_mask_sha256", "earlier_prediction_mask_sha256", "earlier_prediction_sha256"):
         _strict_sha256(evidence.get(name), name=f"future_perturbation_evidence.{name}")
     if spec is not None and spec.data_kind == "s3":
@@ -1817,6 +2188,8 @@ def _validate_forecast_payload(
     *,
     expected_metadata: Mapping[str, Any] | None,
     require_production: bool,
+    expected_bindings: Mapping[str, Any] | None = None,
+    source_dataset: Any | None = None,
 ) -> Mapping[str, Any]:
     spec = _validate_identity(
         artifact,
@@ -1833,6 +2206,16 @@ def _validate_forecast_payload(
             raise P1ForecastError("forecast support length does not match the registered scenario")
         _validate_provenance(header, spec)
     timestamps = _decode_timestamps(artifact["support_timestamps"], expected_count=support_count)
+    try:
+        timestamps = _runner_module().validate_15m_timestamps(
+            timestamps,
+            n_rows=support_count,
+            label="support_timestamps",
+        )
+    except Exception as exc:
+        raise P1ForecastError(
+            "support timestamps must preserve the exact 15-minute edge grid"
+        ) from exc
     spot_bar_observed = _decode_bool_array(
         artifact["spot_bar_observed"],
         shape=(support_count,),
@@ -1867,11 +2250,49 @@ def _validate_forecast_payload(
     )
     if not np.array_equal(target_end, expected_target_end):
         raise P1ForecastError("target_end does not equal the fixed t+h+1 formula")
+    recomputed_targets, recomputed_target_mask, recomputed_target_end, recomputed_labels = (
+        _recompute_support_targets(
+            support_returns=returns,
+            support_spot_bar_observed=spot_bar_observed,
+            support_timestamps=timestamps,
+            support_start=support_range[0],
+        )
+    )
+    if not np.array_equal(target_end, recomputed_target_end):
+        raise P1ForecastError("target_end does not match the timestamp/return support geometry")
+    if not np.array_equal(target_mask, recomputed_target_mask):
+        raise P1ForecastError(
+            "target_mask does not match realized returns, Spot, and timestamp edges"
+        )
+    if not np.array_equal(targets, recomputed_targets, equal_nan=True):
+        raise P1ForecastError(
+            "targets do not equal the recomputed realized-return sums"
+        )
+    if not np.array_equal(labels, recomputed_labels):
+        raise P1ForecastError(
+            "binary_labels do not match the recomputed realized-return targets"
+        )
     if np.any(labels[target_mask] != (targets[target_mask] > 0.0).astype(np.int8)):
         raise P1ForecastError("binary labels do not match finite targets")
     if np.any(labels[~target_mask] != -1):
         raise P1ForecastError("binary labels must be -1 where the target mask is false")
     context_mask = _decode_bool_array(artifact["context_mask"], shape=(support_count,), name="context_mask")
+    if source_dataset is not None:
+        if spec is None:
+            raise P1ForecastError("an external source dataset requires production identity metadata")
+        _validate_source_dataset_against_payload(
+            source_dataset=source_dataset,
+            spec=spec,
+            header=header,
+            timestamps=timestamps,
+            realized_returns=returns,
+            spot_bar_observed=spot_bar_observed,
+            targets=targets,
+            target_mask=target_mask,
+            target_end=target_end,
+            binary_labels=labels,
+            context_mask=context_mask,
+        )
     origin_mask = _decode_bool_array(
         artifact["origin_mask"],
         shape=(support_count,),
@@ -2001,7 +2422,30 @@ def _validate_forecast_payload(
     evidence = header.get("future_perturbation_evidence")
     if not isinstance(evidence, Mapping):
         raise P1ForecastError("future perturbation evidence is missing or invalid")
-    _validate_future_evidence(evidence, spec=spec, header=header)
+    _validate_future_evidence(
+        evidence,
+        spec=spec,
+        header=header,
+        h4_record=decoded_fits.get((4, "ridge", "continuous")),
+        strict=require_production,
+    )
+    bindings = _compute_forecast_bindings(
+        header,
+        timestamps=timestamps,
+        realized_returns=returns,
+        spot_bar_observed=spot_bar_observed,
+        targets=targets,
+        target_mask=target_mask,
+        target_end=target_end,
+        binary_labels=labels,
+        context_mask=context_mask,
+        origin_mask=origin_mask,
+        score_eligible_mask=score_eligible_mask,
+        fits=decoded_fits,
+        evidence=evidence,
+    )
+    if expected_bindings is not None:
+        _validate_external_bindings(expected_bindings, bindings, spec=spec)
     if evidence.get("status") == "N/A":
         # N/A evidence is retained, but explicitly blocks promotion through
         # the artifact validation result.
@@ -2018,13 +2462,37 @@ def _validate_forecast_payload(
             "spot_bar_observed": spot_bar_observed,
             "targets": targets,
             "target_mask": target_mask,
+            "target_end": target_end,
+            "binary_labels": labels,
             "context_mask": context_mask,
             "origin_mask": origin_mask,
             "score_eligible_mask": score_eligible_mask,
             "fits": MappingProxyType(decoded_fits),
             "coverage": coverage,
+            "external_bindings": MappingProxyType(bindings),
         }
     )
+
+
+def expected_forecast_bindings(artifact: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Compute the digest map a trusted caller may pin in its registry.
+
+    This helper is intentionally separate from the persisted payload.  A
+    production caller should obtain the returned map from its source/result
+    registry or from the builder seal, then pass that previously pinned map to
+    ``save_p1_forecast_artifact``/``load_p1_forecast_artifact``.  The loader
+    never treats a digest echoed inside the candidate artifact as authority.
+    """
+
+    validation = _validate_forecast_payload(
+        artifact,
+        expected_metadata=None,
+        require_production=False,
+    )
+    bindings = validation.get("external_bindings")
+    if not isinstance(bindings, Mapping):
+        raise P1ForecastError("forecast artifact did not produce a binding map")
+    return MappingProxyType(_plain(bindings))
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -2422,16 +2890,54 @@ def save_p1_forecast_artifact(
     *,
     expected_metadata: Mapping[str, Any] | None = None,
     require_production: bool = True,
+    expected_file_sha256: str | None = None,
+    expected_bindings: Mapping[str, Any] | None = None,
+    source_dataset: Any | None = None,
 ) -> str:
-    """Validate and atomically persist one forecast artifact; return its SHA."""
+    """Validate and atomically persist one forecast artifact; return its SHA.
 
-    _validate_forecast_payload(
+    A production save accepts either the in-process identity emitted by
+    :func:`build_p1_forecast_artifact` or a caller-pinned digest map plus the
+    expected canonical file SHA.  A plain mapping with only self-declared
+    provenance is intentionally rejected.
+    """
+
+    builder_authenticated = _builder_payload_is_authentic(artifact)
+    if require_production and not builder_authenticated and expected_bindings is None:
+        raise P1ForecastError(
+            "production forecast save requires a canonical builder seal or external bindings"
+        )
+    if require_production and not builder_authenticated and expected_file_sha256 is None:
+        raise P1ForecastError(
+            "externally bound production forecast saves require expected_file_sha256"
+        )
+    expected_file_digest = None
+    if expected_file_sha256 is not None:
+        expected_file_digest = _strict_sha256(
+            expected_file_sha256,
+            name="expected_file_sha256",
+        )
+
+    validation = _validate_forecast_payload(
         artifact,
         expected_metadata=expected_metadata,
         require_production=require_production,
+        expected_bindings=expected_bindings,
+        source_dataset=source_dataset,
     )
     encoded = _json_bytes(artifact)
     digest = hashlib.sha256(encoded).hexdigest()
+    if expected_file_digest is not None and digest != expected_file_digest:
+        raise P1ForecastError("forecast artifact does not match expected canonical file SHA-256")
+    if builder_authenticated:
+        # Re-check after canonical validation and serialization so a caller
+        # cannot mutate a builder result between the two operations.
+        if digest != artifact._canonical_sha256:
+            raise P1ForecastError("builder-authenticated forecast payload was modified")
+        sealed_bindings = artifact._bindings
+        actual_bindings = validation.get("external_bindings")
+        if not isinstance(actual_bindings, Mapping) or dict(sealed_bindings) != dict(actual_bindings):
+            raise P1ForecastError("builder-authenticated forecast bindings were modified")
     target = Path(path)
     parent = target.parent
     if not parent.exists():
@@ -2475,6 +2981,11 @@ def save_p1_forecast_artifact(
                 temporary.unlink()
             except OSError:
                 pass
+    if require_production:
+        bindings = validation.get("external_bindings")
+        if not isinstance(bindings, Mapping):
+            raise P1ForecastError("production forecast save did not produce external bindings")
+        _BUILDER_OUTPUT_BINDINGS[digest] = MappingProxyType(_plain(bindings))
     return digest
 
 
@@ -2484,8 +2995,15 @@ def load_p1_forecast_artifact(
     expected_file_sha256: str,
     expected_metadata: Mapping[str, Any] | None = None,
     require_production: bool = True,
+    expected_bindings: Mapping[str, Any] | None = None,
+    source_dataset: Any | None = None,
 ) -> LoadedP1ForecastArtifact:
-    """Load one artifact with a mandatory external file SHA-256."""
+    """Load one artifact with external file and source/output bindings.
+
+    Same-process files written through the production save boundary may use
+    the non-persisted binding registry.  Files loaded in another process must
+    carry the caller-pinned ``expected_bindings`` map explicitly.
+    """
 
     expected_digest = _strict_sha256(expected_file_sha256, name="expected_file_sha256")
     source = Path(path)
@@ -2493,10 +3011,19 @@ def load_p1_forecast_artifact(
     if actual_digest != expected_digest:
         raise P1ForecastError("stored forecast artifact file SHA-256 mismatch")
     payload = _decode_payload(encoded)
+    pinned_bindings = expected_bindings
+    if require_production and pinned_bindings is None:
+        pinned_bindings = _BUILDER_OUTPUT_BINDINGS.get(actual_digest)
+    if require_production and pinned_bindings is None:
+        raise P1ForecastError(
+            "production forecast load requires caller-pinned bindings from an external registry"
+        )
     validation = _validate_forecast_payload(
         payload,
         expected_metadata=expected_metadata,
         require_production=require_production,
+        expected_bindings=pinned_bindings,
+        source_dataset=source_dataset,
     )
     action_sources = MappingProxyType(
         {
