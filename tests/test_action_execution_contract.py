@@ -557,6 +557,29 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(trajectory.mask_hash, trajectory.eligibility_mask_hash)
         self.assertAlmostEqual(trajectory.transition_costs[5], 0.00055 * 0.08)
         self.assertTrue(np.all(np.isfinite(trajectory.net_pnl)))
+        self.assertEqual(len(trajectory.action_block_mask_hash), 64)
+        self.assertEqual(
+            set(trajectory.action_block_mask_hash_registry),
+            {
+                "origin_mask",
+                "forecast_finite_mask",
+                "bar_available",
+                "returns_finite_mask",
+                "scheduled_decision_mask",
+                "decision_block_mask",
+                "fill_complete_mask",
+                "outcome_complete_mask",
+                "executed_block_mask",
+                "scored_action_mask",
+                "common_mask",
+                "utility_metric_mask",
+                "action_metric_mask",
+            },
+        )
+        self.assertNotEqual(
+            trajectory.action_block_mask_hash,
+            trajectory.eligibility_mask_hash,
+        )
 
         executing_deltas = deltas.copy()
         executing_deltas[0] = -0.08
@@ -591,6 +614,30 @@ class ActionExecutionContractTest(unittest.TestCase):
             score_eligible=score_eligible,
         )
         np.testing.assert_allclose(executing_converted[[0, 4]], [-0.08, -0.08])
+
+    def test_block_common_mask_is_metric_only_and_is_bound_in_full_hash(self) -> None:
+        n_bars = 13
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        common = np.asarray([False, True, True], dtype=np.bool_)
+        trajectory = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+            common_mask=common,
+        )
+        # Common only gates metric masks; causal decision/fill/state remain
+        # unchanged and the full registry records the supplied block mask.
+        self.assertTrue(trajectory.decision_mask[0])
+        self.assertTrue(trajectory.fill_mask[1])
+        self.assertFalse(trajectory.block_masks.common_mask[0])
+        self.assertTrue(trajectory.block_masks.common_mask[4])
+        self.assertFalse(trajectory.block_masks.utility_metric_mask[0])
+        self.assertTrue(trajectory.block_masks.utility_metric_mask[4])
 
     def test_future_outcome_availability_cannot_change_causal_selection(self) -> None:
         n_bars = 9

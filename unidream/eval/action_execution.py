@@ -666,6 +666,8 @@ class ActionExecutionTrajectory:
     block_eligible_mask: np.ndarray = field(repr=False)
     score_block_eligible_mask: np.ndarray = field(repr=False)
     execution_skipped_mask: np.ndarray = field(repr=False)
+    contract: ActionExecutionContract = field(repr=False, compare=False)
+    block_masks: "ActionBlockMasks" = field(repr=False, compare=False)
 
     @property
     def scored_indices(self) -> np.ndarray:
@@ -782,6 +784,21 @@ class ActionExecutionTrajectory:
         return hashlib.sha256(payload).hexdigest()
 
     @property
+    def action_block_mask_hash(self) -> str:
+        """Hash the complete causal/fill/outcome/metric mask graph.
+
+        ``eligibility_mask_hash`` is retained for legacy causal consumers and
+        intentionally omits fill/outcome/common state.  Production action
+        provenance must use this full graph hash instead.
+        """
+        return self.block_masks.mask_hash
+
+    @property
+    def action_block_mask_hash_registry(self) -> Mapping[str, str]:
+        """Return per-mask digests for primitive↔trajectory parity checks."""
+        return self.block_masks.mask_hash_registry
+
+    @property
     def mask_hash(self) -> str:
         """Short semantic alias for artifact consumers."""
         return self.eligibility_mask_hash
@@ -890,6 +907,32 @@ class ActionBlockMasks:
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
+
+    @property
+    def mask_hash_registry(self) -> Mapping[str, str]:
+        """Digest every persisted mask independently in canonical C order."""
+        return {
+            name: hashlib.sha256(
+                np.ascontiguousarray(getattr(self, name), dtype=np.bool_).tobytes(
+                    order="C"
+                )
+            ).hexdigest()
+            for name in (
+                "origin_mask",
+                "forecast_finite_mask",
+                "bar_available",
+                "returns_finite_mask",
+                "scheduled_decision_mask",
+                "decision_block_mask",
+                "fill_complete_mask",
+                "outcome_complete_mask",
+                "executed_block_mask",
+                "scored_action_mask",
+                "common_mask",
+                "utility_metric_mask",
+                "action_metric_mask",
+            )
+        }
 
 
 def derive_action_block_masks(
@@ -1196,6 +1239,7 @@ def replay_action_path(
     decision_eligible: np.ndarray | Sequence[bool] | None = None,
     score_eligible: np.ndarray | Sequence[bool] | None = None,
     forecast_finite_mask: np.ndarray | Sequence[bool] | None = None,
+    common_mask: np.ndarray | Sequence[bool] | None = None,
 ) -> ActionExecutionTrajectory:
     """Replay deltas under the fixed delay, commitment and fill contract.
 
@@ -1241,6 +1285,25 @@ def replay_action_path(
         forecast_finite_mask=replay_forecast_finite,
         realized_returns=returns_arr,
     )
+    block_masks = derive_action_block_masks(
+        n_bars,
+        contract,
+        origin_mask=decision_eligible_arr,
+        forecast_finite_mask=replay_forecast_finite,
+        bar_available=score_eligible_arr,
+        realized_returns=returns_arr,
+        common_mask=common_mask,
+    )
+    if not np.array_equal(block_masks.scheduled_decision_mask, scheduled_decision_mask):
+        raise ValueError("action block schedule is inconsistent with the replay contract")
+    if not np.array_equal(block_masks.decision_block_mask, eligible_decision_mask):
+        raise ValueError("action block decision mask is inconsistent with replay inputs")
+    if not np.array_equal(block_masks.fill_complete_mask, fill_block_eligible_mask):
+        raise ValueError("action block fill mask is inconsistent with replay inputs")
+    if not np.array_equal(block_masks.executed_block_mask, block_eligible_mask):
+        raise ValueError("action block execution mask is inconsistent with replay inputs")
+    if not np.array_equal(block_masks.outcome_complete_mask, score_block_eligible_mask):
+        raise ValueError("action block outcome mask is inconsistent with replay inputs")
     decision_deltas_out = np.zeros(n_bars, dtype=np.float64)
     decision_positions = np.full(n_bars, np.nan, dtype=np.float64)
     fill_positions = np.full(n_bars, np.nan, dtype=np.float64)
@@ -1362,6 +1425,8 @@ def replay_action_path(
         block_eligible_mask=block_eligible_mask,
         score_block_eligible_mask=score_block_eligible_mask,
         execution_skipped_mask=execution_skipped_mask,
+        contract=contract,
+        block_masks=block_masks,
     )
 
 
