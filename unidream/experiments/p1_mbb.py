@@ -1465,6 +1465,7 @@ def _validate_production_provenance(
     source_action_artifact: Any,
     expected_forecast_artifact_sha256: Any,
     expected_forecast_result_sha256: Any,
+    source_common_mask: np.ndarray | None = None,
 ) -> dict[str, str]:
     """Authenticate action/forecast provenance before a production bootstrap.
 
@@ -1487,7 +1488,13 @@ def _validate_production_provenance(
         expected_common_mask_sha256,
         name="expected_common_mask_sha256",
     )
-    if p1_mask_sha256(common_mask) != common_digest:
+    # ``common_mask`` is the reduction mask for the selected metric.  Typed
+    # action metrics may additionally carry a field-specific mask (for
+    # example outcome&common or scored_action&common).  Bind the externally
+    # registered paired mask separately so a field mask is never mislabeled as
+    # the raw common mask.
+    bound_common = common_mask if source_common_mask is None else source_common_mask
+    if p1_mask_sha256(bound_common) != common_digest:
         raise P1MBBError("production common mask does not match its external digest")
     field = _strict_text(
         expected_common_mask_field,
@@ -1507,6 +1514,10 @@ def _validate_production_provenance(
         "common_mask_sha256": common_digest,
         "common_mask_field": field,
     }
+    validated["metric_mask_sha256"] = p1_mask_sha256(common_mask)
+    validated["metric_mask_field"] = (
+        "common_mask" if source_common_mask is None else "field_specific_metric_mask"
+    )
     if kind == "action":
         action_values = {
             "action_primitive_payload_sha256": expected_action_primitive_payload_sha256,
@@ -2213,20 +2224,215 @@ def _validate_typed_source_action_binding(
     *,
     expected_file_sha256: str,
     expected_hashes: Mapping[str, str],
-) -> None:
-    """Reject the not-yet-authenticated typed action capability.
+) -> Any:
+    """Validate and return the identity-sealed action capability.
 
-    ``LoadedP1ActionArtifact`` currently does not carry an identity-sealed
-    production marker: fixture loads and direct dataclass construction produce
-    the same runtime type.  Accepting it here would let a forged object bypass
-    the external source-file binding.  Until the action module exposes a
-    dedicated authenticated capability, production MBB records the strict
-    ``source_action_file_sha256`` placeholder instead and remains fail-closed.
+    The loader's private seal is intentionally checked by the action-artifact
+    module; this boundary adds the independent file and three output-digest
+    bindings required by the MBB result ledger.  A source-result digest is
+    *not* read from a candidate result: it is derived from the sealed forecast
+    source binding and compared by the caller's provenance checks.
     """
-    del source_action_artifact, expected_file_sha256, expected_hashes
-    raise P1MBBError(
-        "typed source action artifact binding is blocked until an identity-authenticated production capability is available"
+    try:
+        from .p1_action_artifact import (
+            ACTION_PRIMITIVE_HASH_FIELDS,
+            require_authenticated_loaded_action_artifact,
+        )
+        loaded = require_authenticated_loaded_action_artifact(source_action_artifact)
+    except Exception as exc:
+        raise P1MBBError(
+            "typed source action artifact must be the identity-authenticated capability from a strict production load"
+        ) from exc
+    expected_file = _strict_sha256(
+        expected_file_sha256,
+        name="expected_source_action_file_sha256",
     )
+    if loaded.file_sha256 != expected_file:
+        raise P1MBBError("typed source action file digest does not match its external binding")
+    if not isinstance(expected_hashes, Mapping):
+        raise P1MBBError("typed source action hash expectations must be a mapping")
+    expected_names = set(ACTION_PRIMITIVE_HASH_FIELDS)
+    # ``source_result_sha256`` belongs to the upstream forecast source and is
+    # checked below by _validate_production_provenance; only the three action
+    # output hashes are declarations on this artifact.
+    supplied_names = expected_names | {
+        "source_result_sha256",
+        "source_action_file_sha256",
+    }
+    if set(expected_hashes) != supplied_names:
+        raise P1MBBError(
+            "typed source action hash expectations must contain the three action hashes and source_result_sha256"
+        )
+    for field_name in ACTION_PRIMITIVE_HASH_FIELDS:
+        expected = _strict_sha256(
+            expected_hashes[field_name],
+            name=f"expected_{field_name}",
+        )
+        actual = loaded.artifact.get(field_name)
+        if actual != expected:
+            raise P1MBBError(
+                f"typed source action {field_name} does not match its external binding"
+            )
+    if expected_hashes["source_action_file_sha256"] != expected_file:
+        raise P1MBBError(
+            "typed source action file hash expectation disagrees with expected file digest"
+        )
+    try:
+        mbb_input = loaded.as_mbb_input()
+    except Exception as exc:
+        raise P1MBBError("authenticated action capability lacks its typed MBB input") from exc
+    if not isinstance(mbb_input.provenance, Mapping):
+        raise P1MBBError("authenticated action MBB provenance is malformed")
+    if mbb_input.provenance.get("file_sha256") != expected_file:
+        raise P1MBBError("authenticated action MBB file binding mismatch")
+    source_binding = mbb_input.provenance.get("source_binding")
+    source_hashes = (
+        source_binding.get("source_hashes")
+        if isinstance(source_binding, Mapping)
+        else None
+    )
+    expected_source_result = _strict_sha256(
+        expected_hashes["source_result_sha256"],
+        name="expected_source_result_sha256",
+    )
+    if not isinstance(source_hashes, Mapping):
+        raise P1MBBError("authenticated action MBB source binding is missing source hashes")
+    # The registered forecast file digest is the source-result identity for
+    # action comparisons.  This convention is explicit and keeps the source
+    # result independent from the downstream action file/result hashes.
+    if source_hashes.get("forecast_file_sha256") != expected_source_result:
+        raise P1MBBError(
+            "typed source action source_result_sha256 does not match the sealed forecast source"
+        )
+    return loaded
+
+
+_P1_TYPED_ACTION_EXPECTED_FIELDS = frozenset(
+    {
+        "action_primitive_payload_sha256",
+        "action_primitive_schema_sha256",
+        "action_primitive_content_sha256",
+        "source_result_sha256",
+        "source_action_file_sha256",
+    }
+)
+
+
+def _strict_typed_action_expectations(
+    value: Any,
+    *,
+    name: str,
+) -> Mapping[str, str]:
+    """Normalize the externally pinned hashes for one action capability."""
+    if not isinstance(value, Mapping) or set(value) != _P1_TYPED_ACTION_EXPECTED_FIELDS:
+        missing = sorted(_P1_TYPED_ACTION_EXPECTED_FIELDS - set(value) if isinstance(value, Mapping) else _P1_TYPED_ACTION_EXPECTED_FIELDS)
+        extra = sorted(set(value) - _P1_TYPED_ACTION_EXPECTED_FIELDS if isinstance(value, Mapping) else ())
+        raise P1MBBError(
+            f"{name} must contain exactly the three action hashes, source_result_sha256, and source_action_file_sha256 "
+            f"(missing={missing}, extra={extra})"
+        )
+    return {
+        field: _strict_sha256(value[field], name=f"{name}.{field}")
+        for field in sorted(_P1_TYPED_ACTION_EXPECTED_FIELDS)
+    }
+
+
+def _action_provenance_from_binding(
+    expectations: Mapping[str, str],
+    *,
+    common_digest: str,
+    common_field: str,
+    mask_registry: Mapping[str, str],
+) -> dict[str, Any]:
+    """Build the small, externally-bound provenance record consumed by MBB."""
+    result: dict[str, Any] = {
+        "kind": "action",
+        "common_mask_sha256": common_digest,
+        "common_mask_field": common_field,
+        "action_primitive_payload_sha256": expectations[
+            "action_primitive_payload_sha256"
+        ],
+        "action_primitive_schema_sha256": expectations[
+            "action_primitive_schema_sha256"
+        ],
+        "action_primitive_content_sha256": expectations[
+            "action_primitive_content_sha256"
+        ],
+        "source_result_sha256": expectations["source_result_sha256"],
+        "source_action_file_sha256": expectations["source_action_file_sha256"],
+        "action_block_mask_hash_registry": dict(mask_registry),
+    }
+    return result
+
+
+def _validate_typed_action_metric(
+    source_action_artifact: Any,
+    *,
+    metric: str,
+    expectations: Mapping[str, str],
+    metric_mask: np.ndarray,
+    arrays: Mapping[str, np.ndarray],
+) -> Any:
+    """Bind metric arrays and masks to one sealed action capability.
+
+    The supplied metric mask may be a subset of the artifact's effective mask
+    when pairing two arms.  It may never add a row outside that field's
+    effective domain, and every selected array must match the immutable values
+    extracted from the artifact byte-for-byte (including NaN placement).
+    """
+    loaded = _validate_typed_source_action_binding(
+        source_action_artifact,
+        expected_file_sha256=expectations["source_action_file_sha256"],
+        expected_hashes=expectations,
+    )
+    try:
+        selected = loaded.as_mbb_input().select_metric(metric)
+    except Exception as exc:
+        raise P1MBBError(f"authenticated action metric {metric} is unavailable") from exc
+    mask = _strict_bool_mask(metric_mask, name="typed metric mask", n=len(selected.effective_mask))
+    if np.any(mask & ~selected.effective_mask):
+        raise P1MBBError(
+            f"typed action metric {metric} mask exceeds its field-specific effective mask"
+        )
+    if set(arrays) != set(selected.metric_values):
+        raise P1MBBError(
+            f"typed action metric {metric} fields do not match the registered metric view"
+        )
+    for field_name, values in selected.metric_values.items():
+        supplied = _strict_float64_vector(
+            arrays[field_name],
+            name=field_name,
+            n=len(mask),
+        )
+        if not np.array_equal(supplied, values, equal_nan=True):
+            raise P1MBBError(
+                f"typed action metric {field_name} differs from the authenticated artifact"
+            )
+    registry = selected.provenance.get("action_block_mask_hash_registry")
+    if not isinstance(registry, Mapping):
+        raise P1MBBError("authenticated action metric lacks its mask hash registry")
+    expected_mask_hash = p1_mask_sha256(mask)
+    # The raw common mask is bound separately by the caller; this check only
+    # verifies that the selected field mask itself is one of the registered
+    # immutable action domains (or a strict paired subset thereof).
+    field_key = (
+        "utility_metric_mask"
+        if metric in {"policy_utility_delta"}
+        else "action_metric_mask"
+    )
+    registered_field_hash = registry.get(field_key)
+    if not isinstance(registered_field_hash, str):
+        raise P1MBBError("authenticated action mask registry is incomplete")
+    if not np.array_equal(mask, selected.effective_mask):
+        # Pairing is allowed to intersect an external common mask.  The
+        # selected mask hash therefore need not equal the full registry hash,
+        # but it must be a true subset as checked above.
+        return loaded
+    if registered_field_hash != expected_mask_hash:
+        raise P1MBBError(
+            f"authenticated action {field_key} hash does not match its effective mask"
+        )
+    return loaded
 
 
 def _result_values_digest(values: np.ndarray) -> str:
@@ -2956,6 +3162,7 @@ def _bootstrap_p1_metric(
     source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
+    source_common_mask: Any = None,
     **arrays: Any,
 ) -> dict[str, Any]:
     """Run one preregistered metric over one exact stored MBB artifact.
@@ -3023,6 +3230,15 @@ def _bootstrap_p1_metric(
             source_action_artifact=source_action_artifact,
             expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
             expected_forecast_result_sha256=expected_forecast_result_sha256,
+            source_common_mask=(
+                None
+                if source_common_mask is None
+                else _strict_bool_mask(
+                    source_common_mask,
+                    name="source_common_mask",
+                    n=len(common_mask),
+                )
+            ),
         )
     elif metric_name in P1_PAIRED_MEAN_METRICS:
         _validate_optional_arm_masks(
@@ -3101,6 +3317,7 @@ def bootstrap_p1_metric(
     source_action_artifact: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
+    source_common_mask: Any = None,
     **arrays: Any,
 ) -> dict[str, Any]:
     """Run a production P1 metric bootstrap with authenticated provenance."""
@@ -3125,6 +3342,7 @@ def bootstrap_p1_metric(
         source_action_artifact=source_action_artifact,
         expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
         expected_forecast_result_sha256=expected_forecast_result_sha256,
+        source_common_mask=source_common_mask,
         **arrays,
     )
 
@@ -3157,6 +3375,505 @@ def bootstrap_p1_metric_fixture(
 
 
 bootstrap_p1_metric_production = bootstrap_p1_metric
+
+
+def _validate_typed_action_fields(
+    source_action_artifact: Any,
+    *,
+    metric: str,
+    expectations: Mapping[str, str],
+    metric_mask: Any,
+    field_map: Mapping[str, str],
+    arrays: Mapping[str, Any],
+) -> Any:
+    """Validate a named projection of an authenticated action metric view."""
+    try:
+        from .p1_action_artifact import require_authenticated_loaded_action_artifact
+
+        loaded = require_authenticated_loaded_action_artifact(source_action_artifact)
+        selected = loaded.as_mbb_input().select_metric(metric)
+    except Exception as exc:
+        raise P1MBBError(
+            "production action adapter requires an identity-authenticated action artifact"
+        ) from exc
+    mask = _strict_bool_mask(
+        metric_mask,
+        name=f"{metric} metric mask",
+        n=len(selected.effective_mask),
+    )
+    if np.any(mask & ~selected.effective_mask):
+        raise P1MBBError(
+            f"typed action metric {metric} mask exceeds its field-specific effective mask"
+        )
+    if not isinstance(field_map, Mapping) or set(field_map) != set(arrays):
+        raise P1MBBError(f"typed action {metric} field mapping is not exact")
+    for output_name, source_name in field_map.items():
+        if source_name not in selected.metric_values:
+            raise P1MBBError(
+                f"typed action metric {metric} has no registered field {source_name}"
+            )
+        supplied = _strict_float64_vector(
+            arrays[output_name],
+            name=output_name,
+            n=len(mask),
+        )
+        authenticated = selected.metric_values[source_name]
+        if not np.array_equal(supplied, authenticated, equal_nan=True):
+            raise P1MBBError(
+                f"typed action metric {output_name} differs from the authenticated artifact"
+            )
+    _validate_typed_source_action_binding(
+        loaded,
+        expected_file_sha256=expectations["source_action_file_sha256"],
+        expected_hashes=expectations,
+    )
+    return loaded
+
+
+def _typed_action_common_mask(
+    loaded: Any,
+    common_mask: Any,
+    *,
+    n: int,
+) -> np.ndarray:
+    """Validate an externally paired block mask against one action source."""
+    mask = _strict_bool_mask(common_mask, name="paired common_mask", n=n)
+    try:
+        source_common = np.asarray(loaded.as_mbb_input().common_mask)
+    except Exception as exc:
+        raise P1MBBError("authenticated action artifact lacks its common mask") from exc
+    if source_common.dtype != np.dtype(np.bool_) or source_common.shape != (n,):
+        raise P1MBBError("authenticated action common mask is malformed")
+    if np.any(mask & ~source_common):
+        raise P1MBBError(
+            "externally paired common mask selects a row unavailable in the action artifact"
+        )
+    return mask
+
+
+def _typed_action_provenance(
+    expectations: Mapping[str, str],
+    common_mask: np.ndarray,
+    loaded: Any,
+    *,
+    paired: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    try:
+        registry = dict(loaded.as_mbb_input().mask_hashes)
+    except Exception as exc:
+        raise P1MBBError("authenticated action artifact lacks its mask registry") from exc
+    provenance = _action_provenance_from_binding(
+        expectations,
+        common_digest=p1_mask_sha256(common_mask),
+        common_field="common_mask",
+        mask_registry=registry,
+    )
+    if paired is not None:
+        provenance["paired_source_action_binding"] = dict(paired)
+    return provenance
+
+
+def bootstrap_p1_action_metric(
+    metric: str,
+    *,
+    artifact: P1MBBIndexArtifact,
+    candidate_action_artifact: Any,
+    candidate_expected: Mapping[str, Any],
+    common_mask: Any,
+    expected_common_mask_sha256: Any,
+    direction: Any = None,
+    baseline_action_artifact: Any = None,
+    baseline_expected: Mapping[str, Any] | None = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+) -> dict[str, Any]:
+    """Run a production MBB directly from identity-sealed action artifacts.
+
+    This is the sole action-to-MBB adapter.  It derives field-specific metric
+    masks from the authenticated artifacts, intersects both arms with the
+    externally pinned paired mask, and then delegates to the closed MBB
+    registry.  Raw arrays and fixture-loaded artifacts cannot enter this API.
+    """
+    if not isinstance(metric, str):
+        raise P1MBBError("action MBB metric must be text")
+    metric_name = metric
+    if not isinstance(artifact, P1MBBIndexArtifact):
+        raise P1MBBError("action MBB requires a loaded P1MBBIndexArtifact")
+    common = _strict_bool_mask(
+        common_mask,
+        name="paired common_mask",
+        n=artifact.n,
+    )
+    expected_common = _strict_sha256(
+        expected_common_mask_sha256,
+        name="expected_common_mask_sha256",
+    )
+    if p1_mask_sha256(common) != expected_common:
+        raise P1MBBError("paired common_mask does not match its external digest")
+    candidate_expectations = _strict_typed_action_expectations(
+        candidate_expected,
+        name="candidate_expected",
+    )
+    if metric_name in {"policy_utility_delta", "normalized_regret"}:
+        if baseline_action_artifact is not None or baseline_expected is not None:
+            raise P1MBBError(
+                f"{metric_name} is self-contained; a baseline action artifact is not accepted"
+            )
+        try:
+            candidate_loaded = _validate_typed_source_action_binding(
+                candidate_action_artifact,
+                expected_file_sha256=candidate_expectations["source_action_file_sha256"],
+                expected_hashes=candidate_expectations,
+            )
+            selected = candidate_loaded.as_mbb_input().select_metric(metric_name)
+        except Exception as exc:
+            if isinstance(exc, P1MBBError):
+                raise
+            raise P1MBBError("candidate action artifact metric is unavailable") from exc
+        reduction_mask = _typed_action_common_mask(
+            candidate_loaded,
+            common,
+            n=artifact.n,
+        ) & selected.effective_mask
+        if not np.any(reduction_mask):
+            raise P1MBBError("action metric has zero paired valid rows")
+        fields = dict(selected.metric_values)
+        _validate_typed_action_fields(
+            candidate_loaded,
+            metric=metric_name,
+            expectations=candidate_expectations,
+            metric_mask=reduction_mask,
+            field_map={field: field for field in fields},
+            arrays=fields,
+        )
+        provenance = _typed_action_provenance(
+            candidate_expectations,
+            common,
+            candidate_loaded,
+        )
+        return _bootstrap_p1_metric(
+            metric_name,
+            artifact=artifact,
+            mask=reduction_mask,
+            candidate_mask=reduction_mask,
+            baseline_mask=reduction_mask,
+            direction=direction,
+            production=True,
+            provenance=provenance,
+            expected_common_mask_sha256=expected_common,
+            expected_common_mask_field="common_mask",
+            expected_source_result_sha256=candidate_expectations["source_result_sha256"],
+            expected_action_primitive_payload_sha256=candidate_expectations[
+                "action_primitive_payload_sha256"
+            ],
+            expected_action_primitive_schema_sha256=candidate_expectations[
+                "action_primitive_schema_sha256"
+            ],
+            expected_action_primitive_content_sha256=candidate_expectations[
+                "action_primitive_content_sha256"
+            ],
+            expected_source_action_file_sha256=candidate_expectations[
+                "source_action_file_sha256"
+            ],
+            source_common_mask=common,
+            **fields,
+        )
+
+    if baseline_action_artifact is None or baseline_expected is None:
+        raise P1MBBError(
+            f"{metric_name} requires candidate and baseline authenticated action artifacts"
+        )
+    baseline_expectations = _strict_typed_action_expectations(
+        baseline_expected,
+        name="baseline_expected",
+    )
+    try:
+        candidate_loaded = _validate_typed_source_action_binding(
+            candidate_action_artifact,
+            expected_file_sha256=candidate_expectations["source_action_file_sha256"],
+            expected_hashes=candidate_expectations,
+        )
+        baseline_loaded = _validate_typed_source_action_binding(
+            baseline_action_artifact,
+            expected_file_sha256=baseline_expectations["source_action_file_sha256"],
+            expected_hashes=baseline_expectations,
+        )
+    except P1MBBError:
+        raise
+    except Exception as exc:
+        raise P1MBBError("paired action artifacts are not authenticated") from exc
+    if len(candidate_loaded.as_mbb_input().common_mask) != artifact.n or len(
+        baseline_loaded.as_mbb_input().common_mask
+    ) != artifact.n:
+        raise P1MBBError("paired action artifacts do not match the MBB primitive grid")
+    candidate_common = _typed_action_common_mask(candidate_loaded, common, n=artifact.n)
+    baseline_common = _typed_action_common_mask(baseline_loaded, common, n=artifact.n)
+    pair_common = common & candidate_common & baseline_common
+
+    if metric_name == "agreement":
+        candidate_selected = candidate_loaded.as_mbb_input().select_metric("agreement")
+        baseline_selected = baseline_loaded.as_mbb_input().select_metric("agreement")
+        reduction_mask = pair_common & candidate_selected.effective_mask & baseline_selected.effective_mask
+        if not np.any(reduction_mask):
+            raise P1MBBError("paired agreement has zero field-specific valid rows")
+        candidate_values = {"candidate_agreement": candidate_selected.metric_values["agreement"]}
+        baseline_values = {"baseline_agreement": baseline_selected.metric_values["agreement"]}
+        _validate_typed_action_fields(
+            candidate_loaded,
+            metric="agreement",
+            expectations=candidate_expectations,
+            metric_mask=reduction_mask,
+            field_map={"candidate_agreement": "agreement"},
+            arrays=candidate_values,
+        )
+        _validate_typed_action_fields(
+            baseline_loaded,
+            metric="agreement",
+            expectations=baseline_expectations,
+            metric_mask=reduction_mask,
+            field_map={"baseline_agreement": "agreement"},
+            arrays=baseline_values,
+        )
+        arrays = {**candidate_values, **baseline_values}
+        provenance = _typed_action_provenance(
+            candidate_expectations,
+            common,
+            candidate_loaded,
+            paired={
+                "source_action_file_sha256": baseline_expectations[
+                    "source_action_file_sha256"
+                ],
+                "source_result_sha256": baseline_expectations["source_result_sha256"],
+                "action_primitive_payload_sha256": baseline_expectations[
+                    "action_primitive_payload_sha256"
+                ],
+                "action_primitive_schema_sha256": baseline_expectations[
+                    "action_primitive_schema_sha256"
+                ],
+                "action_primitive_content_sha256": baseline_expectations[
+                    "action_primitive_content_sha256"
+                ],
+            },
+        )
+        return _bootstrap_p1_metric(
+            "agreement",
+            artifact=artifact,
+            mask=reduction_mask,
+            candidate_mask=reduction_mask,
+            baseline_mask=reduction_mask,
+            direction=direction,
+            production=True,
+            provenance=provenance,
+            expected_common_mask_sha256=expected_common,
+            expected_common_mask_field="common_mask",
+            expected_source_result_sha256=candidate_expectations["source_result_sha256"],
+            expected_action_primitive_payload_sha256=candidate_expectations[
+                "action_primitive_payload_sha256"
+            ],
+            expected_action_primitive_schema_sha256=candidate_expectations[
+                "action_primitive_schema_sha256"
+            ],
+            expected_action_primitive_content_sha256=candidate_expectations[
+                "action_primitive_content_sha256"
+            ],
+            expected_source_action_file_sha256=candidate_expectations[
+                "source_action_file_sha256"
+            ],
+            source_common_mask=common,
+            **arrays,
+        )
+
+    if metric_name == "s3_utility_did":
+        candidate_selected = candidate_loaded.as_mbb_input().select_metric(
+            "policy_utility_delta"
+        )
+        baseline_selected = baseline_loaded.as_mbb_input().select_metric(
+            "policy_utility_delta"
+        )
+        reduction_mask = pair_common & candidate_selected.effective_mask & baseline_selected.effective_mask
+        if not np.any(reduction_mask):
+            raise P1MBBError("S3 utility DID has zero field-specific valid rows")
+        arrays = {
+            "injected_candidate_utility": candidate_selected.metric_values[
+                "candidate_utility"
+            ],
+            "injected_benchmark_hold_utility": candidate_selected.metric_values[
+                "benchmark_hold_utility"
+            ],
+            "control_candidate_utility": baseline_selected.metric_values[
+                "candidate_utility"
+            ],
+            "control_benchmark_hold_utility": baseline_selected.metric_values[
+                "benchmark_hold_utility"
+            ],
+        }
+        _validate_typed_action_fields(
+            candidate_loaded,
+            metric="policy_utility_delta",
+            expectations=candidate_expectations,
+            metric_mask=reduction_mask,
+            field_map={
+                "injected_candidate_utility": "candidate_utility",
+                "injected_benchmark_hold_utility": "benchmark_hold_utility",
+            },
+            arrays={
+                key: arrays[key]
+                for key in (
+                    "injected_candidate_utility",
+                    "injected_benchmark_hold_utility",
+                )
+            },
+        )
+        _validate_typed_action_fields(
+            baseline_loaded,
+            metric="policy_utility_delta",
+            expectations=baseline_expectations,
+            metric_mask=reduction_mask,
+            field_map={
+                "control_candidate_utility": "candidate_utility",
+                "control_benchmark_hold_utility": "benchmark_hold_utility",
+            },
+            arrays={
+                key: arrays[key]
+                for key in (
+                    "control_candidate_utility",
+                    "control_benchmark_hold_utility",
+                )
+            },
+        )
+        provenance = _typed_action_provenance(
+            candidate_expectations,
+            common,
+            candidate_loaded,
+            paired={
+                "source_action_file_sha256": baseline_expectations[
+                    "source_action_file_sha256"
+                ],
+                "source_result_sha256": baseline_expectations["source_result_sha256"],
+                "action_primitive_payload_sha256": baseline_expectations[
+                    "action_primitive_payload_sha256"
+                ],
+                "action_primitive_schema_sha256": baseline_expectations[
+                    "action_primitive_schema_sha256"
+                ],
+                "action_primitive_content_sha256": baseline_expectations[
+                    "action_primitive_content_sha256"
+                ],
+            },
+        )
+        return _bootstrap_p1_metric(
+            "s3_utility_did",
+            artifact=artifact,
+            mask=reduction_mask,
+            candidate_mask=reduction_mask,
+            baseline_mask=reduction_mask,
+            direction=direction,
+            production=True,
+            provenance=provenance,
+            expected_common_mask_sha256=expected_common,
+            expected_common_mask_field="common_mask",
+            expected_source_result_sha256=candidate_expectations["source_result_sha256"],
+            expected_action_primitive_payload_sha256=candidate_expectations[
+                "action_primitive_payload_sha256"
+            ],
+            expected_action_primitive_schema_sha256=candidate_expectations[
+                "action_primitive_schema_sha256"
+            ],
+            expected_action_primitive_content_sha256=candidate_expectations[
+                "action_primitive_content_sha256"
+            ],
+            expected_source_action_file_sha256=candidate_expectations[
+                "source_action_file_sha256"
+            ],
+            source_common_mask=common,
+            **arrays,
+        )
+
+    if metric_name != "s2_contrast":
+        raise P1MBBError(
+            f"production action adapter does not register metric {metric_name!r}"
+        )
+    if level_metric not in {"agreement", "policy_utility_delta", "normalized_regret"}:
+        raise P1MBBError(
+            "action S2 adapter requires level_metric agreement, policy_utility_delta, or normalized_regret"
+        )
+    candidate_selected = candidate_loaded.as_mbb_input().select_metric(
+        "policy_utility_delta" if level_metric == "policy_utility_delta" else level_metric
+    )
+    baseline_selected = baseline_loaded.as_mbb_input().select_metric(
+        "policy_utility_delta" if level_metric == "policy_utility_delta" else level_metric
+    )
+    reduction_mask = pair_common & candidate_selected.effective_mask & baseline_selected.effective_mask
+    if not np.any(reduction_mask):
+        raise P1MBBError("action S2 contrast has zero field-specific valid rows")
+    if level_metric == "agreement":
+        arrays = {
+            "level_a_values": candidate_selected.metric_values["agreement"],
+            "level_b_values": baseline_selected.metric_values["agreement"],
+        }
+    elif level_metric == "policy_utility_delta":
+        arrays = {
+            "level_a_values": candidate_selected.metric_values["candidate_utility"]
+            - candidate_selected.metric_values["benchmark_hold_utility"],
+            "level_b_values": baseline_selected.metric_values["candidate_utility"]
+            - baseline_selected.metric_values["benchmark_hold_utility"],
+        }
+    else:
+        arrays = {
+            "level_a_regret": candidate_selected.metric_values["regret"],
+            "level_a_opportunity": candidate_selected.metric_values["opportunity"],
+            "level_b_regret": baseline_selected.metric_values["regret"],
+            "level_b_opportunity": baseline_selected.metric_values["opportunity"],
+        }
+    provenance = _typed_action_provenance(
+        candidate_expectations,
+        common,
+        candidate_loaded,
+        paired={
+            "source_action_file_sha256": baseline_expectations[
+                "source_action_file_sha256"
+            ],
+            "source_result_sha256": baseline_expectations["source_result_sha256"],
+            "action_primitive_payload_sha256": baseline_expectations[
+                "action_primitive_payload_sha256"
+            ],
+            "action_primitive_schema_sha256": baseline_expectations[
+                "action_primitive_schema_sha256"
+            ],
+            "action_primitive_content_sha256": baseline_expectations[
+                "action_primitive_content_sha256"
+            ],
+        },
+    )
+    return _bootstrap_p1_metric(
+        "s2_contrast",
+        artifact=artifact,
+        mask=reduction_mask,
+        candidate_mask=reduction_mask,
+        baseline_mask=reduction_mask,
+        direction=direction,
+        level_direction=level_direction,
+        level_metric=level_metric,
+        production=True,
+        provenance=provenance,
+        expected_common_mask_sha256=expected_common,
+        expected_common_mask_field="common_mask",
+        expected_source_result_sha256=candidate_expectations["source_result_sha256"],
+        expected_action_primitive_payload_sha256=candidate_expectations[
+            "action_primitive_payload_sha256"
+        ],
+        expected_action_primitive_schema_sha256=candidate_expectations[
+            "action_primitive_schema_sha256"
+        ],
+        expected_action_primitive_content_sha256=candidate_expectations[
+            "action_primitive_content_sha256"
+        ],
+        expected_source_action_file_sha256=candidate_expectations[
+            "source_action_file_sha256"
+        ],
+        source_common_mask=common,
+        **arrays,
+    )
 
 
 def _payload_grid_length(payload: Mapping[str, Any]) -> int:
@@ -4223,6 +4940,7 @@ __all__ = [
     "P1MBBIndexArtifact",
     "P1MBBResultArtifact",
     "build_p1_mbb_index_artifact",
+    "bootstrap_p1_action_metric",
     "bootstrap_p1_metric",
     "bootstrap_p1_metric_fixture",
     "bootstrap_p1_metric_production",

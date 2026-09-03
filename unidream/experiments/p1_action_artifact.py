@@ -522,6 +522,9 @@ class P1MBBActionInput:
 
     metric_values: Mapping[str, np.ndarray]
     effective_masks: Mapping[str, np.ndarray]
+    common_mask: np.ndarray
+    mask_registry: Mapping[str, np.ndarray]
+    mask_hashes: Mapping[str, str]
     provenance: Mapping[str, Any]
 
     @property
@@ -1288,6 +1291,32 @@ def _build_mbb_input(
     utility_mask.setflags(write=False)
     action_mask = np.logical_and(scored_mask, common_mask)
     action_mask.setflags(write=False)
+    mask_registry_arrays = {
+        "origin_eligible_mask": _read_only_vector(
+            [record["origin_eligible_mask"] for record in records],
+            dtype=np.dtype(np.bool_),
+            name="origin_eligible_mask",
+        ),
+        "forecast_finite_mask": _read_only_vector(
+            [record["forecast_finite_mask"] for record in records],
+            dtype=np.dtype(np.bool_),
+            name="forecast_finite_mask",
+        ),
+        "fill_complete_mask": _read_only_vector(
+            [record["fill_complete_mask"] for record in records],
+            dtype=np.dtype(np.bool_),
+            name="fill_complete_mask",
+        ),
+        "outcome_complete_mask": outcome_mask,
+        "scored_action_mask": scored_mask,
+        "common_mask": common_mask,
+        "utility_metric_mask": utility_mask,
+        "action_metric_mask": action_mask,
+    }
+    mask_hashes = {
+        name: _bool_mask_sha256(values, name=name)
+        for name, values in mask_registry_arrays.items()
+    }
     metric_values: dict[str, np.ndarray] = {}
     effective_masks: dict[str, np.ndarray] = {}
     for field_name in _ACTION_MBB_METRIC_FIELDS:
@@ -1305,6 +1334,8 @@ def _build_mbb_input(
         "trial_id": header.get("trial_id"),
         "support_range": tuple(header.get("support_range", ())),
         "metric_mask_registry": dict(registry),
+        "action_block_mask_hash_registry": dict(mask_hashes),
+        "common_mask_sha256": mask_hashes["common_mask"],
         "effective_mask_fields": {
             field_name: (
                 "utility_metrics"
@@ -1329,6 +1360,9 @@ def _build_mbb_input(
     return P1MBBActionInput(
         metric_values=MappingProxyType(metric_values),
         effective_masks=MappingProxyType(effective_masks),
+        common_mask=common_mask,
+        mask_registry=MappingProxyType(mask_registry_arrays),
+        mask_hashes=MappingProxyType(mask_hashes),
         provenance=frozen_provenance,
     )
 

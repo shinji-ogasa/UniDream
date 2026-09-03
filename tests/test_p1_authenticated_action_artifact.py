@@ -14,6 +14,14 @@ import numpy as np
 
 import unidream.experiments.p1_action_artifact as action_artifact
 import tests.test_p1_action_artifact as base_action_tests
+from unidream.eval.action_execution import ActionExecutionContract
+from unidream.experiments.p1_mbb import (
+    bootstrap_p1_action_metric,
+    build_p1_mbb_index_artifact,
+    load_p1_mbb_index_artifact,
+    p1_mask_sha256,
+    save_p1_mbb_index_artifact,
+)
 
 
 class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
@@ -261,6 +269,177 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
             self.assertFalse(reconstructed.is_authenticated)
             with self.assertRaises(action_artifact.P1ActionArtifactError):
                 action_artifact.require_authenticated_loaded_action_artifact(reconstructed)
+
+    def test_authenticated_action_capability_can_feed_field_specific_mbb(self) -> None:
+        # Keep this regression small while still satisfying the fixed L=8
+        # primitive-grid index.  The semantic validator is patched exactly as
+        # in the capability tests above; the action-artifact loader's identity
+        # seal remains real and is what the MBB adapter must authenticate.
+        from unidream.experiments.action_primitives import produce_action_primitive_grid
+
+        n_bars = 33
+        returns = np.full(n_bars, 0.001, dtype=np.float64)
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[::4] = 0.01
+        decision = np.ones(n_bars, dtype=np.bool_)
+        score = np.ones(n_bars, dtype=np.bool_)
+        contract = ActionExecutionContract.canonical()
+        artifact = produce_action_primitive_grid(
+            returns=returns,
+            decision_block_scores=scores,
+            decision_eligible=decision,
+            score_eligible=score,
+            scenario_id="fixture",
+            seed=1,
+            split_id="fixture",
+            support_id="fixture",
+            model_id="ridge",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+        )
+        record_count = len(artifact["records"])
+        source_hashes = {
+            field_name: "a" * 64
+            for field_name in action_artifact.P1_ACTION_SOURCE_BINDING_HASH_FIELDS
+            if field_name != "source_body_sha256"
+        }
+        source = SimpleNamespace(
+            scenario_id="fixture",
+            arm="fixture",
+            seed=1,
+            model_id="ridge",
+            split_id="fixture",
+            support_id="fixture",
+            support_range=(0, n_bars),
+            fit_origin=0,
+            prereg_results_observed=False,
+            validation_results_observed=True,
+            outer_results_observed=False,
+            validation_status="passed",
+            promotion_allowed=True,
+            binding_sha256="b" * 64,
+            source_hashes=source_hashes,
+            realized_returns=returns,
+            forecast_h4=scores,
+            origin_mask=decision,
+            bar_available=score,
+        )
+        source_binding = {
+            "schema_id": "p1-forecast-action-source-binding-v1",
+            "source_role": "authenticated_p1_forecast_action_source",
+            "scenario_id": "fixture",
+            "arm": "fixture",
+            "seed": 1,
+            "model_id": "ridge",
+            "split_id": "fixture",
+            "support_id": "fixture",
+            "support_range": [0, n_bars],
+            "fit_origin": 0,
+            "prereg_results_observed": False,
+            "validation_results_observed": True,
+            "outer_results_observed": False,
+            "validation_status": "passed",
+            "promotion_allowed": True,
+            "capability_binding_sha256": "b" * 64,
+            "source_hashes": source_hashes,
+        }
+        artifact["header"].update(
+            {
+                "source_role": "validated_stored_action_inputs",
+                "action_primitive_producer_status": "validated_production_input",
+                "metric_source": "recomputed_from_realized_returns",
+                "trial_id": "fixture-trial",
+                "source_binding": source_binding,
+                "source_binding_sha256": action_artifact._source_binding_sha256(source_binding),
+                "paired_common_mask_sha256": hashlib.sha256(
+                    np.ones(record_count, dtype=np.bool_).tobytes(order="C")
+                ).hexdigest(),
+            }
+        )
+        metadata = {
+            field_name: artifact["header"][field_name]
+            for field_name in (
+                *action_artifact.ACTION_PRIMITIVE_ARM_FIELDS,
+                "support_start",
+                "support_range",
+                "trial_id",
+                "source_binding_sha256",
+                "paired_common_mask_sha256",
+            )
+        }
+        expected_hashes = {
+            field_name: artifact[field_name]
+            for field_name in action_artifact.ACTION_PRIMITIVE_HASH_FIELDS
+        }
+        index = build_p1_mbb_index_artifact(
+            record_count,
+            unit="synthetic_action",
+            support_id="synthetic_validation",
+            seed_ordinal=0,
+            block_length=8,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            action_path = root / "action.json"
+            kwargs = {
+                "expected_metadata": metadata,
+                "expected_hashes": expected_hashes,
+                "expected_source_binding": source_binding,
+                "authenticated_action_source": source,
+                "realized_returns": returns,
+                "decision_block_scores": scores,
+                "decision_eligible": decision,
+                "score_eligible": score,
+                "expected_common_mask": np.ones(record_count, dtype=np.bool_),
+            }
+            with patch.object(
+                action_artifact,
+                "_require_authenticated_forecast_source",
+                return_value=source,
+            ), patch.object(
+                action_artifact,
+                "validate_action_primitive_semantics",
+                return_value={"semantic_validation_status": "passed"},
+            ):
+                action_file_sha = action_artifact.save_p1_action_artifact(
+                    action_path,
+                    artifact,
+                    **kwargs,
+                )
+                loaded = action_artifact.load_p1_action_artifact(
+                    action_path,
+                    expected_file_sha256=action_file_sha,
+                    **kwargs,
+                )
+            index_path = root / "index.npz"
+            index_file_sha = save_p1_mbb_index_artifact(index_path, index)
+            index = load_p1_mbb_index_artifact(
+                index_path,
+                expected_artifact_sha256=index.artifact_sha256,
+                expected_file_sha256=index_file_sha,
+            )
+            common = np.ones(record_count, dtype=np.bool_)
+            expected = {
+                field_name: expected_hashes[field_name]
+                for field_name in action_artifact.ACTION_PRIMITIVE_HASH_FIELDS
+            }
+            expected.update(
+                {
+                    "source_result_sha256": "a" * 64,
+                    "source_action_file_sha256": action_file_sha,
+                }
+            )
+            result = bootstrap_p1_action_metric(
+                "policy_utility_delta",
+                artifact=index,
+                candidate_action_artifact=loaded,
+                candidate_expected=expected,
+                common_mask=common,
+                expected_common_mask_sha256=p1_mask_sha256(common),
+            )
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["metric"], "policy_utility_delta")
+            self.assertTrue(np.isfinite(result["bootstrap_values"]).all())
 
 
 if __name__ == "__main__":
