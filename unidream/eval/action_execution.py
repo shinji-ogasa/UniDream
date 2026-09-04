@@ -1685,7 +1685,7 @@ def project_positions_to_contract(
     for start in starts:
         target = current
         if decision[start] and finite[start]:
-            candidates: list[tuple[float, float, float]] = []
+            candidates: list[tuple[float, float, float, float]] = []
             for delta in contract.candidate_deltas:
                 candidate = float(
                     np.clip(

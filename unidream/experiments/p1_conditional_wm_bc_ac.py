@@ -33,6 +33,7 @@ from unidream.eval.action_execution import (
     ActionExecutionContract,
     complete_decision_starts,
     project_positions_to_contract,
+    replay_action_path,
     replay_contract_absolute_path,
     run_contract_backtest,
 )
@@ -143,6 +144,14 @@ def _write_json(path: Path, value: Mapping[str, Any]) -> str:
     temporary.write_bytes(text)
     temporary.replace(path)
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _file_sha256(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _git_revision() -> str:
@@ -738,6 +747,99 @@ def _evaluate_actor_window(
     )
 
 
+def _evaluate_actor_outer_legacy_reduction(
+    body: Any,
+    dataset: Any,
+    wm_trainer: Any,
+    actor: Any,
+    contract: ActionExecutionContract,
+    *,
+    start: int,
+    end: int,
+) -> dict[str, Any]:
+    """Reproduce the existing S3 outer reducer on the connected actor.
+
+    The historical outer report replays the full authenticated body and uses
+    the forecast mask to gate decisions, while the B&H denominator retains the
+    full-body outcome rows.  Keep that exact reduction in a separately named
+    record so the comparison is explicit; the window-local record remains the
+    primary causal diagnostic.
+    """
+
+    n_rows = len(dataset.returns)
+    encoded = wm_trainer.encode_sequence(
+        np.asarray(body.features, dtype=np.float64),
+        actions=None,
+        seq_len=32,
+    )
+    raw_positions = actor.predict_positions(
+        encoded["z"],
+        encoded["h"],
+        regime_np=None,
+        advantage_np=None,
+        device="cpu",
+    )
+    if len(raw_positions) != n_rows:
+        raise ConditionalPipelineError("actor outer output is not full-grid aligned")
+    decision_eligible = np.asarray(dataset.context_mask, dtype=np.bool_).copy()
+    decision_eligible[:start] = False
+    if end < n_rows:
+        decision_eligible[end:] = False
+    bar_available = np.asarray(
+        dataset.availability["spot_bar_observed"], dtype=np.bool_
+    )
+    positions = project_positions_to_contract(
+        raw_positions,
+        contract,
+        decision_eligible=decision_eligible,
+        bar_available=bar_available,
+        forecast_finite_mask=np.isfinite(raw_positions),
+    )
+    starts = complete_decision_starts(n_rows, contract)
+    common_mask = np.ones(len(starts), dtype=np.bool_)
+    trajectory = replay_contract_absolute_path(
+        dataset.returns,
+        positions,
+        contract,
+        decision_eligible=decision_eligible,
+        bar_available=bar_available,
+        forecast_finite_mask=np.isfinite(positions),
+        common_mask=common_mask,
+    )
+    hold = replay_action_path(
+        dataset.returns,
+        np.zeros(n_rows, dtype=np.float64),
+        contract,
+        decision_eligible=decision_eligible,
+        bar_available=bar_available,
+        forecast_finite_mask=np.ones(n_rows, dtype=np.bool_),
+        common_mask=common_mask,
+    )
+    scored = trajectory.scored_mask
+    hold_scored = hold.scored_mask
+    if not np.array_equal(scored, hold_scored):
+        raise ConditionalPipelineError("legacy outer action and hold score masks diverged")
+    return {
+        "window": [start, end],
+        "reduction": "full_body_legacy_s3_outer",
+        "forecast_finite_rows": int(np.count_nonzero(np.isfinite(raw_positions))),
+        "decision_rows": int(np.count_nonzero(decision_eligible)),
+        "action_metric_blocks": int(np.count_nonzero(trajectory.block_masks.action_metric_mask)),
+        "utility_metric_blocks": int(np.count_nonzero(trajectory.block_masks.utility_metric_mask)),
+        "filled_blocks": int(trajectory.n_filled_blocks),
+        "turnover": float(np.abs(trajectory.decision_deltas).sum()),
+        "gross_total": float(trajectory.gross_pnl[scored].sum()),
+        "cost_total": float(trajectory.transition_costs[scored].sum()),
+        "net_total": float(trajectory.net_pnl[scored].sum()),
+        "hold_net_total": float(hold.net_pnl[hold_scored].sum()),
+        "alpha_ex_vs_hold": float(
+            trajectory.net_pnl[scored].sum() - hold.net_pnl[hold_scored].sum()
+        ),
+        "mask_hashes": dict(trajectory.block_masks.mask_hash_registry),
+        "contract_hash": contract.contract_hash,
+    }
+
+
 def run_conditional_wm_bc_ac(
     output: str | Path = DEFAULT_OUTPUT,
     *,
@@ -921,6 +1023,15 @@ def run_conditional_wm_bc_ac(
         start=S3_OUTER_WINDOW[0],
         end=S3_OUTER_WINDOW[1],
     )
+    outer_legacy_reduction = _evaluate_actor_outer_legacy_reduction(
+        body,
+        dataset,
+        wm_trainer,
+        actor,
+        contract,
+        start=S3_OUTER_WINDOW[0],
+        end=S3_OUTER_WINDOW[1],
+    )
     aggregate = {
         "net_total_mean": float(np.mean([row["net_total"] for row in rolling])),
         "hold_net_total_mean": float(np.mean([row["hold_net_total"] for row in rolling])),
@@ -940,6 +1051,7 @@ def run_conditional_wm_bc_ac(
         "manifest_sha256": manifest.get("manifest_sha256"),
         "manifest_results_observed": manifest.get("results_observed"),
         "body_sha256": body.body_sha256,
+        "seed": int(seed),
         "arm": "zero_injection_control",
         "producer": {
             "id": "causal_linear_one_step",
@@ -954,6 +1066,10 @@ def run_conditional_wm_bc_ac(
             "test_range": [VAL_END_RAW, TEST_END_RAW],
             "prediction_rows": int(np.count_nonzero(oof_bundle["prediction_mask"])),
             "artifact_sha256": oof_bundle["artifact_sha256"],
+            "artifact_path": str(destination / "conditional_oof_artifact.json"),
+            "bindings_path": str(destination / "conditional_bindings.json"),
+            "artifact_file_sha256": _file_sha256(destination / "conditional_oof_artifact.json"),
+            "bindings_file_sha256": _file_sha256(destination / "conditional_bindings.json"),
             "bindings": dict(hashes),
         },
         "teacher": {
@@ -964,9 +1080,24 @@ def run_conditional_wm_bc_ac(
             "uses_hindsight_upper_bound": False,
         },
         "stages": {
-            "world_model": {"completed": True, "checkpoint": wm_path, "max_steps": cfg["world_model"]["max_steps"]},
-            "bc": {"completed": True, "checkpoint": bc_path, "epochs": cfg["bc"]["n_epochs"]},
-            "ac": {"completed": True, "checkpoint": ac_path, "steps": cfg["ac"]["max_steps"]},
+            "world_model": {
+                "completed": True,
+                "checkpoint": wm_path,
+                "checkpoint_sha256": _file_sha256(wm_path),
+                "max_steps": cfg["world_model"]["max_steps"],
+            },
+            "bc": {
+                "completed": True,
+                "checkpoint": bc_path,
+                "checkpoint_sha256": _file_sha256(bc_path),
+                "epochs": cfg["bc"]["n_epochs"],
+            },
+            "ac": {
+                "completed": True,
+                "checkpoint": ac_path,
+                "checkpoint_sha256": _file_sha256(ac_path),
+                "steps": cfg["ac"]["max_steps"],
+            },
             "predictive_state_consumer": {
                 "completed": True,
                 "train_usable": int(np.count_nonzero(predictive_bundle["train_mask"])),
@@ -980,6 +1111,7 @@ def run_conditional_wm_bc_ac(
             "same_fixed_window_as_s3_reference": True,
             "reference_window": list(S3_OUTER_WINDOW),
         },
+        "outer_evaluation_legacy_reduction": outer_legacy_reduction,
         "aggregate_mean": aggregate,
         "contract": contract.to_dict(),
         "contract_hash": contract.contract_hash,

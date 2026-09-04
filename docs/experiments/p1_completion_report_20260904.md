@@ -3,9 +3,10 @@
 ## Executive result
 
 The safe, report-only roadmap is complete through the offline paper-shadow
-boundary. The immutable preregistered manifest was not changed:
-`results_observed=false` remains its registration state, and no live-money or
-exchange order operation was performed.
+boundary, and the previously blocked strict OOF → WM → BC → AC connection has
+now been exercised as a separate diagnostic. The immutable preregistered
+manifest was not changed: `results_observed=false` remains its registration
+state, and no live-money or exchange order operation was performed.
 
 The current branch contains:
 
@@ -15,7 +16,10 @@ The current branch contains:
    threshold tuning;
 3. a deterministic, orderless offline paper-shadow record; and
 4. fail-closed guards preventing a conditional configuration from reaching
-   legacy WM, BC, or AC Oracle labels.
+   legacy WM, BC, or AC Oracle labels; and
+5. a strict chronological OOF producer connected through real WM, BC, and AC
+   training calls, followed by the fixed rolling windows and fixed S3 outer
+   range (diagnostic-only, with no promotion).
 
 ## Evidence
 
@@ -25,8 +29,12 @@ The current branch contains:
   `docs/experiments/p1_s3_rolling_shadow_20260904.md`
 - Conditional WM → BC → AC gate audit:
   `docs/experiments/p1_wm_bc_ac_gate_20260904.md`
+- Strict OOF → WM → BC → AC diagnostic:
+  `docs/experiments/p1_conditional_wm_bc_ac_20260904.md`
 - Machine-readable rolling/shadow output:
   `codex_outputs/p1_s3_rolling_shadow_20260904/rolling_shadow.json`
+- Machine-readable strict training output:
+  `codex_outputs/p1_conditional_wm_bc_ac_20260904/conditional_wm_bc_ac_report.json`
 
 The rolling run completed five fixed expanding-origin windows over the
 authenticated cached BTCUSDT 15m zero-injection-control body. Window-average
@@ -42,12 +50,14 @@ and is explicitly `live_money=false`.
 
 ## Conditional Oracle boundary
 
-The current Plan011 WM → BC → AC path still lacks a production chronological
-OOF WM producer and ForecastActionSource adapter with externally pinned
-normalizer/calibrator/teacher/action provenance. Therefore the conditional
-path remains blocked by design. Disabling the flag and running the old path
-would use legacy future-derived `oracle_positions`, so its output would not be
-a valid conditional-Oracle result and is not reported.
+The strict path is now technically connected for the new diagnostic. It uses a
+causal one-step linear OOF producer with externally pinned artifact bindings,
+then a sealed teacher context at all three stage boundaries. This does not yet
+constitute the full registered ForecastActionSource/P1 production adapter: the
+pilot is intentionally small and remains `promotion_allowed=false`.
+Disabling the strict flag and running the old path would still use legacy
+future-derived `oracle_positions`, so that output is not a valid
+conditional-Oracle result and is not reported.
 
 ## Remaining numerical issue
 
@@ -60,8 +70,8 @@ than a claimed production sign-off.
 
 ## Verification
 
-At the final branch state, `uv run python -m unittest discover -s tests -v`
-passes **352 tests**, `git diff --check` passes, and the worktree matches its
-remote branch. No WM/BC/AC training result or live paper account result is
-claimed.
-
+At the pre-documentation final branch state, `uv run python -m unittest
+discover -s tests -v` passed **353 tests**, `git diff --check` passed, and the
+worktree matched its remote branch. The strict diagnostic adds one focused
+runtime-config regression test; the final update must rerun the suite. No live
+paper account result is claimed.

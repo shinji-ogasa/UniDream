@@ -297,6 +297,18 @@ class ConditionalOOFArtifactTest(unittest.TestCase):
         legacy_effective = conditional_runtime_config(legacy, legacy["ac"])
         self.assertEqual(legacy_effective, legacy["ac"])
 
+    def test_local_conditional_runtime_config_preserves_external_bindings(self) -> None:
+        config = self._strict_config()
+        config["producer_note"] = "kept in the already-local stage mapping"
+        effective = conditional_runtime_config(config)
+        self.assertEqual(effective["expected_heads_horizons"], [("return", 1)])
+        self.assertEqual(effective["expected_hashes"], config["expected_hashes"])
+        self.assertEqual(
+            effective["expected_action_execution_contract_hash"],
+            config["expected_action_execution_contract_hash"],
+        )
+        self.assertEqual(effective["producer_note"], config["producer_note"])
+
     def test_writer_enforces_shared_array_and_file_budgets_before_replace(self) -> None:
         import unidream.experiments.chronological_oof as oof_module
 

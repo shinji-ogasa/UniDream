@@ -237,9 +237,9 @@ def run_ac_stage(
     conditional_config: dict | None = None,
 ):
     action_contract = configured_action_execution_contract(cfg)
-    # AC has no conditional-OOF teacher argument yet.  Fail closed here so a
-    # caller cannot bypass the fold/WM/BC guards and train the legacy actor
-    # against in-sample Oracle positions under a strict config.
+    # A strict run must carry the sealed conditional teacher context through
+    # this boundary; otherwise a caller could bypass the fold/WM/BC guards and
+    # train the legacy actor against in-sample Oracle positions.
     effective_ac_cfg = conditional_runtime_config(cfg, ac_cfg)
     if conditional_path_or_artifact_enabled(effective_ac_cfg):
         context = require_authenticated_conditional_teacher_context(
