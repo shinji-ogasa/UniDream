@@ -18,6 +18,11 @@ from unidream.experiments.overlay_teacher import (
     benchmark_overlay_teacher_enabled,
     describe_benchmark_overlay_teacher,
 )
+from unidream.experiments.chronological_oof import (
+    ConditionalPathBlocked,
+    conditional_path_or_artifact_enabled,
+    conditional_runtime_config,
+)
 from unidream.experiments.policy_fire import evaluate_fire_metrics, format_fire_metrics
 
 
@@ -218,6 +223,15 @@ def run_ac_stage(
     checkpoint_metadata: dict | None = None,
 ):
     action_contract = configured_action_execution_contract(cfg)
+    # AC has no conditional-OOF teacher argument yet.  Fail closed here so a
+    # caller cannot bypass the fold/WM/BC guards and train the legacy actor
+    # against in-sample Oracle positions under a strict config.
+    effective_ac_cfg = conditional_runtime_config(cfg, ac_cfg)
+    if conditional_path_or_artifact_enabled(effective_ac_cfg):
+        raise ConditionalPathBlocked(
+            "run_ac_stage cannot consume legacy oracle_positions for the conditional "
+            "Oracle path; an authenticated chronological OOF teacher adapter is required"
+        )
     if ac_max_steps_cfg <= 0:
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
         return None
