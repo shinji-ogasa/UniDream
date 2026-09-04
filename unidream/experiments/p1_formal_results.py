@@ -1238,7 +1238,7 @@ def run_formal(output: Path) -> dict[str, Any]:
     run_manifest: dict[str, Any] = {
         "run_id": f"p1-formal-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
         "started_at": started,
-        "code_revision": "94e44a6",
+        "code_revision": "dd7359a",
         "manifest_id": contract.manifest["manifest_id"],
         "manifest_sha256": contract.manifest_sha256,
         "amends_manifest_sha256": contract.manifest["amends_manifest_sha256"],
