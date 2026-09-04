@@ -13,6 +13,7 @@ from .chronological_oof import (
     conditional_path_or_artifact_enabled,
     conditional_runtime_config,
 )
+from .conditional_teacher import require_authenticated_conditional_teacher_context
 
 
 def prepare_world_model_stage(
@@ -28,14 +29,22 @@ def prepare_world_model_stage(
     train_regime_probs=None,
     val_regime_probs=None,
     checkpoint_metadata: dict | None = None,
+    conditional_teacher_context=None,
     log_ts,
 ) -> tuple:
     effective_cfg = conditional_runtime_config(cfg, cfg.get("world_model", {}))
     if conditional_path_or_artifact_enabled(effective_cfg):
-        raise ConditionalPathBlocked(
-            "prepare_world_model_stage cannot construct a conditional teacher: full "
-            "chronological OOF WM retraining is not wired into this stage"
+        # A strict conditional run may enter the stage only with an
+        # authenticated OOF-derived teacher.  The context is checked against
+        # the complete config (not the stage-local mapping) so expected hashes
+        # and the canonical action contract cannot disappear at this boundary.
+        context = require_authenticated_conditional_teacher_context(
+            conditional_teacher_context,
+            config=cfg,
+            caller="prepare_world_model_stage",
         )
+        oracle_positions = context.train_positions
+        val_oracle_positions = context.val_positions
     cfg_local = deepcopy(cfg)
     if train_regime_probs is not None:
         cfg_local.setdefault("world_model", {})["regime_dim"] = int(train_regime_probs.shape[1])

@@ -24,6 +24,7 @@ from unidream.experiments.chronological_oof import (
     conditional_runtime_config,
 )
 from unidream.experiments.policy_fire import evaluate_fire_metrics, format_fire_metrics
+from unidream.experiments.conditional_teacher import require_authenticated_conditional_teacher_context
 
 
 def _run_stage_backtest(
@@ -221,6 +222,8 @@ def run_ac_stage(
     policy_score_fn,
     sequence_dataset_cls,
     checkpoint_metadata: dict | None = None,
+    conditional_teacher_context=None,
+    conditional_config: dict | None = None,
 ):
     action_contract = configured_action_execution_contract(cfg)
     # AC has no conditional-OOF teacher argument yet.  Fail closed here so a
@@ -228,10 +231,13 @@ def run_ac_stage(
     # against in-sample Oracle positions under a strict config.
     effective_ac_cfg = conditional_runtime_config(cfg, ac_cfg)
     if conditional_path_or_artifact_enabled(effective_ac_cfg):
-        raise ConditionalPathBlocked(
-            "run_ac_stage cannot consume legacy oracle_positions for the conditional "
-            "Oracle path; an authenticated chronological OOF teacher adapter is required"
+        context = require_authenticated_conditional_teacher_context(
+            conditional_teacher_context,
+            config=conditional_config or cfg,
+            caller="run_ac_stage",
         )
+        oracle_positions = context.train_positions
+        val_oracle_positions = context.val_positions
     if ac_max_steps_cfg <= 0:
         print(f"\n[{log_ts()}] [Step 4] AC - skipped (BC actor only for test)")
         return None
