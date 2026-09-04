@@ -43,9 +43,9 @@ fixed cost contract; B&H is the same period and same scored outcome bars.
 
 | Model | MSE | MAE | IC | Sign accuracy | Net | B&H net | AlphaEx vs B&H | Filled blocks | Cost |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| zero return | 5.377775e-6 | 0.001352 | N/A | 0.4958 | 0.164575 | 0.164575 | 0.000000 | 0 | 0.000000 |
-| persistence | 9.239356e-5 | 0.005616 | -0.0226 | 0.4715 | -0.273546 | 0.164575 | -0.438121 | 6,584 | 0.285175 |
-| Ridge | 5.671908e-6 | 0.001410 | 0.0056 | 0.4963 | -0.043262 | 0.164575 | -0.207837 | 541 | 0.023111 |
+| zero return | 2.022307e-5 | 0.002625 | N/A | 0.4905 | 0.164575 | 0.164575 | 0.000000 | 0 | 0.000000 |
+| persistence | 1.080880e-4 | 0.006225 | -0.0221 | 0.4784 | -0.273546 | 0.164575 | -0.438121 | 6,584 | 0.285175 |
+| Ridge | 2.054032e-5 | 0.002662 | 0.0021 | 0.4934 | -0.043262 | 0.164575 | -0.207837 | 541 | 0.023111 |
 
 The natural-period result is therefore negative for the fixed Ridge/action
 path relative to B&H. It is a descriptive outer observation, not a new model
@@ -58,19 +58,19 @@ production numerical-quality sign-off.
 ## Injected arm (diagnostic only)
 
 The registered observable-prefix injection is retained only as a paired
-diagnostic. Ridge had IC `0.0982`, sign accuracy `0.5245`, and MSE
-`5.740874e-6`, but its cost-adjusted AlphaEx was still `-0.019411`; the
+diagnostic. Ridge had IC `0.0420`, sign accuracy `0.5030`, and MSE
+`2.576630e-5`, but its cost-adjusted AlphaEx was still `-0.019411`; the
 control and injected action paths are not interchangeable natural-BTC claims.
 
 ## Reproducibility and integration checks
 
 - Report JSON: `codex_outputs/p1_s3_outer_report_20260904/outer_report.json`
-- Report file SHA-256: `2653928db0805d447d3b750b32973360a78ceac32eed6ea768405a0278e39919`
+- Report file SHA-256: `3f05deac845e8f6db378e2e2712f1c26edef651dfe8b4155b45329352cbf8862`
 - Report content digest (self-field excluded):
-  `c91af2ee920f4738ddb17a2c6c81155dc1dd6ae7130b0d1875b8d51b989681c2`
+  `1f73e1264f4d1a4a7193866de1b2924684aee0fcdc4893f17e71693f1dd77135`
 - Source-provenance audit SHA-256:
-  `228882bdc6da9b90c168bd7a0b7d4c64f75bbdfe0f259b833d84566bfc2e0450`
-- Code revision: `e5da10169d8e28aa48c4c3bdfb9c0cf2dd2b2c6a`
+  `be595289bb8dd50c63594a3f700ae50c418b0084d55e54aaf9f6370b56063dcd`
+- Code revision: `a6519cd6a49fff7940f0a4043a68e61e9268a47a`
 - Full repository suite after the evaluator addition: **344 tests OK**.
 - The evaluator's future-return perturbation check preserved intent, fills,
   and effective inventory state; only the outcome/PnL values are allowed to
