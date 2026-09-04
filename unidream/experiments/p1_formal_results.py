@@ -345,6 +345,117 @@ def _load_forecast(state: FormalState, key: tuple[str, str, int]) -> Any:
     )
 
 
+def _index_forecast_state(
+    state: FormalState,
+    key: tuple[str, str, int],
+    ref: Mapping[str, Any],
+    loaded: Any,
+) -> None:
+    """Index a strictly loaded forecast in the compact calculation state."""
+    validation = loaded.validation
+    state.forecast_refs[key] = dict(ref)
+    state.forecast_data[key] = {
+        "h4_target": np.asarray(validation["targets"], dtype="<f8")[:, 1],
+        "h4_target_mask": np.asarray(validation["target_mask"], dtype=np.bool_)[:, 1],
+        "h4_labels": np.asarray(validation["binary_labels"], dtype=np.int8)[:, 1],
+        "origin_mask": np.asarray(validation["origin_mask"], dtype=np.bool_),
+        "score_mask": np.asarray(validation["score_eligible_mask"], dtype=np.bool_),
+        "forecast_file_sha256": ref["file_sha256"],
+        "fit_record_sha256": dict(ref["bindings"]["fit_record_sha256"]),
+    }
+    for model_id, task in (
+        ("zero_return", "continuous"),
+        ("zero_return", "binary"),
+        ("persistence_last_observed", "continuous"),
+        ("persistence_last_observed", "binary"),
+        ("ridge", "continuous"),
+        ("logistic", "binary"),
+    ):
+        record = _fit_record(validation, model_id, task)
+        state.forecast_data[key][f"{model_id}::{task}::predictions"] = np.asarray(
+            record["predictions"], dtype="<f8"
+        )
+        state.forecast_data[key][f"{model_id}::{task}::mask"] = np.asarray(
+            record["prediction_mask"], dtype=np.bool_
+        )
+
+
+def _hydrate_existing_artifacts(state: FormalState) -> None:
+    """Strictly reload a completed artifact stage for result-only reruns.
+
+    This path is useful after an orchestration-only bug: it does not trust the
+    prior run's Python objects or summaries, only the append-only ledgers and
+    the artifacts' independent expected digests.  The forecast capability is
+    reloaded before every action artifact is authenticated.
+    """
+    forecast_ledger_path = state.output / "ledgers" / "forecasts.json"
+    action_ledger_path = state.output / "ledgers" / "actions.json"
+    try:
+        forecast_rows = json.loads(forecast_ledger_path.read_text(encoding="utf-8"))
+        action_rows = json.loads(action_ledger_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise RuntimeError("existing artifact ledgers are unavailable or malformed") from exc
+    if not isinstance(forecast_rows, list) or len(forecast_rows) != 52:
+        raise RuntimeError("existing forecast ledger must contain exactly 52 rows")
+    if not isinstance(action_rows, list) or len(action_rows) != 62:
+        raise RuntimeError("existing action ledger must contain exactly 62 rows")
+    loaded_forecasts: dict[tuple[str, str, int], Any] = {}
+    for ref in forecast_rows:
+        if not isinstance(ref, Mapping):
+            raise RuntimeError("existing forecast ledger row is malformed")
+        key = (str(ref["scenario_id"]), str(ref["arm"]), int(ref["seed"]))
+        if key in loaded_forecasts:
+            raise RuntimeError(f"duplicate forecast artifact identity: {key}")
+        loaded = load_p1_forecast_artifact(
+            ROOT / str(ref["path"]),
+            expected_file_sha256=ref["file_sha256"],
+            expected_metadata=ref["expected_metadata"],
+            expected_bindings=ref["bindings"],
+        )
+        if not loaded.promotion_allowed:
+            raise RuntimeError(f"existing forecast is not promotion-eligible: {key}")
+        loaded_forecasts[key] = loaded
+        _index_forecast_state(state, key, ref, loaded)
+    if set(loaded_forecasts) != set(state.contract.validation_arm_keys):
+        raise RuntimeError("existing forecast ledger identities differ from the fixed 52-arm registry")
+    for ref in action_rows:
+        if not isinstance(ref, Mapping):
+            raise RuntimeError("existing action ledger row is malformed")
+        key = (
+            str(ref["scenario_id"]),
+            str(ref["arm"]),
+            int(ref["seed"]),
+            str(ref["model_id"]),
+            str(ref["cost_mode"]),
+        )
+        if key in state.action_loaded:
+            raise RuntimeError(f"duplicate action artifact identity: {key}")
+        forecast_key = key[:3]
+        try:
+            source = loaded_forecasts[forecast_key].as_action_source(key[3])
+        except (KeyError, ValueError, TypeError) as exc:
+            raise RuntimeError(f"action artifact has no registered forecast source: {key}") from exc
+        loaded = load_p1_action_artifact(
+            ROOT / str(ref["path"]),
+            expected_file_sha256=ref["file_sha256"],
+            expected_metadata=ref["expected_metadata"],
+            expected_hashes={field: ref["expected"][field] for field in ACTION_HASH_FIELDS},
+            expected_source_binding=ref["source_binding"],
+            authenticated_action_source=source,
+            realized_returns=source.realized_returns,
+            decision_block_scores=source.forecast_h4,
+            decision_eligible=source.origin_mask,
+            bar_available=source.bar_available,
+            expected_common_mask=np.asarray(ref["common_mask"], dtype=np.bool_),
+        )
+        if not loaded.is_authenticated:
+            raise RuntimeError(f"existing action is not authenticated: {key}")
+        state.action_loaded[key] = loaded
+        state.action_refs[key] = dict(ref)
+    if set(state.action_loaded) != set(state.action_refs):
+        raise RuntimeError("existing action ledger indexing is inconsistent")
+
+
 def _action_expected(artifact: Mapping[str, Any], source_file_sha: str, action_file_sha: str) -> dict[str, str]:
     expected = {field: str(artifact["header"][field]) for field in ACTION_HASH_FIELDS}
     expected["source_result_sha256"] = source_file_sha
@@ -1244,7 +1355,7 @@ def _render_report(state: FormalState, gate: Mapping[str, Any], coverage: Mappin
     return "\n".join(lines) + "\n"
 
 
-def run_formal(output: Path) -> dict[str, Any]:
+def run_formal(output: Path, *, reuse_existing_artifacts: bool = False) -> dict[str, Any]:
     output.mkdir(parents=True, exist_ok=True)
     started = _now()
     contract = authenticate_p1_forecast_contract()
@@ -1268,34 +1379,37 @@ def run_formal(output: Path) -> dict[str, Any]:
     }
     _write_json(output / "run_manifest.json", run_manifest)
     try:
-        # Synthetic shared-base arms: each beta is constructed from the fixed
-        # seed stream; no arm-specific random redraw is permitted.
-        for scenario_id, arm in P1_SYNTHETIC_SCENARIO_ARMS:
-            spec = contract.spec(scenario_id, arm)
-            for seed in spec.seeds:
-                print(f"[forecast] {scenario_id}/{arm}/{seed}", flush=True)
-                dataset = build_synthetic_dataset(seed, beta=spec.beta)
-                _materialize_forecast(state, scenario_id, arm, seed, dataset)
-        # S3 body authentication is explicitly before fitting/scoring.
-        print("[s3] loading authenticated v4 body", flush=True)
-        body = load_s3_validation_body(root=ROOT)
-        for arm in ("injected", "zero_injection_control"):
-            spec = contract.spec("S3", arm)
-            print(f"[forecast] S3/{arm}/20260830", flush=True)
-            dataset = build_s3_arm_dataset(body, arm)
-            fits = run_s3_validation_fits(dataset, outer_report_only=True).fits
-            _materialize_forecast(state, "S3", arm, 20_260_830, dataset, fits=fits)
-        run_manifest["phase"] = "forecast_complete"
-        run_manifest["forecast_artifact_count"] = len(state.forecast_refs)
-        _write_json(output / "run_manifest.json", run_manifest)
+        if reuse_existing_artifacts:
+            print("[reuse] strict-loading existing forecast/action artifacts", flush=True)
+            _hydrate_existing_artifacts(state)
+            run_manifest["artifact_materialization"] = "strict_reload_existing"
+        else:
+            # Synthetic shared-base arms: each beta is constructed from the
+            # fixed seed stream; no arm-specific random redraw is permitted.
+            for scenario_id, arm in P1_SYNTHETIC_SCENARIO_ARMS:
+                spec = contract.spec(scenario_id, arm)
+                for seed in spec.seeds:
+                    print(f"[forecast] {scenario_id}/{arm}/{seed}", flush=True)
+                    dataset = build_synthetic_dataset(seed, beta=spec.beta)
+                    _materialize_forecast(state, scenario_id, arm, seed, dataset)
+            # S3 body authentication is explicitly before fitting/scoring.
+            print("[s3] loading authenticated v4 body", flush=True)
+            body = load_s3_validation_body(root=ROOT)
+            for arm in ("injected", "zero_injection_control"):
+                spec = contract.spec("S3", arm)
+                print(f"[forecast] S3/{arm}/20260830", flush=True)
+                dataset = build_s3_arm_dataset(body, arm)
+                fits = run_s3_validation_fits(dataset, outer_report_only=True).fits
+                _materialize_forecast(state, "S3", arm, 20_260_830, dataset, fits=fits)
 
-        for scenario_id, arm in P1_SCENARIO_ARMS:
-            spec = contract.spec(scenario_id, arm)
-            for seed in spec.seeds:
-                if (scenario_id, arm) in ACTION_MODELS:
-                    print(f"[action] {scenario_id}/{arm}/{seed}", flush=True)
-                    _materialize_actions_for_arm(state, scenario_id, arm, seed)
-        run_manifest["phase"] = "action_complete"
+            for scenario_id, arm in P1_SCENARIO_ARMS:
+                spec = contract.spec(scenario_id, arm)
+                for seed in spec.seeds:
+                    if (scenario_id, arm) in ACTION_MODELS:
+                        print(f"[action] {scenario_id}/{arm}/{seed}", flush=True)
+                        _materialize_actions_for_arm(state, scenario_id, arm, seed)
+        run_manifest["phase"] = "artifacts_ready"
+        run_manifest["forecast_artifact_count"] = len(state.forecast_refs)
         run_manifest["action_artifact_count"] = len(state.action_refs)
         _write_json(output / "run_manifest.json", run_manifest)
 
@@ -1341,9 +1455,14 @@ def run_formal(output: Path) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--reuse-existing-artifacts",
+        action="store_true",
+        help="strictly reload the existing 52 forecast/62 action artifacts and run only the result stage",
+    )
     args = parser.parse_args(argv)
     try:
-        run_formal(args.output.resolve())
+        run_formal(args.output.resolve(), reuse_existing_artifacts=args.reuse_existing_artifacts)
     except Exception:
         return 1
     return 0
