@@ -62,6 +62,8 @@ from unidream.experiments.p1_recovery_runner import (
     load_s3_validation_body,
 )
 from unidream.experiments.predictive_state import build_wm_predictive_state_bundle
+from unidream.experiments.run_config import configure_determinism
+from unidream.experiments.runtime import set_seed
 from unidream.experiments.wm_stage import prepare_world_model_stage
 from unidream.world_model.train_wm import world_model_action_context
 
@@ -89,6 +91,7 @@ OOF_TRAIN_WINDOW = 16
 # matching the four-bar action schedule.  The non-origin rows remain explicit
 # NaN/false in the split views; they are never silently imputed.
 OOF_STEP = 4
+PILOT_SEED = 20260904
 
 
 class ConditionalPipelineError(RuntimeError):
@@ -686,9 +689,18 @@ def _evaluate_actor_rolling(body: Any, dataset: Any, wm_trainer: Any, actor: Any
     return records
 
 
-def run_conditional_wm_bc_ac(output: str | Path = DEFAULT_OUTPUT, *, device: str = "cpu") -> Mapping[str, Any]:
+def run_conditional_wm_bc_ac(
+    output: str | Path = DEFAULT_OUTPUT,
+    *,
+    device: str = "cpu",
+    seed: int = PILOT_SEED,
+) -> Mapping[str, Any]:
     """Run the connected strict OOF -> WM -> BC -> AC pilot."""
 
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise ConditionalPipelineError("seed must be a non-negative integer")
+    configure_determinism(seed)
+    set_seed(seed)
     destination = Path(output)
     destination.mkdir(parents=True, exist_ok=True)
     manifest = load_runner_manifest()
@@ -744,6 +756,7 @@ def run_conditional_wm_bc_ac(output: str | Path = DEFAULT_OUTPUT, *, device: str
         "manifest_id": manifest.get("manifest_id"),
         "manifest_sha256": manifest.get("manifest_sha256"),
         "body_sha256": body.body_sha256,
+        "seed": int(seed),
         "conditional_oof_artifact_sha256": oof_bundle["artifact_sha256"],
         "conditional_teacher_binding_sha256": teacher_context.binding_sha256,
         "action_execution_contract_hash": contract.contract_hash,
@@ -933,8 +946,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument("--seed", type=int, default=PILOT_SEED)
     args = parser.parse_args(argv)
-    report = run_conditional_wm_bc_ac(args.output, device=args.device)
+    report = run_conditional_wm_bc_ac(args.output, device=args.device, seed=args.seed)
     print(json.dumps({
         "report": str(args.output / "conditional_wm_bc_ac_report.json"),
         "report_content_sha256": report["report_content_sha256"],
@@ -951,6 +965,7 @@ if __name__ == "__main__":  # pragma: no cover
 
 __all__ = [
     "DEFAULT_OUTPUT",
+    "PILOT_SEED",
     "ConditionalPipelineError",
     "run_conditional_wm_bc_ac",
     "main",
