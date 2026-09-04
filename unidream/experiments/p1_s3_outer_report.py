@@ -41,6 +41,7 @@ from .p1_recovery_runner import (
     S3_TRAIN_START,
     S3_VALIDATION_END,
     S3_VALIDATION_ORIGIN,
+    FORECAST_HORIZONS,
     build_s3_arm_dataset,
     fit_model_at_origin,
     load_runner_manifest,
@@ -289,7 +290,10 @@ def _run_arm(
     contract: ActionExecutionContract,
 ) -> dict[str, Any]:
     dataset = build_s3_arm_dataset(body, arm)  # type: ignore[arg-type]
-    horizon_column = 0  # FORECAST_HORIZONS=(4,8,16,32,64); h4 is column zero.
+    try:
+        horizon_column = tuple(FORECAST_HORIZONS).index(OUTER_HORIZON)
+    except ValueError as exc:  # pragma: no cover - fixed runner contract
+        raise S3OuterReportError("runner does not expose the fixed h4 horizon") from exc
     target = np.asarray(dataset.targets[:, horizon_column], dtype=np.float64)
     results: dict[str, Any] = {}
     for model_id in model_ids:

@@ -11,6 +11,7 @@ from unidream.experiments.p1_s3_outer_report import (
     _max_drawdown,
 )
 from unidream.experiments.p1_recovery_runner import (
+    FORECAST_HORIZONS,
     S3_OUTER_END,
     S3_TRAIN_START,
     S3_VALIDATION_END,
@@ -41,6 +42,10 @@ class P1S3OuterReportTest(unittest.TestCase):
         self.assertEqual(metrics["score_rows"], 2)
         self.assertAlmostEqual(metrics["mse"], 2.5)
         self.assertAlmostEqual(metrics["mae"], 1.5)
+
+    def test_h4_uses_the_runner_horizon_column(self) -> None:
+        self.assertEqual(tuple(FORECAST_HORIZONS), (1, 4, 8, 16))
+        self.assertEqual(tuple(FORECAST_HORIZONS).index(4), 1)
 
     def test_max_drawdown_is_zero_init(self) -> None:
         self.assertAlmostEqual(_max_drawdown(np.array([1.0, -2.0, 0.5])), 2.0)
