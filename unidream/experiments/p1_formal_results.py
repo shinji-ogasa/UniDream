@@ -1201,7 +1201,10 @@ def _gate_report(state: FormalState, registry: P1ResultRegistry, coverage: Mappi
             # non-N/A utility delta and clairvoyant same-state value must be
             # strictly above Ridge on that seed's identical scored rows.
             result_object = state.result_objects[cid]
-            per_seed = result_object.get("per_seed")
+            # Sensitivity envelopes keep the ten reducers under each fixed-L
+            # child; L=16 is the preregistered primary summary used above.
+            primary_child = result_object.get("per_block_length", {}).get(16)
+            per_seed = primary_child.get("per_seed") if isinstance(primary_child, Mapping) else None
             if not isinstance(per_seed, Mapping) or set(per_seed) != set(range(10)):
                 raise RuntimeError("S1 utility result does not contain exactly ten seed reducers")
             seed_checks: list[dict[str, Any]] = []
