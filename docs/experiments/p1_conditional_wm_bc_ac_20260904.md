@@ -118,9 +118,11 @@ the fixed rolling/outer metrics.  The tracked report was generated at commit
 `63291eac4780ff9aa8843f9ba979012ecca26588`; its content digest is recorded
 inside the JSON itself.
 
-The checkpoint directory is intentionally ignored by the repository's normal
-rules; the report records each checkpoint's SHA-256 and path.  The OOF JSON,
-bindings JSON, and report JSON are the auditable persisted inputs/outputs.
+The checkpoint directory is normally ignored by the repository's rules, but
+this run's three checkpoints and coverage file were explicitly force-tracked
+with the report so the training evidence is available from the branch.  The
+OOF JSON, bindings JSON, checkpoint files, and report JSON are the auditable
+persisted inputs/outputs.
 
 ## Decision and next route
 
