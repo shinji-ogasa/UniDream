@@ -65,12 +65,12 @@ control and injected action paths are not interchangeable natural-BTC claims.
 ## Reproducibility and integration checks
 
 - Report JSON: `codex_outputs/p1_s3_outer_report_20260904/outer_report.json`
-- Report file SHA-256: `e205b2c76b44fb99cfefdf656b72086ff65c0cffbeceda425500bca3375cdbe6`
+- Report file SHA-256: `2653928db0805d447d3b750b32973360a78ceac32eed6ea768405a0278e39919`
 - Report content digest (self-field excluded):
-  `8f0e23b87233b4de2fde1b6f8a85f596f85c450f7fdf16da4ffad0c2bf3daea1`
+  `c91af2ee920f4738ddb17a2c6c81155dc1dd6ae7130b0d1875b8d51b989681c2`
 - Source-provenance audit SHA-256:
-  `89dbe611b510d57adcae6ebd7beb140969c2a84ef1934ee5febb082aced1c341`
-- Code revision: `805f242bc5c95182d0150b99877f1445bc50c9f7`
+  `228882bdc6da9b90c168bd7a0b7d4c64f75bbdfe0f259b833d84566bfc2e0450`
+- Code revision: `e5da10169d8e28aa48c4c3bdfb9c0cf2dd2b2c6a`
 - Full repository suite after the evaluator addition: **344 tests OK**.
 - The evaluator's future-return perturbation check preserved intent, fills,
   and effective inventory state; only the outcome/PnL values are allowed to
