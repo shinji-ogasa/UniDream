@@ -373,6 +373,52 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             "off",
         )
 
+    def test_replay_parity_accepts_clip_at_position_bound(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        n_bars = 53
+        returns = np.full(n_bars, 0.001, dtype=np.float64)
+        starts = np.arange(0, n_bars - 4, 4)
+        # Use the direct canonical grid to reach 0.56 before the boundary
+        # test; score mapping intentionally has its own tie-break rule.
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[starts[:11]] = -0.04
+        deltas[starts[11:]] = -0.08
+        forecast_mask = np.zeros(n_bars, dtype=bool)
+        forecast_mask[starts] = True
+        artifact = produce_action_primitive_grid(
+            returns=returns,
+            decision_deltas=deltas,
+            forecast_finite_mask=forecast_mask,
+            decision_eligible=np.ones(n_bars, dtype=bool),
+            score_eligible=np.ones(n_bars, dtype=bool),
+            scenario_id="clip-parity",
+            seed=1,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="ridge",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+        )
+        rows = artifact["records"]
+        # The twelfth request starts from 0.56.  Its canonical -0.08 action
+        # clips to the 0.50 lower bound, so replay's effective delta is -0.06
+        # while the primitive wire value remains the requested -0.08.
+        self.assertEqual(rows[11]["selected_delta"], -0.08)
+        self.assertAlmostEqual(rows[11]["previous_position"], 0.56)
+        self.assertAlmostEqual(rows[11]["selected_position"], 0.50)
+        replay_deltas = np.zeros(n_bars, dtype=np.float64)
+        replay_deltas[starts] = [row["selected_delta"] for row in rows]
+        replay = replay_action_path(
+            returns,
+            replay_deltas,
+            contract,
+            decision_eligible=np.ones(n_bars, dtype=bool),
+            score_eligible=np.ones(n_bars, dtype=bool),
+            forecast_finite_mask=forecast_mask,
+        )
+        self.assertAlmostEqual(replay.intent_deltas[starts[11]], -0.08)
+        self.assertAlmostEqual(replay.decision_deltas[starts[11]], -0.06)
+
     def test_direct_stored_actions_and_alias_builder_are_deterministic(self) -> None:
         contract = ActionExecutionContract.canonical()
         returns = np.full(13, 0.001, dtype=np.float64)

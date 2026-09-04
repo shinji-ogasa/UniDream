@@ -1364,9 +1364,24 @@ def _assert_replay_parity(
                     f"replay parity mismatch for {field_name} at primitive row {row_index}"
                 )
         fill = start + contract.execution_delay_bars
+        # ``selected_delta`` is the requested canonical action-grid value for
+        # a filled block.  Replay also exposes ``decision_deltas`` (the
+        # effective position change after clip-to-bounds) and
+        # ``intent_deltas`` (the requested grid value).  At a position bound
+        # these differ (e.g. -0.04 requested from 0.52 clips to -0.02), so a
+        # parity check against ``decision_deltas`` would reject a valid
+        # production action.  A fill gap has no effective mutation and the
+        # primitive intentionally stores selected_delta=0, while replay keeps
+        # the causal intent for audit; compare the effective delta only in
+        # that case.
+        expected_delta = (
+            trajectory.intent_deltas[start]
+            if trajectory.block_masks.fill_complete_mask[start]
+            else trajectory.decision_deltas[start]
+        )
         if not np.isclose(
             float(record["selected_delta"]),
-            float(trajectory.decision_deltas[start]),
+            float(expected_delta),
             atol=1e-9,
             rtol=0.0,
         ):
