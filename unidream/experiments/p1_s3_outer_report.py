@@ -416,7 +416,10 @@ def run_s3_outer_report(
         ],
     }
     destination = Path(output)
-    report_content_sha = _write_json(destination / "outer_report.json", report)
+    # Hash the canonical report object before adding its own digest field; the
+    # on-disk newline and the self-field therefore cannot make the identity
+    # circular or platform-dependent.
+    report_content_sha = hashlib.sha256(_json_bytes(report)).hexdigest()
     report["report_content_sha256"] = report_content_sha
     # Rewrite once with its own digest omitted from the hashed payload to keep
     # the identity non-circular; callers can hash the final file separately.
