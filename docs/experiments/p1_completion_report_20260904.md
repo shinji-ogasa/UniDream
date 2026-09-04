@@ -70,8 +70,6 @@ than a claimed production sign-off.
 
 ## Verification
 
-At the pre-documentation final branch state, `uv run python -m unittest
-discover -s tests -v` passed **353 tests**, `git diff --check` passed, and the
-worktree matched its remote branch. The strict diagnostic adds one focused
-runtime-config regression test; the final update must rerun the suite. No live
-paper account result is claimed.
+At the final branch state, `uv run python -m unittest discover -s tests -v`
+passed **354 tests**, `git diff --check` passed, and the worktree matched its
+remote branch. No live paper account result is claimed.

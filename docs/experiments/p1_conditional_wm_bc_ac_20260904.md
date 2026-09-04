@@ -88,9 +88,9 @@ the existing S3 outer report.  The strict actor result on that window is:
 
 | metric | strict OOF → WM → BC → AC actor |
 |---|---:|
-| net total | 0.712511 |
-| B&H net total | 0.937454 |
-| AlphaEx vs B&H | **-0.224943** |
+| net total (window-local) | 0.712511 |
+| B&H net total (window-local) | 0.937454 |
+| AlphaEx vs B&H (window-local) | **-0.224943** |
 | Sharpe | 2.25926 |
 | filled blocks | 5 |
 | turnover | 0.24 |
@@ -98,11 +98,15 @@ the existing S3 outer report.  The strict actor result on that window is:
 
 The range and contract are identical to the fixed S3 outer report.  The
 legacy S3 report's action reducer scores the full body (including bars before
-the outer prediction range), whereas this new record restricts both action
-and B&H reduction to the declared outer window.  Therefore the two numeric
-rows are intentionally not treated as a paired model comparison; the new
-record preserves a window-local reduction and calls out the legacy difference
-instead of presenting incompatible denominators as a gain.
+the outer prediction range), whereas the window-local record above restricts
+both action and B&H reduction to the declared outer window.  For an exact
+reducer-parity check, the run also records
+`outer_evaluation_legacy_reduction`: actor net `-0.060325`, B&H net `0.164575`,
+and AlphaEx `-0.224899` with the same 0.24 turnover and 0.000132 cost.  The
+existing fixed-origin Ridge row is net `-0.043262` and AlphaEx `-0.207837`, so
+the connected actor is slightly worse on that apples-to-apples legacy
+reduction.  Both rows are retained because they answer different audit
+questions; neither is promoted as a new formal P1 score.
 
 ## Result artifact and reproducibility
 
@@ -111,8 +115,8 @@ The complete report is
 It contains the source/manifest/contract hashes, OOF bindings, mask-hash
 registry for every evaluation window, checkpoint hashes, stage status, and
 the fixed rolling/outer metrics.  The tracked report was generated at commit
-`0a38431` before this documentation-only update; after the final rerun its
-content digest is recorded inside the JSON itself.
+`63291eac4780ff9aa8843f9ba979012ecca26588`; its content digest is recorded
+inside the JSON itself.
 
 The checkpoint directory is intentionally ignored by the repository's normal
 rules; the report records each checkpoint's SHA-256 and path.  The OOF JSON,
@@ -135,7 +139,6 @@ pilot is not promotion-ready and does not establish precision improvement:
 
 ## Verification
 
-The branch passed the full repository suite (`353 tests OK` before the final
-runtime-config regression test), Python compilation, and `git diff --check`.
-The final documentation/test update must be followed by the same checks before
-merge.  No exchange API, order, account, or live-money operation was used.
+The branch passed the full repository suite (`354 tests OK`), Python
+compilation, and `git diff --check`. No exchange API, order, account, or
+live-money operation was used.
