@@ -12,6 +12,7 @@ import unittest
 
 from unidream.experiments.p1_recovery_prereg import (
     P1PreregistrationError,
+    REGISTERED_MANIFEST_SHA256,
     canonical_json_sha256,
     canonical_manifest_sha256,
     exact_file_sha256,
@@ -53,10 +54,13 @@ class P1PreregistrationTests(unittest.TestCase):
         self.assertEqual(payload["status"], "preregistered")
         self.assertEqual(
             payload["amends_manifest_sha256"],
-            "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481",
+            "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4",
         )
-        self.assertEqual(payload["amendment_reason"], "fourth pre-execution independent audit")
-        self.assertEqual(len(payload["amendment_history"]), 4)
+        self.assertEqual(
+            payload["amendment_reason"],
+            "pre-result execution authorization after action/MBB implementation audit",
+        )
+        self.assertEqual(len(payload["amendment_history"]), 5)
         self.assertFalse(payload["results_observed"])
         self.assertEqual(payload["common"]["feature_columns"], [
             "open_ret", "high_ret", "low_ret", "close_ret", "vol_ret",
@@ -515,7 +519,7 @@ class P1PreregistrationTests(unittest.TestCase):
 
     def test_production_loader_succeeds_and_freezes_pinned_manifest(self) -> None:
         manifest = load_fixed_manifest()
-        self.assertEqual(manifest["manifest_sha256"], "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4")
+        self.assertEqual(manifest["manifest_sha256"], REGISTERED_MANIFEST_SHA256)
         with self.assertRaises(TypeError):
             manifest["common"] = {}  # type: ignore[index]
 

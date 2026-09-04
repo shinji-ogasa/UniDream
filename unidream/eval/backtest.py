@@ -6,6 +6,7 @@ Sharpe / Sortino / MaxDD / Calmar を計算する。
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from numbers import Real
 from typing import Optional
 
@@ -17,6 +18,7 @@ from unidream.eval.action_execution import (
     ActionExecutionTrajectory,
     decision_deltas_from_positions,
     replay_action_path,
+    _strict_bool_mask,
     validate_eligibility_masks,
 )
 
@@ -44,6 +46,39 @@ ANNUALIZATION_EQUITY = {
 # デフォルトは暗号資産（BTCUSDT 対象のため）
 ANNUALIZATION = ANNUALIZATION_CRYPTO
 _UNSET = object()
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_bound_action_execution_contract(
+    contract: ActionExecutionContract,
+    *,
+    expected_contract_hash: str | None = None,
+    require_external_hash: bool = False,
+) -> str:
+    """Validate the contract identity used by a production backtest.
+
+    ``ActionExecutionContract`` deliberately permits cost-off fixtures through
+    direct construction.  That is useful for deterministic diagnostics but is
+    not an identity binding: two contracts with different fee/spread values
+    remain valid dataclasses.  Production adapters therefore have to supply
+    the hash pinned by the fixed cost-contract registry.  The hash is checked
+    before any replay, and omission is rejected in strict mode.
+    """
+    if not isinstance(contract, ActionExecutionContract):
+        raise TypeError("contract must be an ActionExecutionContract")
+    if expected_contract_hash is None:
+        if require_external_hash:
+            raise ValueError(
+                "production action backtest requires an externally pinned contract hash"
+            )
+        return contract.contract_hash
+    if not isinstance(expected_contract_hash, str) or _SHA256_RE.fullmatch(
+        expected_contract_hash
+    ) is None:
+        raise ValueError("expected_contract_hash must be a lowercase SHA-256 digest")
+    if contract.contract_hash != expected_contract_hash:
+        raise ValueError("action execution contract does not match its external hash")
+    return expected_contract_hash
 
 
 def validate_execution_delay(execution_delay_bars: int) -> int:
@@ -122,6 +157,8 @@ class BacktestMetrics:
     downside_capture: float | None = None
     max_underperformance_streak: int | None = None
     action_execution_contract_hash: str | None = None
+    action_block_mask_hash: str | None = None
+    action_block_mask_hash_registry: dict[str, str] | None = None
     eligibility_mask_hash: str | None = None
     scored_bars: int | None = None
     complete_blocks: int | None = None
@@ -158,6 +195,8 @@ class BacktestMetrics:
             "downside_capture": self.downside_capture,
             "max_underperformance_streak": self.max_underperformance_streak,
             "action_execution_contract_hash": self.action_execution_contract_hash,
+            "action_block_mask_hash": self.action_block_mask_hash,
+            "action_block_mask_hash_registry": self.action_block_mask_hash_registry,
             "eligibility_mask_hash": self.eligibility_mask_hash,
             "scored_bars": self.scored_bars,
             "complete_blocks": self.complete_blocks,
@@ -348,6 +387,13 @@ class Backtest:
         action_positions_are_deltas: bool | None = None,
         decision_eligible: np.ndarray | list[bool] | None = None,
         score_eligible: np.ndarray | list[bool] | None = None,
+        bar_available: np.ndarray | list[bool] | None = None,
+        forecast_finite_mask: np.ndarray | list[bool] | None = None,
+        common_mask: np.ndarray | list[bool] | None = None,
+        expected_action_execution_contract_hash: str | None = None,
+        require_external_action_contract_hash: bool = False,
+        expected_contract_hash: str | None = None,
+        require_external_contract_hash: bool = False,
     ):
         assert len(returns) == len(positions), "returns と positions の長さが一致しない"
         self.returns = np.asarray(returns, dtype=np.float64)
@@ -363,11 +409,42 @@ class Backtest:
             if action_execution_contract != execution_contract:
                 raise ValueError("action_execution_contract and execution_contract disagree")
         self.action_execution_contract = action_execution_contract or execution_contract
+        if self.action_execution_contract is None and (
+            expected_action_execution_contract_hash is not None
+            or expected_contract_hash is not None
+            or require_external_action_contract_hash
+            or require_external_contract_hash
+        ):
+            raise ValueError(
+                "an external action contract hash requires an action execution contract"
+            )
         if self.action_execution_contract is not None and not isinstance(
             self.action_execution_contract, ActionExecutionContract
         ):
             raise TypeError("action_execution_contract must be an ActionExecutionContract")
         if self.action_execution_contract is not None:
+            if (
+                expected_action_execution_contract_hash is not None
+                and expected_contract_hash is not None
+                and expected_action_execution_contract_hash != expected_contract_hash
+            ):
+                raise ValueError(
+                    "expected action execution contract hash aliases disagree"
+                )
+            bound_hash = (
+                expected_contract_hash
+                if expected_contract_hash is not None
+                else expected_action_execution_contract_hash
+            )
+            strict_hash = bool(
+                require_external_action_contract_hash
+                or require_external_contract_hash
+            )
+            validate_bound_action_execution_contract(
+                self.action_execution_contract,
+                expected_contract_hash=bound_hash,
+                require_external_hash=strict_hash,
+            )
             contract = self.action_execution_contract
             for name, supplied, expected in (
                 ("spread_bps", spread_bps, contract.spread_bps),
@@ -382,9 +459,9 @@ class Backtest:
                     raise ValueError(
                         f"{name} legacy override must equal the action execution contract"
                     )
-            if execution_delay_bars is not _UNSET and self.execution_delay_bars != 0:
+            if execution_delay_bars is not _UNSET:
                 raise ValueError(
-                    "execution_delay_bars legacy override must be zero in contract mode"
+                    "execution_delay_bars legacy override is forbidden in contract mode"
                 )
         self.action_positions_are_deltas = action_positions_are_deltas
         if self.action_positions_are_deltas is not None and not isinstance(
@@ -398,15 +475,40 @@ class Backtest:
             )
         self.decision_eligible = None
         self.score_eligible = None
+        if score_eligible is not None and bar_available is not None:
+            if not np.array_equal(np.asarray(score_eligible), np.asarray(bar_available)):
+                raise ValueError("score_eligible and bar_available aliases disagree")
+        supplied_bar_available = (
+            bar_available if bar_available is not None else score_eligible
+        )
+        self.bar_available = None
+        self.forecast_finite_mask = None
+        self.common_mask = common_mask
         if self.action_execution_contract is not None:
             (
                 self.decision_eligible,
                 self.score_eligible,
             ) = validate_eligibility_masks(
                 decision_eligible,
-                score_eligible,
+                supplied_bar_available,
                 len(self.returns),
             )
+            self.bar_available = self.score_eligible
+            if forecast_finite_mask is not None:
+                self.forecast_finite_mask = _strict_bool_mask(
+                    forecast_finite_mask,
+                    name="forecast_finite_mask",
+                    n_bars=len(self.returns),
+                )
+            if strict_hash and bar_available is None:
+                raise ValueError(
+                    "production contract backtest requires explicit bar_available; "
+                    "score_eligible is an ambiguous legacy alias"
+                )
+            if strict_hash and common_mask is None:
+                raise ValueError(
+                    "production contract backtest requires an explicit paired common_mask"
+                )
         if initial_position is not None and not np.isfinite(float(initial_position)):
             raise ValueError("initial_position must be finite when provided")
         self.initial_position = (
@@ -454,7 +556,8 @@ class Backtest:
                     self.positions,
                     self.action_execution_contract,
                     decision_eligible=self.decision_eligible,
-                    score_eligible=self.score_eligible,
+                    bar_available=self.bar_available,
+                    forecast_finite_mask=self.forecast_finite_mask,
                 )
             benchmark_deltas = self.benchmark_positions
             if benchmark_deltas is not None and self.action_positions_are_deltas is False:
@@ -462,7 +565,8 @@ class Backtest:
                     benchmark_deltas,
                     self.action_execution_contract,
                     decision_eligible=self.decision_eligible,
-                    score_eligible=self.score_eligible,
+                    bar_available=self.bar_available,
+                    forecast_finite_mask=self.forecast_finite_mask,
                 )
             return _run_contract_backtest(
                 self.returns,
@@ -472,6 +576,9 @@ class Backtest:
                 self.ann_factor,
                 decision_eligible=self.decision_eligible,
                 score_eligible=self.score_eligible,
+                bar_available=self.bar_available,
+                forecast_finite_mask=self.forecast_finite_mask,
+                common_mask=self.common_mask,
             )
         returns, positions, benchmark_positions = align_execution_path(
             self.returns,
@@ -607,6 +714,11 @@ class ActionExecutionBacktest:
         interval: str = "15m",
         decision_eligible: np.ndarray | list[bool] | None = None,
         score_eligible: np.ndarray | list[bool] | None = None,
+        bar_available: np.ndarray | list[bool] | None = None,
+        forecast_finite_mask: np.ndarray | list[bool] | None = None,
+        common_mask: np.ndarray | list[bool] | None = None,
+        expected_contract_hash: str | None = None,
+        require_external_contract_hash: bool = False,
     ):
         if not isinstance(contract, ActionExecutionContract):
             raise TypeError("contract must be an ActionExecutionContract")
@@ -618,12 +730,41 @@ class ActionExecutionBacktest:
             else np.asarray(benchmark_decision_deltas, dtype=np.float64)
         )
         self.contract = contract
+        self.expected_contract_hash = validate_bound_action_execution_contract(
+            contract,
+            expected_contract_hash=expected_contract_hash,
+            require_external_hash=require_external_contract_hash,
+        )
         self.ann_factor = ANNUALIZATION.get(interval, 252 * 96)
+        if score_eligible is not None and bar_available is not None:
+            if not np.array_equal(np.asarray(score_eligible), np.asarray(bar_available)):
+                raise ValueError("score_eligible and bar_available aliases disagree")
+        supplied_bar_available = (
+            bar_available if bar_available is not None else score_eligible
+        )
+        if require_external_contract_hash and bar_available is None:
+            raise ValueError(
+                "production contract backtest requires explicit bar_available; "
+                "score_eligible is an ambiguous legacy alias"
+            )
+        if require_external_contract_hash and common_mask is None:
+            raise ValueError(
+                "production contract backtest requires an explicit paired common_mask"
+            )
         self.decision_eligible, self.score_eligible = validate_eligibility_masks(
             decision_eligible,
-            score_eligible,
+            supplied_bar_available,
             len(self.returns),
         )
+        self.bar_available = self.score_eligible
+        self.forecast_finite_mask = None
+        if forecast_finite_mask is not None:
+            self.forecast_finite_mask = _strict_bool_mask(
+                forecast_finite_mask,
+                name="forecast_finite_mask",
+                n_bars=len(self.returns),
+            )
+        self.common_mask = common_mask
 
     def run(self) -> BacktestMetrics:
         return _run_contract_backtest(
@@ -634,6 +775,9 @@ class ActionExecutionBacktest:
             self.ann_factor,
             decision_eligible=self.decision_eligible,
             score_eligible=self.score_eligible,
+            bar_available=self.bar_available,
+            forecast_finite_mask=self.forecast_finite_mask,
+            common_mask=self.common_mask,
         )
 
 
@@ -661,14 +805,25 @@ def _run_contract_backtest(
     *,
     decision_eligible: np.ndarray | list[bool] | None,
     score_eligible: np.ndarray | list[bool] | None,
+    bar_available: np.ndarray | list[bool] | None = None,
+    forecast_finite_mask: np.ndarray | list[bool] | None = None,
+    common_mask: np.ndarray | list[bool] | None = None,
 ) -> BacktestMetrics:
     """Build strategy/benchmark metrics from one shared contract replay."""
+    if score_eligible is not None and bar_available is not None:
+        if not np.array_equal(np.asarray(score_eligible), np.asarray(bar_available)):
+            raise ValueError("score_eligible and bar_available aliases disagree")
+    supplied_bar_available = (
+        bar_available if bar_available is not None else score_eligible
+    )
     trajectory = replay_action_path(
         returns,
         decision_deltas,
         contract,
         decision_eligible=decision_eligible,
-        score_eligible=score_eligible,
+        bar_available=supplied_bar_available,
+        forecast_finite_mask=forecast_finite_mask,
+        common_mask=common_mask,
     )
     if trajectory.n_scored_bars <= 0:
         raise ValueError(
@@ -684,10 +839,25 @@ def _run_contract_backtest(
         benchmark_deltas,
         contract,
         decision_eligible=trajectory.decision_eligible,
-        score_eligible=trajectory.score_eligible,
+        bar_available=trajectory.bar_available,
+        # The benchmark is paired with the same causal forecast domain as the
+        # strategy.  Without this explicit mask, replay would infer
+        # ``forecast_finite_mask`` from its all-zero deltas and a strategy
+        # forecast gap would make the two otherwise identical trajectories
+        # appear to have different action-mask registries.
+        forecast_finite_mask=trajectory.forecast_finite_mask,
+        common_mask=common_mask,
     )
     if not np.array_equal(trajectory.scored_mask, benchmark.scored_mask):
         raise ValueError("strategy and benchmark action paths have different scored masks")
+    if trajectory.action_block_mask_hash != benchmark.action_block_mask_hash:
+        raise ValueError("strategy and benchmark action paths have different block mask hashes")
+    if dict(trajectory.action_block_mask_hash_registry) != dict(
+        benchmark.action_block_mask_hash_registry
+    ):
+        raise ValueError(
+            "strategy and benchmark action paths have different block mask registries"
+        )
 
     pnl = trajectory.scored_pnl
     bench_pnl = benchmark.scored_pnl
@@ -705,7 +875,10 @@ def _run_contract_backtest(
     final_excess = total_return - benchmark_total_return
     period_bars = max(int(round(ann_factor / 12)), 1)
     position_path = trajectory.scored_positions
-    n_trades = int(np.count_nonzero(trajectory.transition_costs[trajectory.scored_mask] > 0.0))
+    # Count actual position-changing fills, not positive fees.  Cost-off uses
+    # the same execution path and must not report zero trades merely because
+    # its transition cost is intentionally zero.
+    n_trades = trajectory.n_filled_blocks
 
     return BacktestMetrics(
         sharpe=sharpe,
@@ -733,6 +906,8 @@ def _run_contract_backtest(
         equity_curve=equity,
         pnl_series=pnl,
         action_execution_contract_hash=contract.contract_hash,
+        action_block_mask_hash=trajectory.action_block_mask_hash,
+        action_block_mask_hash_registry=dict(trajectory.action_block_mask_hash_registry),
         eligibility_mask_hash=trajectory.eligibility_mask_hash,
         scored_bars=trajectory.n_scored_bars,
         complete_blocks=trajectory.n_complete_blocks,

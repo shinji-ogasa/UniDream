@@ -16,6 +16,7 @@ from unidream.experiments.chronological_oof import (
     conditional_path_or_artifact_enabled,
     conditional_runtime_config,
 )
+from unidream.experiments.conditional_teacher import require_authenticated_conditional_teacher_context
 
 
 def build_bc_trainer(
@@ -183,14 +184,18 @@ def run_bc_stage(
     train_route_soft_labels=None,
     train_route_advantage=None,
     checkpoint_metadata: dict | None = None,
+    conditional_teacher_context=None,
+    conditional_config: dict | None = None,
     log_ts,
 ):
     effective_cfg = conditional_runtime_config(ac_cfg, bc_cfg)
     if conditional_path_or_artifact_enabled(effective_cfg):
-        raise ConditionalPathBlocked(
-            "run_bc_stage cannot consume legacy oracle_positions for the conditional "
-            "Oracle path; pass a chronological OOF teacher bundle through the new stage"
+        context = require_authenticated_conditional_teacher_context(
+            conditional_teacher_context,
+            config=conditional_config or ac_cfg,
+            caller="run_bc_stage",
         )
+        oracle_positions = context.train_positions
     bc_trainer = build_bc_trainer(
         actor=actor,
         ensemble=ensemble,

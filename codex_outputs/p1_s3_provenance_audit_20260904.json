@@ -1,0 +1,136 @@
+{
+  "audit_id": "p1-s3-provenance-audit-20260904",
+  "body_sha256": "3fb08afc9113388c935b04559bd0413c0309697ef4ae50208056998308f76772",
+  "created_at": "2026-09-04T04:50:35.531642Z",
+  "disposition": {
+    "body_content_used": true,
+    "frozen_manifest_mutated": false,
+    "local_metadata_replaced": false,
+    "reason": "Fresh official 2018-02 probe reproduces the frozen Spot archive payload SHA and confirms the missing local probe record; UM mark/funding remain official HTTP 404 for that month. Body/schema/content digests remain authenticated and unchanged.",
+    "status": "pass_body_source_provenance_only_difference"
+  },
+  "fresh_probe": {
+    "schema_version": 1,
+    "scope": {
+      "interval": "15m",
+      "probe_months": [
+        "2018-02"
+      ],
+      "symbol": "BTCUSDT"
+    },
+    "source_policy": {
+      "allowed_hosts": [
+        "data-api.binance.vision",
+        "data.binance.vision",
+        "fapi.binance.com"
+      ],
+      "archive_hosts": [
+        "data.binance.vision"
+      ],
+      "non_official_provider_used": false,
+      "redirects_must_remain_official": true
+    },
+    "sources": {
+      "spot_klines": {
+        "http_200_count": 1,
+        "http_404_count": 0,
+        "probe_count": 1,
+        "records": [
+          {
+            "archive": true,
+            "archive_member": "BTCUSDT-15m-2018-02.csv",
+            "archive_payload_sha256": "ba2e6f02672dd8f1fce38dde096a756df2194f7a17e5d401d253b5e82623697b",
+            "final_url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/15m/BTCUSDT-15m-2018-02.zip",
+            "http_status": 200,
+            "month": "2018-02",
+            "parsed_first_timestamp": "2018-02-01 00:00:00",
+            "parsed_frame_sha256": "1c45c583c10d74fa7b0b1cd3690944843420603ba5a9ccfed1eb63d31bd90e1e",
+            "parsed_last_timestamp": "2018-02-28 23:45:00",
+            "parsed_rows": 2553,
+            "request_params": {},
+            "requested_url": "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/15m/BTCUSDT-15m-2018-02.zip",
+            "response_bytes": 141728,
+            "response_sha256": "9b7f75cef2aefea621bfedb0f136f15fc60aed5e6f4da1c521765a4c267123e0",
+            "schema": {
+              "column_count": 12,
+              "columns": [
+                "open_time",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "close_time",
+                "quote_volume",
+                "n_trades",
+                "taker_buy_base",
+                "taker_buy_quote",
+                "ignore"
+              ],
+              "header_present": false,
+              "kind": "kline"
+            },
+            "source": "spot_klines"
+          }
+        ]
+      },
+      "um_funding_rate": {
+        "http_200_count": 0,
+        "http_404_count": 1,
+        "probe_count": 1,
+        "records": [
+          {
+            "archive": true,
+            "error": "official source returned HTTP 404",
+            "final_url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2018-02.zip",
+            "http_status": 404,
+            "month": "2018-02",
+            "request_params": {},
+            "requested_url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2018-02.zip",
+            "response_bytes": 366,
+            "response_sha256": "7c33b0d2ce352d5a5a26fb66f9bd29868f31ba4b0c77b39af9ef165597fe9753",
+            "source": "um_funding_rate"
+          }
+        ]
+      },
+      "um_mark_price_klines": {
+        "http_200_count": 0,
+        "http_404_count": 1,
+        "probe_count": 1,
+        "records": [
+          {
+            "archive": true,
+            "error": "official source returned HTTP 404",
+            "final_url": "https://data.binance.vision/data/futures/um/monthly/markPriceKlines/BTCUSDT/15m/BTCUSDT-15m-2018-02.zip",
+            "http_status": 404,
+            "month": "2018-02",
+            "request_params": {},
+            "requested_url": "https://data.binance.vision/data/futures/um/monthly/markPriceKlines/BTCUSDT/15m/BTCUSDT-15m-2018-02.zip",
+            "response_bytes": 366,
+            "response_sha256": "a5a5ad620a2671be340659d53455576d3c76fde7144835c4a221acbce056fa7d",
+            "source": "um_mark_price_klines"
+          }
+        ]
+      }
+    },
+    "status": "blocked"
+  },
+  "frozen_metadata_sha256": "2c9db28deebe7e6b08f4ffedf65c3cdb51a78cfd7ee7d6580f76a62cc424bdcb",
+  "frozen_source_provenance_digest": "aa320222dca0a46b2a0730f17bb1665f31a70074aa3bafcc6bff58ca21618fad",
+  "git_revision": "a6519cd6a49fff7940f0a4043a68e61e9268a47a",
+  "local_metadata_sha256": "bade1775884cd22c8675af225b429976aa6b2c60b859b4a591c76f8a87d17450",
+  "local_source_provenance_digest": "1e78ccf3162567e799b05a1c25dbe12a1c4c37e8e5a2abf2f9b95a70c380e2db",
+  "manifest_sha256": "128a32230ae94678d5028891fe699e20c564ce7b2261ad10f5a4a83436f08bc6",
+  "rows": 173111,
+  "runtime_body_match": true,
+  "runtime_loaded_body_match": true,
+  "runtime_provenance_disposition": {
+    "body_match": true,
+    "reason": "cache-local body matches but its known source provenance digest differs from frozen metadata",
+    "source_provenance_match": false,
+    "status": "source_provenance_only_difference"
+  },
+  "runtime_source_provenance_match": false,
+  "runtime_status": "passed",
+  "schema_version": 1
+}

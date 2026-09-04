@@ -1,14 +1,13 @@
 # P1 recovery preregistration protocol
 
-Status: preregistered, no experiment result is attached.  This document amends
-the immediately preceding manifest digest
-`de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481` under the
-reason `fourth pre-execution independent audit`; `results_observed=false` is
-fixed.  The amendment history retains the original pre-execution amendment
-digests `9ba18e3e1226cbcbe57e6dfc40050036b1e70b92e58a75e73f8e6ad6c3bc747d`,
-`5f8dbd798cf6dc44e15c94b45bc49081c1f7eefea2b89369b682e8e1c7f5d0cc`,
-`1ea702af170408f023f7c7b6e83eef2056df9523259b0fd9812ee99946a1c485`, and
-`de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481`.
+Status: preregistered, formal validation calculation authorized and in
+progress; no completed result is attached yet.  This document amends the
+immediately preceding manifest digest
+`d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4` under the
+reason `pre-result execution authorization after action/MBB implementation
+audit`; `results_observed=false` remains fixed.  The amendment history retains
+all prior pre-execution amendment digests and the immediately preceding
+`d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4`.
 
 The machine-readable source of truth is
 [`p1_recovery_prereg_manifest.json`](p1_recovery_prereg_manifest.json).  A
@@ -18,7 +17,7 @@ future runner must enter through
 fields, and `results_observed=false`) and only then delegates to the generic
 `validate_v4_runtime_inputs` body validator.  The registered base is
 `origin/main` at `881e5e08e9b413b51b0a2faf5c49592ce13329d1`; the manifest
-digest `d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4` is
+digest `128a32230ae94678d5028891fe699e20c564ce7b2261ad10f5a4a83436f08bc6` is
 pinned independently in
 `unidream/experiments/p1_recovery_prereg.py`.
 
@@ -212,10 +211,12 @@ bootstrap boundaries, duplicate records, or replay a nonchronological
 sequence.  The payload, schema, and content SHA-256 values are echoed in every
 result artifact.
 
-The action primitive producer and P1-specific moving-block implementation are
-not implemented on this preregistration branch.  A runner must stop with a
-blocked/N/A status until both are separately implemented and validated; the
-existing generic MBB path is forbidden.
+At the preregistration freeze, the action primitive producer and P1-specific
+moving-block implementation were not implemented.  The pre-result amendment
+above records that the authenticated, field-specific implementations and
+regression coverage have since been audited, and permits the fixed validation
+calculation to start.  The run must still use the sealed action artifacts and
+P1-specific MBB below; the existing generic MBB path is always forbidden.
 
 ## Fixed models and metrics
 
@@ -528,7 +529,9 @@ after seeing any output.  The existing generic
 `unidream.experiments.train_app.run_training_app` is not a P1 research runner;
 it is explicitly unsuitable because it owns the generic WM→BC→AC pipeline.
 The P1 runner is blocked unless it uses the authenticated v4 wrapper and the
-separately implemented P1 action primitive/MBB components.
+separately implemented P1 action primitive/MBB components.  In the current
+integration branch those components are present, but the frozen manifest's
+start-condition amendment is still required before result collection.
 
 ## Immutable v4 input provenance
 

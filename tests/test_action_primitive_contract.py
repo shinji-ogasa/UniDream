@@ -8,7 +8,15 @@ import unittest
 
 import numpy as np
 
+from unidream.eval.action_execution import (
+    ActionExecutionContract,
+    replay_action_path,
+    select_block_decisions,
+)
 from unidream.experiments.action_primitives import (
+    ACTION_PRIMITIVE_COST_CONTRACT_SHA256,
+    ACTION_PRIMITIVE_HASH_FIELDS,
+    ACTION_PRIMITIVE_PRODUCTION_OUTPUT_EXPECTED_FIELDS,
     ACTION_PRIMITIVE_RECORD_FIELDS,
     ActionPrimitiveContractError,
     ActionPrimitiveImplementationBlocked,
@@ -16,8 +24,10 @@ from unidream.experiments.action_primitives import (
     action_primitive_payload_sha256,
     build_action_primitive_grid,
     canonical_action_primitive_schema_sha256,
+    produce_action_primitive_grid,
     require_action_primitive_implementation,
     run_action_primitive_mbb,
+    validate_action_primitive_semantics,
     validate_action_primitive_records,
 )
 
@@ -104,7 +114,76 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ActionPrimitiveContractError, "primitive_index"):
             action_primitive_content_sha256(reordered)
 
-    def test_missing_common_mask_and_producer_are_blocked(self) -> None:
+    def test_output_hash_expectations_are_external_and_non_circular(self) -> None:
+        artifact = self._fixture()
+        header = artifact["header"]
+        assert isinstance(header, dict)
+        expected = {
+            field: header[field]
+            for field in (
+                "action_primitive_schema_sha256",
+                "action_primitive_content_sha256",
+                "action_primitive_payload_sha256",
+            )
+        }
+        result = validate_action_primitive_semantics(
+            artifact,
+            realized_returns=self._fixture_returns(),
+            expected_output_hashes=expected,
+        )
+        self.assertEqual(result["semantic_validation_status"], "passed")
+        for field in expected:
+            incomplete = dict(expected)
+            incomplete.pop(field)
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ActionPrimitiveContractError,
+                "external output hashes are incomplete",
+            ):
+                validate_action_primitive_semantics(
+                    artifact,
+                    realized_returns=self._fixture_returns(),
+                    expected_output_hashes=incomplete,
+                )
+
+        # The external v1 schema has exactly three inferential hashes.  A
+        # storage/file envelope must not be promoted into this contract.
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "storage-only"):
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=self._fixture_returns(),
+                expected_output_hashes={
+                    **expected,
+                    "action_primitive_envelope_sha256": "a" * 64,
+                },
+            )
+        legacy = copy.deepcopy(artifact)
+        legacy_header = legacy["header"]
+        assert isinstance(legacy_header, dict)
+        legacy_header["action_primitive_envelope_sha256"] = "a" * 64
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "storage-only"):
+            validate_action_primitive_semantics(
+                legacy,
+                realized_returns=self._fixture_returns(),
+            )
+
+    def test_canonical_output_hash_schema_has_exactly_three_hashes(self) -> None:
+        self.assertEqual(
+            ACTION_PRIMITIVE_HASH_FIELDS,
+            (
+                "action_primitive_payload_sha256",
+                "action_primitive_schema_sha256",
+                "action_primitive_content_sha256",
+            ),
+        )
+        self.assertEqual(
+            ACTION_PRIMITIVE_PRODUCTION_OUTPUT_EXPECTED_FIELDS,
+            ACTION_PRIMITIVE_HASH_FIELDS,
+        )
+        artifact = self._fixture()
+        self.assertNotIn("action_primitive_envelope_sha256", artifact)
+        self.assertNotIn("action_primitive_envelope_sha256", artifact["header"])
+
+    def test_missing_common_mask_and_bootstrap_are_blocked(self) -> None:
         broken = _record(0)
         del broken["common_mask"]
         with self.assertRaisesRegex(ActionPrimitiveContractError, "missing=common_mask"):
@@ -112,20 +191,586 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         with self.assertRaises(ActionPrimitiveImplementationBlocked):
             require_action_primitive_implementation()
         with self.assertRaises(ActionPrimitiveImplementationBlocked):
-            build_action_primitive_grid([broken])
-        with self.assertRaises(ActionPrimitiveImplementationBlocked):
             run_action_primitive_mbb([broken], block_length=16)
 
-    def test_grid_order_requires_zero_based_four_bar_starts(self) -> None:
-        for starts in ((-4, 0), (1,), (0, 4, 100)):
+    def test_arm_metadata_does_not_coerce_non_string_keys(self) -> None:
+        kwargs = {
+            "returns": np.full(5, 0.001, dtype=np.float64),
+            "decision_block_scores": np.array([1.0, np.nan, np.nan, np.nan, np.nan]),
+            "decision_eligible": np.ones(5, dtype=bool),
+            "score_eligible": np.ones(5, dtype=bool),
+            "scenario_id": "S0",
+            "seed": 20260830,
+            "split_id": "validation",
+            "support_id": "synthetic_validation",
+            "model_id": "ridge",
+            "cost_mode": "on",
+            "cost_contract_hash": ActionExecutionContract.canonical().contract_hash,
+            "arm_metadata": {1: "not-a-valid-arm-key"},
+        }
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "keys must be strings"):
+            produce_action_primitive_grid(**kwargs)
+
+    @staticmethod
+    def _fixture(*, cost_mode: str = "on") -> dict[str, object]:
+        contract = ActionExecutionContract.canonical()
+        if cost_mode == "off":
+            contract = ActionExecutionContract.from_config(
+                json.loads(
+                    (ROOT / "docs" / "experiments" / "action_execution_contract_cost_off.json").read_text(
+                        encoding="utf-8"
+                    )
+                ),
+                require_canonical=False,
+            )
+        n_bars = 17
+        returns = np.asarray(
+            [
+                0.001,
+                -0.0005,
+                0.002,
+                0.001,
+                -0.001,
+                0.002,
+                0.003,
+                -0.002,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+            ],
+            dtype=np.float64,
+        )
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4, 8, 12]] = (-1.0, 0.0, 1.0, 0.0)
+        decision_eligible = np.ones(n_bars, dtype=bool)
+        score_eligible = np.ones(n_bars, dtype=bool)
+        # The second scheduled block has a delayed fill gap.  Its physical
+        # row must remain in the artifact, with false execution/scoring masks
+        # and no state move.  ``common_mask`` is the paired grid mask and is
+        # independent of metric-specific finite domains.
+        score_eligible[5] = False
+        return produce_action_primitive_grid(
+            returns=returns,
+            decision_block_scores=scores,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+            scenario_id="S1",
+            seed=20260830,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="ridge",
+            cost_mode=cost_mode,
+            cost_contract_hash=contract.contract_hash,
+        )
+
+    @staticmethod
+    def _fixture_returns() -> np.ndarray:
+        return np.asarray(
+            [
+                0.001,
+                -0.0005,
+                0.002,
+                0.001,
+                -0.001,
+                0.002,
+                0.003,
+                -0.002,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+                0.001,
+            ],
+            dtype=np.float64,
+        )
+
+    @staticmethod
+    def _refresh_hashes(artifact: dict[str, object]) -> None:
+        header = artifact["header"]
+        records = artifact["records"]
+        assert isinstance(header, dict)
+        assert isinstance(records, list)
+        content = action_primitive_content_sha256(records)
+        payload = action_primitive_payload_sha256(
+            records,
+            schema_sha256=header["action_primitive_schema_sha256"],
+            content_sha256=content,
+        )
+        header["action_primitive_content_sha256"] = content
+        header["action_primitive_payload_sha256"] = payload
+        artifact["action_primitive_content_sha256"] = content
+        artifact["action_primitive_payload_sha256"] = payload
+
+    def test_deterministic_producer_preserves_grid_masks_state_and_cost_off(self) -> None:
+        artifact = self._fixture()
+        header = artifact["header"]
+        records = artifact["records"]
+        self.assertEqual(header["record_count"], 4)
+        self.assertEqual(header["support_start"], 0)
+        self.assertEqual(header["support_range"], [0, 17])
+        self.assertEqual(
+            header["source_role"],
+            "deterministic_fixture_realized_return_inputs",
+        )
+        self.assertEqual([row["decision_index"] for row in records], [0, 4, 8, 12])
+        self.assertEqual([row["fill_index"] for row in records], [1, 5, 9, 13])
+        self.assertEqual([row["end_index"] for row in records], [4, 8, 12, 16])
+        self.assertEqual(records[0]["selected_delta"], -0.08)
+        self.assertAlmostEqual(records[0]["selected_position"], 0.92)
+        self.assertAlmostEqual(records[0]["turnover"], 0.08)
+        self.assertEqual(records[1]["fill_complete_mask"], False)
+        self.assertEqual(records[1]["outcome_complete_mask"], False)
+        self.assertEqual(records[1]["scored_action_mask"], False)
+        self.assertEqual(records[1]["common_mask"], True)
+        self.assertEqual(records[1]["selected_delta"], 0.0)
+        self.assertEqual(records[1]["previous_position"], records[0]["selected_position"])
+        self.assertTrue(np.isnan(records[1]["candidate_utility"]))
+        self.assertEqual(records[2]["previous_position"], records[1]["selected_position"])
+        self.assertEqual(header["schedule"]["target_rule"], "decision t -> fill t+1 -> returns[t+1:t+5]")
+        self.assertEqual(header["contract_hash"], ACTION_PRIMITIVE_COST_CONTRACT_SHA256["on"])
+        result = validate_action_primitive_semantics(
+            artifact,
+            realized_returns=self._fixture_returns(),
+        )
+        self.assertEqual(result["semantic_validation_status"], "passed")
+        forged_role = copy.deepcopy(artifact)
+        forged_role["header"]["source_role"] = "validated_stored_action_inputs"
+        with self.assertRaisesRegex(
+            ActionPrimitiveContractError, "sealed forecast capability"
+        ):
+            validate_action_primitive_semantics(
+                forged_role,
+                realized_returns=self._fixture_returns(),
+            )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "production validation"):
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=self._fixture_returns(),
+                require_production=True,
+            )
+
+        off = self._fixture(cost_mode="off")
+        self.assertEqual(
+            off["header"]["contract_hash"],
+            ACTION_PRIMITIVE_COST_CONTRACT_SHA256["off"],
+        )
+        self.assertEqual(off["header"]["cost"]["transition_cost_rate"], 0.0)
+        self.assertEqual(
+            validate_action_primitive_semantics(
+                off,
+                realized_returns=self._fixture_returns(),
+            )["cost_mode"],
+            "off",
+        )
+
+    def test_replay_parity_accepts_clip_at_position_bound(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        n_bars = 53
+        returns = np.full(n_bars, 0.001, dtype=np.float64)
+        starts = np.arange(0, n_bars - 4, 4)
+        # Use the direct canonical grid to reach 0.56 before the boundary
+        # test; score mapping intentionally has its own tie-break rule.
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[starts[:11]] = -0.04
+        deltas[starts[11:]] = -0.08
+        forecast_mask = np.zeros(n_bars, dtype=bool)
+        forecast_mask[starts] = True
+        artifact = produce_action_primitive_grid(
+            returns=returns,
+            decision_deltas=deltas,
+            forecast_finite_mask=forecast_mask,
+            decision_eligible=np.ones(n_bars, dtype=bool),
+            score_eligible=np.ones(n_bars, dtype=bool),
+            scenario_id="clip-parity",
+            seed=1,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="ridge",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+        )
+        rows = artifact["records"]
+        # The twelfth request starts from 0.56.  Its canonical -0.08 action
+        # clips to the 0.50 lower bound, so replay's effective delta is -0.06
+        # while the primitive wire value remains the requested -0.08.
+        self.assertEqual(rows[11]["selected_delta"], -0.08)
+        self.assertAlmostEqual(rows[11]["previous_position"], 0.56)
+        self.assertAlmostEqual(rows[11]["selected_position"], 0.50)
+        replay_deltas = np.zeros(n_bars, dtype=np.float64)
+        replay_deltas[starts] = [row["selected_delta"] for row in rows]
+        replay = replay_action_path(
+            returns,
+            replay_deltas,
+            contract,
+            decision_eligible=np.ones(n_bars, dtype=bool),
+            score_eligible=np.ones(n_bars, dtype=bool),
+            forecast_finite_mask=forecast_mask,
+        )
+        self.assertAlmostEqual(replay.intent_deltas[starts[11]], -0.08)
+        self.assertAlmostEqual(replay.decision_deltas[starts[11]], -0.06)
+
+    def test_direct_stored_actions_and_alias_builder_are_deterministic(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        returns = np.full(13, 0.001, dtype=np.float64)
+        artifact = build_action_primitive_grid(
+            returns=returns,
+            selected_deltas=np.asarray([-0.08, 0.0, 0.08], dtype=np.float64),
+            decision_eligible=np.ones(13, dtype=bool),
+            score_eligible=np.ones(13, dtype=bool),
+            forecast_finite_mask=np.ones(3, dtype=bool),
+            scenario_id="S0",
+            seed=1,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="persistence",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+        )
+        self.assertEqual([r["selected_delta"] for r in artifact["records"]], [-0.08, 0.0, 0.08])
+        self.assertEqual(
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=np.full(13, 0.001, dtype=np.float64),
+            )["record_count"],
+            3,
+        )
+
+    def test_future_outcome_gap_keeps_executed_action_and_state(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        n_bars = 17
+        complete_returns = np.full(n_bars, 0.001, dtype=np.float64)
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4, 8, 12]] = (-1.0, 1.0, -1.0, 1.0)
+        common_inputs = {
+            "decision_block_scores": scores,
+            "decision_eligible": np.ones(n_bars, dtype=bool),
+            "score_eligible": np.ones(n_bars, dtype=bool),
+            "scenario_id": "outcome-gap",
+            "seed": 1,
+            "split_id": "validation",
+            "support_id": "synthetic_validation",
+            "model_id": "ridge",
+            "cost_mode": "on",
+            "cost_contract_hash": contract.contract_hash,
+        }
+        complete = produce_action_primitive_grid(
+            returns=complete_returns,
+            **common_inputs,
+        )
+        gapped_returns = complete_returns.copy()
+        # Row 2 is decision t=8, fill t+1=9, outcome bars 9..12.
+        gapped_returns[10] = np.nan
+        gapped = produce_action_primitive_grid(
+            returns=gapped_returns,
+            **common_inputs,
+        )
+        complete_rows = complete["records"]
+        gapped_rows = gapped["records"]
+        assert isinstance(complete_rows, list)
+        assert isinstance(gapped_rows, list)
+
+        # The future gap removes only retrospective scores.  The causal row
+        # remains executed, and its selected position feeds row 3 exactly as
+        # it does in the complete-data counterfactual.
+        for field in (
+            "previous_position",
+            "selected_delta",
+            "selected_position",
+            "turnover",
+            "active_indicator",
+            "origin_eligible_mask",
+            "forecast_finite_mask",
+            "fill_complete_mask",
+        ):
+            self.assertEqual(gapped_rows[2][field], complete_rows[2][field], field)
+        self.assertTrue(gapped_rows[2]["outcome_complete_mask"] is False)
+        self.assertTrue(gapped_rows[2]["scored_action_mask"] is False)
+        self.assertTrue(gapped_rows[2]["common_mask"] is True)
+        for field in (
+            "candidate_utility",
+            "benchmark_hold_utility",
+            "same_state_local_hold_utility",
+            "clairvoyant_utility",
+            "regret",
+            "opportunity",
+            "agreement",
+        ):
+            self.assertTrue(np.isnan(gapped_rows[2][field]), field)
+        self.assertEqual(
+            gapped_rows[3]["previous_position"],
+            complete_rows[3]["previous_position"],
+        )
+        self.assertEqual(
+            validate_action_primitive_semantics(
+                gapped,
+                realized_returns=gapped_returns,
+            )["semantic_validation_status"],
+            "passed",
+        )
+
+        # The shared replay and primitive producer must describe the same
+        # chronological path.  The gap is after the fill, so it can change
+        # only outcome/action scoring masks and never the selected state.
+        intent = select_block_decisions(
+            scores,
+            contract,
+            decision_eligible=common_inputs["decision_eligible"],
+            score_eligible=common_inputs["score_eligible"],
+        )
+        replay = replay_action_path(
+            gapped_returns,
+            intent,
+            contract,
+            decision_eligible=common_inputs["decision_eligible"],
+            score_eligible=common_inputs["score_eligible"],
+            forecast_finite_mask=np.isfinite(scores),
+        )
+        for row, start in zip(gapped_rows, (0, 4, 8, 12), strict=True):
+            fill = start + contract.execution_delay_bars
+            self.assertEqual(row["fill_complete_mask"], replay.fill_block_eligible_mask[start])
+            self.assertEqual(row["outcome_complete_mask"], replay.score_block_eligible_mask[start])
+            self.assertEqual(row["scored_action_mask"], bool(replay.scored_mask[fill]))
+            self.assertAlmostEqual(row["selected_delta"], replay.decision_deltas[start])
+            self.assertAlmostEqual(row["selected_position"], replay.effective_positions[fill])
+            self.assertAlmostEqual(row["previous_position"], replay.effective_positions[start])
+
+    def test_fill_gap_does_not_execute_causal_action_or_fabricate_fill(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        n_bars = 17
+        returns = np.full(n_bars, 0.001, dtype=np.float64)
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4, 8, 12]] = (-1.0, 1.0, -1.0, 1.0)
+        score_eligible = np.ones(n_bars, dtype=bool)
+        score_eligible[5] = False
+        artifact = produce_action_primitive_grid(
+            returns=returns,
+            decision_block_scores=scores,
+            decision_eligible=np.ones(n_bars, dtype=bool),
+            score_eligible=score_eligible,
+            scenario_id="fill-gap",
+            seed=1,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="ridge",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+        )
+        rows = artifact["records"]
+        assert isinstance(rows, list)
+        # Row 1 has a valid causal forecast (+0.08 intent), but no delayed
+        # observation/fill.  It must remain a chronological no-fill hold.
+        self.assertTrue(rows[1]["origin_eligible_mask"])
+        self.assertTrue(rows[1]["forecast_finite_mask"])
+        self.assertFalse(rows[1]["fill_complete_mask"])
+        self.assertFalse(rows[1]["outcome_complete_mask"])
+        self.assertFalse(rows[1]["scored_action_mask"])
+        self.assertTrue(rows[1]["common_mask"])
+        self.assertEqual(rows[1]["selected_delta"], 0.0)
+        self.assertEqual(rows[1]["selected_position"], rows[1]["previous_position"])
+        self.assertEqual(rows[1]["turnover"], 0.0)
+        self.assertEqual(rows[2]["previous_position"], rows[1]["selected_position"])
+        for field in (
+            "candidate_utility",
+            "benchmark_hold_utility",
+            "same_state_local_hold_utility",
+            "clairvoyant_utility",
+            "regret",
+            "opportunity",
+            "agreement",
+        ):
+            self.assertTrue(np.isnan(rows[1][field]), field)
+        self.assertEqual(
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=returns,
+            )["semantic_validation_status"],
+            "passed",
+        )
+
+    def test_feature_gap_keeps_hold_utility_but_excludes_action_metrics(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        n_bars = 17
+        returns = np.full(n_bars, 0.001, dtype=np.float64)
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4, 8, 12]] = (-1.0, 1.0, -1.0, 1.0)
+        decision_eligible = np.ones(n_bars, dtype=bool)
+        decision_eligible[4] = False
+        artifact = produce_action_primitive_grid(
+            returns=returns,
+            decision_block_scores=scores,
+            decision_eligible=decision_eligible,
+            score_eligible=np.ones(n_bars, dtype=bool),
+            scenario_id="feature-gap",
+            seed=1,
+            split_id="validation",
+            support_id="synthetic_validation",
+            model_id="ridge",
+            cost_mode="on",
+            cost_contract_hash=contract.contract_hash,
+        )
+        rows = artifact["records"]
+        assert isinstance(rows, list)
+        # This row is retained in the paired grid.  Its finite outcome can
+        # support the hold/PnL utility fields, but no action agreement,
+        # clairvoyant, regret, or opportunity observation exists.
+        self.assertFalse(rows[1]["origin_eligible_mask"])
+        self.assertTrue(rows[1]["forecast_finite_mask"])
+        self.assertTrue(rows[1]["fill_complete_mask"])
+        self.assertTrue(rows[1]["outcome_complete_mask"])
+        self.assertFalse(rows[1]["scored_action_mask"])
+        self.assertTrue(rows[1]["common_mask"])
+        for field in (
+            "candidate_utility",
+            "benchmark_hold_utility",
+            "same_state_local_hold_utility",
+        ):
+            self.assertTrue(np.isfinite(rows[1][field]), field)
+        self.assertAlmostEqual(
+            rows[1]["candidate_utility"],
+            rows[1]["same_state_local_hold_utility"],
+        )
+        for field in (
+            "clairvoyant_utility",
+            "regret",
+            "opportunity",
+            "agreement",
+        ):
+            self.assertTrue(np.isnan(rows[1][field]), field)
+        # A downstream utility reduction selects common + outcome, while an
+        # action reduction additionally requires scored_action_mask.
+        utility_rows = [
+            row
+            for row in rows
+            if row["common_mask"] and row["outcome_complete_mask"]
+        ]
+        action_rows = [
+            row
+            for row in rows
+            if row["common_mask"] and row["scored_action_mask"]
+        ]
+        self.assertEqual(len(utility_rows), 4)
+        self.assertEqual(len(action_rows), 3)
+        self.assertIn(rows[1], utility_rows)
+        self.assertNotIn(rows[1], action_rows)
+        self.assertEqual(
+            validate_action_primitive_semantics(
+                artifact,
+                realized_returns=returns,
+            )["semantic_validation_status"],
+            "passed",
+        )
+
+    def test_semantic_validator_rejects_hash_repaired_state_mask_nan_and_cost_forgery(self) -> None:
+        artifact = self._fixture()
+        tampered = copy.deepcopy(artifact)
+        tampered["records"][0]["turnover"] = 0.0
+        self._refresh_hashes(tampered)
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "turnover"):
+            validate_action_primitive_semantics(
+                tampered,
+                realized_returns=self._fixture_returns(),
+            )
+
+        tampered = copy.deepcopy(artifact)
+        tampered["records"][0]["common_mask"] = False
+        self._refresh_hashes(tampered)
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "common_mask"):
+            validate_action_primitive_semantics(
+                tampered,
+                realized_returns=self._fixture_returns(),
+            )
+
+        tampered = copy.deepcopy(artifact)
+        tampered["records"][0]["selected_delta"] = float("nan")
+        self._refresh_hashes(tampered)
+        with self.assertRaises(ActionPrimitiveContractError):
+            validate_action_primitive_semantics(
+                tampered,
+                realized_returns=self._fixture_returns(),
+            )
+
+        tampered = copy.deepcopy(artifact)
+        tampered["records"][0]["model_id"] = "forged-model"
+        self._refresh_hashes(tampered)
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "model_id"):
+            validate_action_primitive_semantics(
+                tampered,
+                realized_returns=self._fixture_returns(),
+            )
+
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "cost_contract_hash"):
+            self._fixture_with_cost_hash(ACTION_PRIMITIVE_COST_CONTRACT_SHA256["off"])
+
+    def _fixture_with_cost_hash(self, cost_hash: str) -> None:
+        contract = ActionExecutionContract.canonical()
+        produce_action_primitive_grid(
+            returns=np.full(5, 0.001, dtype=np.float64),
+            decision_block_scores=np.asarray([0.0, np.nan, np.nan, np.nan, np.nan]),
+            decision_eligible=np.ones(5, dtype=bool),
+            score_eligible=np.ones(5, dtype=bool),
+            scenario_id="S",
+            seed=1,
+            split_id="v",
+            support_id="sp",
+            model_id="m",
+            cost_mode="on",
+            cost_contract_hash=cost_hash,
+            contract=contract,
+        )
+
+    def test_grid_order_requires_one_global_start_and_four_bar_spacing(self) -> None:
+        for starts in ((-4, 0), (1, 6), (0, 4, 100)):
             with self.subTest(starts=starts):
                 records = [_record(index) for index in range(len(starts))]
                 for record, decision_index in zip(records, starts):
                     record["decision_index"] = decision_index
                     record["fill_index"] = decision_index + 1
                     record["end_index"] = decision_index + 4
-                with self.assertRaisesRegex(ActionPrimitiveContractError, "start at 0"):
+                with self.assertRaisesRegex(ActionPrimitiveContractError, "global support start"):
                     action_primitive_content_sha256(records)
+
+        shifted = [_record(index) for index in range(2)]
+        for record, decision_index in zip(shifted, (90_000, 90_004)):
+            record["decision_index"] = decision_index
+            record["fill_index"] = decision_index + 1
+            record["end_index"] = decision_index + 4
+        self.assertEqual(len(action_primitive_content_sha256(shifted)), 64)
+
+    def test_production_artifact_binds_registered_global_support(self) -> None:
+        contract = ActionExecutionContract.canonical()
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "fixture-only"):
+            produce_action_primitive_grid(
+                returns=np.full(10_000, 0.0001, dtype=np.float64),
+                support_start=90_000,
+                decision_block_scores=np.full(10_000, 0.001, dtype=np.float64),
+                decision_eligible=np.ones(10_000, dtype=bool),
+                score_eligible=np.ones(10_000, dtype=bool),
+                scenario_id="S1",
+                seed=20260830,
+                split_id="validation",
+                support_id="synthetic_validation",
+                model_id="ridge",
+                cost_mode="on",
+                cost_contract_hash=contract.contract_hash,
+                require_production=True,
+            )
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "raw v4 runtime"):
+            from unidream.experiments.action_primitives import produce_authenticated_action_primitive_grid
+
+            produce_authenticated_action_primitive_grid(
+                expected_metadata={"forged": True},
+                manifest_path="/tmp/forged-manifest.json",
+            )
 
     def test_validator_is_fail_closed_for_schema_empty_rows_and_omitted_hashes(self) -> None:
         records = [_record(0)]

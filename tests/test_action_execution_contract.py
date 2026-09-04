@@ -15,12 +15,16 @@ from unidream.eval.action_execution import (
     complete_decision_starts,
     configured_action_execution_contract,
     decision_deltas_from_positions,
+    project_positions_to_contract,
     replay_action_path,
     replay_contract_absolute_path,
     run_contract_backtest,
+    select_block_decisions,
     transition_cost,
+    _candidate_position,
 )
 from unidream.eval.backtest import ActionExecutionBacktest, Backtest
+from unidream.eval.backtest import validate_bound_action_execution_contract
 from unidream.experiments.transition_advantage import (
     compute_transition_advantage,
     compute_hindsight_transition_advantage,
@@ -58,7 +62,7 @@ class ActionExecutionContractTest(unittest.TestCase):
         with self.assertRaises(dataclasses.FrozenInstanceError):
             self.contract.p_start = 0.5
 
-        with self.assertRaisesRegex(ValueError, "missing required fields"):
+        with self.assertRaisesRegex(ValueError, "unknown fields"):
             configured_action_execution_contract(
                 {
                     "use_action_execution_contract": True,
@@ -107,6 +111,44 @@ class ActionExecutionContractTest(unittest.TestCase):
                 }
             )
 
+    def test_contract_rejects_unknown_duplicate_alias_and_derived_overrides(self) -> None:
+        unknown = self.contract.to_dict()
+        unknown["future_override"] = 1
+        with self.assertRaisesRegex(ValueError, "unknown fields"):
+            ActionExecutionContract.from_config(unknown)
+
+        duplicate_alias = self.contract.to_dict()
+        duplicate_alias["delay"] = duplicate_alias["execution_delay_bars"]
+        with self.assertRaisesRegex(ValueError, "duplicate alias"):
+            ActionExecutionContract.from_config(duplicate_alias)
+
+        for field, value in (
+            ("commitment_countdown_reset", 99),
+            ("commitment_countdown_decrement", 2),
+            ("spread_side", "full_transition"),
+            ("transition_cost_rate", 0.0),
+        ):
+            with self.subTest(field=field):
+                overridden = self.contract.to_dict()
+                overridden[field] = value
+                with self.assertRaisesRegex(ValueError, "derived field"):
+                    ActionExecutionContract.from_config(overridden)
+
+        with self.assertRaisesRegex(ValueError, "duplicate contract sections"):
+            ActionExecutionContract.from_config(
+                {
+                    "action_execution_contract": self.contract.to_dict(),
+                    "action_execution": self.contract.to_dict(),
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "duplicate contract sections"):
+            ActionExecutionContract.from_config(
+                {
+                    "action_execution_contract": self.contract.to_dict(),
+                    "conditional_oracle": {"enabled": True},
+                }
+            )
+
     def test_contract_rejects_invalid_cost_and_timing_geometry(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-negative"):
             dataclasses.replace(self.contract, fee_rate=-0.001)
@@ -134,6 +176,14 @@ class ActionExecutionContractTest(unittest.TestCase):
         np.testing.assert_allclose(
             candidate_positions(0.98, self.contract),
             np.asarray([0.90, 0.94, 0.98, 1.00]),
+        )
+
+    def test_absolute_position_canonicalises_clip_round12_before_replay(self) -> None:
+        near_one = np.nextafter(1.0, 0.0)
+        self.assertEqual(_candidate_position(self.contract, near_one, -0.08), 0.92)
+        self.assertEqual(
+            candidate_positions(near_one, self.contract).tolist(),
+            [0.92, 0.96, 1.0],
         )
 
     def test_cost_uses_full_spread_as_half_transition_plus_slippage_and_fee(self) -> None:
@@ -186,6 +236,10 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(trajectory.n_complete_blocks, 2)
         self.assertEqual(trajectory.n_scored_bars, 8)
         self.assertAlmostEqual(trajectory.effective_positions[-1], 0.96)
+        with self.assertRaises(ValueError):
+            trajectory.effective_positions[1] = 1.0
+        with self.assertRaises(ValueError):
+            trajectory.block_masks.common_mask[0] = False
 
     def test_noop_hold_is_scorable_but_not_a_filled_block(self) -> None:
         returns = np.zeros(8, dtype=np.float64)
@@ -233,6 +287,18 @@ class ActionExecutionContractTest(unittest.TestCase):
                 spread_bps=99.0,
                 fee_rate=0.9,
                 slippage_bps=99.0,
+                benchmark_positions=np.zeros(6),
+                action_execution_contract=self.contract,
+                action_positions_are_deltas=True,
+                decision_eligible=decision_eligible,
+                score_eligible=score_eligible,
+                interval="1d",
+            )
+        with self.assertRaisesRegex(ValueError, "execution_delay_bars legacy override"):
+            Backtest(
+                returns,
+                deltas,
+                execution_delay_bars=0,
                 benchmark_positions=np.zeros(6),
                 action_execution_contract=self.contract,
                 action_positions_are_deltas=True,
@@ -309,6 +375,38 @@ class ActionExecutionContractTest(unittest.TestCase):
                 decision_eligible=decision_eligible,
                 score_eligible=score_eligible,
             )
+
+    def test_actor_projection_snaps_grid_holds_commitment_and_ignores_outcome(self) -> None:
+        raw = np.asarray(
+            [0.62, 0.55, 0.99, 0.51, 0.88, 0.75, 0.60, 0.55, 0.95, 0.51, 0.74, 0.61, 0.99, 0.52, 0.57, 0.58, 0.59],
+            dtype=np.float64,
+        )
+        decision = np.ones(len(raw), dtype=bool)
+        available = np.ones(len(raw), dtype=bool)
+        available[1] = False  # first intent is recorded but does not fill
+        projected = project_positions_to_contract(
+            raw,
+            self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+            forecast_finite_mask=np.isfinite(raw),
+        )
+        # The action path is canonical and can be consumed by the strict
+        # absolute-path adapter without a continuous-grid rejection.
+        deltas = decision_deltas_from_positions(
+            projected,
+            self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+            forecast_finite_mask=np.isfinite(projected),
+        )
+        self.assertEqual(projected.flags.writeable, False)
+        np.testing.assert_allclose(projected[0:4], projected[0])
+        np.testing.assert_allclose(projected[4:8], projected[4])
+        self.assertAlmostEqual(deltas[0], projected[0] - self.contract.p_start)
+        # The fill gap leaves inventory at p_start, so the second decision is
+        # measured from p_start rather than from the unfilled first intent.
+        self.assertIn(round(float(deltas[4]), 8), {round(float(v), 8) for v in self.contract.candidate_deltas})
 
     def test_u0_teacher_and_backtest_share_the_same_trajectory(self) -> None:
         returns = np.asarray(
@@ -436,7 +534,7 @@ class ActionExecutionContractTest(unittest.TestCase):
                 score_eligible=np.ones(n_bars, dtype=np.int64),
             )
 
-    def test_ineligible_block_is_excluded_without_compressing_schedule(self) -> None:
+    def test_outcome_gap_is_unscored_without_cancelling_execution(self) -> None:
         n_bars = 10
         returns = np.zeros(n_bars, dtype=np.float64)
         returns[1:5] = np.nan  # Must not be read for the excluded first block.
@@ -462,11 +560,11 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         np.testing.assert_array_equal(
             trajectory.block_eligible_mask,
-            [False, False, False, False, True, False, False, False, False, False],
+            [True, False, False, False, True, False, False, False, False, False],
         )
         np.testing.assert_array_equal(
             trajectory.decision_mask,
-            [False, False, False, False, True, False, False, False, False, False],
+            [True, False, False, False, True, False, False, False, False, False],
         )
         np.testing.assert_array_equal(
             trajectory.fill_mask,
@@ -482,7 +580,8 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         self.assertEqual(trajectory.n_scheduled_decisions, 2)
         self.assertEqual(trajectory.n_eligible_decisions, 2)
-        self.assertEqual(trajectory.n_eligible_blocks, 1)
+        self.assertEqual(trajectory.n_eligible_blocks, 2)
+        self.assertEqual(trajectory.n_fill_complete_blocks, 2)
         self.assertEqual(trajectory.n_excluded_blocks, 1)
         self.assertEqual(trajectory.n_scored_bars, 4)
         self.assertEqual(
@@ -490,7 +589,8 @@ class ActionExecutionContractTest(unittest.TestCase):
             {
                 "scheduled_decisions": 2,
                 "eligible_decisions": 2,
-                "eligible_blocks": 1,
+                "eligible_blocks": 2,
+                "fill_complete_blocks": 2,
                 "scorable_blocks": 1,
                 "filled_blocks": 1,
                 "execution_skipped_blocks": 0,
@@ -502,17 +602,43 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(trajectory.mask_hash, trajectory.eligibility_mask_hash)
         self.assertAlmostEqual(trajectory.transition_costs[5], 0.00055 * 0.08)
         self.assertTrue(np.all(np.isfinite(trajectory.net_pnl)))
+        self.assertEqual(len(trajectory.action_block_mask_hash), 64)
+        self.assertEqual(
+            set(trajectory.action_block_mask_hash_registry),
+            {
+                "origin_mask",
+                "forecast_finite_mask",
+                "bar_available",
+                "returns_finite_mask",
+                "scheduled_decision_mask",
+                "decision_block_mask",
+                "fill_complete_mask",
+                "outcome_complete_mask",
+                "executed_block_mask",
+                "scored_action_mask",
+                "common_mask",
+                "utility_metric_mask",
+                "action_metric_mask",
+            },
+        )
+        self.assertNotEqual(
+            trajectory.action_block_mask_hash,
+            trajectory.eligibility_mask_hash,
+        )
 
-        bad_deltas = deltas.copy()
-        bad_deltas[0] = -0.08
-        with self.assertRaisesRegex(ValueError, "ineligible block"):
-            replay_action_path(
-                returns,
-                bad_deltas,
-                self.contract,
-                decision_eligible=decision_eligible,
-                score_eligible=score_eligible,
-            )
+        executing_deltas = deltas.copy()
+        executing_deltas[0] = -0.08
+        executing = replay_action_path(
+            returns,
+            executing_deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        self.assertAlmostEqual(executing.decision_deltas[0], -0.08)
+        self.assertAlmostEqual(executing.effective_positions[1], 0.92)
+        self.assertAlmostEqual(executing.effective_positions[5], 0.84)
+        self.assertFalse(executing.scored_mask[1:5].any())
 
         absolute = np.ones(n_bars, dtype=np.float64)
         absolute[4:] = 0.92
@@ -524,15 +650,205 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         self.assertAlmostEqual(converted[0], 0.0)
         self.assertAlmostEqual(converted[4], -0.08)
-        bad_absolute = absolute.copy()
-        bad_absolute[0] = 0.92
-        with self.assertRaisesRegex(ValueError, "ineligible block"):
-            decision_deltas_from_positions(
-                bad_absolute,
-                self.contract,
-                decision_eligible=decision_eligible,
-                score_eligible=score_eligible,
-            )
+        executing_absolute = np.full(n_bars, 0.92, dtype=np.float64)
+        executing_absolute[4:] = 0.84
+        executing_converted = decision_deltas_from_positions(
+            executing_absolute,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        )
+        np.testing.assert_allclose(executing_converted[[0, 4]], [-0.08, -0.08])
+
+    def test_block_common_mask_is_metric_only_and_is_bound_in_full_hash(self) -> None:
+        n_bars = 13
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, score_eligible = self._all_masks(n_bars)
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        common = np.asarray([False, True, True], dtype=np.bool_)
+        trajectory = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+            common_mask=common,
+        )
+        # Common only gates metric masks; causal decision/fill/state remain
+        # unchanged and the full registry records the supplied block mask.
+        self.assertTrue(trajectory.decision_mask[0])
+        self.assertTrue(trajectory.fill_mask[1])
+        self.assertFalse(trajectory.block_masks.common_mask[0])
+        self.assertTrue(trajectory.block_masks.common_mask[4])
+        self.assertFalse(trajectory.block_masks.utility_metric_mask[0])
+        self.assertTrue(trajectory.block_masks.utility_metric_mask[4])
+
+    def test_future_outcome_availability_cannot_change_causal_selection(self) -> None:
+        n_bars = 9
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4]] = (-1.0, 1.0)
+        decision_eligible, complete = self._all_masks(n_bars)
+        outcome_gap = complete.copy()
+        outcome_gap[2] = False  # fill t+1 exists; only a later outcome is absent
+
+        complete_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=complete,
+        )
+        gapped_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=outcome_gap,
+        )
+        np.testing.assert_array_equal(gapped_intent, complete_intent)
+
+        returns = np.zeros(n_bars, dtype=np.float64)
+        returns[2] = np.nan
+        complete_path = replay_action_path(
+            np.nan_to_num(returns),
+            complete_intent,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=complete,
+        )
+        gapped_path = replay_action_path(
+            returns,
+            gapped_intent,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=outcome_gap,
+        )
+        np.testing.assert_allclose(
+            gapped_path.decision_deltas[[0, 4]],
+            complete_path.decision_deltas[[0, 4]],
+        )
+        np.testing.assert_allclose(
+            gapped_path.effective_positions,
+            complete_path.effective_positions,
+        )
+        self.assertFalse(gapped_path.scored_mask[1:5].any())
+        self.assertTrue(gapped_path.scored_mask[5:9].all())
+
+    def test_fill_gap_preserves_intent_but_prevents_state_mutation(self) -> None:
+        n_bars = 9
+        scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[[0, 4]] = (-1.0, 1.0)
+        decision_eligible, complete = self._all_masks(n_bars)
+        fill_gap = complete.copy()
+        fill_gap[1] = False
+
+        complete_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=complete,
+        )
+        gapped_intent = select_block_decisions(
+            scores,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=fill_gap,
+        )
+        self.assertEqual(gapped_intent[0], complete_intent[0])
+        self.assertNotEqual(gapped_intent[0], 0.0)
+
+        trajectory = replay_action_path(
+            np.zeros(n_bars, dtype=np.float64),
+            gapped_intent,
+            self.contract,
+            decision_eligible=decision_eligible,
+            score_eligible=fill_gap,
+        )
+        self.assertTrue(trajectory.decision_mask[0])
+        self.assertFalse(trajectory.fill_block_eligible_mask[0])
+        self.assertEqual(trajectory.intent_deltas[0], -0.08)
+        self.assertEqual(trajectory.decision_deltas[0], 0.0)
+        np.testing.assert_allclose(trajectory.effective_positions[1:5], 1.0)
+
+    def test_absolute_path_adapter_accepts_intent_across_fill_gap(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, complete = self._all_masks(n_bars)
+        fill_gap = complete.copy()
+        fill_gap[1] = False
+        # This path records the selected target across the unfilled block.  It
+        # is still a valid causal intent; replay must keep actual inventory at
+        # p_start until a later block fills.
+        intended_positions = np.full(n_bars, 0.92, dtype=np.float64)
+        deltas = decision_deltas_from_positions(
+            intended_positions,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=fill_gap,
+        )
+        self.assertAlmostEqual(deltas[0], -0.08)
+        trajectory = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=fill_gap,
+        )
+        self.assertEqual(trajectory.decision_deltas[0], 0.0)
+        np.testing.assert_allclose(trajectory.effective_positions[:5], 1.0)
+        self.assertFalse(trajectory.fill_mask[:5].any())
+
+    def test_absolute_path_adapter_preserves_explicit_forecast_gap(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, available = self._all_masks(n_bars)
+        forecast_finite = np.ones(n_bars, dtype=np.bool_)
+        forecast_finite[4] = False
+        positions = np.full(n_bars, 0.92, dtype=np.float64)
+        deltas = decision_deltas_from_positions(
+            positions,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=available,
+            forecast_finite_mask=forecast_finite,
+        )
+        trajectory = replay_contract_absolute_path(
+            returns,
+            positions,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=available,
+            forecast_finite_mask=forecast_finite,
+        )
+        self.assertAlmostEqual(deltas[0], -0.08)
+        self.assertEqual(deltas[4], 0.0)
+        self.assertFalse(trajectory.decision_mask[4])
+        self.assertTrue(trajectory.execution_skipped_mask[4])
+        np.testing.assert_allclose(trajectory.effective_positions[1:9], 0.92)
+
+    def test_explicit_bar_available_alias_matches_legacy_spelling(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        decision, available = self._all_masks(n_bars)
+        legacy = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision,
+            score_eligible=available,
+        )
+        explicit = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+        )
+        self.assertEqual(
+            legacy.action_block_mask_hash_registry,
+            explicit.action_block_mask_hash_registry,
+        )
 
     def test_decision_feature_gap_holds_commitment_but_keeps_finite_outcomes_scored(self) -> None:
         n_bars = 13
@@ -598,6 +914,113 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(metrics.execution_skipped_blocks, 1)
         self.assertEqual(metrics.excluded_blocks, 0)
 
+    def test_cost_off_backtest_counts_position_changing_fills(self) -> None:
+        artifact = Path(__file__).parents[1] / "docs" / "experiments" / "action_execution_contract_cost_off.json"
+        cost_off = ActionExecutionContract.from_config(
+            json.loads(artifact.read_text(encoding="utf-8")),
+            require_canonical=False,
+        )
+        returns = np.zeros(5, dtype=np.float64)
+        deltas = np.zeros(5, dtype=np.float64)
+        deltas[0] = -0.08
+        decision_eligible, score_eligible = self._all_masks(5)
+        metrics = ActionExecutionBacktest(
+            returns,
+            deltas,
+            contract=cost_off,
+            benchmark_decision_deltas=np.zeros(5, dtype=np.float64),
+            decision_eligible=decision_eligible,
+            score_eligible=score_eligible,
+        ).run()
+        self.assertEqual(metrics.n_trades, 1)
+        self.assertEqual(metrics.filled_blocks, 1)
+
+    def test_production_backtest_binds_contract_and_full_mask_registry(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        decision, available = self._all_masks(n_bars)
+        common = np.ones(2, dtype=np.bool_)
+        with self.assertRaisesRegex(ValueError, "externally pinned contract hash"):
+            ActionExecutionBacktest(
+                returns,
+                deltas,
+                contract=self.contract,
+                decision_eligible=decision,
+                bar_available=available,
+                require_external_contract_hash=True,
+            )
+        with self.assertRaisesRegex(ValueError, "ambiguous legacy alias"):
+            ActionExecutionBacktest(
+                returns,
+                deltas,
+                contract=self.contract,
+                decision_eligible=decision,
+                score_eligible=available,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_contract_hash=True,
+            )
+        with self.assertRaisesRegex(ValueError, "explicit bar_available"):
+            run_contract_backtest(
+                Backtest,
+                returns,
+                deltas,
+                benchmark_positions=np.zeros(n_bars),
+                contract=self.contract,
+                decision_eligible=decision,
+                score_eligible=available,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_contract_hash=True,
+            )
+        with self.assertRaisesRegex(ValueError, "explicit paired common_mask"):
+            ActionExecutionBacktest(
+                returns,
+                deltas,
+                contract=self.contract,
+                decision_eligible=decision,
+                bar_available=available,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_contract_hash=True,
+            )
+        metrics = ActionExecutionBacktest(
+            returns,
+            deltas,
+            contract=self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+            common_mask=common,
+            expected_contract_hash=self.contract.contract_hash,
+            require_external_contract_hash=True,
+        ).run()
+        self.assertEqual(metrics.action_execution_contract_hash, self.contract.contract_hash)
+        self.assertEqual(len(metrics.action_block_mask_hash), 64)
+        self.assertEqual(
+            set(metrics.action_block_mask_hash_registry),
+            {
+                "origin_mask",
+                "forecast_finite_mask",
+                "bar_available",
+                "returns_finite_mask",
+                "scheduled_decision_mask",
+                "decision_block_mask",
+                "fill_complete_mask",
+                "outcome_complete_mask",
+                "executed_block_mask",
+                "scored_action_mask",
+                "common_mask",
+                "utility_metric_mask",
+                "action_metric_mask",
+            },
+        )
+        altered = dataclasses.replace(self.contract, fee_rate=0.1)
+        with self.assertRaisesRegex(ValueError, "does not match its external hash"):
+            validate_bound_action_execution_contract(
+                altered,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_hash=True,
+            )
+
     def test_teacher_and_u0_share_skip_vs_exclusion_classification(self) -> None:
         n_bars = 13
         decision_eligible, score_eligible = self._all_masks(n_bars)
@@ -662,6 +1085,7 @@ class ActionExecutionContractTest(unittest.TestCase):
         decision_eligible, score_eligible = self._all_masks(n_bars)
         score_eligible[2] = False
         scores = np.full(n_bars, np.nan, dtype=np.float64)
+        scores[0] = 0.0
         scores[4] = -0.01
         realized_returns = np.zeros(n_bars, dtype=np.float64)
         realized_returns[1:5] = np.nan
@@ -711,7 +1135,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             u0.score_block_eligible_mask[[0, 4, 8]], [True, False, True]
         )
         np.testing.assert_array_equal(
-            u0.block_eligible_mask[[0, 4, 8]], [True, False, True]
+            u0.block_eligible_mask[[0, 4, 8]], [True, True, True]
         )
         np.testing.assert_allclose(
             u0.decision_deltas[[0, 4, 8]], [-0.08, 0.0, 0.0]
@@ -754,7 +1178,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             interval="1d",
         ).run()
         self.assertEqual(direct.scheduled_decisions, 2)
-        self.assertEqual(direct.eligible_blocks, 1)
+        self.assertEqual(direct.eligible_blocks, 2)
         self.assertEqual(direct.excluded_blocks, 1)
         self.assertEqual(direct.scored_bars, 4)
         self.assertEqual(wrapped.to_dict(), direct.to_dict())
@@ -789,7 +1213,7 @@ class ActionExecutionContractTest(unittest.TestCase):
             interval="1d",
         ).run()
         self.assertEqual(metrics.scheduled_decisions, 2)
-        self.assertEqual(metrics.eligible_blocks, 1)
+        self.assertEqual(metrics.eligible_blocks, 2)
         self.assertEqual(metrics.excluded_blocks, 1)
         self.assertEqual(metrics.scored_bars, 4)
 

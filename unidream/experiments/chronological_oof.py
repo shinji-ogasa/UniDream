@@ -2416,7 +2416,10 @@ def conditional_runtime_config(
         raise ChronologicalOOFError("full conditional config must be a mapping")
     if section_config is not None and not isinstance(section_config, Mapping):
         raise ChronologicalOOFError("stage conditional config must be a mapping")
-    result = dict(section_config or {})
+    # With no stage section, preserve the supplied mapping itself.  The
+    # previous empty result dropped strict expected hashes/contracts when a
+    # consumer (notably predictive_state) passed its already-local config.
+    result = dict(full_config if section_config is None else (section_config or {}))
     path = conditional_path_enabled(full_config) or conditional_path_enabled(section_config)
     artifact_required = conditional_oof_artifact_required(full_config) or conditional_oof_artifact_required(
         section_config

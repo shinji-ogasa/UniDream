@@ -130,7 +130,9 @@ class P0IntegrationAuditTest(unittest.TestCase):
         self.assertEqual(result["contract_path_counts"]["scheduled_decisions"], 3)
         self.assertEqual(result["contract_path_counts"]["scorable_blocks"], 2)
         self.assertEqual(result["contract_path_counts"]["eligible_decisions"], 1)
-        self.assertEqual(result["contract_path_counts"]["eligible_blocks"], 0)
+        # An outcome gap is scored out but does not erase a causally eligible
+        # decision/fill block; the executed position is carried chronologically.
+        self.assertEqual(result["contract_path_counts"]["eligible_blocks"], 1)
         self.assertEqual(result["contract_path_counts"]["execution_skipped_blocks"], 2)
         self.assertEqual(result["contract_path_counts"]["excluded_blocks"], 1)
         self.assertEqual(result["contract_path_counts"]["scored_bars"], 8)
