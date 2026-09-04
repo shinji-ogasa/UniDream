@@ -15,6 +15,7 @@ from unidream.eval.action_execution import (
     complete_decision_starts,
     configured_action_execution_contract,
     decision_deltas_from_positions,
+    project_positions_to_contract,
     replay_action_path,
     replay_contract_absolute_path,
     run_contract_backtest,
@@ -374,6 +375,38 @@ class ActionExecutionContractTest(unittest.TestCase):
                 decision_eligible=decision_eligible,
                 score_eligible=score_eligible,
             )
+
+    def test_actor_projection_snaps_grid_holds_commitment_and_ignores_outcome(self) -> None:
+        raw = np.asarray(
+            [0.62, 0.55, 0.99, 0.51, 0.88, 0.75, 0.60, 0.55, 0.95, 0.51, 0.74, 0.61, 0.99, 0.52, 0.57, 0.58, 0.59],
+            dtype=np.float64,
+        )
+        decision = np.ones(len(raw), dtype=bool)
+        available = np.ones(len(raw), dtype=bool)
+        available[1] = False  # first intent is recorded but does not fill
+        projected = project_positions_to_contract(
+            raw,
+            self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+            forecast_finite_mask=np.isfinite(raw),
+        )
+        # The action path is canonical and can be consumed by the strict
+        # absolute-path adapter without a continuous-grid rejection.
+        deltas = decision_deltas_from_positions(
+            projected,
+            self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+            forecast_finite_mask=np.isfinite(projected),
+        )
+        self.assertEqual(projected.flags.writeable, False)
+        np.testing.assert_allclose(projected[0:4], projected[0])
+        np.testing.assert_allclose(projected[4:8], projected[4])
+        self.assertAlmostEqual(deltas[0], projected[0] - self.contract.p_start)
+        # The fill gap leaves inventory at p_start, so the second decision is
+        # measured from p_start rather than from the unfilled first intent.
+        self.assertIn(round(float(deltas[4]), 8), {round(float(v), 8) for v in self.contract.candidate_deltas})
 
     def test_u0_teacher_and_backtest_share_the_same_trajectory(self) -> None:
         returns = np.asarray(

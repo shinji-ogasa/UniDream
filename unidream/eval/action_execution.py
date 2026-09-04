@@ -1639,6 +1639,82 @@ def decision_deltas_from_positions(
     return deltas
 
 
+def project_positions_to_contract(
+    positions: np.ndarray | Sequence[float],
+    contract: ActionExecutionContract | None = None,
+    *,
+    decision_eligible: np.ndarray | Sequence[bool],
+    bar_available: np.ndarray | Sequence[bool],
+    forecast_finite_mask: np.ndarray | Sequence[bool] | None = None,
+) -> np.ndarray:
+    """Project a per-bar actor output onto the canonical committed action path.
+
+    Actor networks emit continuous, every-bar targets, whereas P0-C executes
+    one feasible delta only at a four-bar boundary and holds that intent until
+    the next boundary.  This adapter is causal: origin/forecast masks choose
+    intent, ``bar_available[t+1]`` decides whether inventory changes, and no
+    outcome/return mask is consulted.  The returned path is suitable for
+    ``decision_deltas_from_positions`` and therefore shares its exact grid and
+    clipping semantics with producer/replay/backtest.
+    """
+    contract = contract or ActionExecutionContract.canonical()
+    raw = _coerce_numeric_series(positions, name="positions")
+    n_rows = len(raw)
+    decision = _strict_bool_mask(
+        decision_eligible,
+        name="decision_eligible",
+        n_bars=n_rows,
+    )
+    available = _strict_bool_mask(
+        bar_available,
+        name="bar_available",
+        n_bars=n_rows,
+    )
+    finite = (
+        np.isfinite(raw)
+        if forecast_finite_mask is None
+        else _strict_bool_mask(
+            forecast_finite_mask,
+            name="forecast_finite_mask",
+            n_bars=n_rows,
+        )
+    )
+    projected = np.full(n_rows, float(contract.p_start), dtype=np.float64)
+    starts = complete_decision_starts(n_rows, contract)
+    current = float(contract.p_start)
+    for start in starts:
+        target = current
+        if decision[start] and finite[start]:
+            candidates: list[tuple[float, float, float]] = []
+            for delta in contract.candidate_deltas:
+                candidate = float(
+                    np.clip(
+                        current + float(delta),
+                        contract.position_min,
+                        contract.position_max,
+                    )
+                )
+                candidates.append((abs(candidate - float(raw[start])), abs(float(delta)), -float(delta), candidate))
+            _, _, _, target = min(candidates, key=lambda item: item[:3])
+        block_end = min(n_rows, start + int(contract.commitment_bars))
+        projected[start:block_end] = target
+        fill_index = start + int(contract.execution_delay_bars)
+        if fill_index < n_rows and available[fill_index] and decision[start] and finite[start]:
+            current = target
+    if starts:
+        tail_start = starts[-1] + int(contract.commitment_bars)
+        if tail_start < n_rows:
+            # Incomplete tail bars are not new decision points.  Keep the
+            # last chronological inventory/intent instead of resetting to
+            # p_start, otherwise strict path validation sees a phantom tail
+            # trade at the next (non-existent) boundary.
+            projected[tail_start:] = current
+    elif n_rows:
+        projected[:] = current
+    projected.flags.writeable = False
+    return projected
+
+
 def select_block_decisions(
     decision_block_scores: np.ndarray | Sequence[float],
     contract: ActionExecutionContract | None = None,

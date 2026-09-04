@@ -3,13 +3,16 @@ from __future__ import annotations
 import os
 import shutil
 
+import numpy as np
 import torch
 
 from unidream.actor_critic.critic import Critic
 from unidream.actor_critic.imagination_ac import ImagACTrainer
 from unidream.eval.action_execution import (
+    complete_decision_starts,
     contract_pnl_attribution,
     configured_action_execution_contract,
+    project_positions_to_contract,
     replay_contract_absolute_path,
     run_contract_backtest,
 )
@@ -37,6 +40,14 @@ def _run_stage_backtest(
     **kwargs,
 ):
     if contract is not None:
+        # The contract owns delay/cost semantics.  Legacy callers historically
+        # passed these kwargs unconditionally; forwarding them would either
+        # hide a mixed contract or make the strict adapter reject every AC
+        # validation call.  Keep the explicit mask/hash boundary instead.
+        for legacy_key in ("spread_bps", "fee_rate", "slippage_bps", "execution_delay_bars", "initial_position", "benchmark_initial_position"):
+            kwargs.pop(legacy_key, None)
+        kwargs.setdefault("expected_contract_hash", contract.contract_hash)
+        kwargs.setdefault("require_external_contract_hash", True)
         return run_contract_backtest(
             backtest_cls,
             returns,
@@ -300,12 +311,37 @@ def run_ac_stage(
             device=device,
         )
         t_min = min(len(val_returns_arr), len(pos))
+        val_decision_eligible = wfo_dataset.val_row_eligible[:t_min]
+        if action_contract is not None and wfo_dataset.val_availability is None:
+            raise ConditionalPathBlocked(
+                "run_ac_stage requires explicit validation availability for contract replay"
+            )
+        val_bar_available = (
+            np.asarray(wfo_dataset.val_availability["spot_bar_observed"], dtype=bool)[:t_min]
+            if wfo_dataset.val_availability is not None
+            else None
+        )
+        val_common_mask = np.ones(
+            len(complete_decision_starts(t_min, action_contract)), dtype=bool
+        ) if action_contract is not None else None
+        if action_contract is not None:
+            pos = project_positions_to_contract(
+                pos[:t_min],
+                action_contract,
+                decision_eligible=val_decision_eligible,
+                bar_available=val_bar_available,
+                forecast_finite_mask=np.isfinite(pos[:t_min]),
+            )
         metrics = _run_stage_backtest(
             backtest_cls=backtest_cls,
             returns=val_returns_arr[:t_min],
             positions=pos[:t_min],
             benchmark_positions=benchmark_positions_fn(t_min),
             contract=action_contract,
+            decision_eligible=val_decision_eligible,
+            bar_available=val_bar_available,
+            common_mask=val_common_mask,
+            forecast_finite_mask=np.isfinite(pos[:t_min]),
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
@@ -314,7 +350,11 @@ def run_ac_stage(
         if action_contract is not None:
             stats = action_stats_fn(
                 replay_contract_absolute_path(
-                    val_returns_arr[:t_min], pos[:t_min], action_contract
+                    val_returns_arr[:t_min], pos[:t_min], action_contract,
+                    decision_eligible=val_decision_eligible,
+                    bar_available=val_bar_available,
+                    common_mask=val_common_mask,
+                    forecast_finite_mask=np.isfinite(pos[:t_min]),
                 ).scored_positions,
                 benchmark_position=benchmark_position,
             )
@@ -388,12 +428,33 @@ def run_ac_stage(
             device=device,
         )
         bc_t = min(len(val_returns_arr), len(bc_pos))
+        bc_decision_eligible = wfo_dataset.val_row_eligible[:bc_t]
+        bc_bar_available = (
+            np.asarray(wfo_dataset.val_availability["spot_bar_observed"], dtype=bool)[:bc_t]
+            if wfo_dataset.val_availability is not None
+            else None
+        )
+        bc_common_mask = np.ones(
+            len(complete_decision_starts(bc_t, action_contract)), dtype=bool
+        ) if action_contract is not None else None
+        if action_contract is not None:
+            bc_pos = project_positions_to_contract(
+                bc_pos[:bc_t],
+                action_contract,
+                decision_eligible=bc_decision_eligible,
+                bar_available=bc_bar_available,
+                forecast_finite_mask=np.isfinite(bc_pos[:bc_t]),
+            )
         bc_metrics = _run_stage_backtest(
             backtest_cls=backtest_cls,
             returns=val_returns_arr[:bc_t],
             positions=bc_pos[:bc_t],
             benchmark_positions=benchmark_positions_fn(bc_t),
             contract=action_contract,
+            decision_eligible=bc_decision_eligible,
+            bar_available=bc_bar_available,
+            common_mask=bc_common_mask,
+            forecast_finite_mask=np.isfinite(bc_pos[:bc_t]),
             spread_bps=costs_cfg.get("spread_bps", 5.0),
             fee_rate=costs_cfg.get("fee_rate", 0.0004),
             slippage_bps=costs_cfg.get("slippage_bps", 2.0),
@@ -403,10 +464,18 @@ def run_ac_stage(
         fire_selector_bc_baseline["sharpe_delta"] = float(bc_metrics.sharpe_delta or 0.0)
         if action_contract is not None:
             bc_attr = contract_pnl_attribution(
-                val_returns_arr[:bc_t], bc_pos[:bc_t], action_contract
+                val_returns_arr[:bc_t], bc_pos[:bc_t], action_contract,
+                decision_eligible=bc_decision_eligible,
+                bar_available=bc_bar_available,
+                common_mask=bc_common_mask,
+                forecast_finite_mask=np.isfinite(bc_pos[:bc_t]),
             )
             bc_trajectory = replay_contract_absolute_path(
-                val_returns_arr[:bc_t], bc_pos[:bc_t], action_contract
+                val_returns_arr[:bc_t], bc_pos[:bc_t], action_contract,
+                decision_eligible=bc_decision_eligible,
+                bar_available=bc_bar_available,
+                common_mask=bc_common_mask,
+                forecast_finite_mask=np.isfinite(bc_pos[:bc_t]),
             )
             bc_stats = action_stats_fn(
                 bc_trajectory.scored_positions,
