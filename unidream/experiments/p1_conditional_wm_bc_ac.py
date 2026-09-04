@@ -56,6 +56,7 @@ from unidream.experiments.fold_runtime import resolve_ac_max_steps
 from unidream.experiments.logging import log_timestamp
 from unidream.experiments.p1_recovery_runner import (
     FORECAST_HORIZONS,
+    S3_OUTER_END,
     S3_TRAIN_START,
     build_s3_arm_dataset,
     load_runner_manifest,
@@ -92,6 +93,7 @@ OOF_TRAIN_WINDOW = 16
 # NaN/false in the split views; they are never silently imputed.
 OOF_STEP = 4
 PILOT_SEED = 20260904
+S3_OUTER_WINDOW = (139_568, S3_OUTER_END)
 
 
 class ConditionalPipelineError(RuntimeError):
@@ -689,6 +691,53 @@ def _evaluate_actor_rolling(body: Any, dataset: Any, wm_trainer: Any, actor: Any
     return records
 
 
+def _evaluate_actor_window(
+    body: Any,
+    dataset: Any,
+    wm_trainer: Any,
+    actor: Any,
+    contract: ActionExecutionContract,
+    *,
+    start: int,
+    end: int,
+) -> dict[str, Any]:
+    """Evaluate the connected actor on one complete fixed window."""
+
+    seq_len = 32
+    ctx_start = max(0, start - seq_len)
+    encoded = wm_trainer.encode_sequence(
+        np.asarray(body.features[ctx_start:end], dtype=np.float64),
+        actions=None,
+        seq_len=seq_len,
+    )
+    local_start = start - ctx_start
+    positions = actor.predict_positions(
+        encoded["z"][local_start:],
+        encoded["h"][local_start:],
+        regime_np=None,
+        advantage_np=None,
+        device="cpu",
+    )
+    if len(positions) != end - start:
+        raise ConditionalPipelineError("actor fixed-window output is not row aligned")
+    positions = project_positions_to_contract(
+        positions,
+        contract,
+        decision_eligible=np.asarray(dataset.context_mask[start:end], dtype=np.bool_),
+        bar_available=np.asarray(
+            dataset.availability["spot_bar_observed"][start:end], dtype=np.bool_
+        ),
+        forecast_finite_mask=np.isfinite(positions),
+    )
+    return _contract_action_record(
+        dataset,
+        positions,
+        contract,
+        start=start,
+        end=end,
+    )
+
+
 def run_conditional_wm_bc_ac(
     output: str | Path = DEFAULT_OUTPUT,
     *,
@@ -863,6 +912,15 @@ def run_conditional_wm_bc_ac(
     if ac_trainer is None:
         raise ConditionalPipelineError("AC stage unexpectedly skipped")
     rolling = _evaluate_actor_rolling(body, dataset, wm_trainer, actor, contract)
+    outer_evaluation = _evaluate_actor_window(
+        body,
+        dataset,
+        wm_trainer,
+        actor,
+        contract,
+        start=S3_OUTER_WINDOW[0],
+        end=S3_OUTER_WINDOW[1],
+    )
     aggregate = {
         "net_total_mean": float(np.mean([row["net_total"] for row in rolling])),
         "hold_net_total_mean": float(np.mean([row["hold_net_total"] for row in rolling])),
@@ -917,6 +975,11 @@ def run_conditional_wm_bc_ac(
             },
         },
         "rolling_windows": rolling,
+        "outer_evaluation": {
+            **outer_evaluation,
+            "same_fixed_window_as_s3_reference": True,
+            "reference_window": list(S3_OUTER_WINDOW),
+        },
         "aggregate_mean": aggregate,
         "contract": contract.to_dict(),
         "contract_hash": contract.contract_hash,
