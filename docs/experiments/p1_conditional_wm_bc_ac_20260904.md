@@ -77,9 +77,12 @@ by the S3 shadow diagnostic.  Window arithmetic means are descriptive only:
 | filled blocks | 5.0 | 5.0 |
 | cost total | 0.000132 | 0.000132 |
 
-The actor did not improve the existing fixed rolling Ridge diagnostic
-(AlphaEx mean `-0.047108`) and did not beat B&H.  The negative AlphaEx is the
-observed result of this first connected pilot, not an accuracy claim.
+The actor's rolling mean is slightly less negative than the existing fixed
+rolling Ridge diagnostic (actor `-0.041540` vs Ridge `-0.047108`), but the
+difference is descriptive only: the actor's exact fixed-outer AlphaEx is worse
+than Ridge (`-0.224899` vs `-0.207837` under the legacy reducer), and neither
+beats B&H.  The negative AlphaEx is the observed result of this first
+connected pilot, not an accuracy claim.
 
 ## Same fixed S3 outer range
 
