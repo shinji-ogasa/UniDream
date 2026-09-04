@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import traceback
 from typing import Any
 
@@ -150,6 +151,20 @@ def _relative(path: Path) -> str:
         return str(path.resolve().relative_to(ROOT.resolve()))
     except ValueError:
         return str(path.resolve())
+
+
+def _git_revision() -> str:
+    """Return the exact checked-out revision used for this run."""
+    try:
+        value = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return value if len(value) == 40 else "unknown"
 
 
 def _fit_grid(dataset: Any, spec: Any, contract: P1ForecastContract) -> dict[tuple[int, str, str], Any]:
@@ -698,7 +713,7 @@ def _action_comparison(state: FormalState, row: Mapping[str, Any]) -> tuple[dict
     else:
         baseline_masks, _ = _action_masks_by_seed(state, baseline_keys)
         common_masks = {i: candidate_masks[i] & baseline_masks[i] for i in range(10)}
-        common_digests = {i: p1_mask_sha256(common_masks[i]) for i in range(10)}
+        common_digests = {i: mbb_mask_sha256(common_masks[i]) for i in range(10)}
     artifacts, expected_index, expected_file, paths = _index_maps(
         state, "synthetic_action", len(common_masks[0]), tuple(range(10))
     )
@@ -1238,7 +1253,7 @@ def run_formal(output: Path) -> dict[str, Any]:
     run_manifest: dict[str, Any] = {
         "run_id": f"p1-formal-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
         "started_at": started,
-        "code_revision": "dd7359a",
+        "code_revision": _git_revision(),
         "manifest_id": contract.manifest["manifest_id"],
         "manifest_sha256": contract.manifest_sha256,
         "amends_manifest_sha256": contract.manifest["amends_manifest_sha256"],
