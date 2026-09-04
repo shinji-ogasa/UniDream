@@ -42,7 +42,7 @@ DEFAULT_MANIFEST_PATH = (
 # Filled from the committed manifest after its canonical JSON digest is
 # calculated.  Keeping this independently pinned is what makes an edited
 # ``manifest_sha256`` field fail closed as well.
-REGISTERED_MANIFEST_SHA256 = "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4"
+REGISTERED_MANIFEST_SHA256 = "128a32230ae94678d5028891fe699e20c564ce7b2261ad10f5a4a83436f08bc6"
 REGISTERED_BASE_REVISION = "881e5e08e9b413b51b0a2faf5c49592ce13329d1"
 
 P1_V4_RUNTIME_VALIDATION_ENTRYPOINT = (
@@ -586,10 +586,12 @@ def validate_fixed_manifest(
     if manifest["base_revision"] != REGISTERED_BASE_REVISION:
         raise P1PreregistrationError("base_revision differs from registered origin/main")
     if manifest["amends_manifest_sha256"] != (
-        "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481"
+        "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4"
     ):
         raise P1PreregistrationError("amended manifest digest is not pinned")
-    if manifest["amendment_reason"] != "fourth pre-execution independent audit":
+    if manifest["amendment_reason"] != (
+        "pre-result execution authorization after action/MBB implementation audit"
+    ):
         raise P1PreregistrationError("amendment reason is not pinned")
     if manifest["amendment_history"] != [
         {
@@ -610,6 +612,11 @@ def validate_fixed_manifest(
         {
             "manifest_sha256": "de422979bf263677d10c689beb77b2c6ec44c26aec458779cce01083d3ceb481",
             "reason": "third pre-execution independent audit",
+            "results_observed": False,
+        },
+        {
+            "manifest_sha256": "d1854827bd4aa204cc2b5cde375edf62583bf0d164b39e8ac25a6c10ad7dc0c4",
+            "reason": "pre-result execution authorization after action/MBB implementation audit",
             "results_observed": False,
         },
     ]:
@@ -971,8 +978,8 @@ def validate_fixed_manifest(
         "inventory_consistency": "agreement and regret use each forecast policy's own carried p_{t-1}; U0/global hindsight inventory cannot enter row scoring or update policy state",
         "unknown_or_overridden_field_policy": "reject before fitting",
         "generic_train_app_policy": "unidream.experiments.train_app.run_training_app is the legacy generic WM->BC->AC application and is not a P1 research runner; a P1 runner is blocked unless it enters through v4_runtime_validation_entrypoint and uses the authenticated wrapper",
-        "action_primitive_execution_status": "blocked_not_implemented",
-        "action_primitive_start_condition": "runner cannot start action scoring or moving-block bootstrap until the canonical action primitive producer and P1-specific MBB are separately implemented and validated; the existing generic MBB is forbidden",
+        "action_primitive_execution_status": "implemented_not_run",
+        "action_primitive_start_condition": "canonical authenticated action primitive producer and P1-specific moving-block bootstrap are implemented and validated; runner may start formal validation scoring under this manifest; the existing generic MBB is forbidden",
         "required_action_primitive_hash_fields": ["action_primitive_payload_sha256", "action_primitive_schema_sha256", "action_primitive_content_sha256"],
     }
     if any(runner.get(field) != value for field, value in expected_runner_fields.items()):
