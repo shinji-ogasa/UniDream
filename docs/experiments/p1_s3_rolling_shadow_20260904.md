@@ -35,3 +35,25 @@ the result is descriptive and should not be treated as production numerical
 sign-off until the warning is resolved without changing the pinned artifact
 contract.
 
+## Observed diagnostic summary
+
+The run completed all five fixed windows and all three fixed models. The
+following values are arithmetic means across windows; they are not a
+statistical gate and were not used for model selection.
+
+| model | mean h4 MSE | mean h4 sign accuracy | mean action net | mean AlphaEx vs B&H | mean filled blocks |
+|---|---:|---:|---:|---:|---:|
+| zero return | 3.166160e-05 | 0.4915 | 0.173246 | 0.000000 | 0.0 |
+| persistence | 1.638454e-04 | 0.4811 | 0.055709 | -0.117537 | 1,725.0 |
+| Ridge | 3.184868e-05 | 0.4895 | 0.126139 | -0.047108 | 91.4 |
+
+The latest fixed window (raw `[164000,173111)`, approximately 2023-09-28
+through 2024-01-01) gives Ridge h4 MSE `1.862212e-05`, IC `0.0017`,
+net `0.339647`, and AlphaEx `-0.129089` with 59 simulated filled blocks.
+The offline shadow records `orders_submitted=0`, `external_fills=0`, and
+`live_money=false`.
+
+The JSON artifact's pre-self-field content digest is
+`ff3fd42da7aa4b2c0d345cfded0ab135588767842a1135ae506a5e0869932364` and its
+current file SHA-256 is
+`ab7b60e8ddcc84371660214acd91fd0a51c673d4902b08fc419ceaea57a26285`.
