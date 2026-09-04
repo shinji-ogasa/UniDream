@@ -657,7 +657,7 @@ def _require_production_sources(
     decision_block_scores: Sequence[Any] | None,
     decision_deltas: Sequence[Any] | None,
     decision_eligible: Sequence[Any] | None,
-    score_eligible: Sequence[Any] | None,
+    bar_available: Sequence[Any] | None,
     expected_common_mask: Sequence[Any] | None,
 ) -> None:
     if not require_production:
@@ -669,8 +669,8 @@ def _require_production_sources(
         missing.append("decision_block_scores_or_decision_deltas")
     if decision_eligible is None:
         missing.append("decision_eligible")
-    if score_eligible is None:
-        missing.append("score_eligible")
+    if bar_available is None:
+        missing.append("bar_available")
     if expected_common_mask is None:
         missing.append("expected_common_mask")
     if missing:
@@ -678,6 +678,55 @@ def _require_production_sources(
             "production action artifact validation is missing external sources: "
             + ", ".join(missing)
         )
+
+
+def _resolve_bar_available_input(
+    score_eligible: Sequence[Any] | None,
+    bar_available: Sequence[Any] | None,
+    *,
+    require_production: bool,
+) -> Sequence[Any] | None:
+    """Resolve the legacy availability spelling at the storage boundary.
+
+    ``score_eligible`` historically carried a full-bar availability vector.
+    Production artifacts must name that source ``bar_available`` so a block
+    outcome mask cannot be mistaken for a source-bar mask.  The old spelling
+    remains available for fixture compatibility only; supplying both names is
+    accepted only when their shape and values agree.
+    """
+    if score_eligible is not None and bar_available is not None:
+        try:
+            score_array = np.asarray(score_eligible)
+            available_array = np.asarray(bar_available)
+        except (TypeError, ValueError) as exc:
+            raise P1ActionArtifactError(
+                "score_eligible and bar_available aliases are malformed"
+            ) from exc
+        try:
+            aliases_agree = score_array.shape == available_array.shape and np.array_equal(
+                score_array,
+                available_array,
+                equal_nan=True,
+            )
+        except (TypeError, ValueError) as exc:
+            raise P1ActionArtifactError(
+                "score_eligible and bar_available aliases are malformed"
+            ) from exc
+        if not aliases_agree:
+            raise P1ActionArtifactError(
+                "score_eligible and bar_available aliases disagree"
+            )
+    if require_production:
+        if score_eligible is not None:
+            raise P1ActionArtifactError(
+                "score_eligible is a fixture-only legacy alias; use bar_available"
+            )
+        if bar_available is None:
+            raise P1ActionArtifactError(
+                "production action artifacts require explicit bar_available"
+            )
+        return bar_available
+    return bar_available if bar_available is not None else score_eligible
 
 
 def _require_authenticated_forecast_source(value: Any) -> Any:
@@ -731,11 +780,15 @@ def _validate_source_binding_against_capability(
         raise P1ActionArtifactError(
             "source_binding.support_range does not match the authenticated forecast source"
         )
-    # The current ForecastActionSource capability is selected from the fixed
-    # h4/ridge continuous forecast.  A future producer may expose this as a
-    # property; until then this fixed source identity is the only registered
-    # model identity accepted here.
-    source_model_id = getattr(source, "model_id", "ridge")
+    # Model identity is part of the sealed source binding.  Do not supply a
+    # historical ``ridge`` fallback: a capability implementation that omits
+    # ``model_id`` is incomplete and must not be accepted as an implicitly
+    # selected model.
+    source_model_id = getattr(source, "model_id", None)
+    if not isinstance(source_model_id, str) or not source_model_id:
+        raise P1ActionArtifactError(
+            "authenticated forecast source must expose an explicit model_id"
+        )
     if source_binding["model_id"] != source_model_id:
         raise P1ActionArtifactError(
             "source_binding.model_id does not match the authenticated forecast source"
@@ -814,7 +867,7 @@ def _validate_raw_sources_against_capability(
     decision_block_scores: Sequence[Any] | None,
     decision_deltas: Sequence[Any] | None,
     decision_eligible: Sequence[Any] | None,
-    score_eligible: Sequence[Any] | None,
+    bar_available: Sequence[Any] | None,
 ) -> None:
     """Prevent caller arrays from replacing the authenticated source arrays."""
     if decision_deltas is not None:
@@ -825,7 +878,7 @@ def _validate_raw_sources_against_capability(
         ("realized_returns", realized_returns, source.realized_returns),
         ("decision_block_scores", decision_block_scores, source.forecast_h4),
         ("decision_eligible", decision_eligible, source.origin_mask),
-        ("score_eligible", score_eligible, source.bar_available),
+        ("bar_available", bar_available, source.bar_available),
     )
     for name, supplied, authenticated in pairs:
         if supplied is None:
@@ -860,6 +913,7 @@ def _semantic_validate(
     decision_deltas: Sequence[Any] | None,
     decision_eligible: Sequence[Any] | None,
     score_eligible: Sequence[Any] | None,
+    bar_available: Sequence[Any] | None,
     expected_common_mask: Sequence[Any] | None,
     require_production: bool,
     require_external_hashes: bool,
@@ -872,6 +926,11 @@ def _semantic_validate(
         expected_hashes = expected_output_hashes
     expected = _strict_expected_metadata(
         expected_metadata,
+        require_production=require_production,
+    )
+    resolved_bar_available = _resolve_bar_available_input(
+        score_eligible,
+        bar_available,
         require_production=require_production,
     )
     normalized_hashes = _strict_expected_hashes(
@@ -901,7 +960,7 @@ def _semantic_validate(
         decision_block_scores=decision_block_scores,
         decision_deltas=decision_deltas,
         decision_eligible=decision_eligible,
-        score_eligible=score_eligible,
+        bar_available=resolved_bar_available,
         expected_common_mask=expected_common_mask,
     )
     if require_production:
@@ -934,7 +993,7 @@ def _semantic_validate(
             decision_block_scores=decision_block_scores,
             decision_deltas=decision_deltas,
             decision_eligible=decision_eligible,
-            score_eligible=score_eligible,
+            bar_available=resolved_bar_available,
         )
     if require_production and authenticated_action_source is None:
         raise P1ActionArtifactError(
@@ -946,7 +1005,7 @@ def _semantic_validate(
         "decision_block_scores": decision_block_scores,
         "decision_deltas": decision_deltas,
         "decision_eligible": decision_eligible,
-        "score_eligible": score_eligible,
+        "score_eligible": resolved_bar_available,
         "expected_common_mask": expected_common_mask,
         "require_production": require_production,
     }
@@ -1070,6 +1129,7 @@ def save_p1_action_artifact(
     decision_deltas: Sequence[Any] | None = None,
     decision_eligible: Sequence[Any] | None = None,
     score_eligible: Sequence[Any] | None = None,
+    bar_available: Sequence[Any] | None = None,
     expected_common_mask: Sequence[Any] | None = None,
     require_production: bool = True,
 ) -> str:
@@ -1089,6 +1149,7 @@ def save_p1_action_artifact(
         decision_deltas=decision_deltas,
         decision_eligible=decision_eligible,
         score_eligible=score_eligible,
+        bar_available=bar_available,
         expected_common_mask=expected_common_mask,
         require_production=require_production,
         require_external_hashes=False,
@@ -1444,6 +1505,7 @@ def load_p1_action_artifact(
     decision_deltas: Sequence[Any] | None = None,
     decision_eligible: Sequence[Any] | None = None,
     score_eligible: Sequence[Any] | None = None,
+    bar_available: Sequence[Any] | None = None,
     expected_common_mask: Sequence[Any] | None = None,
     require_production: bool = True,
 ) -> LoadedP1ActionArtifact:
@@ -1481,6 +1543,7 @@ def load_p1_action_artifact(
         decision_deltas=decision_deltas,
         decision_eligible=decision_eligible,
         score_eligible=score_eligible,
+        bar_available=bar_available,
         expected_common_mask=expected_common_mask,
         require_production=require_production,
         require_external_hashes=require_production,

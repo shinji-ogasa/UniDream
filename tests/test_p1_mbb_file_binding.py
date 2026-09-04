@@ -247,7 +247,7 @@ class P1MBBFileBindingTests(unittest.TestCase):
             }
             mismatched = dict(kwargs)
             mismatched["expected_source_action_file_sha256"] = "6" * 64
-            with self.assertRaisesRegex(P1MBBError, "source action file digest mismatch"):
+            with self.assertRaisesRegex(P1MBBError, "authenticated action capability"):
                 bootstrap_p1_metric("policy_utility_delta", **mismatched)
 
             # A fixture-loaded or directly constructed action object has no

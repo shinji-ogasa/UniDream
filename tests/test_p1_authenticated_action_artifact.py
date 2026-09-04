@@ -16,11 +16,16 @@ import unidream.experiments.p1_action_artifact as action_artifact
 import tests.test_p1_action_artifact as base_action_tests
 from unidream.eval.action_execution import ActionExecutionContract
 from unidream.experiments.p1_mbb import (
+    P1MBBError,
+    P1MBBResultArtifact,
     bootstrap_p1_action_metric,
+    bootstrap_p1_action_metric_seed_aggregate,
     build_p1_mbb_index_artifact,
     load_p1_mbb_index_artifact,
+    load_p1_mbb_result,
     p1_mask_sha256,
     save_p1_mbb_index_artifact,
+    save_p1_mbb_result_production,
 )
 
 
@@ -126,7 +131,7 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
             "realized_returns": arrays[0],
             "decision_block_scores": arrays[1],
             "decision_eligible": arrays[2],
-            "score_eligible": arrays[3],
+            "bar_available": arrays[3],
             "expected_common_mask": np.ones(4, dtype=np.bool_),
         }
         # This branch predates the action-source adapter in action_primitives;
@@ -213,6 +218,58 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
                     **{**kwargs, "expected_source_binding": wrong_binding},
                 )
 
+    def test_authenticated_source_without_explicit_model_id_is_blocked(self) -> None:
+        _, source, source_binding, _, _, _ = self._production_case()
+        del source.model_id
+        with self.assertRaisesRegex(
+            action_artifact.P1ActionArtifactError,
+            "explicit model_id",
+        ):
+            action_artifact._validate_source_binding_against_capability(
+                source_binding,
+                source,
+            )
+
+    def test_action_seed_aggregate_rejects_reusing_one_source_under_ten_ordinals(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _, _, loaded, kwargs = self._save_authenticated(directory)
+            index = build_p1_mbb_index_artifact(
+                max(8, len(loaded.as_mbb_input().common_mask)),
+                unit="synthetic_action",
+                support_id="synthetic_validation",
+                seed_ordinal=0,
+                block_length=8,
+            )
+            candidate_artifacts = {ordinal: loaded for ordinal in range(10)}
+            # The typed expectations are intentionally left empty: the
+            # rejection below must occur at the sealed artifact identity
+            # boundary, before hash or index validation.  A single fixture
+            # seed cannot stand in for the fixed 20260830..20260839 schedule.
+            candidate_expected = {ordinal: {} for ordinal in range(10)}
+            common = np.ones(len(loaded.as_mbb_input().common_mask), dtype=np.bool_)
+            common_masks = {ordinal: common.copy() for ordinal in range(10)}
+            common_digests = {
+                ordinal: p1_mask_sha256(common) for ordinal in range(10)
+            }
+            with self.assertRaisesRegex(P1MBBError, "registered ordinal"):
+                bootstrap_p1_action_metric_seed_aggregate(
+                    "policy_utility_delta",
+                    unit="synthetic_action",
+                    support_id="synthetic_validation",
+                    block_length=8,
+                    candidate_action_artifacts=candidate_artifacts,
+                    candidate_expected_by_seed=candidate_expected,
+                    common_masks_by_seed=common_masks,
+                    expected_common_mask_sha256_by_seed=common_digests,
+                    index_artifacts={ordinal: index for ordinal in range(10)},
+                    expected_index_artifact_sha256_by_seed={
+                        ordinal: "a" * 64 for ordinal in range(10)
+                    },
+                    expected_index_artifact_file_sha256_by_seed={
+                        ordinal: "b" * 64 for ordinal in range(10)
+                    },
+                )
+
     def test_production_raw_arrays_without_sealed_source_are_blocked(self) -> None:
         (
             artifact,
@@ -225,6 +282,26 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(
                 action_artifact.P1ActionArtifactError, "sealed ForecastActionSource"
+            ):
+                action_artifact.save_p1_action_artifact(
+                    Path(directory) / "action.json",
+                    artifact,
+                    expected_metadata=metadata,
+                    expected_hashes=expected_hashes,
+                    expected_source_binding=source_binding,
+                    realized_returns=arrays[0],
+                    decision_block_scores=arrays[1],
+                    decision_eligible=arrays[2],
+                    bar_available=arrays[3],
+                    expected_common_mask=np.ones(4, dtype=np.bool_),
+                )
+
+    def test_production_score_eligible_alias_is_rejected(self) -> None:
+        artifact, _, source_binding, metadata, expected_hashes, arrays = self._production_case()
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(
+                action_artifact.P1ActionArtifactError,
+                "fixture-only legacy alias",
             ):
                 action_artifact.save_p1_action_artifact(
                     Path(directory) / "action.json",
@@ -389,7 +466,7 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
                 "realized_returns": returns,
                 "decision_block_scores": scores,
                 "decision_eligible": decision,
-                "score_eligible": score,
+                "bar_available": score,
                 "expected_common_mask": np.ones(record_count, dtype=np.bool_),
             }
             with patch.object(
@@ -423,6 +500,7 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
                 field_name: expected_hashes[field_name]
                 for field_name in action_artifact.ACTION_PRIMITIVE_HASH_FIELDS
             }
+            output_hashes = dict(expected)
             expected.update(
                 {
                     "source_result_sha256": "a" * 64,
@@ -440,6 +518,154 @@ class AuthenticatedP1ActionArtifactTests(unittest.TestCase):
             self.assertEqual(result["status"], "ok")
             self.assertEqual(result["metric"], "policy_utility_delta")
             self.assertTrue(np.isfinite(result["bootstrap_values"]).all())
+            provenance = result["provenance"]
+            self.assertEqual(provenance["action_source_mode"], "authenticated_capability")
+            self.assertEqual(
+                provenance["action_mask_registry_schema"], "action-block-masks-v1"
+            )
+            self.assertEqual(provenance["metric_mask_field"], "utility_metric_mask")
+            typed_result = P1MBBResultArtifact.from_result_production(
+                result,
+                expected_action_mask_hash_registry=provenance[
+                    "action_block_mask_hash_registry"
+                ],
+                expected_action_output_hashes=output_hashes,
+            )
+            self.assertEqual(
+                typed_result.metadata["provenance"]["action_block_mask_hash_registry"],
+                provenance["action_block_mask_hash_registry"],
+            )
+            result_path = root / "result.npz"
+            result_file_sha = save_p1_mbb_result_production(
+                result_path,
+                result,
+                expected_action_mask_hash_registry=provenance[
+                    "action_block_mask_hash_registry"
+                ],
+                expected_action_output_hashes=output_hashes,
+            )
+            loaded_result = load_p1_mbb_result(
+                result_path,
+                expected_result_sha256=typed_result.result_sha256,
+                expected_file_sha256=result_file_sha,
+                expected_action_mask_hash_registry=provenance[
+                    "action_block_mask_hash_registry"
+                ],
+                expected_action_output_hashes=output_hashes,
+            )
+            self.assertEqual(loaded_result.result_sha256, typed_result.result_sha256)
+            with self.assertRaises(P1MBBError):
+                load_p1_mbb_result(
+                    result_path,
+                    expected_result_sha256=typed_result.result_sha256,
+                    expected_file_sha256=result_file_sha,
+                )
+            with self.assertRaisesRegex(P1MBBError, "externally pinned output hashes"):
+                P1MBBResultArtifact.from_result_production(
+                    result,
+                    expected_action_mask_hash_registry=provenance[
+                        "action_block_mask_hash_registry"
+                    ],
+                )
+            with self.assertRaisesRegex(P1MBBError, "paired action bindings"):
+                P1MBBResultArtifact.from_result_production(
+                    result,
+                    expected_action_mask_hash_registry=provenance[
+                        "action_block_mask_hash_registry"
+                    ],
+                    expected_action_output_hashes=output_hashes,
+                    expected_paired_action_mask_hash_registry=provenance[
+                        "action_block_mask_hash_registry"
+                    ],
+                )
+
+            paired_result = bootstrap_p1_action_metric(
+                "agreement",
+                artifact=index,
+                candidate_action_artifact=loaded,
+                candidate_expected=expected,
+                baseline_action_artifact=loaded,
+                baseline_expected=expected,
+                common_mask=common,
+                expected_common_mask_sha256=p1_mask_sha256(common),
+            )
+            paired_provenance = paired_result["provenance"]
+            paired_typed = P1MBBResultArtifact.from_result_production(
+                paired_result,
+                expected_action_mask_hash_registry=paired_provenance[
+                    "action_block_mask_hash_registry"
+                ],
+                expected_paired_action_mask_hash_registry=paired_provenance[
+                    "paired_source_action_binding"
+                ]["action_block_mask_hash_registry"],
+                expected_action_output_hashes=output_hashes,
+                expected_paired_action_output_hashes={
+                    field_name: paired_provenance["paired_source_action_binding"][
+                        field_name
+                    ]
+                    for field_name in action_artifact.ACTION_PRIMITIVE_HASH_FIELDS
+                },
+            )
+            self.assertEqual(paired_typed.metadata["metric"], "agreement")
+            paired_selected = loaded.as_mbb_input().select_metric("agreement")
+            with self.assertRaisesRegex(P1MBBError, "paired capability"):
+                # The generic reducer must not be usable as a production
+                # paired-action ingress with only a candidate capability and
+                # self-declared baseline provenance.
+                from unidream.experiments.p1_mbb import bootstrap_p1_metric
+
+                bootstrap_p1_metric(
+                    "agreement",
+                    artifact=index,
+                    mask=common,
+                    candidate_mask=common,
+                    baseline_mask=common,
+                    candidate_agreement=paired_selected.metric_values["agreement"],
+                    baseline_agreement=paired_selected.metric_values["agreement"],
+                    provenance=paired_provenance,
+                    expected_common_mask_sha256=p1_mask_sha256(common),
+                    expected_common_mask_field="common_mask",
+                    expected_source_result_sha256=expected[
+                        "source_result_sha256"
+                    ],
+                    expected_action_primitive_payload_sha256=expected[
+                        "action_primitive_payload_sha256"
+                    ],
+                    expected_action_primitive_schema_sha256=expected[
+                        "action_primitive_schema_sha256"
+                    ],
+                    expected_action_primitive_content_sha256=expected[
+                        "action_primitive_content_sha256"
+                    ],
+                    expected_source_action_file_sha256=expected[
+                        "source_action_file_sha256"
+                    ],
+                    authenticated_action_capability=loaded,
+                )
+            tampered = dict(result)
+            tampered["provenance"] = dict(provenance)
+            tampered["provenance"]["action_block_mask_hash_registry"] = dict(
+                provenance["action_block_mask_hash_registry"]
+            )
+            tampered["provenance"]["action_block_mask_hash_registry"][
+                "common_mask"
+            ] = "not-a-hash"
+            with self.assertRaises(P1MBBError):
+                P1MBBResultArtifact.from_result_production(tampered)
+
+            tampered_output = dict(result)
+            tampered_output["provenance"] = dict(provenance)
+            tampered_output["provenance"][
+                "action_primitive_content_sha256"
+            ] = "f" * 64
+            with self.assertRaisesRegex(P1MBBError, "output hashes do not match"):
+                P1MBBResultArtifact.from_result_production(
+                    tampered_output,
+                    expected_action_mask_hash_registry=provenance[
+                        "action_block_mask_hash_registry"
+                    ],
+                    expected_action_output_hashes=output_hashes,
+                )
 
 
 if __name__ == "__main__":

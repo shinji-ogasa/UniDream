@@ -23,6 +23,7 @@ from unidream.eval.action_execution import (
     _candidate_position,
 )
 from unidream.eval.backtest import ActionExecutionBacktest, Backtest
+from unidream.eval.backtest import validate_bound_action_execution_contract
 from unidream.experiments.transition_advantage import (
     compute_transition_advantage,
     compute_hindsight_transition_advantage,
@@ -139,6 +140,13 @@ class ActionExecutionContractTest(unittest.TestCase):
                     "action_execution": self.contract.to_dict(),
                 }
             )
+        with self.assertRaisesRegex(ValueError, "duplicate contract sections"):
+            ActionExecutionContract.from_config(
+                {
+                    "action_execution_contract": self.contract.to_dict(),
+                    "conditional_oracle": {"enabled": True},
+                }
+            )
 
     def test_contract_rejects_invalid_cost_and_timing_geometry(self) -> None:
         with self.assertRaisesRegex(ValueError, "non-negative"):
@@ -227,6 +235,10 @@ class ActionExecutionContractTest(unittest.TestCase):
         self.assertEqual(trajectory.n_complete_blocks, 2)
         self.assertEqual(trajectory.n_scored_bars, 8)
         self.assertAlmostEqual(trajectory.effective_positions[-1], 0.96)
+        with self.assertRaises(ValueError):
+            trajectory.effective_positions[1] = 1.0
+        with self.assertRaises(ValueError):
+            trajectory.block_masks.common_mask[0] = False
 
     def test_noop_hold_is_scorable_but_not_a_filled_block(self) -> None:
         returns = np.zeros(8, dtype=np.float64)
@@ -720,8 +732,90 @@ class ActionExecutionContractTest(unittest.TestCase):
         )
         self.assertTrue(trajectory.decision_mask[0])
         self.assertFalse(trajectory.fill_block_eligible_mask[0])
+        self.assertEqual(trajectory.intent_deltas[0], -0.08)
         self.assertEqual(trajectory.decision_deltas[0], 0.0)
         np.testing.assert_allclose(trajectory.effective_positions[1:5], 1.0)
+
+    def test_absolute_path_adapter_accepts_intent_across_fill_gap(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, complete = self._all_masks(n_bars)
+        fill_gap = complete.copy()
+        fill_gap[1] = False
+        # This path records the selected target across the unfilled block.  It
+        # is still a valid causal intent; replay must keep actual inventory at
+        # p_start until a later block fills.
+        intended_positions = np.full(n_bars, 0.92, dtype=np.float64)
+        deltas = decision_deltas_from_positions(
+            intended_positions,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=fill_gap,
+        )
+        self.assertAlmostEqual(deltas[0], -0.08)
+        trajectory = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=fill_gap,
+        )
+        self.assertEqual(trajectory.decision_deltas[0], 0.0)
+        np.testing.assert_allclose(trajectory.effective_positions[:5], 1.0)
+        self.assertFalse(trajectory.fill_mask[:5].any())
+
+    def test_absolute_path_adapter_preserves_explicit_forecast_gap(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        decision_eligible, available = self._all_masks(n_bars)
+        forecast_finite = np.ones(n_bars, dtype=np.bool_)
+        forecast_finite[4] = False
+        positions = np.full(n_bars, 0.92, dtype=np.float64)
+        deltas = decision_deltas_from_positions(
+            positions,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=available,
+            forecast_finite_mask=forecast_finite,
+        )
+        trajectory = replay_contract_absolute_path(
+            returns,
+            positions,
+            self.contract,
+            decision_eligible=decision_eligible,
+            bar_available=available,
+            forecast_finite_mask=forecast_finite,
+        )
+        self.assertAlmostEqual(deltas[0], -0.08)
+        self.assertEqual(deltas[4], 0.0)
+        self.assertFalse(trajectory.decision_mask[4])
+        self.assertTrue(trajectory.execution_skipped_mask[4])
+        np.testing.assert_allclose(trajectory.effective_positions[1:9], 0.92)
+
+    def test_explicit_bar_available_alias_matches_legacy_spelling(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        decision, available = self._all_masks(n_bars)
+        legacy = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision,
+            score_eligible=available,
+        )
+        explicit = replay_action_path(
+            returns,
+            deltas,
+            self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+        )
+        self.assertEqual(
+            legacy.action_block_mask_hash_registry,
+            explicit.action_block_mask_hash_registry,
+        )
 
     def test_decision_feature_gap_holds_commitment_but_keeps_finite_outcomes_scored(self) -> None:
         n_bars = 13
@@ -807,6 +901,92 @@ class ActionExecutionContractTest(unittest.TestCase):
         ).run()
         self.assertEqual(metrics.n_trades, 1)
         self.assertEqual(metrics.filled_blocks, 1)
+
+    def test_production_backtest_binds_contract_and_full_mask_registry(self) -> None:
+        n_bars = 9
+        returns = np.zeros(n_bars, dtype=np.float64)
+        deltas = np.zeros(n_bars, dtype=np.float64)
+        deltas[0] = -0.08
+        decision, available = self._all_masks(n_bars)
+        common = np.ones(2, dtype=np.bool_)
+        with self.assertRaisesRegex(ValueError, "externally pinned contract hash"):
+            ActionExecutionBacktest(
+                returns,
+                deltas,
+                contract=self.contract,
+                decision_eligible=decision,
+                bar_available=available,
+                require_external_contract_hash=True,
+            )
+        with self.assertRaisesRegex(ValueError, "ambiguous legacy alias"):
+            ActionExecutionBacktest(
+                returns,
+                deltas,
+                contract=self.contract,
+                decision_eligible=decision,
+                score_eligible=available,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_contract_hash=True,
+            )
+        with self.assertRaisesRegex(ValueError, "explicit bar_available"):
+            run_contract_backtest(
+                Backtest,
+                returns,
+                deltas,
+                benchmark_positions=np.zeros(n_bars),
+                contract=self.contract,
+                decision_eligible=decision,
+                score_eligible=available,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_contract_hash=True,
+            )
+        with self.assertRaisesRegex(ValueError, "explicit paired common_mask"):
+            ActionExecutionBacktest(
+                returns,
+                deltas,
+                contract=self.contract,
+                decision_eligible=decision,
+                bar_available=available,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_contract_hash=True,
+            )
+        metrics = ActionExecutionBacktest(
+            returns,
+            deltas,
+            contract=self.contract,
+            decision_eligible=decision,
+            bar_available=available,
+            common_mask=common,
+            expected_contract_hash=self.contract.contract_hash,
+            require_external_contract_hash=True,
+        ).run()
+        self.assertEqual(metrics.action_execution_contract_hash, self.contract.contract_hash)
+        self.assertEqual(len(metrics.action_block_mask_hash), 64)
+        self.assertEqual(
+            set(metrics.action_block_mask_hash_registry),
+            {
+                "origin_mask",
+                "forecast_finite_mask",
+                "bar_available",
+                "returns_finite_mask",
+                "scheduled_decision_mask",
+                "decision_block_mask",
+                "fill_complete_mask",
+                "outcome_complete_mask",
+                "executed_block_mask",
+                "scored_action_mask",
+                "common_mask",
+                "utility_metric_mask",
+                "action_metric_mask",
+            },
+        )
+        altered = dataclasses.replace(self.contract, fee_rate=0.1)
+        with self.assertRaisesRegex(ValueError, "does not match its external hash"):
+            validate_bound_action_execution_contract(
+                altered,
+                expected_contract_hash=self.contract.contract_hash,
+                require_external_hash=True,
+            )
 
     def test_teacher_and_u0_share_skip_vs_exclusion_classification(self) -> None:
         n_bars = 13

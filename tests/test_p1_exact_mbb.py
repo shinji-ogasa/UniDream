@@ -820,7 +820,7 @@ class P1ExactMBBTests(unittest.TestCase):
                 opportunity=np.full(n, -1.0, dtype="<f8"),
             )
 
-    def test_production_bootstrap_requires_external_mask_and_source_binding(self) -> None:
+    def test_generic_action_production_requires_authenticated_capability(self) -> None:
         n = 19
         artifact = self._production_artifact(n=n)
         mask = np.ones(n, dtype=np.bool_)
@@ -841,29 +841,16 @@ class P1ExactMBBTests(unittest.TestCase):
             "source_result_sha256": source_digest,
             "source_action_file_sha256": "5" * 64,
         }
-        result = production_bootstrap_p1_metric(
-            "policy_utility_delta",
-            artifact=artifact,
-            mask=mask,
-            candidate_mask=mask,
-            baseline_mask=mask,
-            candidate_utility=candidate,
-            benchmark_hold_utility=baseline,
-            provenance=action_provenance,
-            expected_common_mask_sha256=common_digest,
-            expected_common_mask_field="common_mask",
-            expected_source_result_sha256=source_digest,
-            expected_action_primitive_payload_sha256=payload_digest,
-            expected_action_primitive_schema_sha256=schema_digest,
-            expected_action_primitive_content_sha256=content_digest,
-            expected_source_action_file_sha256="5" * 64,
-        )
-        self.assertEqual(result["provenance"]["kind"], "action")
-        with self.assertRaises(P1MBBError):
+        # The historical generic reducer may not be used for action-domain
+        # production metrics.  A self-declared kind/hash record is not an
+        # authenticated ForecastActionSource capability.
+        with self.assertRaisesRegex(P1MBBError, "authenticated action capability"):
             production_bootstrap_p1_metric(
                 "policy_utility_delta",
                 artifact=artifact,
                 mask=mask,
+                candidate_mask=mask,
+                baseline_mask=mask,
                 candidate_utility=candidate,
                 benchmark_hold_utility=baseline,
                 provenance=action_provenance,
@@ -877,7 +864,7 @@ class P1ExactMBBTests(unittest.TestCase):
             )
         wrong_mask = mask.copy()
         wrong_mask[0] = False
-        with self.assertRaises(P1MBBError):
+        with self.assertRaisesRegex(P1MBBError, "authenticated action capability"):
             production_bootstrap_p1_metric(
                 "policy_utility_delta",
                 artifact=artifact,
@@ -948,36 +935,30 @@ class P1ExactMBBTests(unittest.TestCase):
                 expected_action_primitive_content_sha256="3" * 64,
             )
 
-    def test_result_artifact_is_typed_atomic_and_external_digest_bound(self) -> None:
+    def test_forecast_result_artifact_is_typed_atomic_and_external_digest_bound(self) -> None:
         n = 19
         artifact = self._production_artifact(n=n)
         mask = np.ones(n, dtype=np.bool_)
         digest = p1_mask_sha256(mask)
         result = production_bootstrap_p1_metric(
-            "policy_utility_delta",
+            "mse_delta",
             artifact=artifact,
             mask=mask,
             candidate_mask=mask,
             baseline_mask=mask,
-            candidate_utility=np.arange(n, dtype="<f8"),
-            benchmark_hold_utility=np.zeros(n, dtype="<f8"),
+            candidate_se=np.ones(n, dtype="<f8"),
+            baseline_se=np.full(n, 2.0, dtype="<f8"),
             provenance={
-                "kind": "action",
+                "kind": "forecast",
                 "common_mask_sha256": digest,
                 "common_mask_field": "common_mask",
-                "action_primitive_payload_sha256": "1" * 64,
-                "action_primitive_schema_sha256": "2" * 64,
-                "action_primitive_content_sha256": "3" * 64,
-                "source_result_sha256": "4" * 64,
-                "source_action_file_sha256": "5" * 64,
+                "forecast_artifact_sha256": "1" * 64,
+                "forecast_result_sha256": "2" * 64,
             },
             expected_common_mask_sha256=digest,
             expected_common_mask_field="common_mask",
-            expected_source_result_sha256="4" * 64,
-            expected_action_primitive_payload_sha256="1" * 64,
-            expected_action_primitive_schema_sha256="2" * 64,
-            expected_action_primitive_content_sha256="3" * 64,
-            expected_source_action_file_sha256="5" * 64,
+            expected_forecast_artifact_sha256="1" * 64,
+            expected_forecast_result_sha256="2" * 64,
         )
         typed = P1MBBResultArtifact.from_result_production(result)
         with tempfile.TemporaryDirectory() as directory:
@@ -1008,6 +989,27 @@ class P1ExactMBBTests(unittest.TestCase):
             fixture_loaded = load_p1_mbb_result_fixture(path)
             self.assertEqual(fixture_loaded.result_sha256, P1MBBResultArtifact.from_result_fixture(fixture).result_sha256)
 
+    def test_result_metadata_key_normalization_is_unambiguous(self) -> None:
+        fixture = self._fixture_policy_result()
+
+        bool_key = dict(fixture)
+        bool_key["per_seed"] = {True: {"status": "ok"}}
+        with self.assertRaisesRegex(P1MBBError, "boolean mapping key"):
+            P1MBBResultArtifact.from_result_fixture(bool_key)
+
+        duplicate_normalized = dict(fixture)
+        duplicate_normalized["index_artifacts"] = {
+            1: "a" * 64,
+            "1": "b" * 64,
+        }
+        with self.assertRaisesRegex(P1MBBError, "duplicate normalized"):
+            P1MBBResultArtifact.from_result_fixture(duplicate_normalized)
+
+        non_string_top_level = dict(fixture)
+        non_string_top_level[7] = "unexpected"
+        with self.assertRaisesRegex(P1MBBError, "top-level keys must be strings"):
+            P1MBBResultArtifact.from_result_fixture(non_string_top_level)
+
     def _fixture_policy_result(self) -> dict[str, object]:
         n = 19
         artifact = self._artifact(n=n)
@@ -1022,7 +1024,7 @@ class P1ExactMBBTests(unittest.TestCase):
             benchmark_hold_utility=np.zeros(n, dtype="<f8"),
         )
 
-    def test_production_ten_seed_result_requires_and_persists_all_provenance(self) -> None:
+    def test_production_ten_seed_forecast_result_requires_and_persists_all_provenance(self) -> None:
         n = 19
         mask = np.ones(n, dtype=np.bool_)
         common_digest = p1_mask_sha256(mask)
@@ -1031,30 +1033,24 @@ class P1ExactMBBTests(unittest.TestCase):
                 "mask": mask.copy(),
                 "candidate_mask": mask.copy(),
                 "baseline_mask": mask.copy(),
-                "candidate_utility": np.full(n, float(seed + 1), dtype="<f8"),
-                "benchmark_hold_utility": np.zeros(n, dtype="<f8"),
+                "candidate_se": np.full(n, float(seed + 1), dtype="<f8"),
+                "baseline_se": np.zeros(n, dtype="<f8"),
             }
             for seed in range(10)
         }
         provenance_by_seed = {
             seed: {
                 "provenance": {
-                    "kind": "action",
+                    "kind": "forecast",
                     "common_mask_sha256": common_digest,
                     "common_mask_field": "common_mask",
-                    "action_primitive_payload_sha256": f"{seed + 1:064x}",
-                    "action_primitive_schema_sha256": f"{seed + 11:064x}",
-                    "action_primitive_content_sha256": f"{seed + 21:064x}",
-                    "source_result_sha256": f"{seed + 31:064x}",
-                    "source_action_file_sha256": f"{seed + 41:064x}",
+                    "forecast_artifact_sha256": f"{seed + 1:064x}",
+                    "forecast_result_sha256": f"{seed + 11:064x}",
                 },
                 "expected_common_mask_sha256": common_digest,
                 "expected_common_mask_field": "common_mask",
-                "expected_action_primitive_payload_sha256": f"{seed + 1:064x}",
-                "expected_action_primitive_schema_sha256": f"{seed + 11:064x}",
-                "expected_action_primitive_content_sha256": f"{seed + 21:064x}",
-                "expected_source_result_sha256": f"{seed + 31:064x}",
-                "expected_source_action_file_sha256": f"{seed + 41:064x}",
+                "expected_forecast_artifact_sha256": f"{seed + 1:064x}",
+                "expected_forecast_result_sha256": f"{seed + 11:064x}",
             }
             for seed in range(10)
         }
@@ -1062,7 +1058,7 @@ class P1ExactMBBTests(unittest.TestCase):
         for seed in range(10):
             raw_artifact = build_p1_mbb_index_artifact(
                 n,
-                unit="synthetic_action",
+                unit="synthetic_forecast",
                 support_id="synthetic_validation",
                 seed_ordinal=seed,
                 block_length=8,
@@ -1070,8 +1066,8 @@ class P1ExactMBBTests(unittest.TestCase):
             index_artifacts[seed] = self._persisted_production_artifact(raw_artifact)
         with self.assertRaises(P1MBBError):
             production_seed_aggregate(
-                "policy_utility_delta",
-                unit="synthetic_action",
+                "mse_delta",
+                unit="synthetic_forecast",
                 support_id="synthetic_validation",
                 block_length=8,
                 seed_inputs=seed_inputs,
@@ -1088,8 +1084,8 @@ class P1ExactMBBTests(unittest.TestCase):
         }
         with self.assertRaises(P1MBBError):
             production_seed_aggregate(
-                "policy_utility_delta",
-                unit="synthetic_action",
+                "mse_delta",
+                unit="synthetic_forecast",
                 support_id="synthetic_validation",
                 block_length=8,
                 seed_inputs=seed_inputs,
@@ -1100,12 +1096,12 @@ class P1ExactMBBTests(unittest.TestCase):
                 expected_index_artifact_file_sha256_by_seed=index_file_digests,
             )
         result = production_seed_aggregate(
-            "policy_utility_delta",
-            unit="synthetic_action",
+            "mse_delta",
+            unit="synthetic_forecast",
             support_id="synthetic_validation",
             block_length=8,
             seed_inputs=seed_inputs,
-            direction="positive",
+            direction="negative",
             provenance_by_seed=provenance_by_seed,
             index_artifacts=index_artifacts,
             expected_index_artifact_sha256_by_seed={
@@ -1345,8 +1341,8 @@ class P1ExactMBBTests(unittest.TestCase):
         )
         with self.assertRaises(P1MBBError):
             bootstrap_p1_metric_seed_aggregate(
-                "policy_utility_delta",
-                unit="synthetic_action",
+                "mse_delta",
+                unit="synthetic_forecast",
                 support_id="synthetic_validation",
                 block_length=8,
                 seed_inputs={seed: payload for seed, payload in seed_inputs.items() if seed != 9},

@@ -239,6 +239,7 @@ def conditional_oracle_teacher_path(
     *,
     decision_eligible: np.ndarray | pd.Series | None = None,
     score_eligible: np.ndarray | pd.Series | None = None,
+    bar_available: np.ndarray | pd.Series | None = None,
 ) -> ActionExecutionTrajectory:
     """Build a contract-compliant teacher from cumulative block forecasts.
 
@@ -261,6 +262,7 @@ def conditional_oracle_teacher_path(
         contract,
         decision_eligible=decision_eligible,
         score_eligible=score_eligible,
+        bar_available=bar_available,
     )
 
 
@@ -270,6 +272,7 @@ def hindsight_upper_bound_path(
     *,
     decision_eligible: np.ndarray | pd.Series | None = None,
     score_eligible: np.ndarray | pd.Series | None = None,
+    bar_available: np.ndarray | pd.Series | None = None,
 ) -> ActionExecutionTrajectory:
     """Build U0 from realized returns using the shared contract trajectory.
 
@@ -291,6 +294,7 @@ def hindsight_upper_bound_path(
         contract,
         decision_eligible=decision_eligible,
         score_eligible=score_eligible,
+        bar_available=bar_available,
     )
 
 

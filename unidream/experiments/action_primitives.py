@@ -24,6 +24,7 @@ from unidream.eval.action_execution import (
     ActionExecutionContract,
     complete_decision_starts,
     derive_action_block_masks,
+    replay_action_path,
 )
 
 
@@ -905,14 +906,23 @@ def _normalise_arm_metadata(
         if not isinstance(value, Mapping):
             raise ActionPrimitiveContractError(f"{label} must be a mapping")
         for key, item in value.items():
+            if not isinstance(key, str):
+                raise ActionPrimitiveContractError(
+                    f"{label} keys must be strings"
+                )
             if key in merged and merged[key] != item:
                 raise ActionPrimitiveContractError(f"conflicting arm metadata for {key!r}")
-            merged[str(key)] = item
+            merged[key] = item
     for key, value in direct.items():
         if value is not None:
             if key in merged and merged[key] != value:
                 raise ActionPrimitiveContractError(f"conflicting arm metadata for {key!r}")
             merged[key] = value
+    unknown = sorted(set(merged) - set(ACTION_PRIMITIVE_ARM_FIELDS))
+    if unknown:
+        raise ActionPrimitiveContractError(
+            "arm metadata contains unknown fields: " + ", ".join(unknown)
+        )
     missing = [field for field in ACTION_PRIMITIVE_ARM_FIELDS if field not in merged]
     if missing:
         raise ActionPrimitiveContractError(
@@ -1294,6 +1304,99 @@ def _normalise_output_hash_expectations(
         field: _strict_sha256(value, field=f"expected {field}")
         for field, value in values.items()
     }
+
+
+def _assert_replay_parity(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    returns: np.ndarray,
+    support_start: int,
+    contract: ActionExecutionContract,
+    origin_block: np.ndarray,
+    forecast_block: np.ndarray,
+    bar_available: np.ndarray,
+    paired_block: np.ndarray,
+) -> None:
+    """Prove the persisted primitive rows agree with the causal replay.
+
+    The producer stores one row per scheduled decision start while replay
+    operates on the full bar grid.  Projecting the replay masks/state back to
+    those starts catches a second, subtly different fill/outcome implementation
+    before an authenticated artifact can be written.  This check is limited to
+    realized-return inputs; caller-supplied metric-only fixtures have no
+    trajectory to compare.
+    """
+    bar_count = len(returns)
+    starts = complete_decision_starts(bar_count, contract)
+    if len(records) != len(starts):
+        raise ActionPrimitiveContractError(
+            "replay parity requires the complete scheduled primitive grid"
+        )
+    deltas = np.zeros(bar_count, dtype=np.float64)
+    origin_full = np.zeros(bar_count, dtype=np.bool_)
+    forecast_full = np.zeros(bar_count, dtype=np.bool_)
+    for row_index, start in enumerate(starts):
+        deltas[start] = float(records[row_index]["selected_delta"])
+        origin_full[start] = bool(origin_block[row_index])
+        forecast_full[start] = bool(forecast_block[row_index])
+    trajectory = replay_action_path(
+        returns,
+        deltas,
+        contract,
+        decision_eligible=origin_full,
+        bar_available=bar_available,
+        forecast_finite_mask=forecast_full,
+        common_mask=paired_block,
+    )
+    mask_fields = (
+        ("origin_eligible_mask", trajectory.block_masks.origin_mask),
+        ("forecast_finite_mask", trajectory.block_masks.forecast_finite_mask),
+        ("fill_complete_mask", trajectory.block_masks.fill_complete_mask),
+        ("outcome_complete_mask", trajectory.block_masks.outcome_complete_mask),
+        ("scored_action_mask", trajectory.block_masks.scored_action_mask),
+        ("common_mask", trajectory.block_masks.common_mask),
+    )
+    for row_index, start in enumerate(starts):
+        record = records[row_index]
+        for field_name, full_mask in mask_fields:
+            if bool(record[field_name]) != bool(full_mask[start]):
+                raise ActionPrimitiveContractError(
+                    f"replay parity mismatch for {field_name} at primitive row {row_index}"
+                )
+        fill = start + contract.execution_delay_bars
+        if not np.isclose(
+            float(record["selected_delta"]),
+            float(trajectory.decision_deltas[start]),
+            atol=1e-9,
+            rtol=0.0,
+        ):
+            raise ActionPrimitiveContractError(
+                f"replay parity mismatch for selected_delta at primitive row {row_index}"
+            )
+        previous = (
+            float(contract.p_start)
+            if start == 0
+            else float(trajectory.effective_positions[start - 1])
+        )
+        for field_name, expected in (
+            ("previous_position", previous),
+            ("selected_position", float(trajectory.decision_positions[start])),
+            ("selected_position_at_fill", float(trajectory.effective_positions[fill])),
+        ):
+            record_field = (
+                "selected_position"
+                if field_name == "selected_position_at_fill"
+                else field_name
+            )
+            if not np.isclose(
+                float(record[record_field]),
+                expected,
+                atol=1e-9,
+                rtol=0.0,
+            ):
+                raise ActionPrimitiveContractError(
+                    f"replay parity mismatch for {record_field} at primitive row {row_index}"
+                )
 
 
 def produce_action_primitive_grid(
@@ -1774,6 +1877,18 @@ def produce_action_primitive_grid(
         if tuple(record) != ACTION_PRIMITIVE_RECORD_FIELDS:
             raise ActionPrimitiveContractError("producer emitted non-canonical record field order")
         records.append(record)
+
+    if returns_arr is not None:
+        _assert_replay_parity(
+            records,
+            returns=returns_arr,
+            support_start=support_start_int,
+            contract=contract_obj,
+            origin_block=origin_block,
+            forecast_block=forecast_block,
+            bar_available=score_eligible_arr,
+            paired_block=paired_block,
+        )
 
     paired_common_header = [bool(value) for value in paired_block]
     contract_path = ACTION_PRIMITIVE_COST_CONTRACT_PATHS[arm["cost_mode"]]

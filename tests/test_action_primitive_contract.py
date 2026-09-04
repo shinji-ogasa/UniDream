@@ -193,6 +193,24 @@ class ActionPrimitiveContractTests(unittest.TestCase):
         with self.assertRaises(ActionPrimitiveImplementationBlocked):
             run_action_primitive_mbb([broken], block_length=16)
 
+    def test_arm_metadata_does_not_coerce_non_string_keys(self) -> None:
+        kwargs = {
+            "returns": np.full(5, 0.001, dtype=np.float64),
+            "decision_block_scores": np.array([1.0, np.nan, np.nan, np.nan, np.nan]),
+            "decision_eligible": np.ones(5, dtype=bool),
+            "score_eligible": np.ones(5, dtype=bool),
+            "scenario_id": "S0",
+            "seed": 20260830,
+            "split_id": "validation",
+            "support_id": "synthetic_validation",
+            "model_id": "ridge",
+            "cost_mode": "on",
+            "cost_contract_hash": ActionExecutionContract.canonical().contract_hash,
+            "arm_metadata": {1: "not-a-valid-arm-key"},
+        }
+        with self.assertRaisesRegex(ActionPrimitiveContractError, "keys must be strings"):
+            produce_action_primitive_grid(**kwargs)
+
     @staticmethod
     def _fixture(*, cost_mode: str = "on") -> dict[str, object]:
         contract = ActionExecutionContract.canonical()
@@ -325,6 +343,15 @@ class ActionPrimitiveContractTests(unittest.TestCase):
             realized_returns=self._fixture_returns(),
         )
         self.assertEqual(result["semantic_validation_status"], "passed")
+        forged_role = copy.deepcopy(artifact)
+        forged_role["header"]["source_role"] = "validated_stored_action_inputs"
+        with self.assertRaisesRegex(
+            ActionPrimitiveContractError, "sealed forecast capability"
+        ):
+            validate_action_primitive_semantics(
+                forged_role,
+                realized_returns=self._fixture_returns(),
+            )
         with self.assertRaisesRegex(ActionPrimitiveContractError, "production validation"):
             validate_action_primitive_semantics(
                 artifact,

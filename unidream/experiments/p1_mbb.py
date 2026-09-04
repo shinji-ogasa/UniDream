@@ -170,6 +170,31 @@ _P1_PRODUCTION_RESULT_STATUS: Mapping[str, bool] = {
     "outer_results_observed": False,
 }
 
+# The action artifact stores these hashes over the complete primitive grid.
+# Keep the allowlist local to the MBB boundary so result persistence does not
+# depend on importing the producer module (which would create a cycle).
+_P1_ACTION_MASK_HASH_FIELDS = frozenset(
+    {
+        "origin_eligible_mask",
+        "forecast_finite_mask",
+        "fill_complete_mask",
+        "outcome_complete_mask",
+        "scored_action_mask",
+        "common_mask",
+        "utility_metric_mask",
+        "action_metric_mask",
+    }
+)
+_P1_ACTION_SOURCE_MODE = "authenticated_capability"
+_P1_ACTION_MASK_REGISTRY_SCHEMA = "action-block-masks-v1"
+_P1_ACTION_OUTPUT_HASH_FIELDS = frozenset(
+    {
+        "action_primitive_payload_sha256",
+        "action_primitive_schema_sha256",
+        "action_primitive_content_sha256",
+    }
+)
+
 
 def _strict_int(value: Any, *, name: str, minimum: int | None = None) -> int:
     if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)):
@@ -1466,7 +1491,13 @@ def _validate_production_provenance(
     expected_forecast_artifact_sha256: Any,
     expected_forecast_result_sha256: Any,
     source_common_mask: np.ndarray | None = None,
-) -> dict[str, str]:
+    paired_action_artifact: Any = None,
+    expected_paired_source_result_sha256: Any = None,
+    expected_paired_action_primitive_payload_sha256: Any = None,
+    expected_paired_action_primitive_schema_sha256: Any = None,
+    expected_paired_action_primitive_content_sha256: Any = None,
+    expected_paired_source_action_file_sha256: Any = None,
+) -> dict[str, Any]:
     """Authenticate action/forecast provenance before a production bootstrap.
 
     All expected values are supplied by the authenticated upstream artifact
@@ -1484,6 +1515,20 @@ def _validate_production_provenance(
         raise P1MBBError(
             f"production provenance kind {kind!r} does not match {metric}/{level_metric} ({expected_kind!r})"
         )
+    # Action-domain production metrics have one and only one ingress: the
+    # identity-sealed action capability adapter.  The historical generic
+    # reducer accepted a self-declared ``kind=action`` record with raw arrays;
+    # retaining that path would make the authenticated source and mask graph
+    # optional.  Forecast-domain metrics remain on the generic typed reducer.
+    if expected_kind == "action":
+        if source_action_artifact is None:
+            raise P1MBBError(
+                "production action metrics require the authenticated action capability adapter"
+            )
+        if provenance.get("action_source_mode") != _P1_ACTION_SOURCE_MODE:
+            raise P1MBBError(
+                "production action metrics require authenticated_capability provenance"
+            )
     common_digest = _strict_sha256(
         expected_common_mask_sha256,
         name="expected_common_mask_sha256",
@@ -1509,7 +1554,7 @@ def _validate_production_provenance(
     if provenance.get("common_mask_field") != field:
         raise P1MBBError("production provenance common mask field mismatch")
 
-    validated: dict[str, str] = {
+    validated: dict[str, Any] = {
         "kind": kind,
         "common_mask_sha256": common_digest,
         "common_mask_field": field,
@@ -1537,12 +1582,181 @@ def _validate_production_provenance(
         if provenance.get("source_action_file_sha256") != source_action_file_digest:
             raise P1MBBError("production provenance source action file digest mismatch")
         if source_action_artifact is not None:
+            typed_expectations = dict(action_values)
+            typed_expectations["source_action_file_sha256"] = source_action_file_digest
             _validate_typed_source_action_binding(
                 source_action_artifact,
                 expected_file_sha256=source_action_file_digest,
-                expected_hashes=action_values,
+                expected_hashes=typed_expectations,
             )
         validated["source_action_file_sha256"] = source_action_file_digest
+
+        # A production action result must identify the authenticated adapter
+        # and the exact metric-domain mask used by the reducer.  The registry
+        # is over the original full primitive grid; ``metric_mask_sha256``
+        # may be a paired subset when two arms are intersected.
+        if provenance.get("action_source_mode") is not None:
+            if provenance.get("action_source_mode") != _P1_ACTION_SOURCE_MODE:
+                raise P1MBBError("production action source mode is not registered")
+            if source_action_artifact is None:
+                raise P1MBBError(
+                    "authenticated action provenance requires the sealed capability"
+                )
+            expected_metric_field = _expected_action_metric_mask_field(
+                metric,
+                level_metric,
+            )
+            if provenance.get("action_mask_registry_schema") != _P1_ACTION_MASK_REGISTRY_SCHEMA:
+                raise P1MBBError("production action mask registry schema is invalid")
+            if provenance.get("metric_mask_field") != expected_metric_field:
+                raise P1MBBError(
+                    "production action metric mask field does not match the metric"
+                )
+            metric_digest = _strict_sha256(
+                provenance.get("metric_mask_sha256"),
+                name="result metric_mask_sha256",
+            )
+            if metric_digest != p1_mask_sha256(common_mask):
+                raise P1MBBError(
+                    "production action metric mask digest does not match the reducer mask"
+                )
+            registry = _strict_action_mask_hash_registry(
+                provenance.get("action_block_mask_hash_registry"),
+                name="result action_block_mask_hash_registry",
+            )
+            try:
+                capability_registry = dict(
+                    source_action_artifact.as_mbb_input().mask_hashes
+                )
+            except Exception as exc:
+                raise P1MBBError(
+                    "authenticated action capability lacks its mask registry"
+                ) from exc
+            capability_registry = _strict_action_mask_hash_registry(
+                capability_registry,
+                name="authenticated action_block_mask_hash_registry",
+            )
+            if registry != capability_registry:
+                raise P1MBBError(
+                    "production action mask registry does not match the sealed capability"
+                )
+            validated.update(
+                {
+                    "action_source_mode": _P1_ACTION_SOURCE_MODE,
+                    "action_mask_registry_schema": _P1_ACTION_MASK_REGISTRY_SCHEMA,
+                    "metric_mask_field": expected_metric_field,
+                    "metric_mask_sha256": metric_digest,
+                    "action_block_mask_hash_registry": registry,
+                }
+            )
+            paired_binding = provenance.get("paired_source_action_binding")
+            if paired_binding is not None:
+                if not isinstance(paired_binding, Mapping):
+                    raise P1MBBError(
+                        "paired action source binding must be a mapping"
+                    )
+                if paired_action_artifact is None:
+                    raise P1MBBError(
+                        "paired action results require the authenticated paired capability"
+                    )
+                paired_expectations = {
+                    "source_action_file_sha256": expected_paired_source_action_file_sha256,
+                    "source_result_sha256": expected_paired_source_result_sha256,
+                    "action_primitive_payload_sha256": (
+                        expected_paired_action_primitive_payload_sha256
+                    ),
+                    "action_primitive_schema_sha256": (
+                        expected_paired_action_primitive_schema_sha256
+                    ),
+                    "action_primitive_content_sha256": (
+                        expected_paired_action_primitive_content_sha256
+                    ),
+                }
+                paired_expectations = {
+                    field: _strict_sha256(
+                        value,
+                        name=f"expected paired action {field}",
+                    )
+                    for field, value in paired_expectations.items()
+                }
+                for field, expected in paired_expectations.items():
+                    if paired_binding.get(field) != expected:
+                        raise P1MBBError(
+                            f"production paired action binding {field} mismatch"
+                        )
+                _validate_typed_source_action_binding(
+                    paired_action_artifact,
+                    expected_file_sha256=paired_expectations[
+                        "source_action_file_sha256"
+                    ],
+                    expected_hashes={
+                        "action_primitive_payload_sha256": paired_expectations[
+                            "action_primitive_payload_sha256"
+                        ],
+                        "action_primitive_schema_sha256": paired_expectations[
+                            "action_primitive_schema_sha256"
+                        ],
+                        "action_primitive_content_sha256": paired_expectations[
+                            "action_primitive_content_sha256"
+                        ],
+                        "source_result_sha256": paired_expectations[
+                            "source_result_sha256"
+                        ],
+                        "source_action_file_sha256": paired_expectations[
+                            "source_action_file_sha256"
+                        ],
+                    },
+                )
+                paired_registry = _strict_action_mask_hash_registry(
+                    paired_binding.get("action_block_mask_hash_registry"),
+                    name="paired action_block_mask_hash_registry",
+                )
+                try:
+                    paired_capability_registry = _strict_action_mask_hash_registry(
+                        dict(paired_action_artifact.as_mbb_input().mask_hashes),
+                        name="authenticated paired action_block_mask_hash_registry",
+                    )
+                except Exception as exc:
+                    raise P1MBBError(
+                        "authenticated paired action capability lacks its mask registry"
+                    ) from exc
+                if paired_registry != paired_capability_registry:
+                    raise P1MBBError(
+                        "production paired action mask registry does not match the sealed capability"
+                    )
+                validated["paired_source_action_binding"] = {
+                    field: paired_binding[field]
+                    for field in (
+                        "source_action_file_sha256",
+                        "source_result_sha256",
+                        "action_primitive_payload_sha256",
+                        "action_primitive_schema_sha256",
+                        "action_primitive_content_sha256",
+                    )
+                }
+                validated["paired_source_action_binding"][
+                    "action_block_mask_hash_registry"
+                ] = paired_registry
+            elif metric in {"agreement", "s3_utility_did", "s2_contrast"}:
+                raise P1MBBError(
+                    "paired action result requires its authenticated paired capability"
+                )
+            elif (
+                paired_action_artifact is not None
+                or any(
+                    value is not None
+                    for value in (
+                        expected_paired_source_result_sha256,
+                        expected_paired_action_primitive_payload_sha256,
+                        expected_paired_action_primitive_schema_sha256,
+                        expected_paired_action_primitive_content_sha256,
+                        expected_paired_source_action_file_sha256,
+                    )
+                )
+            ):
+                raise P1MBBError(
+                    "self-contained action result cannot accept paired capability bindings"
+                )
     else:
         if source_action_artifact is not None or expected_source_action_file_sha256 is not None:
             raise P1MBBError(
@@ -2343,10 +2557,24 @@ def _action_provenance_from_binding(
     common_digest: str,
     common_field: str,
     mask_registry: Mapping[str, str],
+    metric_mask: np.ndarray,
+    metric_mask_field: str,
 ) -> dict[str, Any]:
     """Build the small, externally-bound provenance record consumed by MBB."""
+    registry = _strict_action_mask_hash_registry(
+        mask_registry,
+        name="action_block_mask_hash_registry",
+    )
+    expected_metric_field = _strict_text(
+        metric_mask_field,
+        name="metric_mask_field",
+    )
+    if expected_metric_field not in {"utility_metric_mask", "action_metric_mask"}:
+        raise P1MBBError("metric_mask_field is not a registered action metric field")
     result: dict[str, Any] = {
         "kind": "action",
+        "action_source_mode": _P1_ACTION_SOURCE_MODE,
+        "action_mask_registry_schema": _P1_ACTION_MASK_REGISTRY_SCHEMA,
         "common_mask_sha256": common_digest,
         "common_mask_field": common_field,
         "action_primitive_payload_sha256": expectations[
@@ -2360,7 +2588,9 @@ def _action_provenance_from_binding(
         ],
         "source_result_sha256": expectations["source_result_sha256"],
         "source_action_file_sha256": expectations["source_action_file_sha256"],
-        "action_block_mask_hash_registry": dict(mask_registry),
+        "metric_mask_field": expected_metric_field,
+        "metric_mask_sha256": p1_mask_sha256(metric_mask),
+        "action_block_mask_hash_registry": registry,
     }
     return result
 
@@ -2461,21 +2691,49 @@ def _result_json_value(value: Any, *, field: str) -> Any:
     if isinstance(value, Mapping):
         converted: dict[str, Any] = {}
         for raw_key, raw_value in value.items():
-            if raw_key in {"bootstrap_values", "result_sha256"}:
-                continue
+            if isinstance(raw_key, (bool, np.bool_)):
+                raise P1MBBError(
+                    f"result metadata {field} has a boolean mapping key"
+                )
             if not isinstance(raw_key, (str, int, np.integer)):
                 raise P1MBBError(f"result metadata {field} has a non-scalar key")
+            if isinstance(raw_key, str) and raw_key in {
+                "bootstrap_values",
+                "result_sha256",
+            }:
+                continue
             key = str(int(raw_key)) if isinstance(raw_key, (int, np.integer)) else raw_key
+            if key in converted:
+                raise P1MBBError(
+                    f"result metadata {field} has duplicate normalized key {key!r}"
+                )
             if key == "index_artifacts":
                 if not isinstance(raw_value, Mapping):
                     raise P1MBBError(f"result metadata {field}.index_artifacts must be a mapping")
-                converted[key] = {
-                    str(ordinal): _result_json_value(
-                        artifact,
-                        field=f"{field}.{key}.{ordinal}",
+                normalized_artifacts: dict[str, Any] = {}
+                for ordinal, artifact in raw_value.items():
+                    if isinstance(ordinal, (bool, np.bool_)):
+                        raise P1MBBError(
+                            f"result metadata {field}.index_artifacts has a boolean key"
+                        )
+                    if not isinstance(ordinal, (str, int, np.integer)):
+                        raise P1MBBError(
+                            f"result metadata {field}.index_artifacts has a non-scalar key"
+                        )
+                    normalized_ordinal = (
+                        str(int(ordinal))
+                        if isinstance(ordinal, (int, np.integer))
+                        else ordinal
                     )
-                    for ordinal, artifact in raw_value.items()
-                }
+                    if normalized_ordinal in normalized_artifacts:
+                        raise P1MBBError(
+                            f"result metadata {field}.index_artifacts has duplicate normalized key"
+                        )
+                    normalized_artifacts[normalized_ordinal] = _result_json_value(
+                        artifact,
+                        field=f"{field}.{key}.{normalized_ordinal}",
+                    )
+                converted[key] = normalized_artifacts
                 continue
             converted[key] = _result_json_value(raw_value, field=f"{field}.{key}")
         return converted
@@ -2494,16 +2752,32 @@ def _result_metadata_from_result(result: Mapping[str, Any]) -> dict[str, Any]:
         raise P1MBBError("only an ok P1 result can be persisted")
     metadata: dict[str, Any] = {}
     for raw_key, raw_value in result.items():
+        if not isinstance(raw_key, str):
+            raise P1MBBError("P1 result metadata top-level keys must be strings")
         key = str(raw_key)
         if key in {"bootstrap_values", "result_sha256"}:
             continue
         if key == "index_artifacts":
             if not isinstance(raw_value, Mapping):
                 raise P1MBBError("index_artifacts must be a mapping")
-            metadata[key] = {
-                str(ordinal): _result_json_value(artifact, field=f"{key}.{ordinal}")
-                for ordinal, artifact in raw_value.items()
-            }
+            normalized_artifacts: dict[str, Any] = {}
+            for ordinal, artifact in raw_value.items():
+                if isinstance(ordinal, (bool, np.bool_)):
+                    raise P1MBBError("index_artifacts has a boolean key")
+                if not isinstance(ordinal, (str, int, np.integer)):
+                    raise P1MBBError("index_artifacts has a non-scalar key")
+                normalized_ordinal = (
+                    str(int(ordinal))
+                    if isinstance(ordinal, (int, np.integer))
+                    else ordinal
+                )
+                if normalized_ordinal in normalized_artifacts:
+                    raise P1MBBError("index_artifacts has duplicate normalized keys")
+                normalized_artifacts[normalized_ordinal] = _result_json_value(
+                    artifact,
+                    field=f"{key}.{normalized_ordinal}",
+                )
+            metadata[key] = normalized_artifacts
             continue
         # Nested per-seed/per-block results retain scalar statistics and hashes;
         # their replicate arrays remain in the top-level typed field only.
@@ -2525,6 +2799,81 @@ def _expected_provenance_kind(metric: str, level_metric: str | None) -> str:
             else "forecast"
         )
     return "action" if metric in _P1_ACTION_PROVENANCE_METRICS else "forecast"
+
+
+def _expected_action_metric_mask_field(
+    metric: str,
+    level_metric: str | None = None,
+) -> str:
+    """Return the immutable action mask domain for one registered metric."""
+    effective_metric = level_metric if metric == "s2_contrast" else metric
+    if effective_metric in {"policy_utility_delta", "s3_utility_did"}:
+        return "utility_metric_mask"
+    if effective_metric in {"agreement", "normalized_regret"}:
+        return "action_metric_mask"
+    raise P1MBBError(
+        f"metric {metric!r} does not have a registered action metric mask"
+    )
+
+
+def _is_action_metric_domain(metric: str, level_metric: str | None = None) -> bool:
+    """Return whether a metric is backed by the authenticated action grid."""
+
+    if metric == "s2_contrast":
+        return level_metric in {
+            "agreement",
+            "policy_utility_delta",
+            "normalized_regret",
+        }
+    return metric in _P1_ACTION_PROVENANCE_METRICS
+
+
+def _strict_action_mask_hash_registry(
+    value: Any,
+    *,
+    name: str,
+) -> dict[str, str]:
+    """Validate the exact full-grid action mask hash registry."""
+    if not isinstance(value, Mapping):
+        raise P1MBBError(f"{name} must be a mapping")
+    if set(value) != _P1_ACTION_MASK_HASH_FIELDS:
+        missing = sorted(_P1_ACTION_MASK_HASH_FIELDS - set(value))
+        extra = sorted(set(value) - _P1_ACTION_MASK_HASH_FIELDS)
+        raise P1MBBError(
+            f"{name} fields are not exact (missing={missing}, extra={extra})"
+        )
+    return {
+        field: _strict_sha256(value[field], name=f"{name}.{field}")
+        for field in sorted(_P1_ACTION_MASK_HASH_FIELDS)
+    }
+
+
+def _strict_action_output_hashes(
+    value: Any,
+    *,
+    name: str,
+) -> dict[str, str]:
+    """Validate the three inferential action-output hashes exactly.
+
+    A persisted MBB result contains only scalar statistics and provenance; it
+    does not carry the upstream action payload.  Therefore these hashes must
+    be supplied by the independent action-artifact ledger at result
+    persistence/load time.  Reading them solely from the result's own
+    provenance would let a caller replace the upstream action file and then
+    self-declare the replacement hashes.
+    """
+    if not isinstance(value, Mapping):
+        raise P1MBBError(f"{name} must be a mapping")
+    if set(value) != _P1_ACTION_OUTPUT_HASH_FIELDS:
+        missing = sorted(_P1_ACTION_OUTPUT_HASH_FIELDS - set(value))
+        extra = sorted(set(value) - _P1_ACTION_OUTPUT_HASH_FIELDS)
+        raise P1MBBError(
+            f"{name} fields are not exact (missing={missing}, extra={extra})"
+        )
+    return {
+        field: _strict_sha256(value[field], name=f"{name}.{field}")
+        for field in sorted(_P1_ACTION_OUTPUT_HASH_FIELDS)
+    }
 
 
 def _validate_result_index_binding_group(
@@ -2643,7 +2992,72 @@ def _validate_result_index_bindings(metadata: Mapping[str, Any]) -> None:
                 _validate_result_index_bindings(child)
 
 
-def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, production: bool) -> None:
+def _seed_child_index_binding(
+    parent: Mapping[str, Any],
+    child: Mapping[str, Any],
+    *,
+    ordinal: int,
+) -> None:
+    """Bind a nested per-seed result to its parent's external index maps."""
+    expected_by_seed = parent.get("index_artifact_expected_sha256_by_seed")
+    expected_file_by_seed = parent.get("index_artifact_expected_file_sha256_by_seed")
+    actual_by_seed = parent.get("index_artifact_sha256_by_seed")
+    actual_file_by_seed = parent.get("index_artifact_file_sha256_by_seed")
+    if not all(
+        isinstance(value, Mapping)
+        for value in (
+            expected_by_seed,
+            expected_file_by_seed,
+            actual_by_seed,
+            actual_file_by_seed,
+        )
+    ):
+        # Sensitivity envelopes validate their per-block-length child groups
+        # separately, but a parent that exposes ``per_seed`` must still carry
+        # all four maps.  Treating an all-missing group as a compatibility
+        # case would let a nested child be swapped without an independently
+        # pinned index artifact.
+        raise P1MBBError("production per-seed result index bindings are incomplete")
+    key = str(ordinal)
+    expected = _strict_sha256(
+        expected_by_seed.get(key),
+        name=f"result expected index artifact sha256[{key}]",
+    )
+    expected_file = _strict_sha256(
+        expected_file_by_seed.get(key),
+        name=f"result expected index artifact file sha256[{key}]",
+    )
+    actual = _strict_sha256(
+        actual_by_seed.get(key),
+        name=f"result index artifact sha256[{key}]",
+    )
+    actual_file = _strict_sha256(
+        actual_file_by_seed.get(key),
+        name=f"result index artifact file sha256[{key}]",
+    )
+    if actual != expected:
+        raise P1MBBError(f"production per-seed result index digest mismatch at {key}")
+    if actual_file != expected_file:
+        raise P1MBBError(f"production per-seed result index file digest mismatch at {key}")
+    if child.get("index_artifact_sha256") != actual:
+        raise P1MBBError(f"production per-seed child index digest mismatch at {key}")
+    if child.get("index_artifact_file_sha256") != actual_file:
+        raise P1MBBError(f"production per-seed child index file digest mismatch at {key}")
+
+
+def _validate_result_provenance_metadata(
+    metadata: Mapping[str, Any],
+    *,
+    production: bool,
+    expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+) -> None:
     if not production:
         return
     for field, expected in _P1_PRODUCTION_RESULT_STATUS.items():
@@ -2675,12 +3089,12 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
             metadata.get("index_artifact_file_sha256"),
             name="result index_artifact_file_sha256",
         )
-    provenance_items: list[Mapping[str, Any]] = []
+    provenance_items: list[tuple[Mapping[str, Any], str | None]] = []
     if "provenance" in metadata:
         provenance = metadata["provenance"]
         if not isinstance(provenance, Mapping):
             raise P1MBBError("production result provenance must be a mapping")
-        provenance_items.append(provenance)
+        provenance_items.append((provenance, None))
     if "provenance_by_seed" in metadata:
         seed_provenance = metadata["provenance_by_seed"]
         if not isinstance(seed_provenance, Mapping) or set(seed_provenance) != set(
@@ -2693,8 +3107,37 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
             value = seed_provenance[str(ordinal)]
             if not isinstance(value, Mapping):
                 raise P1MBBError(f"production result provenance for seed {ordinal} must be a mapping")
-            provenance_items.append(value)
-    for provenance in provenance_items:
+            provenance_items.append((value, str(ordinal)))
+    def _seed_registry(
+        value: Mapping[Any, Any] | None,
+        *,
+        ordinal: str | None,
+        name: str,
+    ) -> Mapping[str, Any] | None:
+        if ordinal is None:
+            return value
+        if value is None:
+            return None
+        if not isinstance(value, Mapping):
+            raise P1MBBError(f"{name} must be a mapping of seed ordinal to registry")
+        normalized: dict[str, Any] = {}
+        for raw_key, registry in value.items():
+            if isinstance(raw_key, bool):
+                raise P1MBBError(f"{name} contains a boolean seed ordinal")
+            if isinstance(raw_key, (int, np.integer)):
+                key = str(int(raw_key))
+            elif isinstance(raw_key, str) and raw_key.isdecimal():
+                key = str(int(raw_key))
+            else:
+                raise P1MBBError(f"{name} contains a malformed seed ordinal")
+            if key in normalized:
+                raise P1MBBError(f"{name} contains duplicate seed ordinals")
+            normalized[key] = registry
+        if set(normalized) != {str(index) for index in range(10)}:
+            raise P1MBBError(f"{name} must cover seed ordinals 0..9 exactly")
+        return normalized[ordinal]
+
+    for provenance, ordinal in provenance_items:
         kind = provenance.get("kind")
         if kind not in {"action", "forecast"}:
             raise P1MBBError("production result provenance kind is invalid")
@@ -2726,6 +3169,162 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
                 provenance.get("source_action_file_sha256"),
                 name="result source_action_file_sha256",
             )
+            if provenance.get("action_source_mode") != _P1_ACTION_SOURCE_MODE:
+                raise P1MBBError(
+                    "production action results require authenticated_capability provenance"
+                )
+            if provenance.get("action_source_mode") is not None:
+                if provenance.get("action_source_mode") != _P1_ACTION_SOURCE_MODE:
+                    raise P1MBBError(
+                        "production result action_source_mode is not registered"
+                    )
+                if provenance.get("action_mask_registry_schema") != _P1_ACTION_MASK_REGISTRY_SCHEMA:
+                    raise P1MBBError(
+                        "production result action mask registry schema is invalid"
+                    )
+                expected_metric_field = _expected_action_metric_mask_field(
+                    metric,
+                    level_metric,
+                )
+                if provenance.get("metric_mask_field") != expected_metric_field:
+                    raise P1MBBError(
+                        "production result metric mask field does not match its metric"
+                    )
+                _strict_sha256(
+                    provenance.get("metric_mask_sha256"),
+                    name="result metric_mask_sha256",
+                )
+                actual_action_registry = _strict_action_mask_hash_registry(
+                    provenance.get("action_block_mask_hash_registry"),
+                    name="result action_block_mask_hash_registry",
+                )
+                expected_registry = _seed_registry(
+                    expected_action_mask_hash_registry_by_seed,
+                    ordinal=ordinal,
+                    name="expected_action_mask_hash_registry_by_seed",
+                )
+                if expected_registry is None and ordinal is None:
+                    expected_registry = expected_action_mask_hash_registry
+                if expected_registry is None:
+                    raise P1MBBError(
+                        "authenticated action result requires an external mask registry binding"
+                    )
+                expected_action_registry = _strict_action_mask_hash_registry(
+                    expected_registry,
+                    name="expected action_block_mask_hash_registry",
+                )
+                if actual_action_registry != expected_action_registry:
+                    raise P1MBBError(
+                        "result action mask registry does not match its external binding"
+                    )
+                expected_output_hashes = _seed_registry(
+                    expected_action_output_hashes_by_seed,
+                    ordinal=ordinal,
+                    name="expected_action_output_hashes_by_seed",
+                )
+                if expected_output_hashes is None and ordinal is None:
+                    expected_output_hashes = expected_action_output_hashes
+                if expected_output_hashes is None:
+                    raise P1MBBError(
+                        "authenticated action result requires externally pinned output hashes"
+                    )
+                expected_output_hashes = _strict_action_output_hashes(
+                    expected_output_hashes,
+                    name="expected action output hashes",
+                )
+                actual_output_hashes = _strict_action_output_hashes(
+                    {
+                        field: provenance.get(field)
+                        for field in _P1_ACTION_OUTPUT_HASH_FIELDS
+                    },
+                    name="result action output hashes",
+                )
+                if actual_output_hashes != expected_output_hashes:
+                    raise P1MBBError(
+                        "result action output hashes do not match their external binding"
+                    )
+                paired_binding = provenance.get("paired_source_action_binding")
+                if paired_binding is not None:
+                    if not isinstance(paired_binding, Mapping):
+                        raise P1MBBError(
+                            "production result paired action binding must be a mapping"
+                        )
+                    for field in (
+                        "source_action_file_sha256",
+                        "source_result_sha256",
+                        "action_primitive_payload_sha256",
+                        "action_primitive_schema_sha256",
+                        "action_primitive_content_sha256",
+                    ):
+                        _strict_sha256(
+                            paired_binding.get(field),
+                            name=f"result paired action binding {field}",
+                        )
+                    actual_paired_registry = _strict_action_mask_hash_registry(
+                        paired_binding.get("action_block_mask_hash_registry"),
+                        name="result paired action_block_mask_hash_registry",
+                    )
+                    expected_paired_registry = _seed_registry(
+                        expected_paired_action_mask_hash_registry_by_seed,
+                        ordinal=ordinal,
+                        name="expected_paired_action_mask_hash_registry_by_seed",
+                    )
+                    if expected_paired_registry is None and ordinal is None:
+                        expected_paired_registry = expected_paired_action_mask_hash_registry
+                    if expected_paired_registry is None:
+                        raise P1MBBError(
+                            "paired authenticated action result requires an external paired mask registry binding"
+                        )
+                    expected_paired_registry = _strict_action_mask_hash_registry(
+                        expected_paired_registry,
+                        name="expected paired action_block_mask_hash_registry",
+                    )
+                    if actual_paired_registry != expected_paired_registry:
+                        raise P1MBBError(
+                            "result paired action mask registry does not match its external binding"
+                        )
+                    expected_paired_output_hashes = _seed_registry(
+                        expected_paired_action_output_hashes_by_seed,
+                        ordinal=ordinal,
+                        name="expected_paired_action_output_hashes_by_seed",
+                    )
+                    if expected_paired_output_hashes is None and ordinal is None:
+                        expected_paired_output_hashes = expected_paired_action_output_hashes
+                    if expected_paired_output_hashes is None:
+                        raise P1MBBError(
+                            "paired authenticated action result requires externally pinned output hashes"
+                        )
+                    expected_paired_output_hashes = _strict_action_output_hashes(
+                        expected_paired_output_hashes,
+                        name="expected paired action output hashes",
+                    )
+                    actual_paired_output_hashes = _strict_action_output_hashes(
+                        {
+                            field: paired_binding.get(field)
+                            for field in _P1_ACTION_OUTPUT_HASH_FIELDS
+                        },
+                        name="result paired action output hashes",
+                    )
+                    if actual_paired_output_hashes != expected_paired_output_hashes:
+                        raise P1MBBError(
+                            "result paired action output hashes do not match their external binding"
+                        )
+                elif metric in {"agreement", "s3_utility_did", "s2_contrast"}:
+                    raise P1MBBError(
+                        "paired action result requires its external paired source binding"
+                    )
+                elif any(
+                    value is not None
+                    for value in (
+                        expected_paired_action_mask_hash_registry,
+                        expected_paired_action_mask_hash_registry_by_seed,
+                        expected_paired_action_output_hashes,
+                        expected_paired_action_output_hashes_by_seed,
+                    )
+                ):
+                    raise P1MBBError(
+                        "self-contained action result cannot accept paired action bindings"
+                    )
         else:
             _strict_sha256(
                 provenance.get("forecast_artifact_sha256"),
@@ -2734,6 +3333,90 @@ def _validate_result_provenance_metadata(metadata: Mapping[str, Any], *, product
             _strict_sha256(
                 provenance.get("forecast_result_sha256"),
                 name="result forecast_result_sha256",
+            )
+    # Sensitivity envelopes repeat the same authenticated provenance under a
+    # nested fixed-L result.  Validate every child rather than trusting only
+    # the top-level copy, so a child cannot be replaced after aggregation.
+    nested = metadata.get("per_block_length")
+    if isinstance(nested, Mapping):
+        for child in nested.values():
+            if isinstance(child, Mapping):
+                _validate_result_provenance_metadata(
+                    child,
+                    production=True,
+                    expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+                    expected_paired_action_mask_hash_registry=expected_paired_action_mask_hash_registry,
+                    expected_action_mask_hash_registry_by_seed=(
+                        expected_action_mask_hash_registry_by_seed
+                    ),
+                    expected_paired_action_mask_hash_registry_by_seed=(
+                        expected_paired_action_mask_hash_registry_by_seed
+                    ),
+                    expected_action_output_hashes=expected_action_output_hashes,
+                    expected_paired_action_output_hashes=expected_paired_action_output_hashes,
+                    expected_action_output_hashes_by_seed=(
+                        expected_action_output_hashes_by_seed
+                    ),
+                    expected_paired_action_output_hashes_by_seed=(
+                        expected_paired_action_output_hashes_by_seed
+                    ),
+                )
+    # Ten-seed aggregates also retain one scalar result envelope per seed.
+    # Validate those child envelopes against the ordinal-specific external
+    # registry; checking only the top-level ``provenance_by_seed`` would allow
+    # a child result to be swapped or tampered with after aggregation.
+    per_seed = metadata.get("per_seed")
+    if per_seed is not None:
+        if not isinstance(per_seed, Mapping):
+            raise P1MBBError("production ten-seed result per_seed must be a mapping")
+        normalized_seed_children: dict[str, Mapping[str, Any]] = {}
+        for raw_key, child in per_seed.items():
+            if isinstance(raw_key, bool):
+                raise P1MBBError("production ten-seed result per_seed has a boolean ordinal")
+            if isinstance(raw_key, (int, np.integer)):
+                key = str(int(raw_key))
+            elif isinstance(raw_key, str) and raw_key.isdecimal():
+                key = str(int(raw_key))
+            else:
+                raise P1MBBError("production ten-seed result per_seed has a malformed ordinal")
+            if key in normalized_seed_children:
+                raise P1MBBError("production ten-seed result per_seed has duplicate ordinals")
+            if not isinstance(child, Mapping):
+                raise P1MBBError(f"production per_seed[{key}] must be a mapping")
+            normalized_seed_children[key] = child
+        expected_seed_keys = {str(index) for index in range(10)}
+        if set(normalized_seed_children) != expected_seed_keys:
+            raise P1MBBError("production ten-seed result per_seed must cover ordinals 0..9")
+        for ordinal in range(10):
+            child = normalized_seed_children[str(ordinal)]
+            _seed_child_index_binding(metadata, child, ordinal=ordinal)
+            child_action_registry = _seed_registry(
+                expected_action_mask_hash_registry_by_seed,
+                ordinal=str(ordinal),
+                name="expected_action_mask_hash_registry_by_seed",
+            )
+            child_paired_registry = _seed_registry(
+                expected_paired_action_mask_hash_registry_by_seed,
+                ordinal=str(ordinal),
+                name="expected_paired_action_mask_hash_registry_by_seed",
+            )
+            child_action_output_hashes = _seed_registry(
+                expected_action_output_hashes_by_seed,
+                ordinal=str(ordinal),
+                name="expected_action_output_hashes_by_seed",
+            )
+            child_paired_output_hashes = _seed_registry(
+                expected_paired_action_output_hashes_by_seed,
+                ordinal=str(ordinal),
+                name="expected_paired_action_output_hashes_by_seed",
+            )
+            _validate_result_provenance_metadata(
+                child,
+                production=True,
+                expected_action_mask_hash_registry=child_action_registry,
+                expected_paired_action_mask_hash_registry=child_paired_registry,
+                expected_action_output_hashes=child_action_output_hashes,
+                expected_paired_action_output_hashes=child_paired_output_hashes,
             )
     _validate_result_index_bindings(metadata)
 
@@ -2745,6 +3428,39 @@ class P1MBBResultArtifact:
     metadata: Mapping[str, Any]
     bootstrap_values: np.ndarray
     production: bool = False
+    # Marker-bearing action results are only accepted when the caller also
+    # supplies the independently registered full-grid mask hashes.  These
+    # bindings are validation inputs, not serialized result metadata.
+    expected_action_mask_hash_registry: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    # Ten-seed aggregates carry one full-grid registry per seed.  A single
+    # scalar registry is intentionally not broadcast across seeds because
+    # availability/action masks may differ by seed.
+    expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    # The three inferential hashes are declarations on the upstream action
+    # artifact, not on this result.  Production result callers must pin them
+    # independently (and per seed when an aggregate is persisted).
+    expected_action_output_hashes: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    expected_paired_action_output_hashes: Mapping[str, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
+    expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = field(
+        default=None, repr=False, compare=False
+    )
     # Exact file SHA-256 is assigned only by the path loader.  It is external
     # ledger data and therefore never enters ``metadata`` or ``to_dict``.
     _file_sha256: str | None = field(default=None, init=False, repr=False, compare=False)
@@ -2784,7 +3500,30 @@ class P1MBBResultArtifact:
         )
         if declared_values_digest != _result_values_digest(values):
             raise P1MBBError("P1 result bootstrap_values hash mismatch")
-        _validate_result_provenance_metadata(metadata, production=self.production)
+        _validate_result_provenance_metadata(
+            metadata,
+            production=self.production,
+            expected_action_mask_hash_registry=self.expected_action_mask_hash_registry,
+            expected_paired_action_mask_hash_registry=(
+                self.expected_paired_action_mask_hash_registry
+            ),
+            expected_action_mask_hash_registry_by_seed=(
+                self.expected_action_mask_hash_registry_by_seed
+            ),
+            expected_paired_action_mask_hash_registry_by_seed=(
+                self.expected_paired_action_mask_hash_registry_by_seed
+            ),
+            expected_action_output_hashes=self.expected_action_output_hashes,
+            expected_paired_action_output_hashes=(
+                self.expected_paired_action_output_hashes
+            ),
+            expected_action_output_hashes_by_seed=(
+                self.expected_action_output_hashes_by_seed
+            ),
+            expected_paired_action_output_hashes_by_seed=(
+                self.expected_paired_action_output_hashes_by_seed
+            ),
+        )
         object.__setattr__(self, "metadata", metadata)
         object.__setattr__(self, "bootstrap_values", values)
 
@@ -2810,6 +3549,14 @@ class P1MBBResultArtifact:
         result: Mapping[str, Any],
         *,
         production: bool = False,
+        expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
     ) -> "P1MBBResultArtifact":
         try:
             values = np.asarray(result["bootstrap_values"])
@@ -2832,7 +3579,31 @@ class P1MBBResultArtifact:
         if not np.isfinite(values).all():
             raise P1MBBError("P1 result bootstrap_values must be finite")
         metadata["bootstrap_values_sha256"] = _result_values_digest(values)
-        return cls(metadata, values, production=production)
+        return cls(
+            metadata,
+            values,
+            production=production,
+            expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+            expected_paired_action_mask_hash_registry=(
+                expected_paired_action_mask_hash_registry
+            ),
+            expected_action_mask_hash_registry_by_seed=(
+                expected_action_mask_hash_registry_by_seed
+            ),
+            expected_paired_action_mask_hash_registry_by_seed=(
+                expected_paired_action_mask_hash_registry_by_seed
+            ),
+            expected_action_output_hashes=expected_action_output_hashes,
+            expected_paired_action_output_hashes=(
+                expected_paired_action_output_hashes
+            ),
+            expected_action_output_hashes_by_seed=(
+                expected_action_output_hashes_by_seed
+            ),
+            expected_paired_action_output_hashes_by_seed=(
+                expected_paired_action_output_hashes_by_seed
+            ),
+        )
 
     @classmethod
     def from_result_fixture(cls, result: Mapping[str, Any]) -> "P1MBBResultArtifact":
@@ -2840,9 +3611,44 @@ class P1MBBResultArtifact:
         return cls.from_result(result, production=False)
 
     @classmethod
-    def from_result_production(cls, result: Mapping[str, Any]) -> "P1MBBResultArtifact":
+    def from_result_production(
+        cls,
+        result: Mapping[str, Any],
+        *,
+        expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+    ) -> "P1MBBResultArtifact":
         """Build a production artifact only after provenance is present."""
-        return cls.from_result(result, production=True)
+        return cls.from_result(
+            result,
+            production=True,
+            expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+            expected_paired_action_mask_hash_registry=(
+                expected_paired_action_mask_hash_registry
+            ),
+            expected_action_mask_hash_registry_by_seed=(
+                expected_action_mask_hash_registry_by_seed
+            ),
+            expected_paired_action_mask_hash_registry_by_seed=(
+                expected_paired_action_mask_hash_registry_by_seed
+            ),
+            expected_action_output_hashes=expected_action_output_hashes,
+            expected_paired_action_output_hashes=(
+                expected_paired_action_output_hashes
+            ),
+            expected_action_output_hashes_by_seed=(
+                expected_action_output_hashes_by_seed
+            ),
+            expected_paired_action_output_hashes_by_seed=(
+                expected_paired_action_output_hashes_by_seed
+            ),
+        )
 
     @classmethod
     def _from_dict(
@@ -2852,6 +3658,14 @@ class P1MBBResultArtifact:
         *,
         expected_result_sha256: str | None,
         production: bool,
+        expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
     ) -> "P1MBBResultArtifact":
         if not isinstance(payload, Mapping):
             raise P1MBBError("P1 result metadata must be a mapping")
@@ -2863,7 +3677,31 @@ class P1MBBResultArtifact:
             )
         if production and declared_result is None:
             raise P1MBBError("production P1 result requires result_sha256")
-        artifact = cls(metadata, bootstrap_values, production=production)
+        artifact = cls(
+            metadata,
+            bootstrap_values,
+            production=production,
+            expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+            expected_paired_action_mask_hash_registry=(
+                expected_paired_action_mask_hash_registry
+            ),
+            expected_action_mask_hash_registry_by_seed=(
+                expected_action_mask_hash_registry_by_seed
+            ),
+            expected_paired_action_mask_hash_registry_by_seed=(
+                expected_paired_action_mask_hash_registry_by_seed
+            ),
+            expected_action_output_hashes=expected_action_output_hashes,
+            expected_paired_action_output_hashes=(
+                expected_paired_action_output_hashes
+            ),
+            expected_action_output_hashes_by_seed=(
+                expected_action_output_hashes_by_seed
+            ),
+            expected_paired_action_output_hashes_by_seed=(
+                expected_paired_action_output_hashes_by_seed
+            ),
+        )
         actual = artifact.result_sha256
         if declared_result is not None and _strict_sha256(
             declared_result,
@@ -2886,12 +3724,40 @@ class P1MBBResultArtifact:
         bootstrap_values: Any,
         *,
         expected_result_sha256: str | None = None,
+        expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+        expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+        expected_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+        expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+        expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
     ) -> "P1MBBResultArtifact":
         return cls._from_dict(
             payload,
             bootstrap_values,
             expected_result_sha256=expected_result_sha256,
             production=True,
+            expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+            expected_paired_action_mask_hash_registry=(
+                expected_paired_action_mask_hash_registry
+            ),
+            expected_action_mask_hash_registry_by_seed=(
+                expected_action_mask_hash_registry_by_seed
+            ),
+            expected_paired_action_mask_hash_registry_by_seed=(
+                expected_paired_action_mask_hash_registry_by_seed
+            ),
+            expected_action_output_hashes=expected_action_output_hashes,
+            expected_paired_action_output_hashes=(
+                expected_paired_action_output_hashes
+            ),
+            expected_action_output_hashes_by_seed=(
+                expected_action_output_hashes_by_seed
+            ),
+            expected_paired_action_output_hashes_by_seed=(
+                expected_paired_action_output_hashes_by_seed
+            ),
         )
 
     @classmethod
@@ -2965,14 +3831,81 @@ def save_p1_mbb_result(
     result: Mapping[str, Any],
     *,
     production: bool = False,
+    expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
 ) -> str:
     """Typed result persistence; set production only for authenticated results."""
-    artifact = P1MBBResultArtifact.from_result(result, production=production)
+    artifact = P1MBBResultArtifact.from_result(
+        result,
+        production=production,
+        expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+        expected_paired_action_mask_hash_registry=(
+            expected_paired_action_mask_hash_registry
+        ),
+        expected_action_mask_hash_registry_by_seed=(
+            expected_action_mask_hash_registry_by_seed
+        ),
+        expected_paired_action_mask_hash_registry_by_seed=(
+            expected_paired_action_mask_hash_registry_by_seed
+        ),
+        expected_action_output_hashes=expected_action_output_hashes,
+        expected_paired_action_output_hashes=(
+            expected_paired_action_output_hashes
+        ),
+        expected_action_output_hashes_by_seed=(
+            expected_action_output_hashes_by_seed
+        ),
+        expected_paired_action_output_hashes_by_seed=(
+            expected_paired_action_output_hashes_by_seed
+        ),
+    )
     return save_p1_mbb_result_artifact(path, artifact)
 
 
-def save_p1_mbb_result_production(path: str | Path, result: Mapping[str, Any]) -> str:
-    return save_p1_mbb_result(path, result, production=True)
+def save_p1_mbb_result_production(
+    path: str | Path,
+    result: Mapping[str, Any],
+    *,
+    expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+) -> str:
+    return save_p1_mbb_result(
+        path,
+        result,
+        production=True,
+        expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+        expected_paired_action_mask_hash_registry=(
+            expected_paired_action_mask_hash_registry
+        ),
+        expected_action_mask_hash_registry_by_seed=(
+            expected_action_mask_hash_registry_by_seed
+        ),
+        expected_paired_action_mask_hash_registry_by_seed=(
+            expected_paired_action_mask_hash_registry_by_seed
+        ),
+        expected_action_output_hashes=expected_action_output_hashes,
+        expected_paired_action_output_hashes=(
+            expected_paired_action_output_hashes
+        ),
+        expected_action_output_hashes_by_seed=(
+            expected_action_output_hashes_by_seed
+        ),
+        expected_paired_action_output_hashes_by_seed=(
+            expected_paired_action_output_hashes_by_seed
+        ),
+    )
 
 
 def save_p1_mbb_result_fixture(path: str | Path, result: Mapping[str, Any]) -> str:
@@ -3017,6 +3950,14 @@ def _load_p1_mbb_result_artifact(
     expected_result_sha256: str | None,
     expected_file_sha256: str | None,
     production: bool,
+    expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
 ) -> P1MBBResultArtifact:
     source = Path(path)
     handle: Any = None
@@ -3095,6 +4036,26 @@ def _load_p1_mbb_result_artifact(
                 metadata,
                 values,
                 expected_result_sha256=expected_result_sha256,
+                expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+                expected_paired_action_mask_hash_registry=(
+                    expected_paired_action_mask_hash_registry
+                ),
+                expected_action_mask_hash_registry_by_seed=(
+                    expected_action_mask_hash_registry_by_seed
+                ),
+                expected_paired_action_mask_hash_registry_by_seed=(
+                    expected_paired_action_mask_hash_registry_by_seed
+                ),
+                expected_action_output_hashes=expected_action_output_hashes,
+                expected_paired_action_output_hashes=(
+                    expected_paired_action_output_hashes
+                ),
+                expected_action_output_hashes_by_seed=(
+                    expected_action_output_hashes_by_seed
+                ),
+                expected_paired_action_output_hashes_by_seed=(
+                    expected_paired_action_output_hashes_by_seed
+                ),
             )
         else:
             artifact = P1MBBResultArtifact.from_dict_fixture(metadata, values)
@@ -3117,6 +4078,14 @@ def load_p1_mbb_result(
     *,
     expected_result_sha256: str | None = None,
     expected_file_sha256: str | None = None,
+    expected_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_paired_action_mask_hash_registry: Mapping[str, Any] | None = None,
+    expected_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_mask_hash_registry_by_seed: Mapping[Any, Any] | None = None,
+    expected_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_paired_action_output_hashes: Mapping[str, Any] | None = None,
+    expected_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
+    expected_paired_action_output_hashes_by_seed: Mapping[Any, Any] | None = None,
 ) -> P1MBBResultArtifact:
     """Load a stored production result with content and exact-file bindings."""
     return _load_p1_mbb_result_artifact(
@@ -3124,6 +4093,26 @@ def load_p1_mbb_result(
         expected_result_sha256=expected_result_sha256,
         expected_file_sha256=expected_file_sha256,
         production=True,
+        expected_action_mask_hash_registry=expected_action_mask_hash_registry,
+        expected_paired_action_mask_hash_registry=(
+            expected_paired_action_mask_hash_registry
+        ),
+        expected_action_mask_hash_registry_by_seed=(
+            expected_action_mask_hash_registry_by_seed
+        ),
+        expected_paired_action_mask_hash_registry_by_seed=(
+            expected_paired_action_mask_hash_registry_by_seed
+        ),
+        expected_action_output_hashes=expected_action_output_hashes,
+        expected_paired_action_output_hashes=(
+            expected_paired_action_output_hashes
+        ),
+        expected_action_output_hashes_by_seed=(
+            expected_action_output_hashes_by_seed
+        ),
+        expected_paired_action_output_hashes_by_seed=(
+            expected_paired_action_output_hashes_by_seed
+        ),
     )
 
 
@@ -3160,9 +4149,16 @@ def _bootstrap_p1_metric(
     expected_action_primitive_content_sha256: Any = None,
     expected_source_action_file_sha256: Any = None,
     source_action_artifact: Any = None,
+    paired_action_artifact: Any = None,
+    expected_paired_source_result_sha256: Any = None,
+    expected_paired_action_primitive_payload_sha256: Any = None,
+    expected_paired_action_primitive_schema_sha256: Any = None,
+    expected_paired_action_primitive_content_sha256: Any = None,
+    expected_paired_source_action_file_sha256: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
     source_common_mask: Any = None,
+    authenticated_action_capability: Any = None,
     **arrays: Any,
 ) -> dict[str, Any]:
     """Run one preregistered metric over one exact stored MBB artifact.
@@ -3215,6 +4211,70 @@ def _bootstrap_p1_metric(
             candidate_mask=candidate_mask,
             baseline_mask=baseline_mask,
         )
+        if source_action_artifact is not None:
+            # The typed capability is the source of truth for action-domain
+            # arrays.  Do not let a caller pass a sealed artifact merely as a
+            # provenance ornament while substituting a different metric
+            # vector into the generic reducer.
+            if metric_name not in {"policy_utility_delta", "normalized_regret"}:
+                raise P1MBBError(
+                    "a source_action_artifact may bind only the self-contained typed action metrics"
+                )
+            try:
+                loaded_action = _validate_typed_source_action_binding(
+                    source_action_artifact,
+                    expected_file_sha256=_strict_sha256(
+                        expected_source_action_file_sha256,
+                        name="expected_source_action_file_sha256",
+                    ),
+                    expected_hashes={
+                        "action_primitive_payload_sha256": expected_action_primitive_payload_sha256,
+                        "action_primitive_schema_sha256": expected_action_primitive_schema_sha256,
+                        "action_primitive_content_sha256": expected_action_primitive_content_sha256,
+                        "source_result_sha256": expected_source_result_sha256,
+                        "source_action_file_sha256": expected_source_action_file_sha256,
+                    },
+                )
+                selected_action = loaded_action.as_mbb_input().select_metric(metric_name)
+            except P1MBBError:
+                raise
+            except Exception as exc:
+                raise P1MBBError("authenticated action metric is unavailable") from exc
+            if set(validated) != set(selected_action.metric_values):
+                raise P1MBBError(
+                    f"typed action metric {metric_name} fields do not match the authenticated artifact"
+                )
+            for field_name, expected_values in selected_action.metric_values.items():
+                if not np.array_equal(
+                    validated[field_name], expected_values, equal_nan=True
+                ):
+                    raise P1MBBError(
+                        f"typed action metric {field_name} differs from the authenticated artifact"
+                    )
+            if np.any(common_mask & ~selected_action.effective_mask):
+                raise P1MBBError(
+                    f"typed action metric {metric_name} common mask exceeds its effective mask"
+                )
+        if authenticated_action_capability is not None:
+            # The action adapter supplies the already validated identity
+            # capability separately from the metric arrays.  This keeps
+            # paired projections (whose field names differ) on the same
+            # sealed source without routing them through the generic array
+            # checker above.
+            _validate_typed_source_action_binding(
+                authenticated_action_capability,
+                expected_file_sha256=_strict_sha256(
+                    expected_source_action_file_sha256,
+                    name="expected_source_action_file_sha256",
+                ),
+                expected_hashes={
+                    "action_primitive_payload_sha256": expected_action_primitive_payload_sha256,
+                    "action_primitive_schema_sha256": expected_action_primitive_schema_sha256,
+                    "action_primitive_content_sha256": expected_action_primitive_content_sha256,
+                    "source_result_sha256": expected_source_result_sha256,
+                    "source_action_file_sha256": expected_source_action_file_sha256,
+                },
+            )
         validated_provenance = _validate_production_provenance(
             metric_name,
             common_mask,
@@ -3227,7 +4287,25 @@ def _bootstrap_p1_metric(
             expected_action_primitive_schema_sha256=expected_action_primitive_schema_sha256,
             expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
             expected_source_action_file_sha256=expected_source_action_file_sha256,
-            source_action_artifact=source_action_artifact,
+            source_action_artifact=(
+                authenticated_action_capability
+                if authenticated_action_capability is not None
+                else source_action_artifact
+            ),
+            paired_action_artifact=paired_action_artifact,
+            expected_paired_source_result_sha256=expected_paired_source_result_sha256,
+            expected_paired_action_primitive_payload_sha256=(
+                expected_paired_action_primitive_payload_sha256
+            ),
+            expected_paired_action_primitive_schema_sha256=(
+                expected_paired_action_primitive_schema_sha256
+            ),
+            expected_paired_action_primitive_content_sha256=(
+                expected_paired_action_primitive_content_sha256
+            ),
+            expected_paired_source_action_file_sha256=(
+                expected_paired_source_action_file_sha256
+            ),
             expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
             expected_forecast_result_sha256=expected_forecast_result_sha256,
             source_common_mask=(
@@ -3315,6 +4393,12 @@ def bootstrap_p1_metric(
     expected_action_primitive_content_sha256: Any = None,
     expected_source_action_file_sha256: Any = None,
     source_action_artifact: Any = None,
+    paired_action_artifact: Any = None,
+    expected_paired_source_result_sha256: Any = None,
+    expected_paired_action_primitive_payload_sha256: Any = None,
+    expected_paired_action_primitive_schema_sha256: Any = None,
+    expected_paired_action_primitive_content_sha256: Any = None,
+    expected_paired_source_action_file_sha256: Any = None,
     expected_forecast_artifact_sha256: Any = None,
     expected_forecast_result_sha256: Any = None,
     source_common_mask: Any = None,
@@ -3340,6 +4424,20 @@ def bootstrap_p1_metric(
         expected_action_primitive_content_sha256=expected_action_primitive_content_sha256,
         expected_source_action_file_sha256=expected_source_action_file_sha256,
         source_action_artifact=source_action_artifact,
+        paired_action_artifact=paired_action_artifact,
+        expected_paired_source_result_sha256=expected_paired_source_result_sha256,
+        expected_paired_action_primitive_payload_sha256=(
+            expected_paired_action_primitive_payload_sha256
+        ),
+        expected_paired_action_primitive_schema_sha256=(
+            expected_paired_action_primitive_schema_sha256
+        ),
+        expected_paired_action_primitive_content_sha256=(
+            expected_paired_action_primitive_content_sha256
+        ),
+        expected_paired_source_action_file_sha256=(
+            expected_paired_source_action_file_sha256
+        ),
         expected_forecast_artifact_sha256=expected_forecast_artifact_sha256,
         expected_forecast_result_sha256=expected_forecast_result_sha256,
         source_common_mask=source_common_mask,
@@ -3456,6 +4554,9 @@ def _typed_action_provenance(
     common_mask: np.ndarray,
     loaded: Any,
     *,
+    metric: str,
+    metric_mask: np.ndarray,
+    level_metric: str | None = None,
     paired: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     try:
@@ -3467,6 +4568,8 @@ def _typed_action_provenance(
         common_digest=p1_mask_sha256(common_mask),
         common_field="common_mask",
         mask_registry=registry,
+        metric_mask=metric_mask,
+        metric_mask_field=_expected_action_metric_mask_field(metric, level_metric),
     )
     if paired is not None:
         provenance["paired_source_action_binding"] = dict(paired)
@@ -3550,6 +4653,8 @@ def bootstrap_p1_action_metric(
             candidate_expectations,
             common,
             candidate_loaded,
+            metric=metric_name,
+            metric_mask=reduction_mask,
         )
         return _bootstrap_p1_metric(
             metric_name,
@@ -3576,6 +4681,8 @@ def bootstrap_p1_action_metric(
                 "source_action_file_sha256"
             ],
             source_common_mask=common,
+            authenticated_action_capability=candidate_loaded,
+            paired_action_artifact=None,
             **fields,
         )
 
@@ -3639,6 +4746,8 @@ def bootstrap_p1_action_metric(
             candidate_expectations,
             common,
             candidate_loaded,
+            metric="agreement",
+            metric_mask=reduction_mask,
             paired={
                 "source_action_file_sha256": baseline_expectations[
                     "source_action_file_sha256"
@@ -3653,6 +4762,9 @@ def bootstrap_p1_action_metric(
                 "action_primitive_content_sha256": baseline_expectations[
                     "action_primitive_content_sha256"
                 ],
+                "action_block_mask_hash_registry": dict(
+                    baseline_loaded.as_mbb_input().mask_hashes
+                ),
             },
         )
         return _bootstrap_p1_metric(
@@ -3680,6 +4792,23 @@ def bootstrap_p1_action_metric(
                 "source_action_file_sha256"
             ],
             source_common_mask=common,
+            authenticated_action_capability=candidate_loaded,
+            paired_action_artifact=baseline_loaded,
+            expected_paired_source_result_sha256=baseline_expectations[
+                "source_result_sha256"
+            ],
+            expected_paired_action_primitive_payload_sha256=baseline_expectations[
+                "action_primitive_payload_sha256"
+            ],
+            expected_paired_action_primitive_schema_sha256=baseline_expectations[
+                "action_primitive_schema_sha256"
+            ],
+            expected_paired_action_primitive_content_sha256=baseline_expectations[
+                "action_primitive_content_sha256"
+            ],
+            expected_paired_source_action_file_sha256=baseline_expectations[
+                "source_action_file_sha256"
+            ],
             **arrays,
         )
 
@@ -3745,6 +4874,8 @@ def bootstrap_p1_action_metric(
             candidate_expectations,
             common,
             candidate_loaded,
+            metric="s3_utility_did",
+            metric_mask=reduction_mask,
             paired={
                 "source_action_file_sha256": baseline_expectations[
                     "source_action_file_sha256"
@@ -3759,6 +4890,9 @@ def bootstrap_p1_action_metric(
                 "action_primitive_content_sha256": baseline_expectations[
                     "action_primitive_content_sha256"
                 ],
+                "action_block_mask_hash_registry": dict(
+                    baseline_loaded.as_mbb_input().mask_hashes
+                ),
             },
         )
         return _bootstrap_p1_metric(
@@ -3786,6 +4920,23 @@ def bootstrap_p1_action_metric(
                 "source_action_file_sha256"
             ],
             source_common_mask=common,
+            authenticated_action_capability=candidate_loaded,
+            paired_action_artifact=baseline_loaded,
+            expected_paired_source_result_sha256=baseline_expectations[
+                "source_result_sha256"
+            ],
+            expected_paired_action_primitive_payload_sha256=baseline_expectations[
+                "action_primitive_payload_sha256"
+            ],
+            expected_paired_action_primitive_schema_sha256=baseline_expectations[
+                "action_primitive_schema_sha256"
+            ],
+            expected_paired_action_primitive_content_sha256=baseline_expectations[
+                "action_primitive_content_sha256"
+            ],
+            expected_paired_source_action_file_sha256=baseline_expectations[
+                "source_action_file_sha256"
+            ],
             **arrays,
         )
 
@@ -3829,6 +4980,9 @@ def bootstrap_p1_action_metric(
         candidate_expectations,
         common,
         candidate_loaded,
+        metric="s2_contrast",
+        metric_mask=reduction_mask,
+        level_metric=level_metric,
         paired={
             "source_action_file_sha256": baseline_expectations[
                 "source_action_file_sha256"
@@ -3843,6 +4997,9 @@ def bootstrap_p1_action_metric(
             "action_primitive_content_sha256": baseline_expectations[
                 "action_primitive_content_sha256"
             ],
+            "action_block_mask_hash_registry": dict(
+                baseline_loaded.as_mbb_input().mask_hashes
+            ),
         },
     )
     return _bootstrap_p1_metric(
@@ -3872,8 +5029,550 @@ def bootstrap_p1_action_metric(
             "source_action_file_sha256"
         ],
         source_common_mask=common,
+        authenticated_action_capability=candidate_loaded,
+        paired_action_artifact=baseline_loaded,
+        expected_paired_source_result_sha256=baseline_expectations[
+            "source_result_sha256"
+        ],
+        expected_paired_action_primitive_payload_sha256=baseline_expectations[
+            "action_primitive_payload_sha256"
+        ],
+        expected_paired_action_primitive_schema_sha256=baseline_expectations[
+            "action_primitive_schema_sha256"
+        ],
+        expected_paired_action_primitive_content_sha256=baseline_expectations[
+            "action_primitive_content_sha256"
+        ],
+        expected_paired_source_action_file_sha256=baseline_expectations[
+            "source_action_file_sha256"
+        ],
         **arrays,
     )
+
+
+def _strict_seed_mapping(value: Any, *, name: str) -> dict[int, Any]:
+    """Normalize an exact ten-seed mapping without allowing key coercion gaps."""
+    if not isinstance(value, Mapping):
+        raise P1MBBError(f"{name} must be a mapping for seed ordinals 0..9")
+    normalized: dict[int, Any] = {}
+    for raw_key, item in value.items():
+        if isinstance(raw_key, (bool, np.bool_)):
+            raise P1MBBError(f"{name} contains a boolean seed ordinal")
+        if isinstance(raw_key, (int, np.integer)):
+            key = int(raw_key)
+        elif isinstance(raw_key, str) and raw_key.isdecimal():
+            key = int(raw_key)
+        else:
+            raise P1MBBError(f"{name} contains a malformed seed ordinal")
+        if key in normalized:
+            raise P1MBBError(f"{name} contains duplicate seed ordinals")
+        normalized[key] = item
+    if set(normalized) != set(range(10)):
+        raise P1MBBError(f"{name} must cover seed ordinals 0..9 exactly")
+    return normalized
+
+
+def _validated_action_source_seed(value: Any, *, name: str) -> int:
+    """Read the registered seed identity from an authenticated action load.
+
+    The ten-seed reducer receives ordinal-keyed mappings, while the sealed
+    action artifact carries the actual preregistered seed value.  Binding both
+    prevents the same authenticated artifact from being supplied ten times
+    under different ordinals (or two artifacts from silently swapping seeds).
+    """
+    artifact = getattr(value, "artifact", None)
+    if not isinstance(artifact, Mapping):
+        raise P1MBBError(f"{name} does not expose an authenticated artifact payload")
+    header = artifact.get("header")
+    if not isinstance(header, Mapping):
+        raise P1MBBError(f"{name} is missing an action artifact header")
+    candidates: list[Any] = []
+    for source_name, source in (
+        ("header", header),
+        ("arm_metadata", header.get("arm_metadata")),
+        ("source_binding", header.get("source_binding")),
+    ):
+        if isinstance(source, Mapping) and "seed" in source:
+            candidates.append(source["seed"])
+        elif source_name != "header" and source is not None:
+            raise P1MBBError(f"{name}.{source_name} must expose seed")
+    if not candidates:
+        raise P1MBBError(f"{name} has no registered seed identity")
+    try:
+        normalized = [_strict_int(item, name=f"{name}.seed", minimum=0) for item in candidates]
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise P1MBBError(f"{name} has a malformed seed identity") from exc
+    if len(set(normalized)) != 1:
+        raise P1MBBError(f"{name} has conflicting seed identities")
+    return normalized[0]
+
+
+def _registered_synthetic_action_seeds() -> tuple[int, ...]:
+    """Load the immutable forecast seed schedule without an import cycle."""
+    try:
+        from .p1_validation_forecast import P1_SYNTHETIC_SEEDS
+    except Exception as exc:  # pragma: no cover - package import guard
+        raise P1MBBError("could not load the registered synthetic seed schedule") from exc
+    return tuple(int(seed) for seed in P1_SYNTHETIC_SEEDS)
+
+
+def _validate_action_seed_aggregate_inputs(
+    *,
+    candidate_action_artifacts: Any,
+    candidate_expected_by_seed: Any,
+    common_masks_by_seed: Any,
+    expected_common_mask_sha256_by_seed: Any,
+    baseline_action_artifacts: Any,
+    baseline_expected_by_seed: Any,
+    metric: str,
+    level_metric: str | None,
+    block_length: int,
+    index_artifacts: Any,
+    expected_index_artifact_sha256_by_seed: Any,
+    expected_index_artifact_file_sha256_by_seed: Any,
+    index_artifact_paths_by_seed: Any,
+) -> tuple[
+    dict[int, Any],
+    dict[int, Mapping[str, Any]],
+    dict[int, np.ndarray],
+    dict[int, str],
+    dict[int, Any] | None,
+    dict[int, Mapping[str, Any]] | None,
+    dict[int, P1MBBIndexArtifact],
+    dict[int, str],
+    dict[int, str],
+    dict[int, str] | None,
+]:
+    """Validate the sealed per-seed inputs for the production action aggregate."""
+    candidate_map = _strict_seed_mapping(
+        candidate_action_artifacts,
+        name="candidate_action_artifacts",
+    )
+    candidate_expected_map = _strict_seed_mapping(
+        candidate_expected_by_seed,
+        name="candidate_expected_by_seed",
+    )
+    common_map = _strict_seed_mapping(common_masks_by_seed, name="common_masks_by_seed")
+    common_digest_map = _strict_seed_mapping(
+        expected_common_mask_sha256_by_seed,
+        name="expected_common_mask_sha256_by_seed",
+    )
+    paired = metric not in {"policy_utility_delta", "normalized_regret"}
+    baseline_map: dict[int, Any] | None = None
+    baseline_expected_map: dict[int, Mapping[str, Any]] | None = None
+    if paired:
+        baseline_map = _strict_seed_mapping(
+            baseline_action_artifacts,
+            name="baseline_action_artifacts",
+        )
+        baseline_expected_raw = _strict_seed_mapping(
+            baseline_expected_by_seed,
+            name="baseline_expected_by_seed",
+        )
+        baseline_expected_map = {}
+        for ordinal, value in baseline_expected_raw.items():
+            if not isinstance(value, Mapping):
+                raise P1MBBError(
+                    f"baseline_expected_by_seed[{ordinal}] must be a mapping"
+                )
+            baseline_expected_map[ordinal] = value
+    elif baseline_action_artifacts is not None or baseline_expected_by_seed is not None:
+        raise P1MBBError(
+            f"{metric} is self-contained and cannot accept baseline action artifacts"
+        )
+    candidate_expected: dict[int, Mapping[str, Any]] = {}
+    for ordinal, value in candidate_expected_map.items():
+        if not isinstance(value, Mapping):
+            raise P1MBBError(
+                f"candidate_expected_by_seed[{ordinal}] must be a mapping"
+            )
+        candidate_expected[ordinal] = value
+    index_map = _strict_seed_mapping(index_artifacts, name="index_artifacts")
+    index_digest_map_raw = _strict_seed_mapping(
+        expected_index_artifact_sha256_by_seed,
+        name="expected_index_artifact_sha256_by_seed",
+    )
+    index_file_digest_map_raw = _strict_seed_mapping(
+        expected_index_artifact_file_sha256_by_seed,
+        name="expected_index_artifact_file_sha256_by_seed",
+    )
+    index_path_map = (
+        None
+        if index_artifact_paths_by_seed is None
+        else _strict_seed_mapping(
+            index_artifact_paths_by_seed,
+            name="index_artifact_paths_by_seed",
+        )
+    )
+    for ordinal in range(10):
+        if not isinstance(common_digest_map[ordinal], str):
+            raise P1MBBError(
+                f"expected_common_mask_sha256_by_seed[{ordinal}] must be a digest"
+            )
+    # Authenticate the action capabilities before determining the primitive
+    # grid size.  This prevents a caller from choosing the index length first
+    # and then supplying a truncated/expanded action source.
+    try:
+        from .p1_action_artifact import require_authenticated_loaded_action_artifact
+    except Exception as exc:  # pragma: no cover - import is package-local
+        raise P1MBBError("production action aggregate cannot import its capability boundary") from exc
+    lengths: set[int] = set()
+    authenticated_candidates: dict[int, Any] = {}
+    authenticated_baselines: dict[int, Any] | None = {} if paired else None
+    registered_seeds = _registered_synthetic_action_seeds()
+    if len(registered_seeds) != 10 or len(set(registered_seeds)) != 10:
+        raise P1MBBError("registered synthetic action seed schedule is not ten unique seeds")
+    for ordinal in range(10):
+        try:
+            candidate = require_authenticated_loaded_action_artifact(candidate_map[ordinal])
+            candidate_length = len(candidate.as_mbb_input().common_mask)
+        except Exception as exc:
+            raise P1MBBError(
+                f"candidate action artifact for seed {ordinal} is not authenticated"
+            ) from exc
+        candidate_seed = _validated_action_source_seed(
+            candidate,
+            name=f"candidate_action_artifacts[{ordinal}]",
+        )
+        if candidate_seed != registered_seeds[ordinal]:
+            raise P1MBBError(
+                f"candidate action artifact seed {candidate_seed} does not match "
+                f"registered ordinal {ordinal} ({registered_seeds[ordinal]})"
+            )
+        if candidate_length <= 0:
+            raise P1MBBError("authenticated action aggregate requires a non-empty primitive grid")
+        lengths.add(candidate_length)
+        authenticated_candidates[ordinal] = candidate
+        if paired:
+            try:
+                baseline = require_authenticated_loaded_action_artifact(
+                    baseline_map[ordinal]  # type: ignore[index]
+                )
+                baseline_length = len(baseline.as_mbb_input().common_mask)
+            except Exception as exc:
+                raise P1MBBError(
+                    f"baseline action artifact for seed {ordinal} is not authenticated"
+                ) from exc
+            baseline_seed = _validated_action_source_seed(
+                baseline,
+                name=f"baseline_action_artifacts[{ordinal}]",
+            )
+            if baseline_seed != registered_seeds[ordinal]:
+                raise P1MBBError(
+                    f"baseline action artifact seed {baseline_seed} does not match "
+                    f"registered ordinal {ordinal} ({registered_seeds[ordinal]})"
+                )
+            if baseline_length != candidate_length:
+                raise P1MBBError(
+                    f"paired action artifacts for seed {ordinal} have different primitive grids"
+                )
+            authenticated_baselines[ordinal] = baseline  # type: ignore[index]
+    if len(lengths) != 1:
+        raise P1MBBError("all action seed artifacts must have the same primitive-grid length")
+    grid_length = next(iter(lengths))
+    typed_indices = {
+        ordinal: index_map[ordinal] for ordinal in range(10)
+    }
+    external_indices, expected_index_digests, expected_index_file_digests, normalized_paths = (
+        _validate_external_index_artifacts(
+            typed_indices,
+            index_digest_map_raw,
+            index_file_digest_map_raw,
+            keys=set(range(10)),
+            unit="synthetic_action",
+            support_id="synthetic_validation",
+            block_length=block_length,
+            grid_length=grid_length,
+            name="index_artifacts_by_seed",
+            paths=index_path_map,
+        )
+    )
+    return (
+        authenticated_candidates,
+        candidate_expected,
+        {ordinal: _strict_bool_mask(common_map[ordinal], name=f"common_masks_by_seed[{ordinal}]", n=grid_length) for ordinal in range(10)},
+        {ordinal: _strict_sha256(common_digest_map[ordinal], name=f"expected_common_mask_sha256_by_seed[{ordinal}]") for ordinal in range(10)},
+        authenticated_baselines,
+        baseline_expected_map,
+        external_indices,
+        expected_index_digests,
+        expected_index_file_digests,
+        normalized_paths,
+    )
+
+
+def bootstrap_p1_action_metric_seed_aggregate(
+    metric: str,
+    *,
+    unit: str | int | None = None,
+    unit_code: Any = None,
+    support_id: Any,
+    block_length: Any,
+    candidate_action_artifacts: Mapping[Any, Any],
+    candidate_expected_by_seed: Mapping[Any, Mapping[str, Any]],
+    common_masks_by_seed: Mapping[Any, Any],
+    expected_common_mask_sha256_by_seed: Mapping[Any, Any],
+    direction: Any = None,
+    baseline_action_artifacts: Mapping[Any, Any] | None = None,
+    baseline_expected_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+    index_artifacts: Mapping[Any, P1MBBIndexArtifact],
+    expected_index_artifact_sha256_by_seed: Mapping[Any, Any],
+    expected_index_artifact_file_sha256_by_seed: Mapping[Any, Any],
+    index_artifact_paths_by_seed: Mapping[Any, Any] | None = None,
+) -> dict[str, Any]:
+    """Aggregate one authenticated action metric over the ten fixed seeds.
+
+    Every seed owns a sealed action artifact and an externally loaded MBB
+    index.  The reducer is run once per seed, then the ten bootstrap vectors
+    are averaged with equal weight while the displayed point is their median.
+    Raw metric arrays are intentionally not accepted at this production
+    boundary.
+    """
+    metric_name = _validate_recompute_metric(metric)
+    unit_name, _ = _normalize_unit(unit, unit_code=unit_code)
+    if unit_name != "synthetic_action":
+        raise P1MBBError("authenticated action seed aggregation requires synthetic_action")
+    if support_id != P1_MBB_UNIT_SUPPORTS[unit_name]:
+        raise P1MBBError("authenticated action seed aggregation support_id is not fixed")
+    block_length_int = _strict_block_length(block_length)
+    (
+        candidates,
+        candidate_expected,
+        common_masks,
+        common_digests,
+        baselines,
+        baseline_expected,
+        indices,
+        expected_index_digests,
+        expected_index_file_digests,
+        index_paths,
+    ) = _validate_action_seed_aggregate_inputs(
+        candidate_action_artifacts=candidate_action_artifacts,
+        candidate_expected_by_seed=candidate_expected_by_seed,
+        common_masks_by_seed=common_masks_by_seed,
+        expected_common_mask_sha256_by_seed=expected_common_mask_sha256_by_seed,
+        baseline_action_artifacts=baseline_action_artifacts,
+        baseline_expected_by_seed=baseline_expected_by_seed,
+        metric=metric_name,
+        level_metric=(None if level_metric is None else str(level_metric)),
+        block_length=block_length_int,
+        index_artifacts=index_artifacts,
+        expected_index_artifact_sha256_by_seed=expected_index_artifact_sha256_by_seed,
+        expected_index_artifact_file_sha256_by_seed=expected_index_artifact_file_sha256_by_seed,
+        index_artifact_paths_by_seed=index_artifact_paths_by_seed,
+    )
+    per_seed: dict[int, dict[str, Any]] = {}
+    for ordinal in range(10):
+        kwargs: dict[str, Any] = {
+            "metric": metric_name,
+            "artifact": indices[ordinal],
+            "candidate_action_artifact": candidates[ordinal],
+            "candidate_expected": candidate_expected[ordinal],
+            "common_mask": common_masks[ordinal],
+            "expected_common_mask_sha256": common_digests[ordinal],
+            "direction": direction,
+            "level_direction": level_direction,
+            "level_metric": level_metric,
+        }
+        if baselines is not None:
+            kwargs.update(
+                {
+                    "baseline_action_artifact": baselines[ordinal],
+                    "baseline_expected": baseline_expected[ordinal],  # type: ignore[index]
+                }
+            )
+        per_seed[ordinal] = bootstrap_p1_action_metric(**kwargs)
+    try:
+        samples = np.mean(
+            np.stack(
+                [per_seed[ordinal]["bootstrap_values"] for ordinal in range(10)],
+                axis=0,
+            ),
+            axis=0,
+            dtype=np.float64,
+        )
+        point = float(
+            np.median(
+                np.asarray(
+                    [per_seed[ordinal]["point_estimate"] for ordinal in range(10)],
+                    dtype="<f8",
+                )
+            )
+        )
+    except (MemoryError, OverflowError, ValueError, FloatingPointError) as exc:
+        raise P1MBBError("authenticated action seed aggregation failed") from exc
+    if not np.isfinite(samples).all() or not np.isfinite(point):
+        raise P1MBBError("authenticated action seed aggregation is non-finite")
+    result = _metric_result(
+        metric_name,
+        indices[0],
+        point_estimate=point,
+        samples=np.asarray(samples, dtype="<f8"),
+        direction=per_seed[0]["direction"],
+        extra={
+            **_production_result_status_fields(),
+            **(
+                {
+                    "level_direction": per_seed[0].get("level_direction"),
+                    "level_metric": per_seed[0].get("level_metric"),
+                }
+                if metric_name == "s2_contrast"
+                else {}
+            ),
+            "provenance_by_seed": {
+                ordinal: dict(per_seed[ordinal]["provenance"])
+                for ordinal in range(10)
+            },
+        },
+    )
+    result.pop("index_artifact_sha256", None)
+    result.update(
+        {
+            "seed_count": 10,
+            "seed_ordinals": list(range(10)),
+            "point_estimate_rule": "median of the ten per-seed metric values",
+            "bootstrap_aggregation": "mean of the ten independently resampled seed statistics with equal weight 1/10 at each replicate",
+            "index_artifact_sha256_by_seed": {
+                ordinal: indices[ordinal].artifact_sha256 for ordinal in range(10)
+            },
+            "index_artifact_file_sha256_by_seed": {
+                ordinal: indices[ordinal].file_sha256 for ordinal in range(10)
+            },
+            "index_artifacts": indices,
+            "per_seed": per_seed,
+            "per_seed_point_estimates": {
+                ordinal: float(per_seed[ordinal]["point_estimate"])
+                for ordinal in range(10)
+            },
+            "action_block_mask_hash_registry_by_seed": {
+                ordinal: dict(
+                    per_seed[ordinal]["provenance"][
+                        "action_block_mask_hash_registry"
+                    ]
+                )
+                for ordinal in range(10)
+            },
+            "index_artifact_expected_sha256_by_seed": dict(expected_index_digests),
+            "index_artifact_expected_file_sha256_by_seed": dict(
+                expected_index_file_digests
+            ),
+            "index_artifact_bindings": _index_binding_metadata(
+                indices,
+                expected_index_digests,
+                expected_index_file_digests,
+                index_paths,
+            ),
+        }
+    )
+    return result
+
+
+def bootstrap_p1_action_metric_seed_sensitivity(
+    metric: str,
+    *,
+    unit: str | int | None = None,
+    unit_code: Any = None,
+    support_id: Any,
+    candidate_action_artifacts: Mapping[Any, Any],
+    candidate_expected_by_seed: Mapping[Any, Mapping[str, Any]],
+    common_masks_by_seed: Mapping[Any, Any],
+    expected_common_mask_sha256_by_seed: Mapping[Any, Any],
+    direction: Any = None,
+    baseline_action_artifacts: Mapping[Any, Any] | None = None,
+    baseline_expected_by_seed: Mapping[Any, Mapping[str, Any]] | None = None,
+    level_direction: Any = None,
+    level_metric: Any = None,
+    index_artifacts_by_block_length: Mapping[Any, Mapping[Any, P1MBBIndexArtifact]],
+    expected_index_artifact_sha256_by_block_length: Mapping[Any, Mapping[Any, Any]],
+    expected_index_artifact_file_sha256_by_block_length: Mapping[Any, Mapping[Any, Any]],
+    index_artifact_paths_by_block_length: Mapping[Any, Mapping[Any, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run the fixed L=8/16/32 sensitivity set for authenticated actions."""
+    required_lengths = set(P1_MBB_BLOCK_LENGTHS)
+    for value, name in (
+        (index_artifacts_by_block_length, "index_artifacts_by_block_length"),
+        (
+            expected_index_artifact_sha256_by_block_length,
+            "expected_index_artifact_sha256_by_block_length",
+        ),
+        (
+            expected_index_artifact_file_sha256_by_block_length,
+            "expected_index_artifact_file_sha256_by_block_length",
+        ),
+    ):
+        if not isinstance(value, Mapping) or set(value) != required_lengths:
+            raise P1MBBError(f"{name} must cover L=8,16,32 exactly")
+    if index_artifact_paths_by_block_length is not None and (
+        not isinstance(index_artifact_paths_by_block_length, Mapping)
+        or set(index_artifact_paths_by_block_length) != required_lengths
+    ):
+        raise P1MBBError(
+            "index_artifact_paths_by_block_length must cover L=8,16,32 exactly"
+        )
+    results: dict[int, dict[str, Any]] = {}
+    for length in P1_MBB_BLOCK_LENGTHS:
+        results[length] = bootstrap_p1_action_metric_seed_aggregate(
+            metric,
+            unit=unit,
+            unit_code=unit_code,
+            support_id=support_id,
+            block_length=length,
+            candidate_action_artifacts=candidate_action_artifacts,
+            candidate_expected_by_seed=candidate_expected_by_seed,
+            common_masks_by_seed=common_masks_by_seed,
+            expected_common_mask_sha256_by_seed=expected_common_mask_sha256_by_seed,
+            direction=direction,
+            baseline_action_artifacts=baseline_action_artifacts,
+            baseline_expected_by_seed=baseline_expected_by_seed,
+            level_direction=level_direction,
+            level_metric=level_metric,
+            index_artifacts=index_artifacts_by_block_length[length],
+            expected_index_artifact_sha256_by_seed=(
+                expected_index_artifact_sha256_by_block_length[length]
+            ),
+            expected_index_artifact_file_sha256_by_seed=(
+                expected_index_artifact_file_sha256_by_block_length[length]
+            ),
+            index_artifact_paths_by_seed=(
+                index_artifact_paths_by_block_length[length]
+                if index_artifact_paths_by_block_length is not None
+                else None
+            ),
+        )
+    envelope = {
+        "status": "ok",
+        "metric": _validate_recompute_metric(metric),
+        "direction": results[P1_MBB_BLOCK_LENGTHS[0]]["direction"],
+        "block_lengths": list(P1_MBB_BLOCK_LENGTHS),
+        "per_block_length": results,
+        "raw_p": max(float(results[length]["p_value"]) for length in P1_MBB_BLOCK_LENGTHS),
+        "raw_p_rule": "max(p_block_length_8, p_block_length_16, p_block_length_32)",
+        **_production_result_status_fields(),
+        "provenance_by_seed": {
+            ordinal: dict(
+                results[P1_MBB_BLOCK_LENGTHS[0]]["provenance_by_seed"][ordinal]
+            )
+            for ordinal in range(10)
+        },
+        "action_block_mask_hash_registry_by_seed": {
+            ordinal: dict(
+                results[P1_MBB_BLOCK_LENGTHS[0]][
+                    "action_block_mask_hash_registry_by_seed"
+                ][ordinal]
+            )
+            for ordinal in range(10)
+        },
+    }
+    if _validate_recompute_metric(metric) == "s2_contrast":
+        envelope["level_direction"] = results[P1_MBB_BLOCK_LENGTHS[0]].get(
+            "level_direction"
+        )
+        envelope["level_metric"] = results[P1_MBB_BLOCK_LENGTHS[0]].get(
+            "level_metric"
+        )
+    return envelope
 
 
 def _payload_grid_length(payload: Mapping[str, Any]) -> int:
@@ -4941,6 +6640,8 @@ __all__ = [
     "P1MBBResultArtifact",
     "build_p1_mbb_index_artifact",
     "bootstrap_p1_action_metric",
+    "bootstrap_p1_action_metric_seed_aggregate",
+    "bootstrap_p1_action_metric_seed_sensitivity",
     "bootstrap_p1_metric",
     "bootstrap_p1_metric_fixture",
     "bootstrap_p1_metric_production",
