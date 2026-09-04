@@ -1346,8 +1346,9 @@ def _render_report(state: FormalState, gate: Mapping[str, Any], coverage: Mappin
     ]
     for cid, row in gate["comparisons"].items():
         summary = state.comparison_results[cid]
+        result_target = (ROOT / str(summary["result_path"])).resolve()
         lines.append(
-            f"| `{cid}` | {row['point_estimate']:.9g} | {row['raw_p']:.6g} | {row['holm_adjusted_p']:.6g} | {'PASS' if row['passed'] else 'FAIL'} | [`{summary['result_path']}`]({_relative(state.output / summary['result_path'])}) |"
+            f"| `{cid}` | {row['point_estimate']:.9g} | {row['raw_p']:.6g} | {row['holm_adjusted_p']:.6g} | {'PASS' if row['passed'] else 'FAIL'} | [`{summary['result_path']}`]({result_target}) |"
         )
     lines += [
         "",
