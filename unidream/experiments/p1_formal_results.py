@@ -560,12 +560,32 @@ def _forecast_comparison(state: FormalState, row: Mapping[str, Any]) -> tuple[di
         pairs = [("S1", "known_high_snr_dgp", seed, "S1", "known_high_snr_dgp", seed) for seed in SEEDS]
         internal, level_metric = "mse_delta", None
     elif "mse_skill" in cid and cid.startswith("S2"):
-        left, right = ("S2-high", "high", "S2-medium", "medium") if "high_vs_medium" in cid else ("S2-medium", "medium", "S2-low", "low")
-        pairs = [(left, left.split("-")[1], seed, right, right.split("-")[1], seed) for seed in SEEDS]
+        if "high_vs_medium" in cid:
+            left_scenario, left_arm, right_scenario, right_arm = (
+                "S2-high", "high", "S2-medium", "medium"
+            )
+        else:
+            left_scenario, left_arm, right_scenario, right_arm = (
+                "S2-medium", "medium", "S2-low", "low"
+            )
+        pairs = [
+            (left_scenario, left_arm, seed, right_scenario, right_arm, seed)
+            for seed in SEEDS
+        ]
         internal, level_metric = "skill", "skill"
     elif "logistic__log_loss" in cid:
-        left, right = ("S2-high", "high", "S2-medium", "medium") if "high_vs_medium" in cid else ("S2-medium", "medium", "S2-low", "low")
-        pairs = [(left, left.split("-")[1], seed, right, right.split("-")[1], seed) for seed in SEEDS]
+        if "high_vs_medium" in cid:
+            left_scenario, left_arm, right_scenario, right_arm = (
+                "S2-high", "high", "S2-medium", "medium"
+            )
+        else:
+            left_scenario, left_arm, right_scenario, right_arm = (
+                "S2-medium", "medium", "S2-low", "low"
+            )
+        pairs = [
+            (left_scenario, left_arm, seed, right_scenario, right_arm, seed)
+            for seed in SEEDS
+        ]
         internal, level_metric = "logloss", "logloss"
     else:
         raise RuntimeError(f"unsupported forecast comparison: {cid} / {metric_label}")
