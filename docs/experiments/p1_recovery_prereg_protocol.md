@@ -212,10 +212,13 @@ bootstrap boundaries, duplicate records, or replay a nonchronological
 sequence.  The payload, schema, and content SHA-256 values are echoed in every
 result artifact.
 
-The action primitive producer and P1-specific moving-block implementation are
-not implemented on this preregistration branch.  A runner must stop with a
-blocked/N/A status until both are separately implemented and validated; the
-existing generic MBB path is forbidden.
+At the preregistration freeze, the action primitive producer and P1-specific
+moving-block implementation were not implemented.  The current integration
+branch contains their authenticated, field-specific implementations and
+regression coverage, but the frozen manifest still records the original
+`blocked_not_implemented` start condition.  A formal run therefore remains
+blocked until an explicit pre-result amendment updates that condition and is
+independently re-hashed; the existing generic MBB path is always forbidden.
 
 ## Fixed models and metrics
 
@@ -528,7 +531,9 @@ after seeing any output.  The existing generic
 `unidream.experiments.train_app.run_training_app` is not a P1 research runner;
 it is explicitly unsuitable because it owns the generic WM→BC→AC pipeline.
 The P1 runner is blocked unless it uses the authenticated v4 wrapper and the
-separately implemented P1 action primitive/MBB components.
+separately implemented P1 action primitive/MBB components.  In the current
+integration branch those components are present, but the frozen manifest's
+start-condition amendment is still required before result collection.
 
 ## Immutable v4 input provenance
 

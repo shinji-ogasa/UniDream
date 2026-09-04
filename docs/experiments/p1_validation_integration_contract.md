@@ -93,6 +93,11 @@ cannot select a different source array.  Inventory is carried only over the
 stored chronological scheduled grid.  Bootstrap never replays inventory over
 resampled indices; it resamples the stored primitive metrics.
 
+At the action-artifact storage boundary the full-bar availability input is
+named `bar_available`.  The historical `score_eligible` argument is accepted
+only by fixture/compatibility paths and is rejected for production writes and
+loads; it must never be interpreted as a block-level score mask.
+
 The persisted action artifact retains the current exact top-level contract and
 exactly the three inferential action hashes (schema, content, and payload).
 Its exact header also retains `metric_mask_registry` and, for production
@@ -124,17 +129,25 @@ downstream MBB boundary cannot substitute a bare raw array or a common mask
 from a different action artifact.
 
 Action input expectations bind source/forecast/support/timestamp/common-mask
-digests.  The producer computes schema/content/payload/envelope output hashes.
-The action writer returns the exact post-rename file SHA-256 to the external
-ledger, never embedding it in the JSON payload.  Only the subsequent
-persistence/load boundary may require the three output hashes and the exact
-action-artifact file digest.
+digests.  The producer computes exactly the three inferential output hashes:
+schema, content, and payload.  The historical envelope helper is storage-only
+and is not part of this contract.  The action writer returns the exact
+post-rename file SHA-256 to the external ledger, never embedding it in the JSON
+payload.  The subsequent persistence/load boundary requires the three output
+hashes, the exact action-artifact file digest, the complete action mask-hash
+registry, and (for paired results) the matching registry for the second arm.
 
 For every unit, support, seed ordinal, and `L in {8,16,32}`, all 2,000
 non-circular block-start vectors are atomically stored before a production
 comparison can be promoted.  Production inference must load those starts with
 an externally recorded digest and verify them against the fixed RNG formula;
 internally rebuilt, unsaved, or self-declared starts are fixture-only.
+
+The synthetic action aggregate additionally binds ordinal `0..9` to the
+registered source seeds `20260830..20260839` in each sealed action artifact
+(and checks candidate/baseline identities independently).  Reusing one
+authenticated artifact under multiple ordinals is rejected before MBB input
+validation.
 
 ## Promotion stop conditions
 

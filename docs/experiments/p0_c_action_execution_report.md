@@ -63,8 +63,9 @@ The canonical fields are:
 
 The JSON artifact also records the derived `transition_cost_rate`,
 `commitment_countdown_reset`, `commitment_countdown_decrement`, and
-`spread_side` values; `from_config()` ignores only these derivable fields and
-recomputes the hash from the semantic contract.
+`spread_side` values.  `from_config()` accepts only the fixed semantic fields
+plus these exact derived echoes; every other unknown key, duplicate alias, or
+conflicting section is rejected before the contract hash is recomputed.
 
 `spread_bps=3` is the full quoted spread, therefore each transition charges
 half-spread `1.5 bps`, slippage `1 bp`, and fee `3 bps`. The resulting cost is

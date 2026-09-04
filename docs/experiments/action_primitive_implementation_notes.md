@@ -47,6 +47,20 @@ cannot map an active-commitment feature gap to the outcome-complete hold
 utility domain must fail closed rather than overload `common_mask` or invent a
 new schema field.
 
+The authenticated action capability exports a full-grid mask-hash registry for
+`origin_eligible_mask`, `forecast_finite_mask`, `fill_complete_mask`,
+`outcome_complete_mask`, `scored_action_mask`, `common_mask`,
+`utility_metric_mask`, and `action_metric_mask`.  A production MBB result marks
+itself as `authenticated_capability`, records the selected field mask and its
+digest, and must be persisted/reloaded with an independent copy of that
+registry.  A result that only repeats hashes from its own payload is not a
+production binding.
+
+The persistence adapter names the source-bar availability vector
+`bar_available`; the legacy `score_eligible` spelling is fixture-only and is
+rejected at the production save/load boundary to avoid confusing it with a
+derived block-level score mask.
+
 ## Hash boundary
 
 The canonical artifact has exactly these three inferential hashes:
