@@ -1,0 +1,12 @@
+schema: oracle-risk-controller-v1
+frontier_config: configs/oracle_frontier_20260905.yaml
+frontier_results: codex_outputs/oracle_frontier_v1/results.json
+frontier_registration: codex_outputs/oracle_frontier_v1/registration.json
+output_dir: codex_outputs/oracle_risk_controller_v1
+base_policies: [frozen_robust_overlay, technical_ridge_h672_downside]
+forecast_groups: [base16, technical]
+strengths: [0.25, 0.5, 1.0]
+horizon_bars: 24
+ratio_floor: 0.5
+ratio_ceiling: 1.5
+minimum_quarters_per_regime: 3
