@@ -1,0 +1,40 @@
+{
+  "scope": "adaptive forecast-unavailable target1 diagnostic; no selected strongest model",
+  "files": [
+    {
+      "source": "codex_outputs/oracle_fallback_decisions_v1/preflight.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/preflight.json",
+      "sha256": "4eef7d65cf66a57841536c5bf1b69ab4d0f29b8489d3ba43d1afd1bc33717ad0"
+    },
+    {
+      "source": "/tmp/oracle_fallback_preflight_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/independent_preflight_audit.json",
+      "sha256": "d47565e5f9dbf09798a809ba6d2d23653cac2204ac0e034a86fa3bab2bb12ee0"
+    },
+    {
+      "source": "codex_outputs/oracle_fallback_decisions_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/registration.json",
+      "sha256": "139f1397a28c7296b73828103e5ab3e1ea856df2049c1a02367bee02a8375a3f"
+    },
+    {
+      "source": "codex_outputs/oracle_fallback_decisions_v1/results.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/results.json",
+      "sha256": "cf7a4b84af462bc645863fae2646aa32eef57cc30572f01b88912cda78a92954"
+    },
+    {
+      "source": "/tmp/oracle_fallback_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/independent_account_audit.json",
+      "sha256": "d3f30cd4a1b87a9601d780999a898c25a00562d8f9a4ad8bfc9813d874966dd5"
+    },
+    {
+      "source": "/tmp/oracle_fallback_behavior_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/behavior_audit.json",
+      "sha256": "9bc84aaaa7307dc4eb24f2d1990b9f66938029426b81c20afd0621038e446d37"
+    },
+    {
+      "source": "/tmp/oracle_fallback_economic_diagnostic_20260905.json",
+      "snapshot": "docs/experiments/oracle_fallback_evidence_20260905/economic_diagnostic.json",
+      "sha256": "bbbe4fa9c3bcf944140b21ebbdc089d768ede3a2d08e862f2bee8626c7632b2f"
+    }
+  ]
+}

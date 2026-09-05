@@ -1,0 +1,67 @@
+{
+  "counts": {
+    "fallback_decisions": 2324,
+    "hash_binding_checks": 1355,
+    "identical_parent_control_payloads": 72,
+    "immediate_parent_provenance_rebased_rows": 16,
+    "learned_decisions": 18102,
+    "missing_current_open_slots": 14,
+    "own_state_decision_paths": 56,
+    "own_state_decisions": 20426,
+    "paired_summaries_verified": 7,
+    "scalar_account_paths": 112,
+    "unscored_inference_decisions_retained": 84,
+    "zero_fallback_parent_paths_identical": 21
+  },
+  "distinct_hashed_files": 964,
+  "fallback_eligible_per_mean": 332,
+  "inference_rows": 2586,
+  "inventory": {
+    "economic_rows": 128,
+    "new_forecasts": 0,
+    "new_models": 0,
+    "new_traces": 56,
+    "targets": 128
+  },
+  "limitations": [
+    "Recycled adaptive development and retrospective availability mask; no new holdout/live-receipt claim.",
+    "Three-quarter-per-regime gate still fails at 2/4/2.",
+    "Real fallback support has zero missing-next-open examples; synthetic helper tests must cover those semantics.",
+    "Source files are hashed in full; semantic accounting remains strictly before registered development cutoff."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "economic_summary_means": 0.0,
+    "own_state_scalar_targets": 0.0,
+    "paired_economic_means": 5.551115123125783e-17,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "regime_quarters": {
+    "bear": 4,
+    "bull": 2,
+    "sideways": 2
+  },
+  "scheduled_missing_current_open_per_mean": 2,
+  "scope": "All immutable bindings, source forecast masks, 72 copied control payloads (16 BH/robust immediate-parent provenance pointers intentionally rebased and both ancestor bindings verified), 56 new own-state decision paths and 112 independent base/stress accounting paths, every reason/nullable fallback trace field, seven paired summaries and all economic/regime point means. No canonical simulator, metrics, planner or chooser imported.",
+  "score_rows": 2574,
+  "source_revision": "ab0ef88d712672a5255c6e2f3badcff15bb9944d",
+  "status": "pass"
+}

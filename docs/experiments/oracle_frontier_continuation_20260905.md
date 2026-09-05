@@ -289,33 +289,84 @@ atMay25 12:00 and1.27840 atfinalvaliddecision. These are observeddecision
 states, not maximum full-period exposure. Forecasts resume but choosehold too;
 do not attribute the entire loss solely to availability.
 
-## Next: forecast-unavailable inventory fallback, then mean stability
+## Seventh completed stage: own-inventory forecast-unavailable fallback
 
-Priority is a small registered comparison of holding versus targeting own-NAV
-exposure1 when a scheduled6h currentopen is known but forecasts are unavailable.
-This returns toward B&H exposure, not resetting units or historical losses.
-Suggested exact family: allseven frozen means,utilityrisk1 only;7new fallback
-policies versus7oldutility controls plusBH/common_robust,128rows. Keep common
-technical_scaled variance, forecast/score support, masks, periods and costs.
-The action support explicitly adds unavailableforecast/knownopen slots; do not
-mislabel these as newly available forecasts. No outcomes for this family yet.
+The suggested fallback experiment is complete. Source registration commit
+`ab0ef88` preceded all new policy outputs. Run handle68122 is terminal exit0.
+Output `codex_outputs/oracle_fallback_decisions_v1`, report
+`oracle_fallback_results_20260905.md` and tracked evidence directory.
+Full521 tests OK in57.242s, log `/tmp/oracle-fallback-full-tests.log`,handle94121
+terminal exit0. Finaldata-only preflightSHA
+`4eef7d65cf66a57841536c5bf1b69ab4d0f29b8489d3ba43d1afd1bc33717ad0`.
+RegistrationfileSHA139f1397a28c7296b73828103e5ab3e1ea856df2049c1a02367bee02a8375a3f;
+resultsSHA cf7a4b84af462bc645863fae2646aa32eef57cc30572f01b88912cda78a92954.
 
-Integrate fallback within a NEW sibling sequentialplanner; preserve old source
-hashes. Never overwrite saved NaNtargets: valid utilityhold isalsoNaN and a
-fallback changes own inventory used by later valid forecasts. Trigger from
-schedule/currentopen/inference availability, not scoremask or target-is-NaN.
-Fallback intent1 passes canonical nextopen maxstep.08/deadband.01/costs; actual
-exposure1.30 may onlyreach1.22 inone trade. No forced actualleverageclip.
-Missing currentopen means noorder;missing nextopen skipsfill without rollover.
-Missingclose doesnotcancelotherwisevalidopen execution;borrowing continues.
-Save fallback reason/knownstate,notfabricatedutilitygain. Replay samebase intents
-at2x costs. Test validhold preservation, allmissingBHparity, future invariance,
-fallback ownstate, driftoutsideintentbounds,missingopens/closes,canonical parity.
+- New sibling fallbackplanner preserves all old sourcehashes. At knownopen6h
+  decisions with unavailable inference it submits ownNAVtarget1. Valid learned
+  holds stayNaN; later choices use changedowninventory. Canonical nextopen,
+  maxstep.08/deadband.01/cost/borrow and stresssamebaseintents remain fixed.
+- Allseven mean-control means × utilityrisk1 only:7new +7oldcontrols +BH/robust,
+  128rows/targets,56newtraces,184artifacts. No newfit,forecast orforecastscore.
+  Total154adaptivenames,notindependenttrials. Same2586inference2574score rows.
+  Action adds332scheduledknownopen unavailableforecastslots;2currentopenmissing.
+  Fallbackcounts byfold5..12:140,149,5,0,9,0,0,29. All332nextopens happened
+  toexist;neverusedtoalloworders. Missingnextopen behavior covered synthetically.
+- Newutility equalquarterAlpha/DDpt: scale_mean+3.541/-6.716,stress+3.486/-6.688;
+  technical_scaled+.705/-5.079,stress+.410/-4.981;
+  perp_scaled+1.918/-3.777,stress+1.546/-3.664.
+  3/7aggregatejointsigns,0/7observedregimemeans,0coverage(2bull4bear2sideways).
+  Perp_scaled loses its old observedregimemean pass:bearalpha+.967/+.595
+  becomes-.417/-.753 base/stress. Newrawtechnical/perpAlpha drops~1.7pt.
+- Perp_scaled fallback-minus-hold allAlpha-.213pt/stress-.177,DD-.647/-.663.
+  Basefold5Alpha improves4.240pt whilefold6 worsens5.538pt. Allpairedbear loss
+  isfold6;bearfold8/10/11 havezero fallback andmatchparent exactly.
+  Starttrend labels areNOTrealizedquarter direction:fold5startbullactualBH
+  -47.766%,fold6startbearactualBH+92.069%. DoNOTcallfold6 a fallingmarket.
+- Per-policy332fallbacks overfull8quarters;fold5has140intents/2SELLS,
+  fold6has149/5SELLS,neitherhasfallbackbuys. Initialknownexposurefold5 1.13674,
+  fold6firstepisode1.11045. Reducingwinning leverage duringrally, notforcedcash
+  buying, isconsistentwithfold6loss. Laterownstate alsochanges:Oct6recovery
+  same negativeforecast targets.92from1.0 vsparent1.02902from1.10902.
+  Fold5May25recoverynewown1.0target1.08 vsparent1.22348hold;finalknownexposure
+  1.15286 vsparent1.27840. No exactcausal attributiontoonefill claimed.
+- Everymean332fallback submissions. Actualbasebuys/sells:zero7/0,fit3/0,
+  scale16/2,technicalraw6/13,technicalscaled19/7,perpraw6/12,perpscaled14/9.
+  Othersdeadbandnoops. Target1canincreasebelow1inventory andisnotriskfree.
+- Independent1355hashchecks/964files;all56ownstatepaths20426decisions
+  (18102learned2324fallback),112base/stressaccountpaths. Targets,trace,
+  Alpha/DD/trades/costs all0difference;meanexposure2.22e-16,pairmeans5.55e-17.
+  All72controls exactwith16BH/robust immediateparentprovenancepointers rebased
+  andverified;21nofallback pathsfold8/10/11 exactlyparent.84unscoredinference
+  decisions retained. Separatebehavioraudit binds56sourceforecasts/masks,
+  reconstructsactualbuys/sells andall20,426knownstates. No independentrefit.
+- All8 leave-one-out descriptions retained withoutomittingprimaryquarters.
+  Absolutejointmeans survive scale8/8,technicalscaled5/8,perpscaled7/8;
+  perpwithoutfold7 stressAlpha-.188pt. Scaleincrementalfallbackbenefit reverses
+  withoutfold5. Thesearepostoutcomesensitivity,notconfidenceornewselection.
 
-After this assess fixed mean-bias transfer versus a prespecified causal update
-or shrinkage method using only finalized prior outcomes. Keep architectures
-fixed, do not select a favorable delay, do not use future labels or retune windows
-after economic outcomes. Existing failed outcomes and locks remain unchanged.
+## Next: fixed shrinkage of the learned mean component
+
+Do notadopt universal target1fallback asatrendrobustimprovement. Do notassume
+forbiddingfallbackbuys fixesfold6:its actualfallbackfills were allSELLS.
+The implementedfallback remains an evaluatedexperimental arm,notproduction.
+Short-history degradedfeature/fallbackforecasts need a separately registered
+availability/information comparison; nozero-filling orcoverageweakening.
+
+Keep architecture and fittedforecasts fixed. Next small candidate family:
+mu_half = scale_mean + .5*(mu_scaled-scale_mean), forbothtechnical andperp.
+Compareeachwithboth originalhold-on-missing andfulltarget1fallback controllers,
+usingtheexisting commontechnical_scaledvariance. Fournewpolicynames, notyet
+registered orcomputed. Preserveendpointlambda0(scaleconstant) andlambda1
+(originalscaledmeans) underboth availabilityrules, withBH/robust controls;
+these8old+4new give96economicrows over8quarters. Two new derivedmeanforecast
+streams perquarter(16),32newutilitytraces; no newfitting/calibrationwindow.
+Thehalfweightisfixed beforeoutcomes, notoptimizedoveraweightgrid.
+Registerall sourcebindings/calendar/masks/costs before newoutcomes;report MSE,
+MAE andeconomicvaluesseparately. Prior mean-control MSE6.296%/5.443%worsethan
+scaleanchor motivates shrinking dynamiccomponent,which includesperiodmean
+shiftaswellastimevariation. RankIC neednotimproveunderlinearshrinking.
+This hypothesis isunexecuted anddoesnotestablishtrendrobustness.
+
 Any horizon comparisonh96/672 must registerpurge/controllerhorizonchanges;
 currentutilitylogic ish24. Do notadaptivelyomitfold12 orweakencoveragecounts.
 Use a fixed small design before further outcomes; do not weaken regime counts or start
