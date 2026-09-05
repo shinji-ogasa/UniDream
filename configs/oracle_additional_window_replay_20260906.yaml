@@ -1,0 +1,101 @@
+schema: oracle-additional-window-replay-v1
+evaluation_folds:
+- 15
+- 16
+- 17
+- 18
+- 19
+- 20
+- 21
+- 22
+- 23
+- 24
+evaluation_split: original_test_report_only
+fit_months: 18
+scale_months: 3
+interval_months: 3
+evaluation_months: 3
+horizon_bars: 24
+minimum_fit_rows: 512
+minimum_scale_rows: 64
+minimum_interval_rows: 64
+minimum_score_rows: 16
+minimum_bar_coverage: 0.995
+minimum_quarters_per_regime: 3
+mean_ids:
+- scale_mean
+- technical_scaled
+- perp_delay0_scaled
+- technical_half
+- perp_delay0_half
+policy_ids:
+- bh
+- common_robust
+- scale_mean_utility_risk1
+- scale_mean_utility_risk1_fallback_bh
+- technical_scaled_utility_risk1
+- technical_scaled_utility_risk1_fallback_bh
+- perp_delay0_scaled_utility_risk1
+- perp_delay0_scaled_utility_risk1_fallback_bh
+- technical_half_utility_risk1
+- technical_half_utility_risk1_fallback_bh
+- perp_delay0_half_utility_risk1
+- perp_delay0_half_utility_risk1_fallback_bh
+candidate_ids:
+- technical_half_utility_risk1
+- technical_half_utility_risk1_fallback_bh
+- perp_delay0_half_utility_risk1
+- perp_delay0_half_utility_risk1_fallback_bh
+control_ids:
+- bh
+- common_robust
+- scale_mean_utility_risk1
+- scale_mean_utility_risk1_fallback_bh
+- technical_scaled_utility_risk1
+- technical_scaled_utility_risk1_fallback_bh
+- perp_delay0_scaled_utility_risk1
+- perp_delay0_scaled_utility_risk1_fallback_bh
+utility_risk_aversion: 1
+utility_cost_multiplier: 2
+mean_weight: 0.5
+fallback_target: 1.0
+selection_permitted: false
+performance_early_stopping: false
+inferential_mode: descriptive_only
+independent_confirmation: false
+receipt_provenance_established: false
+support_contract: inherited_retrospective_common_mask_including_all_derivatives_and_delays
+source_config: configs/oracle_frontier_20260905.yaml
+data_cutoff: '2026-07-16T13:45:00Z'
+output_dir: codex_outputs/oracle_additional_window_replay_v1
+source_config_sha256: 5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d
+spot_path: /Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet
+spot_sha256: 5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69
+um_path: checkpoints/oracle_additional_window_data/um_15m.parquet
+um_sha256: 02d2f07679db0087904b923606a501c8494afda0f75c6a4c94bf4b38ad49a583
+family_path: docs/experiments/oracle_mean_shrinkage_evidence_20260905/candidate_family_freeze.json
+family_sha256: 245cc711aabe395e2fcc93b45695cafeac03550e435cdc4f2f5b2a6a13f12cd0
+source_bindings:
+  unidream/experiments/oracle_additional_window_replay.py: f82d48f25f4234a858a872bddd0c9aac498b4b4ccfc9fd56686041ee1fdf260c
+  unidream/experiments/oracle_frozen_forecasts.py: 352802b2c26caf43b9fe1e2285385676e6e111d355af0883ed0136ec76c07679
+  unidream/experiments/oracle_frozen_procedure_parity.py: 0a84c0010737518c989c5320c3b6cfcb7b7a61fb08bd5a909ff5a7d0ad00ad83
+  unidream/experiments/oracle_confirmation_contract.py: 7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503
+  unidream/experiments/oracle_mean_controls.py: 07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb
+  unidream/experiments/oracle_mean_shrinkage.py: fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb
+  unidream/experiments/oracle_fallback_planner.py: e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348
+  unidream/experiments/oracle_fallback_decisions.py: c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771
+  unidream/experiments/oracle_conditional_planner.py: 1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051
+  unidream/experiments/oracle_derivative_delay.py: 04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9
+  unidream/experiments/oracle_derivative_delay_features.py: bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862
+  unidream/experiments/oracle_derivative_features.py: c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448
+  unidream/experiments/oracle_derivative_ablation.py: fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2
+  unidream/experiments/oracle_derivative_crossed_decisions.py: b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19
+  unidream/experiments/oracle_frontier.py: 21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57
+  unidream/experiments/oracle_frontier_features.py: 762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5
+  unidream/experiments/oracle_risk_calibration.py: 50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe
+  unidream/experiments/alpha_dd_search.py: fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64
+  unidream/experiments/alpha_dd_features.py: 7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69
+  unidream/experiments/robust_overlay.py: 4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22
+data_manifest_path: docs/experiments/oracle_additional_window_evidence_20260906/data_manifest.json
+data_manifest_sha256: 609ae008f1cb47919d19f5997409f5833fed1a12d5c106a32af985377945088c
+preflight_sha256: 8416f5a21389606e9a1834bb12898349178d34e2cc8a92ca6041a0f3241228b5

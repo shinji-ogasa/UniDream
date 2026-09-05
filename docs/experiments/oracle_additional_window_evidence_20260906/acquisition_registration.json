@@ -1,0 +1,22 @@
+{
+  "config": {
+    "end_month": "2026-07",
+    "feature_decision_cutoff": "2026-07-16T13:45:00Z",
+    "interval": "15m",
+    "output_dir": "checkpoints/oracle_additional_window_data",
+    "schema": "oracle-derivative-acquisition-v1",
+    "source": "um_klines",
+    "start_month": "2022-01",
+    "symbol": "BTCUSDT",
+    "timeout_seconds": 30
+  },
+  "config_sha256": "976f7bef682c935d17b38944db458f6df601585dea52fd3534f5aff5ff292996",
+  "live_causal_eligible": false,
+  "scope": "raw data acquisition only; no features, labels, model or performance",
+  "source_revision": "f2e1faf545dd77cd149e4ac59e2378a6b6e94e92",
+  "source_sha256": {
+    "d1_signed_flow.py": "62bbaebac77b2b7235087f04ab8fa7333f877d35eef782024574508ecb945fd9",
+    "official_v4_sources.py": "3e0c157dbcfa8c358677769bb9acdc0ff5765eac8e6caae7a784f328547da068",
+    "oracle_derivative_acquisition.py": "5c1120e28e33f0f9f19c87fe93897cff6c135f4c30de75850152a7a962650cc4"
+  }
+}

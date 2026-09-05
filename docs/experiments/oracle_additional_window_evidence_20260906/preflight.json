@@ -1,0 +1,652 @@
+{
+  "config_contract_sha256": "0e331ab9b0d1fee2b4828c6790612fe91ac43328d55caf4c2aec1ccdb2d234eb",
+  "data_cutoff": "2026-07-16T13:45:00Z",
+  "data_manifest_sha256": "609ae008f1cb47919d19f5997409f5833fed1a12d5c106a32af985377945088c",
+  "data_quality": {
+    "legacy_sidecar_april_tail_literal_is_not_the_configured_month": true,
+    "live_receipt_provenance_established": false,
+    "model_fitting_performed": false,
+    "new_outcome_metrics_computed": false,
+    "spot_actual_acquired_range": {
+      "end_exclusive": "2026-08-01 00:00:00+00:00",
+      "start_inclusive": "2018-01-01 00:00:00+00:00"
+    },
+    "spot_retained_raw_zip_payloads": false,
+    "um_available_months": 55,
+    "um_checksum_verified_months": 55,
+    "um_feature_eligible_rows": 159126,
+    "um_missing_rows": 0,
+    "um_nominal_cutoff_rule": "decision_ts strictly before 2026-07-16T13:45:00Z",
+    "um_observed_rows": 160608,
+    "um_raw_rows": 160608,
+    "um_requested_months": 55,
+    "um_retained_post_cutoff_rows": 1482,
+    "um_tail_month": "2026-07"
+  },
+  "family_sha256": "245cc711aabe395e2fcc93b45695cafeac03550e435cdc4f2f5b2a6a13f12cd0",
+  "feature_columns": {
+    "perp_delay0": [
+      "momentum_1",
+      "momentum_7",
+      "momentum_30",
+      "momentum_90",
+      "vol_1",
+      "vol_7",
+      "vol_30",
+      "drawdown_7",
+      "drawdown_30",
+      "drawdown_90",
+      "vol_ratio",
+      "flow_1",
+      "flow_7",
+      "return_coverage_7",
+      "price_coverage_90",
+      "flow_coverage_7",
+      "rsi14",
+      "rsi96",
+      "atr14_relative",
+      "atr96_relative",
+      "channel_position96",
+      "channel_position672",
+      "price_zscore96",
+      "price_zscore672",
+      "downside_upside_log_vol_ratio96",
+      "efficiency_ratio96",
+      "efficiency_ratio672",
+      "weighted_flow96",
+      "weighted_flow672",
+      "perp_weighted_flow24",
+      "perp_weighted_flow96"
+    ],
+    "technical": [
+      "momentum_1",
+      "momentum_7",
+      "momentum_30",
+      "momentum_90",
+      "vol_1",
+      "vol_7",
+      "vol_30",
+      "drawdown_7",
+      "drawdown_30",
+      "drawdown_90",
+      "vol_ratio",
+      "flow_1",
+      "flow_7",
+      "return_coverage_7",
+      "price_coverage_90",
+      "flow_coverage_7",
+      "rsi14",
+      "rsi96",
+      "atr14_relative",
+      "atr96_relative",
+      "channel_position96",
+      "channel_position672",
+      "price_zscore96",
+      "price_zscore672",
+      "downside_upside_log_vol_ratio96",
+      "efficiency_ratio96",
+      "efficiency_ratio672",
+      "weighted_flow96",
+      "weighted_flow672"
+    ]
+  },
+  "full_common_mask_sha256": "ea17b35602802a9888417366bcd2ed2740d9090ae2f546b3d289e0f1997ca9a0",
+  "independent_confirmation": false,
+  "new_forecast_or_policy_computed": false,
+  "receipt_provenance_established": false,
+  "schema": "oracle-additional-window-preflight-v1",
+  "scope": "data-only on reused original test15-24; retrospective common availability",
+  "selection_performed": false,
+  "source_bindings": {
+    "unidream/experiments/alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "unidream/experiments/alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "unidream/experiments/oracle_additional_window_replay.py": "f82d48f25f4234a858a872bddd0c9aac498b4b4ccfc9fd56686041ee1fdf260c",
+    "unidream/experiments/oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "unidream/experiments/oracle_confirmation_contract.py": "7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503",
+    "unidream/experiments/oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "unidream/experiments/oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "unidream/experiments/oracle_derivative_delay.py": "04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9",
+    "unidream/experiments/oracle_derivative_delay_features.py": "bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862",
+    "unidream/experiments/oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+    "unidream/experiments/oracle_fallback_decisions.py": "c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771",
+    "unidream/experiments/oracle_fallback_planner.py": "e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348",
+    "unidream/experiments/oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "unidream/experiments/oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "unidream/experiments/oracle_frozen_forecasts.py": "352802b2c26caf43b9fe1e2285385676e6e111d355af0883ed0136ec76c07679",
+    "unidream/experiments/oracle_frozen_procedure_parity.py": "0a84c0010737518c989c5320c3b6cfcb7b7a61fb08bd5a909ff5a7d0ad00ad83",
+    "unidream/experiments/oracle_mean_controls.py": "07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb",
+    "unidream/experiments/oracle_mean_shrinkage.py": "fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb",
+    "unidream/experiments/oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "unidream/experiments/robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  },
+  "source_config_sha256": "5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d",
+  "spot_data_proof": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "support": [
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 364,
+        "missing_current_open": 0,
+        "scheduled": 364
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2145,
+        "inference": 364,
+        "interval": 339,
+        "predict": 1072,
+        "scale": 367,
+        "scheduled": 364,
+        "score": 363
+      },
+      "evaluation_end": "2024-04-16T13:45:00+00:00",
+      "evaluation_start": "2024-01-16T13:45:00+00:00",
+      "fit_end": "2023-07-16T13:45:00+00:00",
+      "fit_start": "2022-01-16T13:45:00+00:00",
+      "fold": 15,
+      "interval_end": "2024-01-16T13:45:00+00:00",
+      "interval_start": "2023-10-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2023-07-16T12:15:00+00:00",
+        "interval": "2024-01-16T12:15:00+00:00",
+        "scale": "2023-10-16T12:15:00+00:00",
+        "score": "2024-04-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "f5e2b41d476861769210cad3820f47ac35e0baaf1a46cbb61ba703b0c37ce697",
+        "inference": "a999b85c2216db41acdcbf9f5488d88f9fdb879fc8b4c979376baeeb4168b6e3",
+        "interval": "df82d3c37e63a0d3d058fec602eec7a589a6b2a59fac6f3a240557370b9c2c91",
+        "predict": "9224b93dfbff1cf9c87680db41ec93878cee248d428dbb33224cafef83b41570",
+        "scale": "6ce3f6f629a6fc47b4287140967e84d9fbef0d5f55c34e8867eea7644383a270",
+        "scheduled": "a999b85c2216db41acdcbf9f5488d88f9fdb879fc8b4c979376baeeb4168b6e3",
+        "score": "2fdb0a737acdbe51f5833ad1cb1b60e4bc81e5bdbca4d9fe572db68ff96f04de"
+      },
+      "regime": {
+        "normalized_momentum_90": 1.0856115356217237,
+        "trend": "bull",
+        "volatility_7": 0.7762924360305369
+      },
+      "scale_end": "2023-10-16T13:45:00+00:00",
+      "scale_start": "2023-07-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 364,
+        "missing_current_open": 0,
+        "scheduled": 364
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2153,
+        "inference": 364,
+        "interval": 363,
+        "predict": 1068,
+        "scale": 339,
+        "scheduled": 364,
+        "score": 363
+      },
+      "evaluation_end": "2024-07-16T13:45:00+00:00",
+      "evaluation_start": "2024-04-16T13:45:00+00:00",
+      "fit_end": "2023-10-16T13:45:00+00:00",
+      "fit_start": "2022-04-16T13:45:00+00:00",
+      "fold": 16,
+      "interval_end": "2024-04-16T13:45:00+00:00",
+      "interval_start": "2024-01-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2023-10-16T12:15:00+00:00",
+        "interval": "2024-04-16T12:15:00+00:00",
+        "scale": "2024-01-16T12:15:00+00:00",
+        "score": "2024-07-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "e6cf225e8608ba318831287c7620474050e2432db8fc9d325a1b9fa71651b1e7",
+        "inference": "84c3ec35a4ea80195950a22507b3a858bf89cb1233188724e554e2484b124b27",
+        "interval": "2fdb0a737acdbe51f5833ad1cb1b60e4bc81e5bdbca4d9fe572db68ff96f04de",
+        "predict": "0f9584c2395fa10d76f32a6098f4033ea59d0030fb29c8670b937e36c3b9cc53",
+        "scale": "df82d3c37e63a0d3d058fec602eec7a589a6b2a59fac6f3a240557370b9c2c91",
+        "scheduled": "84c3ec35a4ea80195950a22507b3a858bf89cb1233188724e554e2484b124b27",
+        "score": "c78b29e23cc04a06e57e06923880d92d56d2bbca75c4bbe898ad324d2cf3e557"
+      },
+      "regime": {
+        "normalized_momentum_90": 1.0044988911390373,
+        "trend": "bull",
+        "volatility_7": 0.7789649395087073
+      },
+      "scale_end": "2024-01-16T13:45:00+00:00",
+      "scale_start": "2023-10-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 368,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2138,
+        "inference": 368,
+        "interval": 363,
+        "predict": 1096,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 367
+      },
+      "evaluation_end": "2024-10-16T13:45:00+00:00",
+      "evaluation_start": "2024-07-16T13:45:00+00:00",
+      "fit_end": "2024-01-16T13:45:00+00:00",
+      "fit_start": "2022-07-16T13:45:00+00:00",
+      "fold": 17,
+      "interval_end": "2024-07-16T13:45:00+00:00",
+      "interval_start": "2024-04-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2024-01-16T12:15:00+00:00",
+        "interval": "2024-07-16T12:15:00+00:00",
+        "scale": "2024-04-16T12:15:00+00:00",
+        "score": "2024-10-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "4b986f3ef6187e4df6be27d78260a7ed4482bb6e5ee2dbdb1034e7e3a200fcac",
+        "inference": "360f9dfed7eba035e89abfc0ca38680273396ace7453349b17dbbc58304bd3e2",
+        "interval": "c78b29e23cc04a06e57e06923880d92d56d2bbca75c4bbe898ad324d2cf3e557",
+        "predict": "e0f5773d605c2636e820b6da2308f4c273aeda5393bfa80931149a167bb93979",
+        "scale": "2fdb0a737acdbe51f5833ad1cb1b60e4bc81e5bdbca4d9fe572db68ff96f04de",
+        "scheduled": "360f9dfed7eba035e89abfc0ca38680273396ace7453349b17dbbc58304bd3e2",
+        "score": "3554186610fcf0a12dc6f293042da912ccbd997ac8d8a1860f5943e6973207cb"
+      },
+      "regime": {
+        "normalized_momentum_90": 0.22298729250610447,
+        "trend": "sideways",
+        "volatility_7": 0.469836271749344
+      },
+      "scale_end": "2024-04-16T13:45:00+00:00",
+      "scale_start": "2024-01-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 28,
+        "learned_eligible": 340,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2134,
+        "inference": 340,
+        "interval": 367,
+        "predict": 1072,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 339
+      },
+      "evaluation_end": "2025-01-16T13:45:00+00:00",
+      "evaluation_start": "2024-10-16T13:45:00+00:00",
+      "fit_end": "2024-04-16T13:45:00+00:00",
+      "fit_start": "2022-10-16T13:45:00+00:00",
+      "fold": 18,
+      "interval_end": "2024-10-16T13:45:00+00:00",
+      "interval_start": "2024-07-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2024-04-16T12:15:00+00:00",
+        "interval": "2024-10-16T12:15:00+00:00",
+        "scale": "2024-07-16T12:15:00+00:00",
+        "score": "2025-01-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "9e19a236240e340fcf84f8aebf639a03c01ba87cd173b32f41587df64ad4a904",
+        "inference": "0abe4b744e055b7fc474d7d1d26ca19245279e24b74a49a04dc35afc6769326f",
+        "interval": "3554186610fcf0a12dc6f293042da912ccbd997ac8d8a1860f5943e6973207cb",
+        "predict": "027bf1fb49cd077d601ab6b055705fa8a557985ab4e0a1c5de81f3bd8e315b9f",
+        "scale": "c78b29e23cc04a06e57e06923880d92d56d2bbca75c4bbe898ad324d2cf3e557",
+        "scheduled": "ff0cd343167a9f00de36b42a79255deb36cb6c0632c67e1e8df36be563f1546c",
+        "score": "9d49161b37bab130723fd6f562056e515fb5607a5a85583d2a89a4d5a1fd8d6e"
+      },
+      "regime": {
+        "normalized_momentum_90": 0.2935397305094781,
+        "trend": "sideways",
+        "volatility_7": 0.457876166314262
+      },
+      "scale_end": "2024-07-16T13:45:00+00:00",
+      "scale_start": "2024-04-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 360,
+        "missing_current_open": 0,
+        "scheduled": 360
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2130,
+        "inference": 360,
+        "interval": 339,
+        "predict": 1068,
+        "scale": 367,
+        "scheduled": 360,
+        "score": 359
+      },
+      "evaluation_end": "2025-04-16T13:45:00+00:00",
+      "evaluation_start": "2025-01-16T13:45:00+00:00",
+      "fit_end": "2024-07-16T13:45:00+00:00",
+      "fit_start": "2023-01-16T13:45:00+00:00",
+      "fold": 19,
+      "interval_end": "2025-01-16T13:45:00+00:00",
+      "interval_start": "2024-10-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2024-07-16T12:15:00+00:00",
+        "interval": "2025-01-16T12:15:00+00:00",
+        "scale": "2024-10-16T12:15:00+00:00",
+        "score": "2025-04-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "a3d9959bf91cb380dde9629dd9262828a8f65848dcbfe44c867c5bd5acaf37ff",
+        "inference": "cb23331ca5a44810b93cd86b503ff126b140f768dabf594fdcf2f3126c18c587",
+        "interval": "9d49161b37bab130723fd6f562056e515fb5607a5a85583d2a89a4d5a1fd8d6e",
+        "predict": "a48bc20b12ff44fa4faa265aeaef5a18df066de6db0207745bf77114ca1930d0",
+        "scale": "3554186610fcf0a12dc6f293042da912ccbd997ac8d8a1860f5943e6973207cb",
+        "scheduled": "cb23331ca5a44810b93cd86b503ff126b140f768dabf594fdcf2f3126c18c587",
+        "score": "a86daa58478bd67163cd94812aa44b81bec8db778bcd6f03a79cd42c2c623822"
+      },
+      "regime": {
+        "normalized_momentum_90": 1.5284782071812564,
+        "trend": "bull",
+        "volatility_7": 0.4923110956082737
+      },
+      "scale_end": "2024-10-16T13:45:00+00:00",
+      "scale_start": "2024-07-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 364,
+        "missing_current_open": 0,
+        "scheduled": 364
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2167,
+        "inference": 364,
+        "interval": 359,
+        "predict": 1064,
+        "scale": 339,
+        "scheduled": 364,
+        "score": 363
+      },
+      "evaluation_end": "2025-07-16T13:45:00+00:00",
+      "evaluation_start": "2025-04-16T13:45:00+00:00",
+      "fit_end": "2024-10-16T13:45:00+00:00",
+      "fit_start": "2023-04-16T13:45:00+00:00",
+      "fold": 20,
+      "interval_end": "2025-04-16T13:45:00+00:00",
+      "interval_start": "2025-01-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2024-10-16T12:15:00+00:00",
+        "interval": "2025-04-16T12:15:00+00:00",
+        "scale": "2025-01-16T12:15:00+00:00",
+        "score": "2025-07-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "fdeb229bacd6594a662db3c0940d5770a64a6734d9bfef6f8f4105222450a459",
+        "inference": "dfb1d22c9abb4ba05019b2b0fe7a150873f708b47157154844d449675670c369",
+        "interval": "a86daa58478bd67163cd94812aa44b81bec8db778bcd6f03a79cd42c2c623822",
+        "predict": "4fcc3724515500782cec763e93e9a350c1d62973055710f9b145d3c6c0858763",
+        "scale": "9d49161b37bab130723fd6f562056e515fb5607a5a85583d2a89a4d5a1fd8d6e",
+        "scheduled": "dfb1d22c9abb4ba05019b2b0fe7a150873f708b47157154844d449675670c369",
+        "score": "d28e5772e843ca52040e0ffa52e3b71376a2464b545c06f1d6dbd1106e12bf5b"
+      },
+      "regime": {
+        "normalized_momentum_90": -0.7082541259831455,
+        "trend": "bear",
+        "volatility_7": 0.5155952474463961
+      },
+      "scale_end": "2025-01-16T13:45:00+00:00",
+      "scale_start": "2024-10-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 368,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2143,
+        "inference": 368,
+        "interval": 363,
+        "predict": 1092,
+        "scale": 359,
+        "scheduled": 368,
+        "score": 367
+      },
+      "evaluation_end": "2025-10-16T13:45:00+00:00",
+      "evaluation_start": "2025-07-16T13:45:00+00:00",
+      "fit_end": "2025-01-16T13:45:00+00:00",
+      "fit_start": "2023-07-16T13:45:00+00:00",
+      "fold": 21,
+      "interval_end": "2025-07-16T13:45:00+00:00",
+      "interval_start": "2025-04-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2025-01-16T12:15:00+00:00",
+        "interval": "2025-07-16T12:15:00+00:00",
+        "scale": "2025-04-16T12:15:00+00:00",
+        "score": "2025-10-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "e331af4117ce95ea862b48e18809470ae4ae5e812abdc3b545b973a4028cf9cd",
+        "inference": "efe13cd57313b07d2498eddb56b25d33ca62cc94cb04e3457400d1c8bb015218",
+        "interval": "d28e5772e843ca52040e0ffa52e3b71376a2464b545c06f1d6dbd1106e12bf5b",
+        "predict": "12b485ed43873448b7892e6095ecc4c5ca2905df7e91cda52daa8cc8ec0249cb",
+        "scale": "a86daa58478bd67163cd94812aa44b81bec8db778bcd6f03a79cd42c2c623822",
+        "scheduled": "efe13cd57313b07d2498eddb56b25d33ca62cc94cb04e3457400d1c8bb015218",
+        "score": "f9512ed644d9f30a059828532ff9e7cfe3614d6bce33de308086dcdfa06179bd"
+      },
+      "regime": {
+        "normalized_momentum_90": 1.7404137224936052,
+        "trend": "bull",
+        "volatility_7": 0.3885683857185823
+      },
+      "scale_end": "2025-04-16T13:45:00+00:00",
+      "scale_start": "2025-01-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 368,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2135,
+        "inference": 368,
+        "interval": 367,
+        "predict": 1100,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 367
+      },
+      "evaluation_end": "2026-01-16T13:45:00+00:00",
+      "evaluation_start": "2025-10-16T13:45:00+00:00",
+      "fit_end": "2025-04-16T13:45:00+00:00",
+      "fit_start": "2023-10-16T13:45:00+00:00",
+      "fold": 22,
+      "interval_end": "2025-10-16T13:45:00+00:00",
+      "interval_start": "2025-07-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2025-04-16T12:15:00+00:00",
+        "interval": "2025-10-16T12:15:00+00:00",
+        "scale": "2025-07-16T12:15:00+00:00",
+        "score": "2026-01-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "0783a214039345e3f79552029d0b12ee5835ad9b6a37b4e64fec141a973e6c0f",
+        "inference": "063845216f505b0c33d6c800cdb5ecf87cc6b5a20d948235c3c03b53fa9820d9",
+        "interval": "f9512ed644d9f30a059828532ff9e7cfe3614d6bce33de308086dcdfa06179bd",
+        "predict": "66edfcd52b592657a318ec6d5f959b35956e1fe9962ec407e8828a302d4950e7",
+        "scale": "d28e5772e843ca52040e0ffa52e3b71376a2464b545c06f1d6dbd1106e12bf5b",
+        "scheduled": "063845216f505b0c33d6c800cdb5ecf87cc6b5a20d948235c3c03b53fa9820d9",
+        "score": "8a7ae92364fb6c5e4527b33b2351294eb4543bcb9487d349775b825465f596b3"
+      },
+      "regime": {
+        "normalized_momentum_90": -0.2570061060774859,
+        "trend": "sideways",
+        "volatility_7": 0.6472278899909237
+      },
+      "scale_end": "2025-07-16T13:45:00+00:00",
+      "scale_start": "2025-04-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 360,
+        "missing_current_open": 0,
+        "scheduled": 360
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2159,
+        "inference": 360,
+        "interval": 367,
+        "predict": 1096,
+        "scale": 367,
+        "scheduled": 360,
+        "score": 359
+      },
+      "evaluation_end": "2026-04-16T13:45:00+00:00",
+      "evaluation_start": "2026-01-16T13:45:00+00:00",
+      "fit_end": "2025-07-16T13:45:00+00:00",
+      "fit_start": "2024-01-16T13:45:00+00:00",
+      "fold": 23,
+      "interval_end": "2026-01-16T13:45:00+00:00",
+      "interval_start": "2025-10-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2025-07-16T12:15:00+00:00",
+        "interval": "2026-01-16T12:15:00+00:00",
+        "scale": "2025-10-16T12:15:00+00:00",
+        "score": "2026-04-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "c9cf47290acab34434f34f8095c73d129f0f04599084bf3e861696fbd8648418",
+        "inference": "22794bfa69e2253bb44efe60a06c64b0b4788f1a6da43019feda584fc5c5d97f",
+        "interval": "8a7ae92364fb6c5e4527b33b2351294eb4543bcb9487d349775b825465f596b3",
+        "predict": "1880806df7fc81f24e71cdc09eb78d25e33bb637118a23109fe2bb3125f99e8e",
+        "scale": "f9512ed644d9f30a059828532ff9e7cfe3614d6bce33de308086dcdfa06179bd",
+        "scheduled": "22794bfa69e2253bb44efe60a06c64b0b4788f1a6da43019feda584fc5c5d97f",
+        "score": "1a0a5a3d56c62e7abd4f83dcdacaf76e6370e994e22d7ccfa0717859fa34e812"
+      },
+      "regime": {
+        "normalized_momentum_90": -0.6606744082077262,
+        "trend": "bear",
+        "volatility_7": 0.35672482161290564
+      },
+      "scale_end": "2025-10-16T13:45:00+00:00",
+      "scale_start": "2025-07-16T13:45:00+00:00"
+    },
+    {
+      "action_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 364,
+        "missing_current_open": 0,
+        "scheduled": 364
+      },
+      "bar_coverage": 1.0,
+      "counts": {
+        "fit": 2163,
+        "inference": 364,
+        "interval": 359,
+        "predict": 1092,
+        "scale": 367,
+        "scheduled": 364,
+        "score": 363
+      },
+      "evaluation_end": "2026-07-16T13:45:00+00:00",
+      "evaluation_start": "2026-04-16T13:45:00+00:00",
+      "fit_end": "2025-10-16T13:45:00+00:00",
+      "fit_start": "2024-04-16T13:45:00+00:00",
+      "fold": 24,
+      "interval_end": "2026-04-16T13:45:00+00:00",
+      "interval_start": "2026-01-16T13:45:00+00:00",
+      "last_label_end": {
+        "fit": "2025-10-16T12:15:00+00:00",
+        "interval": "2026-04-16T12:15:00+00:00",
+        "scale": "2026-01-16T12:15:00+00:00",
+        "score": "2026-07-16T12:15:00+00:00"
+      },
+      "mask_sha256": {
+        "fit": "06b6216bc757f0ab9c3d8966ccd4351a87709cdacba6bca28e2d46b34fda18fd",
+        "inference": "c6b4ce0a26c18a42a24ba78830b6514cf10a447c86622c24fb5993b18cf36adf",
+        "interval": "1a0a5a3d56c62e7abd4f83dcdacaf76e6370e994e22d7ccfa0717859fa34e812",
+        "predict": "0fed58e319f79afb97ffcc6b844be6448a9edc7c3a981c462dc44c49d3af1d0a",
+        "scale": "8a7ae92364fb6c5e4527b33b2351294eb4543bcb9487d349775b825465f596b3",
+        "scheduled": "c6b4ce0a26c18a42a24ba78830b6514cf10a447c86622c24fb5993b18cf36adf",
+        "score": "c13d77aef3fbe4fe057953a03210388c9ac441f7368fc05a45d3e95edcb9e1fa"
+      },
+      "regime": {
+        "normalized_momentum_90": -1.2527593894232054,
+        "trend": "bear",
+        "volatility_7": 0.39542607899888316
+      },
+      "scale_end": "2026-01-16T13:45:00+00:00",
+      "scale_start": "2025-10-16T13:45:00+00:00"
+    }
+  ],
+  "um_data_proof": {
+    "availability_path": "checkpoints/oracle_additional_window_data/um_15m_availability.parquet",
+    "availability_sha256": "46b60b35378a896d396f741c37ca9eb2baaf1a8e444e46e05b83bae063ea8c81",
+    "available_months": 55,
+    "bar_open_end_exclusive": "2026-08-01 00:00:00+00:00",
+    "bar_open_start": "2022-01-01 00:00:00+00:00",
+    "data_path": "checkpoints/oracle_additional_window_data/um_15m.parquet",
+    "data_sha256": "02d2f07679db0087904b923606a501c8494afda0f75c6a4c94bf4b38ad49a583",
+    "feature_decision_cutoff_exclusive": "2026-07-16 13:45:00+00:00",
+    "feature_eligible_observed_rows": 159126,
+    "first_observed_bar_open": "2022-01-01 00:00:00+00:00",
+    "last_observed_bar_open": "2026-07-31 23:45:00+00:00",
+    "live_causal_eligible": false,
+    "missing_policy": "full grid; NaN raw observations and false observation mask; no interpolation",
+    "missing_rows": 0,
+    "model_fitting_performed": false,
+    "observed_rows": 160608,
+    "raw_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "quote_volume",
+      "n_trades",
+      "taker_buy_base",
+      "taker_buy_quote"
+    ],
+    "raw_zip_payloads_retained": true,
+    "registration_path": "checkpoints/oracle_additional_window_data/registration.json",
+    "registration_sha256": "1da698872d69894f046c49c9677ce6a402b9b7d517ce11643878c1db04047e96",
+    "requested_months": 55,
+    "retained_post_cutoff_observed_rows": 1482,
+    "rows": 160608,
+    "schema": "oracle-derivative-raw-v1",
+    "sidecar_sha256": "61970ea37db7e0d59dc530b923c1f82702b5ac2aff61539471b751c30651df2b",
+    "source": "um_klines",
+    "source_ledger_path": "checkpoints/oracle_additional_window_data/source_ledger.jsonl",
+    "source_ledger_sha256": "70001bacc380b3e4cd7615ee0a1a9ba05fef3b8a859afaf640fbe8725691c110",
+    "status": "complete",
+    "symbol": "BTCUSDT",
+    "timestamp_semantics": {
+      "bar_close_ts": "observed inclusive exchange close = bar open + 15 minutes - 1 millisecond",
+      "decision_ts": "bar open + 15 minutes; clock retained even when observation absent",
+      "feature_cutoff": "decision_ts strictly before registered cutoff; April raw tail retained only",
+      "index": "bar OPEN time, UTC"
+    },
+    "unavailable_months": []
+  }
+}

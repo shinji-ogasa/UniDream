@@ -1,0 +1,31 @@
+{
+  "data_only_preflight_sha256": "8416f5a21389606e9a1834bb12898349178d34e2cc8a92ca6041a0f3241228b5",
+  "full_tests": {
+    "command": "uv run python -m unittest discover -s tests -v",
+    "log_path": "/tmp/oracle-additional-window-full-tests.log",
+    "log_sha256": "ea4d8c52dc70e5c4758a2c9f051133c5af50f037d41f1fc9a6035bc560db0417",
+    "seconds": 56.591,
+    "status": "OK",
+    "tests": 589
+  },
+  "independent_scalar_audit_script_sha256": "9fe86c25f9948f43d4d4f623b1824146eb85c30534f412cf122aa274735df94c",
+  "model_fitting_performed": false,
+  "new_tests_sha256": "d795d031cd799756991f829dc6ee4f53ba3bcab4f8011fb0bdf147b6d4bd112e",
+  "outcome_metrics_computed": false,
+  "read_only_agent_audit": {
+    "agent": "primary_research",
+    "critical_findings_remaining": 0,
+    "fitting_performed": false,
+    "market_outcomes_read": false,
+    "source_sha256": "f82d48f25f4234a858a872bddd0c9aac498b4b4ccfc9fd56686041ee1fdf260c",
+    "synthetic_components": 80
+  },
+  "regime_count_condition_only": true,
+  "regime_counts": {
+    "bear": 3,
+    "bull": 4,
+    "sideways": 3
+  },
+  "replay_source_sha256": "f82d48f25f4234a858a872bddd0c9aac498b4b4ccfc9fd56686041ee1fdf260c",
+  "schema": "oracle-additional-window-pre-outcome-verification-v1"
+}
