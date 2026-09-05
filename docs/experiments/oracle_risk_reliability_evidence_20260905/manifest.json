@@ -45,6 +45,11 @@
       "source": "codex_outputs/oracle_conditional_decision_v1/results.json",
       "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_conditional_decision_v1/results.json",
       "sha256": "d94fede7a11540680646e3465438962e98e499057f211529debb5df3a1e30a02"
+    },
+    {
+      "source": "codex_outputs/oracle_derivative_preflight_v1/preflight.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/derivative_preflight.json",
+      "sha256": "cb051b9b866cde77ddf3c3ce73d1c15fa15bab729e8fb32de09dfcca961b21b7"
     }
   ]
 }

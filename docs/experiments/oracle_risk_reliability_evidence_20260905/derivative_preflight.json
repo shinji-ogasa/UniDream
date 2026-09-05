@@ -1,0 +1,984 @@
+{
+  "features": {
+    "dimension": 8,
+    "finite_6h_rows": {
+      "perp_minus_spot_flow24": 4783,
+      "perp_minus_spot_flow96": 4723,
+      "perp_weighted_flow24": 4803,
+      "perp_weighted_flow96": 4791,
+      "relative_quote_activity24_672": 4374,
+      "relative_realized_variance24": 4785,
+      "traded_close_basis": 4802,
+      "traded_close_basis_change24": 4797
+    },
+    "first_complete_note": "669/672 rule permits three missing observations at the source-start boundary",
+    "formulas_before_one_bar_shift": {
+      "perp_minus_spot_flow24": "weighted_flow_p_24-weighted_flow_s_24",
+      "perp_minus_spot_flow96": "weighted_flow_p_96-weighted_flow_s_96",
+      "perp_weighted_flow24": "sum_24(2*taker_buy_quote_p-quote_p)/sum_24(quote_p), paired valid flow rows",
+      "perp_weighted_flow96": "sum_96(2*taker_buy_quote_p-quote_p)/sum_96(quote_p), paired valid flow rows",
+      "relative_quote_activity24_672": "log[(meanQp24/meanQp672)/(meanQs24/meanQs672)]",
+      "relative_realized_variance24": "log[(sum_24(logclose_p.diff()**2)+1e-12)/(sum_24(logclose_s.diff()**2)+1e-12)]",
+      "traded_close_basis": "log(close_p/close_s); traded price divergence, not mark basis",
+      "traded_close_basis_change24": "basis-basis.shift(24)"
+    },
+    "maximum_new_lookback_bars": 672,
+    "minimum_observations_by_window": {
+      "24": 24,
+      "672": 669,
+      "96": 96
+    },
+    "minimum_rolling_coverage": 0.995,
+    "missing_policy": "full grid, no fill, positive quote volume, paired valid taker flow; missing returns stay missing",
+    "realized_variance_epsilon": 1e-12
+  },
+  "folds": [
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 34,
+          "minimum_512_pass": false
+        },
+        "672": {
+          "fit_rows": 7,
+          "minimum_512_pass": false
+        },
+        "96": {
+          "fit_rows": 31,
+          "minimum_512_pass": false
+        }
+      },
+      "fold": 0,
+      "normalized_momentum_90_at_quarter_start": 0.30454372937975793,
+      "regime_at_quarter_start": "sideways",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2019-07-16 13:45:00+00:00",
+        "fit_start": "2018-01-16 13:45:00+00:00",
+        "interval_end": "2020-01-16 13:45:00+00:00",
+        "scale_end_interval_start": "2019-10-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "26944c2061189a893d0fdef212b6f037b447c714093938a6e5b751b37a6fb8d1",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            0,
+            0,
+            34
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            0,
+            0,
+            7
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            0,
+            0,
+            31
+          ],
+          "minimum_512_64_64_pass": false
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2020-04-16 13:45:00+00:00",
+      "validation_grid_rows": 8736,
+      "validation_new8_finite_6h_rows": 279,
+      "validation_scheduled_6h_rows": 364,
+      "validation_shared_finite_6h_rows": 215,
+      "validation_spot_bar_coverage": 0.995764652014652,
+      "validation_start": "2020-01-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 247,
+          "minimum_512_pass": false
+        },
+        "672": {
+          "fit_rows": 181,
+          "minimum_512_pass": false
+        },
+        "96": {
+          "fit_rows": 238,
+          "minimum_512_pass": false
+        }
+      },
+      "fold": 1,
+      "normalized_momentum_90_at_quarter_start": -0.7466976933693253,
+      "regime_at_quarter_start": "bear",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2019-10-16 13:45:00+00:00",
+        "fit_start": "2018-04-16 13:45:00+00:00",
+        "interval_end": "2020-04-16 13:45:00+00:00",
+        "scale_end_interval_start": "2020-01-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "3144c7dce38dccda268e6b006e5c46c4ac3cf45607509ec2f4100bc3dcacf3dc",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            0,
+            34,
+            212
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            0,
+            7,
+            146
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            0,
+            31,
+            203
+          ],
+          "minimum_512_64_64_pass": false
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2020-07-16 13:45:00+00:00",
+      "validation_grid_rows": 8736,
+      "validation_new8_finite_6h_rows": 308,
+      "validation_scheduled_6h_rows": 364,
+      "validation_shared_finite_6h_rows": 233,
+      "validation_spot_bar_coverage": 0.9972527472527473,
+      "validation_start": "2020-04-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 479,
+          "minimum_512_pass": false
+        },
+        "672": {
+          "fit_rows": 386,
+          "minimum_512_pass": false
+        },
+        "96": {
+          "fit_rows": 467,
+          "minimum_512_pass": false
+        }
+      },
+      "fold": 2,
+      "normalized_momentum_90_at_quarter_start": 2.4123066126509936,
+      "regime_at_quarter_start": "bull",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2020-01-16 13:45:00+00:00",
+        "fit_start": "2018-07-16 13:45:00+00:00",
+        "interval_end": "2020-07-16 13:45:00+00:00",
+        "scale_end_interval_start": "2020-04-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "783a70d8ad7a4c37e3d43c668810e412477cb212fda48980ab0614b011302489",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            34,
+            212,
+            231
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            7,
+            146,
+            177
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            31,
+            203,
+            225
+          ],
+          "minimum_512_64_64_pass": false
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2020-10-16 13:45:00+00:00",
+      "validation_grid_rows": 8832,
+      "validation_new8_finite_6h_rows": 368,
+      "validation_scheduled_6h_rows": 368,
+      "validation_shared_finite_6h_rows": 322,
+      "validation_spot_bar_coverage": 1.0,
+      "validation_start": "2020-07-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 800,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 680,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 785,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 3,
+      "normalized_momentum_90_at_quarter_start": 1.092695146515594,
+      "regime_at_quarter_start": "bull",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2020-04-16 13:45:00+00:00",
+        "fit_start": "2018-10-16 13:45:00+00:00",
+        "interval_end": "2020-10-16 13:45:00+00:00",
+        "scale_end_interval_start": "2020-07-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "4291c5696d0cfb6d90a9cca7289cc350e6d048e122fcbb83f9e507475ed5b676",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            247,
+            231,
+            321
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            181,
+            177,
+            294
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            238,
+            225,
+            318
+          ],
+          "minimum_512_64_64_pass": false
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2021-01-16 13:45:00+00:00",
+      "validation_grid_rows": 8832,
+      "validation_new8_finite_6h_rows": 298,
+      "validation_scheduled_6h_rows": 368,
+      "validation_shared_finite_6h_rows": 236,
+      "validation_spot_bar_coverage": 0.9972826086956522,
+      "validation_start": "2020-10-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 1034,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 887,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 1016,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 4,
+      "normalized_momentum_90_at_quarter_start": 1.2508741113594322,
+      "regime_at_quarter_start": "bull",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2020-07-16 13:45:00+00:00",
+        "fit_start": "2019-01-16 13:45:00+00:00",
+        "interval_end": "2021-01-16 13:45:00+00:00",
+        "scale_end_interval_start": "2020-10-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "25fde9fb9d38e2190a6d3f34965423ae1331088eaa75a801ff8974929964dd8d",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            479,
+            321,
+            233
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            386,
+            294,
+            179
+          ],
+          "minimum_512_64_64_pass": false
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            467,
+            318,
+            227
+          ],
+          "minimum_512_64_64_pass": false
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2021-04-16 13:45:00+00:00",
+      "validation_grid_rows": 8640,
+      "validation_new8_finite_6h_rows": 300,
+      "validation_scheduled_6h_rows": 360,
+      "validation_shared_finite_6h_rows": 282,
+      "validation_spot_bar_coverage": 0.9986111111111111,
+      "validation_start": "2021-01-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 1313,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 1089,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 1286,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 5,
+      "normalized_momentum_90_at_quarter_start": 1.780845277652582,
+      "regime_at_quarter_start": "bull",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2020-10-16 13:45:00+00:00",
+        "fit_start": "2019-04-16 13:45:00+00:00",
+        "interval_end": "2021-04-16 13:45:00+00:00",
+        "scale_end_interval_start": "2021-01-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "54a774e564967ec4a48673ae645e9fa4bd1846e3aa83343e5f0d9925c4135e11",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            800,
+            233,
+            279
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            680,
+            179,
+            202
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            785,
+            227,
+            270
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2021-07-16 13:45:00+00:00",
+      "validation_grid_rows": 8736,
+      "validation_new8_finite_6h_rows": 315,
+      "validation_scheduled_6h_rows": 364,
+      "validation_shared_finite_6h_rows": 223,
+      "validation_spot_bar_coverage": 0.9966804029304029,
+      "validation_start": "2021-04-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 1535,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 1284,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 1505,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 6,
+      "normalized_momentum_90_at_quarter_start": -2.305593133860444,
+      "regime_at_quarter_start": "bear",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2021-01-16 13:45:00+00:00",
+        "fit_start": "2019-07-16 13:45:00+00:00",
+        "interval_end": "2021-07-16 13:45:00+00:00",
+        "scale_end_interval_start": "2021-04-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "d8a5ca63bc84ff544aa48958a13374c3598907ad236564e3435903dcfcf76023",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1034,
+            279,
+            221
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            887,
+            202,
+            181
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1016,
+            270,
+            215
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2021-10-16 13:45:00+00:00",
+      "validation_grid_rows": 8832,
+      "validation_new8_finite_6h_rows": 312,
+      "validation_scheduled_6h_rows": 368,
+      "validation_shared_finite_6h_rows": 218,
+      "validation_spot_bar_coverage": 0.9969429347826086,
+      "validation_start": "2021-07-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 1751,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 1446,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 1715,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 7,
+      "normalized_momentum_90_at_quarter_start": 2.0615398618679524,
+      "regime_at_quarter_start": "bull",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2021-04-16 13:45:00+00:00",
+        "fit_start": "2019-10-16 13:45:00+00:00",
+        "interval_end": "2021-10-16 13:45:00+00:00",
+        "scale_end_interval_start": "2021-07-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "acb948efabba5fc3961e8f0dd40b21d0a3fe864bb9fc9cdb5969cd8af0943aee",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1313,
+            221,
+            215
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            1089,
+            181,
+            134
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1286,
+            215,
+            206
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2022-01-16 13:45:00+00:00",
+      "validation_grid_rows": 8832,
+      "validation_new8_finite_6h_rows": 364,
+      "validation_scheduled_6h_rows": 368,
+      "validation_shared_finite_6h_rows": 363,
+      "validation_spot_bar_coverage": 0.9998867753623188,
+      "validation_start": "2021-10-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 2078,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 1746,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 2039,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 8,
+      "normalized_momentum_90_at_quarter_start": -1.2709536034140199,
+      "regime_at_quarter_start": "bear",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2021-07-16 13:45:00+00:00",
+        "fit_start": "2020-01-16 13:45:00+00:00",
+        "interval_end": "2022-01-16 13:45:00+00:00",
+        "scale_end_interval_start": "2021-10-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "f85f4c89c2babee6bb20ebedde78f0b029dcc94a67582783c0e440748416c833",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1500,
+            215,
+            361
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            1249,
+            134,
+            307
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1470,
+            206,
+            355
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2022-04-16 13:45:00+00:00",
+      "validation_grid_rows": 8640,
+      "validation_new8_finite_6h_rows": 360,
+      "validation_scheduled_6h_rows": 360,
+      "validation_shared_finite_6h_rows": 360,
+      "validation_spot_bar_coverage": 1.0,
+      "validation_start": "2022-01-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 2225,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 1932,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 2192,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 9,
+      "normalized_momentum_90_at_quarter_start": -0.3063132802752636,
+      "regime_at_quarter_start": "sideways",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2021-10-16 13:45:00+00:00",
+        "fit_start": "2020-04-16 13:45:00+00:00",
+        "interval_end": "2022-04-16 13:45:00+00:00",
+        "scale_end_interval_start": "2022-01-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "1425a3f2bf1d61d19efe7bc190f0f91670c1024c8f23452074ae6e8d3417ce03",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1503,
+            361,
+            359
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            1237,
+            307,
+            332
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1473,
+            355,
+            356
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2022-07-16 13:45:00+00:00",
+      "validation_grid_rows": 8736,
+      "validation_new8_finite_6h_rows": 356,
+      "validation_scheduled_6h_rows": 364,
+      "validation_shared_finite_6h_rows": 356,
+      "validation_spot_bar_coverage": 1.0,
+      "validation_start": "2022-04-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 2350,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 2111,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 2323,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 10,
+      "normalized_momentum_90_at_quarter_start": -1.8800777545149427,
+      "regime_at_quarter_start": "bear",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2022-01-16 13:45:00+00:00",
+        "fit_start": "2020-07-16 13:45:00+00:00",
+        "interval_end": "2022-07-16 13:45:00+00:00",
+        "scale_end_interval_start": "2022-04-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "76828f7f291bd3b438bb55ce66326d31cf95d8efa6dcb47825426c1054fa7dcc",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1634,
+            359,
+            355
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            1395,
+            332,
+            328
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1607,
+            356,
+            352
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2022-10-16 13:45:00+00:00",
+      "validation_grid_rows": 8832,
+      "validation_new8_finite_6h_rows": 368,
+      "validation_scheduled_6h_rows": 368,
+      "validation_shared_finite_6h_rows": 368,
+      "validation_spot_bar_coverage": 1.0,
+      "validation_start": "2022-07-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 2396,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 2157,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 2369,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 11,
+      "normalized_momentum_90_at_quarter_start": -0.6509166065000529,
+      "regime_at_quarter_start": "bear",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2022-04-16 13:45:00+00:00",
+        "fit_start": "2020-10-16 13:45:00+00:00",
+        "interval_end": "2022-10-16 13:45:00+00:00",
+        "scale_end_interval_start": "2022-07-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "ca29a9241c2cb84d25a275fa0642ecb39ee87a654a70f6136d0cc834bfc963e8",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1672,
+            355,
+            367
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            1433,
+            328,
+            340
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1645,
+            352,
+            364
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2023-01-16 13:45:00+00:00",
+      "validation_grid_rows": 8832,
+      "validation_new8_finite_6h_rows": 368,
+      "validation_scheduled_6h_rows": 368,
+      "validation_shared_finite_6h_rows": 368,
+      "validation_spot_bar_coverage": 1.0,
+      "validation_start": "2022-10-16 13:45:00+00:00"
+    },
+    {
+      "direct_2y": {
+        "24": {
+          "fit_rows": 2531,
+          "minimum_512_pass": true
+        },
+        "672": {
+          "fit_rows": 2346,
+          "minimum_512_pass": true
+        },
+        "96": {
+          "fit_rows": 2510,
+          "minimum_512_pass": true
+        }
+      },
+      "fold": 12,
+      "normalized_momentum_90_at_quarter_start": 0.27819873257950606,
+      "regime_at_quarter_start": "sideways",
+      "segment_boundaries": {
+        "fit_end_scale_start": "2022-07-16 13:45:00+00:00",
+        "fit_start": "2021-01-16 13:45:00+00:00",
+        "interval_end": "2023-01-16 13:45:00+00:00",
+        "scale_end_interval_start": "2022-10-16 13:45:00+00:00"
+      },
+      "shared_inference_mask_sha256": "a175ec676b1e2aa6b2245245e38640e75b1a330fa11dd45eed9dae84eee41e6d",
+      "split_18_3_3": {
+        "24": {
+          "fit_scale_interval_rows": [
+            1795,
+            367,
+            367
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "672": {
+          "fit_scale_interval_rows": [
+            1610,
+            340,
+            340
+          ],
+          "minimum_512_64_64_pass": true
+        },
+        "96": {
+          "fit_scale_interval_rows": [
+            1774,
+            364,
+            364
+          ],
+          "minimum_512_64_64_pass": true
+        }
+      },
+      "validation_bar_coverage_0995_pass": true,
+      "validation_end_exclusive": "2023-04-16 13:45:00+00:00",
+      "validation_grid_rows": 8640,
+      "validation_new8_finite_6h_rows": 331,
+      "validation_scheduled_6h_rows": 360,
+      "validation_shared_finite_6h_rows": 331,
+      "validation_spot_bar_coverage": 0.9993055555555556,
+      "validation_start": "2023-01-16 13:45:00+00:00"
+    }
+  ],
+  "gates": {
+    "all_development_regime_quarters": {
+      "bear": 5,
+      "bull": 5,
+      "sideways": 3
+    },
+    "direct_2y": {
+      "all_horizons_count_eligible_folds": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "earliest_validation_start": "2020-10-16 13:45:00+00:00",
+      "minimum_quarters_per_regime": 3,
+      "regime_count_gate_pass": false,
+      "regime_quarters": {
+        "bear": 4,
+        "bull": 4,
+        "sideways": 2
+      },
+      "validation_shared_finite_6h_rows": 3105
+    },
+    "direct_2y_minimum_fit_rows": 512,
+    "minimum_quarters_per_regime": 3,
+    "regime_rule": "first scheduled decision of each quarter: momentum90/(vol7*sqrt(90/365)), past bars only",
+    "regime_threshold": 0.5,
+    "split_18_3_3": {
+      "all_horizons_count_eligible_folds": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "earliest_validation_start": "2021-04-16 13:45:00+00:00",
+      "minimum_quarters_per_regime": 3,
+      "regime_count_gate_pass": false,
+      "regime_quarters": {
+        "bear": 4,
+        "bull": 2,
+        "sideways": 2
+      },
+      "validation_shared_finite_6h_rows": 2587
+    },
+    "split_minimum_rows": [
+      512,
+      64,
+      64
+    ],
+    "split_months": [
+      18,
+      3,
+      3
+    ]
+  },
+  "generated_at_utc": "2026-09-05T10:33:32.165495+00:00",
+  "limitations": [
+    "Both eligible fold sets fail the unchanged three-quarters-per-regime gate.",
+    "These are recycled development periods, not fresh confirmation or report-only test results.",
+    "Traded-close divergence is not mark-price basis, funding or open interest.",
+    "Retrospective archive checksums do not establish historical publication/collection latency.",
+    "Counts describe available rows, not independent effective sample size or achievable accuracy.",
+    "No trading result, label value or fitted model was computed for this preflight."
+  ],
+  "method": "Exact proposed 8 derivative columns; pure feature and missingness counts only",
+  "model_fitting_performed": false,
+  "model_stage_registered": false,
+  "performance_computed": false,
+  "performance_used_to_select_features_or_folds": false,
+  "raw_availability": {
+    "first_joint_open": "2020-01-01 00:00:00+00:00",
+    "joint_observed_eligible_rows": 115190,
+    "last_joint_open": "2023-04-16 13:15:00+00:00",
+    "spot_missing_in_um_eligible_scope": 160,
+    "spot_price_vs_all9_mask_differences": 0,
+    "spot_zero_quote_rows_before_cutoff": 13,
+    "um_observed_eligible_rows": 115350,
+    "um_zero_quote_rows_before_cutoff": 6,
+    "unavailable_um_months": [
+      "2019-09",
+      "2019-10",
+      "2019-11",
+      "2019-12"
+    ]
+  },
+  "schema": "oracle-derivative-preflight-v1",
+  "scope": {
+    "data_cutoff_exclusive": "2023-04-16 13:45:00+00:00",
+    "decision_cadence_hours": 6,
+    "full_artifact_bytes_hashed": true,
+    "grid_rows_before_cutoff": 185431,
+    "horizons_bars": [
+      24,
+      96,
+      672
+    ],
+    "interval": "15min",
+    "later_values_used_in_feature_calculation": false,
+    "spot_value_filter": "bar_open_ts < cutoff",
+    "symbol": "BTCUSDT",
+    "um_feature_value_filter": "bar_open_ts < cutoff - 15min"
+  },
+  "shared_mask": {
+    "augmented_dimensions": {
+      "base16": 24,
+      "flow": 32,
+      "technical": 37
+    },
+    "definition": "finite new8 AND all original base16/technical29/flow24 AND calibration trailing variances24/96/672/2880",
+    "mask_hash_encoding": "SHA256(full-grid UTC nanoseconds little-endian int64 bytes + uint8 boolean mask bytes)",
+    "new8_finite_6h_rows": 4362,
+    "original_dimensions": {
+      "base16": 16,
+      "flow": 24,
+      "technical": 29
+    },
+    "original_frontier_finite_6h_rows": 5056,
+    "original_frontier_plus_new_equals_calibration_plus_new_at_6h": true,
+    "shared_6h_mask_sha256": "d79ce531d6ce2617eaf432d1d13debb8b80bf3719f10e1b694eb92944d4db464",
+    "shared_finite_6h_rows": 3910
+  },
+  "source_git_revision": "b56551d81a0e08b9d26ee6a9e177dc9e25d5b797",
+  "source_sha256": {
+    "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.ledger.jsonl": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.sha256.json": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m_availability.parquet": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/checkpoints/oracle_derivative_data/registration.json": "a44131ef735df17f2f51fec83ae9c0767c75375f88af141636e35ebaf8647b34",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/checkpoints/oracle_derivative_data/source_ledger.jsonl": "f6d77a6ede8e0531a2d326820a58a4473315ea1224f2e2f49b100c71f8a7a682",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/checkpoints/oracle_derivative_data/um_15m.parquet": "c365cbb6cd6d46dafea19b7fd3a62cb1b91ae3169f7a27532e40486ecfebfcdd",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/checkpoints/oracle_derivative_data/um_15m.sha256.json": "8c83cd74e9939642d825e3c71b585c85b3bba9fcb633a69cf3284ce6e678e78f",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/checkpoints/oracle_derivative_data/um_15m_availability.parquet": "80cc8851edd1169a23c13220f42c69e626e4b60484fcce59f9375746164a0cb6",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_derivative_preflight_v1/preflight.py": "598467d399ee0d3d20d28d530c066b8328b6b94c0d504520d2ede0256adbf981",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/configs/oracle_derivative_acquisition_20260905.yaml": "7ff9ca28612fc1bf34a1e740ae0b8bc8408073ec0e47e9b021523258c720a47f",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/configs/oracle_frontier_20260905.yaml": "5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/configs/oracle_risk_calibration_20260905.yaml": "feed67e55c699f514258f8625515235814d0309f5e8e0e1397c3617eefb9d95b",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_derivative_acquisition.py": "5c1120e28e33f0f9f19c87fe93897cff6c135f4c30de75850152a7a962650cc4",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe"
+  },
+  "status": "proposed_stage_data_only_preflight",
+  "timing": {
+    "clock_discrepancies": 0,
+    "execution": "Decision t -> existing simulator fill at open t+15min",
+    "feature_decision": "Compute at raw index then shift once: decision t uses raw bars through t-15min",
+    "first_complete_new8_decision": "2020-01-07 23:15:00+00:00",
+    "first_complete_shared_6h_decision": "2020-01-08 00:00:00+00:00",
+    "label_support": "Spot observed bars t+1 through t+h; no future UM support condition",
+    "latest_eligible_um_decision": "2023-04-16 13:30:00+00:00",
+    "latest_eligible_um_open": "2023-04-16 13:15:00+00:00",
+    "raw_index": "UTC bar open; inclusive observed close = open + 15min - 1ms",
+    "segment_purge": "decision_ts + 15min*(horizon+1) strictly less than segment end",
+    "um_decision_ts": "Already raw open + 15min; do not double-shift if using this field as index"
+  }
+}

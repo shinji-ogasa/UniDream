@@ -3,7 +3,7 @@
 Experiments are adaptive followups on reused development validation. Source and
 configuration commits preceded each family's outcomes: persistence65a1d4f,
 calibration8e3dbd9, conditional decisionsb56551d, raw UM acquisition83f72a1.
-`manifest.json` binds nine exact snapshots to locally retained output files.
+`manifest.json` binds ten exact snapshots to locally retained output files.
 Raw forecasts/models/targets and checksummed source data are retained outsidegit.
 No new test/outer result or deployment was produced.
 
@@ -57,6 +57,11 @@ No new test/outer result or deployment was produced.
   unavailable prelaunch bars and no causal-live-ready claim.
 
 ## Final checks
+
+Data-only derivative preflight binds19 source/input files, independently
+rehashed by the root agent. No fitted model, forward label value or economic
+performance was computed. Counts identify eligible calibratedfolds5–12;
+bull2/bear4/sideways2 means the existing minimum3regime gate still fails.
 
 `python -m unittest discover -s tests -v`:436 testsOK in56.154s.
 `git diff --check`:passed. The report figure was visually inspected and its

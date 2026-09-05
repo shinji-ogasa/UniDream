@@ -96,6 +96,17 @@ Spot folds cannot pretend to have prelaunchUM training data. Refit parent on
 identical support; do not compare derivative survivors with previous13fold
 means. Prefer the same18/3/3 calibration timeline, if data-only512/64/64 row
 gates can be met. No omitted/fresh test scoring is authorized as selection.
+Data-only preflight is now saved at
+`codex_outputs/oracle_derivative_preflight_v1/preflight.json`, with exact
+feature equations,19 input/source hashes and all period counts. Its source
+script is retained beside it; no model or performance was computed. Direct
+2year fit counts first pass atfold3; disjoint18/3/3 counts first pass atfold5
+(2021-04-16). Atfold5 h24 fit/scale/interval=800/233/279. Eligiblefolds5–12
+have2587 causal6h feature rows andbull2/bear4/sideways2 quarters. Existing
+minimum3quarters/regime fails before modelling and must not be weakened.
+The data are sufficient for a matched predictive-information diagnostic, not
+for claiming the overall trend-robust goal has passed. See the committed
+preflight report and `oracle_risk_reliability_evidence_20260905/derivative_preflight.json`.
 Silantyev2019 supports contemporaneous flow impact, not6h OOSalpha. New2026
 quarter-hour paper's4–12h association is full-sampleOLS, while its rollingOOS
 is10secondreturns; our15m bars cannot reproduce its10second burst features.
