@@ -1,0 +1,27 @@
+schema: oracle-derivative-ablation-v1
+source_config: configs/oracle_frontier_20260905.yaml
+preflight_path: codex_outputs/oracle_derivative_preflight_v1/preflight.json
+preflight_sha256: cb051b9b866cde77ddf3c3ce73d1c15fa15bab729e8fb32de09dfcca961b21b7
+um_path: checkpoints/oracle_derivative_data/um_15m.parquet
+output_dir: codex_outputs/oracle_derivative_ablation_v1
+development_folds: [5, 6, 7, 8, 9, 10, 11, 12]
+feature_groups: [base16, technical, perp_flow, derivative]
+horizon_bars: 24
+fit_months: 18
+scale_months: 3
+interval_months: 3
+minimum_fit_rows: 512
+minimum_scale_rows: 64
+minimum_interval_rows: 64
+nominal_coverage: 0.90
+variance_floor: 1.0e-12
+versions: [raw, scaled]
+utility_risk_aversions: [0, 1]
+utility_cost_multiplier: 2
+return_ridge_alpha: 100.0
+seed: 20260905
+bootstrap:
+  replicates: 2000
+  primary_block_slots: 28
+  block_slots: [4, 28, 112]
+  seed: 20260905
