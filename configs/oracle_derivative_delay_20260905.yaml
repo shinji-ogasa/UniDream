@@ -1,0 +1,24 @@
+schema: oracle-derivative-delay-v1
+source_config: configs/oracle_frontier_20260905.yaml
+parent_preflight_path: codex_outputs/oracle_derivative_preflight_v1/preflight.json
+parent_preflight_sha256: cb051b9b866cde77ddf3c3ce73d1c15fa15bab729e8fb32de09dfcca961b21b7
+preflight_path: codex_outputs/oracle_derivative_delay_v1/preflight.json
+preflight_sha256: d20d0a23096a6693dc7125e0f5fd9e761efc7e5f7bfdb6ca42c5b890c91252c4
+um_path: checkpoints/oracle_derivative_data/um_15m.parquet
+output_dir: codex_outputs/oracle_derivative_delay_v1
+development_folds: [5, 6, 7, 8, 9, 10, 11, 12]
+extra_delay_bars: [0, 1, 4]
+horizon_bars: 24
+fit_months: 18
+scale_months: 3
+interval_months: 3
+minimum_fit_rows: 512
+minimum_scale_rows: 64
+minimum_interval_rows: 64
+nominal_coverage: 0.90
+variance_floor: 1.0e-12
+versions: [raw, scaled]
+utility_risk_aversions: [1]
+utility_cost_multiplier: 2
+return_ridge_alpha: 100.0
+seed: 20260905
