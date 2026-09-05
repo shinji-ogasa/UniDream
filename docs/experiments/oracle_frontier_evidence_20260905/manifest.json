@@ -1,0 +1,45 @@
+{
+  "scope": "exploratory reused actual validation quarters; not formal P1",
+  "files": [
+    {
+      "source": "codex_outputs/oracle_frontier_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_frontier_evidence_20260905/oracle_frontier_v1/registration.json",
+      "sha256": "ddb51a292ba0bc51017148e6c90b6805e70d8a3b7bbd8f6aee1c1dea29a96c21",
+      "bytes": 2697
+    },
+    {
+      "source": "codex_outputs/oracle_frontier_v1/results.json",
+      "snapshot": "docs/experiments/oracle_frontier_evidence_20260905/oracle_frontier_v1/results.json",
+      "sha256": "b60346ede5110eb6ad620df5effca168356ba598eeba3d3d1f6fe08d57c6dc6d",
+      "bytes": 2744382
+    },
+    {
+      "source": "codex_outputs/oracle_frontier_v1/selection_lock.json",
+      "snapshot": "docs/experiments/oracle_frontier_evidence_20260905/oracle_frontier_v1/selection_lock.json",
+      "sha256": "cc764698ef82f50f0eafda1b86281d5400d98cfedec75186a5b577613e0f235a",
+      "bytes": 297
+    },
+    {
+      "source": "codex_outputs/oracle_risk_controller_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_frontier_evidence_20260905/oracle_risk_controller_v1/registration.json",
+      "sha256": "c21ddc8eb50a854c7dbdcaf64387652a64f033ec129957201a96faf6f2e6299e",
+      "bytes": 9159
+    },
+    {
+      "source": "codex_outputs/oracle_risk_controller_v1/results.json",
+      "snapshot": "docs/experiments/oracle_frontier_evidence_20260905/oracle_risk_controller_v1/results.json",
+      "sha256": "eedce4921c23849da4a9efd351e76b227efa919009c64fbbf48d7abeaaae68e6",
+      "bytes": 451737
+    }
+  ],
+  "supporting_files": [
+    {
+      "path": "docs/experiments/oracle_frontier_evidence_20260905/frontier.png",
+      "sha256": "9b8241ddb7258e6754ad40200203917bf5ebaf6a0980e0e98c4f7458f1dfebcb"
+    },
+    {
+      "path": "docs/experiments/oracle_frontier_evidence_20260905/audit.md",
+      "sha256": "11296c06261f71104e39cb5e7fb643fbf74d3ecf85b34754b5ed086773297869"
+    }
+  ]
+}
