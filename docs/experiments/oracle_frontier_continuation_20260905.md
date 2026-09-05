@@ -7,7 +7,9 @@ the exploratory means or an implementation test passed.
 Working branch: `exp/oracle-feature-frontier-20260905` in
 `/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905`.
 Initial experiment source commit: `ed23b49`; risk ablation source: `0272879`.
-Runtime: `/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/.venv/bin/python`.
+Current runtime: `uv run python` from this worktree (local ignored `.venv`,
+Python3.12.13, numpy2.2.6, pandas2.3.3, sklearn1.8.0). The initial frontier
+stage used the alpha-dd-goal environment; do not substitute it for new stages.
 
 ## Completed; do not rerun or retune these locks
 
@@ -344,35 +346,105 @@ resultsSHA cf7a4b84af462bc645863fae2646aa32eef57cc30572f01b88912cda78a92954.
   perpwithoutfold7 stressAlpha-.188pt. Scaleincrementalfallbackbenefit reverses
   withoutfold5. Thesearepostoutcomesensitivity,notconfidenceornewselection.
 
-## Next: fixed shrinkage of the learned mean component
+## Eighth completed stage: fixed half-weight shrinkage
 
-Do notadopt universal target1fallback asatrendrobustimprovement. Do notassume
-forbiddingfallbackbuys fixesfold6:its actualfallbackfills were allSELLS.
-The implementedfallback remains an evaluatedexperimental arm,notproduction.
-Short-history degradedfeature/fallbackforecasts need a separately registered
-availability/information comparison; nozero-filling orcoverageweakening.
+The fixed half comparison is complete, registered in source commit `3957975`
+before outcomes. Output `codex_outputs/oracle_mean_shrinkage_decisions_v1`;
+report [oracle_mean_shrinkage_results_20260905.md](oracle_mean_shrinkage_results_20260905.md).
+Run handle 95837 is terminal exit0. Full suite 537 tests OK in 56.481s,
+handle 88212 terminal exit0, log `/tmp/oracle-mean-shrinkage-full-tests.log`.
+No fitting or model jobs from this stage remain running.
 
-Keep architecture and fittedforecasts fixed. Next small candidate family:
-mu_half = scale_mean + .5*(mu_scaled-scale_mean), forbothtechnical andperp.
-Compareeachwithboth originalhold-on-missing andfulltarget1fallback controllers,
-usingtheexisting commontechnical_scaledvariance. Fournewpolicynames, notyet
-registered orcomputed. Preserveendpointlambda0(scaleconstant) andlambda1
-(originalscaledmeans) underboth availabilityrules, withBH/robust controls;
-these8old+4new give96economicrows over8quarters. Two new derivedmeanforecast
-streams perquarter(16),32newutilitytraces; no newfitting/calibrationwindow.
-Thehalfweightisfixed beforeoutcomes, notoptimizedoveraweightgrid.
-Registerall sourcebindings/calendar/masks/costs before newoutcomes;report MSE,
-MAE andeconomicvaluesseparately. Prior mean-control MSE6.296%/5.443%worsethan
-scaleanchor motivates shrinking dynamiccomponent,which includesperiodmean
-shiftaswellastimevariation. RankIC neednotimproveunderlinearshrinking.
-This hypothesis isunexecuted anddoesnotestablishtrendrobustness.
+- Preflight file SHA `31516273e780c4e3443500abd4b1f535f386e8b39bb5420e89e925af09006337`.
+  Runtime registration file SHA `4bcdf123ab026ade5896667aa3c937440d825cccbc08e0acccdd591af7eb354e`.
+  Results file SHA `a06c1ed0d6b85eb4d808c2741dca9cfd19b9d1f79023043ade3fbbb5897d212e`.
+- Exactly two derived means: .5*saved scale_mean + .5*technical_scaled or
+  perp_delay0_scaled. Each uses the unchanged technical_scaled HGB variance,
+  under both own-inventory hold-on-missing and target1 fallback rules.
+  No refit, new calibration, variance, support or architecture change.
+- Four new policies + eight old controls =96 economic rows/targets,
+  16 new forecasts, 16 new +24 copied scores, 32 new traces.
+  Total158 adaptively explored names, not independent trials.
+  Same 2586 inference/2574 scoring/332 fallback-eligible/2 missing current opens.
+- Equal-quarter AlphaEx/DD pt base; stress:
+  technical_half hold +1.149/-6.031; +.943/-5.953.
+  technical_half fallback +1.007/-6.783; +.821/-6.718.
+  perp_half hold +3.613/-5.388; +3.349/-5.305.
+  perp_half fallback +3.379/-6.160; +3.144/-6.090.
+  Four aggregate joint passes, only perp_half hold passes observed start-regime
+  means at both costs. Zero coverage-qualified passes: 2 bull/4 bear/2 sideways.
+  Joint quarters 3/8 for each technical rule, 4/8 for each perp rule.
+- Perp_half hold start-regime base Alpha/DD pt: bull +4.222/-6.473,
+  bear +1.724/-2.951, sideways +6.782/-9.175.
+  Perp_half fallback bear Alpha -.066pt, stress -.330pt; fails.
+- Relative loss reduction =1 - equal-quarter mean loss(candidate)/mean loss(ref),
+  not mean of per-quarter loss ratios. Own full-mean MSE improves technical
+  4.142842%, perp3.697151%; MAE3.016608%/2.705806%, both losses improve8/8 each.
+  But MSE remains1.892217%/1.544775% above scale_mean, and2.600296%/2.250439%
+  above zero. Half forecasts beat scale_mean MSE in only1/8 and2/8 quarters,
+  and zero in only2/8 and3/8.
+  Rank IC unchanged within all16 half-versus-full quarter pairs.
+- Perp_half hold vs its full mean Alpha improves1.482pt, DD2.258pt;
+  stress Alpha1.626/DD2.304pt. All three start-regime mean MSE and economic
+  pairs improve versus own full mean. Versus scale_mean hold, Alpha+.485pt
+  but DD+1.144pt worse. Mean trades57.625->29.750, turnover4.232->2.089.
+  Do not claim the feature ranking signal improved or all gain is only costs.
+- Perp_half fallback-minus-own-hold Alpha-.233pt/DD-.772pt. Both new rules
+  retain all8/8 leave-one-out aggregate signs, but perp_half hold regime means
+  fail if fold7 or9 is omitted. Technical rules retain6/8 aggregate signs.
+  Descriptive sensitivity only, no exclusion/CI/selection. Perp-half vs
+  technical-half Alpha difference still concentrated in fold12.
+- Independent audit:1384 hash bindings/1121 files;64 copied controls and24
+  endpoint scores exact;16 half formulas and40 scores;32 own-state paths,
+  11008 decisions,64 base/stress accounting paths;48 unscored inference
+  decisions retained. Targets/traces/Alpha/DD/trades/cost differences0,
+  exposure2.22e-16; MSE identity5.42e-20. All6 no-fallback half-rule pairs
+  match in folds8/10/11. No independent refit performed.
+  Separate diagnostic binds55 sources, forecast references, eight half-versus-
+  full/anchor economic pairs plus two fallback-minus-hold pairs, all quarters
+  and all8 leave-one-out descriptions. The complete registered ten economic
+  pairs plus two rule pairs remain in results.json and the accounting audit.
 
-Any horizon comparisonh96/672 must registerpurge/controllerhorizonchanges;
-currentutilitylogic ish24. Do notadaptivelyomitfold12 orweakencoveragecounts.
-Use a fixed small design before further outcomes; do not weaken regime counts or start
-using report-only test for selection. More reused historical tuning cannot
-alone establish prospective success. An unobserved-data/paper protocol must
-be defined before a final deployment decision.
+## Next: frozen family and confirmation protocol
+
+Do not rerun the completed half/fallback stages or add a finer weight grid.
+The tracked candidate_family_freeze.json closes weights0/.5/1 and pins all
+four half candidates plus eight controls. No single strongest model selected,
+no old alpha-DD/oracle/P1 lock changed. This is a family freeze for protocol
+work, not a completed independent-confirmation registration.
+
+The tracked confirmation_design_draft.md was prepared before half outcomes;
+confirmation_access_audit.md was conducted on source/config/registration and
+manifest path/hash metadata only. No new later prices/forecasts/outcomes were
+read. Current val5–12 equals test4–11. Original alpha-DD development evaluated
+test0–12, so test12 is also used. Historical15–23 and fresh24 are explicitly
+reused in an existing registration. Test13–14 lie inside existing fitting /
+inference scope; exact human/performance exposure is unverified. No completed
+historical contiguous interval was certified unread. Absence of logs does
+not prove independent data.
+
+The first complete future quarter on the original calendar is test26,
+2026-10-16 13:45 UTC. Proposed fixed tests26–37 end2029-10-16 13:45 UTC.
+This is a design option, not an automation, scheduled job, commitment to wait
+three years, or instruction to stop useful engineering. It does not guarantee
+three quarters per regime. Do not pool old2/4/2, backdate forecasts, omit
+failures, extend until favorable, or treat a reused historical report-only
+replay as independent confirmation.
+
+Next concrete work is to complete a separate frozen-procedure protocol and
+adapter with receipt-aware support, calendar/training/maturity and failure
+contracts, plus a serial-dependence-aware joint/multiplicity procedure for
+four candidates and the specified endpoints. Preserve the past-only18/3/3
+fit/scale/interval schedule anchored at each future evaluation start. Need
+synthetic/data-only validation before any new-window scoring; no production
+or real-money execution is implied. Statistical sign/count checks alone are
+not a high-probability claim. Existing P1 scope and fail-closed gates remain
+separate. A new method/version cannot reclaim observed periods as untouched.
+
+The primary 2025 RFS paper How to Dominate the Historical Average was read
+as research context. Its coefficient-sign/amplitude and error-distribution
+conditions have not been verified for this fixed BTC half mixture; no claim
+of inherited dominance and no new estimator/weight was implemented from it.
 
 ## Original Spot / perpetual design rationale, now executed
 

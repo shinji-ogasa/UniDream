@@ -1,0 +1,52 @@
+{
+  "scope": "Fixed half-weight adaptive development; four candidates frozen, no strongest selection or independent confirmation",
+  "files": [
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/candidate_family_freeze.json",
+      "sha256": "245cc711aabe395e2fcc93b45695cafeac03550e435cdc4f2f5b2a6a13f12cd0",
+      "origin": "Generated from the registered development family and source bindings; not a confirmation registration."
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/confirmation_access_audit.md",
+      "sha256": "dffb80fce1d176f0cffac31d3f98a87e5febb3635c3d540bc471600d5692e749",
+      "source": "/tmp/oracle_confirmation_access_audit_20260905.md",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/confirmation_design_draft.md",
+      "sha256": "7c6053af4d6911cb9316148361566ae9590f9840b44488569a678a95f923e78f",
+      "source": "/tmp/oracle_confirmation_design_20260905.md",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/economic_diagnostic.json",
+      "sha256": "5bb8cd4fa541537698db7599da1eab5badc65d5d0f36d712babbf6d9186c6f1f",
+      "source": "/tmp/oracle_mean_shrinkage_economic_diagnostic_20260905.json",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/independent_account_forecast_audit.json",
+      "sha256": "0d0e1df1e6267e670bfe924754b660ad55e185927e69a46eeb01d04536946528",
+      "source": "/tmp/oracle_mean_shrinkage_audit_20260905.json",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/preflight.json",
+      "sha256": "31516273e780c4e3443500abd4b1f535f386e8b39bb5420e89e925af09006337",
+      "source": "codex_outputs/oracle_mean_shrinkage_decisions_v1/preflight.json",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/registration.json",
+      "sha256": "4bcdf123ab026ade5896667aa3c937440d825cccbc08e0acccdd591af7eb354e",
+      "source": "codex_outputs/oracle_mean_shrinkage_decisions_v1/registration.json",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_mean_shrinkage_evidence_20260905/results.json",
+      "sha256": "a06c1ed0d6b85eb4d808c2741dca9cfd19b9d1f79023043ade3fbbb5897d212e",
+      "source": "codex_outputs/oracle_mean_shrinkage_decisions_v1/results.json",
+      "copy_exact": true
+    }
+  ]
+}

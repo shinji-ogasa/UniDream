@@ -1,0 +1,54 @@
+{
+  "schema": "oracle-mean-shrinkage-family-freeze-v1",
+  "status": "candidate family frozen for confirmation protocol design; not independent confirmation registration",
+  "candidate_ids": [
+    "technical_half_utility_risk1",
+    "technical_half_utility_risk1_fallback_bh",
+    "perp_delay0_half_utility_risk1",
+    "perp_delay0_half_utility_risk1_fallback_bh"
+  ],
+  "control_ids": [
+    "bh",
+    "common_robust",
+    "scale_mean_utility_risk1",
+    "scale_mean_utility_risk1_fallback_bh",
+    "technical_scaled_utility_risk1",
+    "technical_scaled_utility_risk1_fallback_bh",
+    "perp_delay0_scaled_utility_risk1",
+    "perp_delay0_scaled_utility_risk1_fallback_bh"
+  ],
+  "source_revision": "3957975d500def4ca1409c2ec9fe56a9cf813b1e",
+  "registration_file_sha256": "4bcdf123ab026ade5896667aa3c937440d825cccbc08e0acccdd591af7eb354e",
+  "development_results_file_sha256": "a06c1ed0d6b85eb4d808c2741dca9cfd19b9d1f79023043ade3fbbb5897d212e",
+  "config_sha256": "97fa36692b5c3ad58b41d77d34e4707e83c9a2bfa18d21a0c2862579ab5e2f70",
+  "source_sha256": {
+    "alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "oracle_fallback_decisions.py": "c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771",
+    "oracle_fallback_planner.py": "e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348",
+    "oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "oracle_mean_controls.py": "07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb",
+    "oracle_mean_shrinkage.py": "fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb",
+    "oracle_mean_shrinkage_decisions.py": "d0a8b9ec9c716a91529fbfad2dc4714435b18e583655768789d8f66229325eaf"
+  },
+  "weight_family_closed": [
+    0.0,
+    0.5,
+    1.0
+  ],
+  "half_weight": 0.5,
+  "development_results_observed": true,
+  "single_model_selected": false,
+  "existing_selection_locks_modified": false,
+  "independent_results_observed": false,
+  "test_or_outer_used_for_selection": false,
+  "regime_coverage_gate_pass": false,
+  "development_regime_quarters": {
+    "bull": 2,
+    "bear": 4,
+    "sideways": 2
+  },
+  "purpose": "Preserve all four new candidates and eight controls before designing any additional-window evaluation. No new weight grid or favorable missingness rule is selected."
+}
