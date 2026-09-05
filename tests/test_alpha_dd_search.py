@@ -1,11 +1,15 @@
 import unittest
+import tempfile
+import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from unidream.experiments.alpha_dd_search import (
-    Candidate, aggregate, candidate_universe, make_features, metrics, rule_targets,
-    select_development,
+    Candidate, FEATURE_NAMES, aggregate, candidate_universe, fit_predictions,
+    make_features, metrics, rule_targets,
+    select_development, file_digest, validate_data_artifact,
 )
 
 
@@ -102,6 +106,50 @@ class AlphaDDSearchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             aggregate([])
         self.assertEqual(len(candidate_universe()), 83)
+
+    def test_fit_does_not_use_validation_or_test_outcomes(self):
+        n = 30000
+        data = bars(n, 100 * np.exp(np.sin(np.arange(n) / 333) * .1))
+        rng = np.random.default_rng(77)
+        features = pd.DataFrame(rng.normal(size=(n, len(FEATURE_NAMES))),
+                                index=data.index, columns=FEATURE_NAMES)
+        fold = {"fold": 0, "train_start": data.index[0], "train_end": data.index[24000],
+                "val_start": data.index[24000], "test_end": data.index[-1]}
+        modified = data.copy()
+        modified.loc[modified.index >= fold["train_end"], "close"] *= 5
+        with tempfile.TemporaryDirectory() as tmp:
+            first, proof = fit_predictions(Candidate("ridge", 7), features, data, fold, Path(tmp) / "a")
+            second, other = fit_predictions(Candidate("ridge", 7), features, modified, fold, Path(tmp) / "b")
+        np.testing.assert_array_equal(first, second)
+        self.assertTrue(np.isfinite(first[24000:-1]).all())
+        self.assertEqual(proof["model_sha256"], other["model_sha256"])
+        self.assertLess(pd.Timestamp(proof["fit_last_target_end_exclusive"]), fold["train_end"])
+
+    def test_data_masks_and_hashes_are_bound_before_research(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data = bars(8).drop(columns="bar_available")
+            path, masks, ledger = root / "spot.parquet", root / "mask.parquet", root / "ledger.jsonl"
+            data.to_parquet(path)
+            availability = pd.DataFrame({"spot_bar_observed": True}, index=data.index)
+            availability.to_parquet(masks)
+            ledger.write_text('{}\n')
+            sidecar = {"kind": "alpha_dd_spot_15m_artifact_sha256", "status": "complete",
+                       "artifact_sha256": file_digest(path), "availability_path": str(masks),
+                       "availability_sha256": file_digest(masks), "source_ledger_path": str(ledger),
+                       "source_ledger_sha256": file_digest(ledger), "rows": len(data),
+                       "columns": data.columns.tolist(), "availability_column": "spot_bar_observed"}
+            sidecar_path = path.with_suffix(".sha256.json")
+            sidecar_path.write_text(json.dumps(sidecar))
+            self.assertEqual(validate_data_artifact(path)["status"], "complete")
+            availability.iloc[2, 0] = False
+            availability.to_parquet(masks)
+            with self.assertRaisesRegex(ValueError, "digest mismatch"):
+                validate_data_artifact(path)
+            sidecar["availability_sha256"] = file_digest(masks)
+            sidecar_path.write_text(json.dumps(sidecar))
+            with self.assertRaisesRegex(ValueError, "observed mask"):
+                validate_data_artifact(path)
 
 
 if __name__ == "__main__":

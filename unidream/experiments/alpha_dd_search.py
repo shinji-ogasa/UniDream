@@ -123,6 +123,35 @@ def load_bars(path: Path, *, cutoff: str) -> pd.DataFrame:
     return bars
 
 
+def validate_data_artifact(path: Path) -> dict:
+    sidecar_path = path.with_suffix(".sha256.json")
+    sidecar = json.loads(sidecar_path.read_text())
+    if sidecar.get("kind") != "alpha_dd_spot_15m_artifact_sha256":
+        raise ValueError("audited Spot acquisition sidecar required")
+    if sidecar.get("status") not in ("complete", "complete_with_gaps"):
+        raise ValueError("data acquisition did not complete")
+    bindings = [(path, "artifact_sha256"),
+                (Path(sidecar["availability_path"]), "availability_sha256"),
+                (Path(sidecar["source_ledger_path"]), "source_ledger_sha256")]
+    for bound_path, key in bindings:
+        if file_digest(bound_path) != sidecar[key]:
+            raise ValueError(f"data artifact digest mismatch: {key}")
+    raw = pd.read_parquet(path)
+    availability = pd.read_parquet(sidecar["availability_path"])
+    column = sidecar["availability_column"]
+    if not raw.index.equals(availability.index) or len(raw) != sidecar["rows"]:
+        raise ValueError("availability/feature row alignment mismatch")
+    if availability[column].dtype != bool:
+        raise ValueError("availability mask must be boolean")
+    observed = raw.loc[:, sidecar["columns"]].notna().all(axis=1).to_numpy()
+    if not np.array_equal(observed, availability[column].to_numpy()):
+        raise ValueError("observed mask disagrees with raw data")
+    return {"sidecar_sha256": file_digest(sidecar_path),
+            "artifact_sha256": sidecar["artifact_sha256"],
+            "availability_sha256": sidecar["availability_sha256"],
+            "ledger_sha256": sidecar["source_ledger_sha256"], "status": sidecar["status"]}
+
+
 def make_features(bars: pd.DataFrame) -> pd.DataFrame:
     """Feature row t uses bars no later than t-1; no backfill or future masks."""
     log_price = np.log(bars["close"])
@@ -321,6 +350,8 @@ def fit_predictions(candidate: Candidate, features: pd.DataFrame, bars: pd.DataF
         model.fit(x[train], labels)
         pred[predict] = (model.predict_proba(x[predict])[:, 1] if candidate.family == "logistic"
                          else model.predict(x[predict]))
+    if not predict.any() or not np.isfinite(pred[predict]).all():
+        raise ValueError("model produced empty or nonfinite inference on eligible rows")
     # Trusted local serialized fit, generated here, for reproducible export work.
     import joblib
     model_path = output / "models" / f"fold{fold['fold']}_{candidate.family}_h{candidate.lookback}.joblib"
@@ -373,6 +404,7 @@ def run(config_path: Path, stage: str) -> dict:
     # Development features are built from a physically truncated view.
     support = config["stages"][stage]
     path = Path(config["data_path"])
+    data_proof = validate_data_artifact(path)
     bars = load_bars(path, cutoff=support["data_cutoff"])
     features = make_features(bars)
     rows: dict[str, list[dict]] = {c.id: [] for c in active}
@@ -415,6 +447,7 @@ def run(config_path: Path, stage: str) -> dict:
     summary = {key: aggregate(values) for key, values in rows.items()}
     selected_id = select_development(summary) if stage == "development" else locked["selected_id"]
     result = {"stage": stage, "registration_sha256": reg_sha, "data_file_sha256": file_digest(path),
+              "data_provenance": data_proof,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "source_sha256": registration["source_sha256"], "selected_id": selected_id,
               "summary": summary, "rows": rows, "model_provenance": provenance,
