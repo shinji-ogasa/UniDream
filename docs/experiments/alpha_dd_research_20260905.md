@@ -42,6 +42,9 @@ bars and archive revisions. Download timestamps are not historical live availabi
 Feature row t uses only completed bars through t-1. Decisions are scheduled at UTC
 hour boundaries, filled at the next bar's open, then marked at observed closes.
 Missing fill bars skip the order; missing outcome bars retain inventory and cash.
+The decision clock itself does not require the current incomplete row: an order
+may be scheduled using previously completed features. Only the next observed open
+permits its fill; a later high/low/close gap cannot retrospectively cancel it.
 The next observed price marks the full intervening price move. Missing history
 prevents affected features/forecasts, rather than being filled with numerical zeros.
 No result conditions an earlier decision on a future outcome mask.

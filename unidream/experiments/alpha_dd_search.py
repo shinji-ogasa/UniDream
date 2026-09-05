@@ -150,6 +150,9 @@ def validate_data_artifact(path: Path) -> dict:
     observed = raw.loc[:, sidecar["columns"]].notna().all(axis=1).to_numpy()
     if not np.array_equal(observed, availability[column].to_numpy()):
         raise ValueError("observed mask disagrees with raw data")
+    price_observed = raw[["open", "high", "low", "close"]].notna().all(axis=1).to_numpy()
+    if not np.array_equal(observed, price_observed):
+        raise ValueError("raw-field and price availability disagree; independent masks required")
     return {"sidecar_sha256": file_digest(sidecar_path),
             "artifact_sha256": sidecar["artifact_sha256"],
             "availability_sha256": sidecar["availability_sha256"],
