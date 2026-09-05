@@ -1,0 +1,37 @@
+{
+  "scope": "Registered same-development full-procedure parity; not independent market confirmation",
+  "source_revision": "f28412454deaada9cb81fabdceb0e853e451a876",
+  "full_suite": {
+    "command": "uv run python -m unittest discover -s tests -v",
+    "tests": 581,
+    "elapsed_seconds": 56.488,
+    "exit_code": 0,
+    "log_path": "/tmp/oracle-frozen-procedure-full-tests.log",
+    "log_sha256": "8b742c2251437e3d878c1d3df28981d388c0153149501327b4edecdaa6c6e70d"
+  },
+  "targeted_tests": 17,
+  "run": {
+    "exit_code": 0,
+    "session_id": 24133,
+    "log_path": "/tmp/oracle-frozen-procedure-run.log",
+    "log_sha256": "3d5b8d575f0c90abc7d4b231d6ebe9a7ef35b17a56e90e6ce598f216f1601e18",
+    "runtime_warning_count": 96
+  },
+  "artifact_inventory": {
+    "models": 24,
+    "forecasts": 40,
+    "targets": 96,
+    "traces": 80,
+    "calibration_npz": 16,
+    "calibration_provenance_json": 8,
+    "total": 264
+  },
+  "rows": 96,
+  "scores": 40,
+  "cost_objects": 192,
+  "trace_decisions": 27520,
+  "new_candidate_count": 0,
+  "new_evaluation_period_count": 0,
+  "selection_performed": false,
+  "high_probability_generalization_established": false
+}

@@ -1,0 +1,45 @@
+{
+  "scope": "Registered same-development full-procedure parity; not independent market confirmation",
+  "files": [
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/preflight.json",
+      "source": "codex_outputs/oracle_frozen_procedure_parity_v1/preflight.json",
+      "sha256": "4dcf2dacf2ca6a43d23d90ffc0c8cd4d8bdfd3be6015978e3a98baae221a86ae",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/registration.json",
+      "source": "codex_outputs/oracle_frozen_procedure_parity_v1/registration.json",
+      "sha256": "886f7a1a4fe494f7c5131ba6eae6384cd9d1ae64d048fecbabd87247c3d667f5",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/results.json",
+      "source": "codex_outputs/oracle_frozen_procedure_parity_v1/results.json",
+      "sha256": "c19b772e4f53b5a749839553b82c439ef4684a2ec9efe523464c533e8beed366",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/independent_parity_audit.json",
+      "source": "/tmp/oracle_frozen_procedure_parity_audit_20260906.json",
+      "sha256": "f35c2d992087eed851c46d0b6606f053ae9953d5b6ace6afcaaf06c1dae4ac24",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/independent_source_bindings.json",
+      "source": "/tmp/oracle_frozen_procedure_parity_source_20260906.json",
+      "sha256": "35ead250c50111561e054aa53642fd6e29de129716c2ef24c5bb1d70d57229ec",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/scalar_ridge_audit.json",
+      "source": "/tmp/oracle_frozen_procedure_scalar_ridge_audit_20260906.json",
+      "sha256": "0bfcffaeecf77dcd4388ccd61bc14f371658c5b3781c5b71d5ca56b20b7477fa",
+      "copy_exact": true
+    },
+    {
+      "snapshot": "docs/experiments/oracle_frozen_procedure_parity_evidence_20260906/verification.json",
+      "sha256": "e0811941e1132e23f99f08ebc6d7ed1efad824cdbf4df639b4f32af7e97761a8"
+    }
+  ]
+}

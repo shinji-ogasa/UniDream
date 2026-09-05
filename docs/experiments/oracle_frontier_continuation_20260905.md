@@ -511,6 +511,70 @@ input snapshot / actual submission and fill logging before any outcomes. The
 current preflight explicitly says ready_for_outcome_scoring=false. Do not
 report this contract-only milestone as independent confirmation completed.
 
+## Tenth completed stage: fixed refit through full policy parity
+
+Completed the next fitting/inference/accounting integration on existing
+validation5–12 only. Source registration commit `f284124` preceded all real
+refits. Report [oracle_frozen_procedure_parity_results_20260906.md](oracle_frozen_procedure_parity_results_20260906.md),
+registration doc and tracked evidence are now available. This closes the
+same-development parity step in the previous section, not future collection
+or independent confirmation. No new candidate/period count; total adaptive
+family names stays158, no prior selector/lock changed.
+
+- New reusable `oracle_frozen_forecasts.py` fits technical/perp_delay0 Ridge100
+  means and ONE technical HGB variance, preserving2-thread/seed20260905 and
+  original arithmetic. Five inference-only means, common technical variance,
+  raw calibration predictions, models and JSON provenance. Selectedfit/cal
+  labels only; later labels cannot determine forecast availability. No new
+  architecture, window, mean weight or policy selection.
+- New `oracle_frozen_procedure_parity.py` deliberately permits ONLY oldval5–12
+  mapped to calendar test4–11 (same2021-04-16→2023-04-16), not prospective26–37.
+  Rebuilds full common dependency set; checks olddelay preflight deep equality,
+  all48 original segment masks, regimes, exactNaN/time/mask/target semantics.
+  Preserves BH/common_robust, own-inventory rules and samebase targets at2xcost.
+- Data-only preflight verified1064 source artifacts and2586inference/2574score
+  rows. FileSHA4dcf2dacf2ca6a43d23d90ffc0c8cd4d8bdfd3be6015978e3a98baae221a86ae.
+  Runtime registrationSHA886f7a1a4fe494f7c5131ba6eae6384cd9d1ae64d048fecbabd87247c3d667f5.
+  ResultsSHAc19b772e4f53b5a749839553b82c439ef4684a2ec9efe523464c533e8beed366.
+  Output `codex_outputs/oracle_frozen_procedure_parity_v1`; handle24133 terminal
+  exit0, all8folds completed. Do not restart or refit this completed stage.
+- All40 forecast/score streams,96 targets/rows,192 accounting objects,
+  80 utility traces and16 calibration arrays+8scalar records reproduce with
+  max difference0.24 saved models;264 generated artifact paths(33perfold).
+  Models are fresh fits; byte bindings prove saved-object identity, not a
+  separate statistical discovery. Shared mean/risk inputs keep old scores.
+- Full581 tests OK56.488s, handle70772 terminalexit0, log
+  `/tmp/oracle-frozen-procedure-full-tests.log`.17new tests include504 scalar
+  synthetic Ridge predictions and ignored nonsensical evaluation labels.
+  Independent artifact audit:543 file bindings, original239 reference paths
+  unchanged,48 mask hashes,all datasets/traces/calibration matchexactly.
+  27520 utility decision rows. Independently recomputed80 source/generated
+  score records differ max1.7347e-18. No independent economic simulator/refit.
+- Runtime emitted96 sklearn matmul warnings despite all outputs finite/exact.
+  Additional scalar audit loads16 SHA-bound Ridge models and recomputes15056
+  model-row predictions withoutmatmul/predict/transform:9884rawcal predictions
+  max5.2042e-18 and5172scaled inference max3.4694e-18, within registered
+  rtol1e-12/atol1e-14. Coefs/scalers/intercepts finite, scalespositive; verifies
+  19source/56generated artifact/8fold bindings and full/selected feature digests.
+  Does NOT identify warning cause or prove training/HGB numerical correctness.
+  Scalar auditSHA0bfcffaeecf77dcd4388ccd61bc14f371658c5b3781c5b71d5ca56b20b7477fa.
+- Resume validation checks exact33artifacts+fullrow/score/trace/calibration
+  inventory and source parity. Its maxdiff fields retain original recorded
+  values rather than reaggregatingmaxima; limitation registered before run.
+  This run was allfresh, and separatepostrun audit recomputedmaxima. Do not
+  change already registered sources merely to rerun the completed comparison.
+
+Next concrete action: register a separate fixed report-only additional-period
+adapter/data preflight for all4 half candidates+8controls. The reusable fit
+helper is ready, but the parity harness must not be pointed at other folds.
+Preserve the access audit: historical15–23/fresh24 alreadyreused, no claim of
+unread/independentdata. Acquisition/quality proof for any required additional
+UM/Spot months must precede new outcomes; input manifests/metadata/coverage only
+until a fixed report-only registration. Do not choose weight/rule/features
+from these test outputs. Prospective receipt/current-open/intent/fill logging
+remains a separate unimplemented integration boundary. No model, fitting,
+collection, audit or verification process from this stage remains running.
+
 ## Original Spot / perpetual design rationale, now executed
 
 Keep model architectures small and fixed. Proposed three matched-support groups:
