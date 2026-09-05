@@ -635,3 +635,66 @@ No reused development result alone establishes high generalization probability.
 
 No scheduled automation has been created; continuation is through this active
 Codex goal. No notification claim should imply an external monitor is running.
+
+## Eleventh completed stage: fixed family on ten additional reused quarters
+
+The separate original test15–24 replay is **completed**, not pending. Read
+`docs/experiments/oracle_additional_window_results_20260906.md` and evidence in
+`oracle_additional_window_evidence_20260906`. Do not restart the completed output.
+
+- Acquisition registration commit `f2e1faf`; final adapter/config/preflight and
+  preregistered scalar audit commit `73cb806bffb7dc39d7454886e9bcfce9119dc435`.
+  Source `oracle_additional_window_replay.py` SHA256
+  `f82d48f25f4234a858a872bddd0c9aac498b4b4ccfc9fd56686041ee1fdf260c`.
+- New UM namespace `checkpoints/oracle_additional_window_data`, January2022–
+  July2026, 55/55 checksum-verified archives,160608 observed raw rows,0 missing.
+  UM SHA `02d2f07679db0087904b923606a501c8494afda0f75c6a4c94bf4b38ad49a583`.
+  Spot source remains unchanged. Data manifest178bindings, SHA
+  `609ae008f1cb47919d19f5997409f5833fed1a12d5c106a32af985377945088c`.
+- Data-only preflight SHA
+  `8416f5a21389606e9a1834bb12898349178d34e2cc8a92ca6041a0f3241228b5`.
+  Original test15–24 spans [2024-01-16T13:45Z,2026-07-16T13:45Z).
+  All price grids and boundary bars pass;3648scheduled,3620inference,3610score.
+  There are28feature-unavailable scheduled rows in fold18 only, with known opens.
+  Start-regime counts4bull/3bear/3sideways pass the count condition only.
+- Run session8868 terminalexit0: all10quarters,120economic rows,50scores,
+  100traces,30models,330artifacts. Family remains4candidates+8controls;
+  no new weights/policies (158explored names unchanged), no selection.
+  Registration-file SHA
+  `b1838eca2efc6523537a49415803eb5f9a07a7603257fd11f6abaa1c4d5653eb`;
+  results SHA `8579e40b5be9ed737acf6c633c92d33b383d0fb338c75832f7b3a125bdd474d1`.
+- Base/stress aggregate AlphaEx/MaxDDDelta in percentage points:
+  technical-half hold +1.336/−2.992 and +1.162/−2.971;
+  technical-half fallback +1.542/−3.015 and +1.371/−2.995;
+  perpetual-half hold +0.048/−2.826 and −0.130/−2.804;
+  perpetual-half fallback +0.866/−2.853 and +0.680/−2.831.
+  **All4 fail both regime-wide economic and predictive conjunctions.**
+  Every half candidate has negative bullAlpha and sidewaysAlpha plus positive
+  sidewaysDDdelta. This contradicts a trend-robust economic claim despite coverage.
+- Half MSE improves versus own full mean by0.800%technical/0.781%perpetual,
+  each8/10quarters, but worsens in bull. Versus the scale mean, aggregate MSE is
+  worse0.0565%/0.0148%; neither establishes strong-baseline predictive superiority.
+  All20 within-quarter half/full rank IC comparisons are unchanged.
+- Existing common_robust control passes all observed regime economic means in
+  these10quarters (+1.645/−4.752base,+1.229/−4.655stress) but failed the earlier
+  development8 aggregateAlpha−0.317 and bearAlpha−6.610 (stress−0.651/−7.002).
+  Separate-window evidence is saved; do not select/promote it from these tests.
+- Required full suite589testsOK56.591s. Independent scalar audit session19505
+  terminalexit0:100own-state paths/36340decisions,240account paths,50scores,
+  20half identities, maxdifference4.441e−16. Independent Decimal60 summary audit
+  checks80components,5forecast/10policy/2rule contrasts; max7.105e−15.
+- Runtime produced120linear-model matmul warnings. Separate saved-model scalar
+  Ridge audit session40863 terminalexit0 checks20models/21640predictions
+  (14400rawcal+7240scaledinfer), max3.469e−18, finite parameters/positive scales.
+  This does not prove warning cause or independently audit HGB training.
+  All registered source/data hashes remain unchanged. No live process remains.
+
+Next research direction remains development-only. First compare the existing
+RL/ML hindsight diagnostics with the now fixed common-support, conditional
+utility and own-inventory contract; register a bounded decomposition of mean
+forecast error versus risk/decision limitations if those oracle contracts are
+not matched. Use original development intervals for hypothesis testing and
+candidate selection, retain all failures and simple constant/rule controls,
+and do not tune a new weight, fallback rule or regime threshold from test15–24.
+Architecture optimization remains deferred. No independent/prospective or
+high-probability result has been established; the broader goal remains active.

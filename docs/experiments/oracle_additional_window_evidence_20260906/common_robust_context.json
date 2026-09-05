@@ -1,0 +1,104 @@
+{
+  "interpretation": "Existing rule control passes observed regime economic means in the additional10, but fails aggregate and bear AlphaEx in originaldevelopment8. Not pooled, selected or promoted.",
+  "period_sets": {
+    "additional_reused_test15_24": {
+      "all": {
+        "base": {
+          "alpha_ex": 0.0164467034352623,
+          "maxdd_delta": -0.04751632252584952
+        },
+        "quarters": 10,
+        "stress_2x": {
+          "alpha_ex": 0.012289397982283701,
+          "maxdd_delta": -0.04654601105894096
+        }
+      },
+      "bear": {
+        "base": {
+          "alpha_ex": 0.017870149969161513,
+          "maxdd_delta": -0.06839238275646668
+        },
+        "quarters": 3,
+        "stress_2x": {
+          "alpha_ex": 0.014346980452164464,
+          "maxdd_delta": -0.0674380622076359
+        }
+      },
+      "bull": {
+        "base": {
+          "alpha_ex": 0.017378988464869932,
+          "maxdd_delta": -0.023502690805319998
+        },
+        "quarters": 4,
+        "stress_2x": {
+          "alpha_ex": 0.012949449131526125,
+          "maxdd_delta": -0.022249424856536748
+        }
+      },
+      "sideways": {
+        "base": {
+          "alpha_ex": 0.013780210195219578,
+          "maxdd_delta": -0.058658437922605056
+        },
+        "quarters": 3,
+        "stress_2x": {
+          "alpha_ex": 0.009351747313413039,
+          "maxdd_delta": -0.05804940818011832
+        }
+      }
+    },
+    "development_val5_12": {
+      "all": {
+        "base": {
+          "alpha_ex": -0.0031658753510103582,
+          "maxdd_delta": -0.05346634421273004
+        },
+        "quarters": 8,
+        "stress_2x": {
+          "alpha_ex": -0.006511878868668691,
+          "maxdd_delta": -0.05229612851526878
+        }
+      },
+      "bear": {
+        "base": {
+          "alpha_ex": -0.06609834742891996,
+          "maxdd_delta": -0.05751826971587026
+        },
+        "quarters": 4,
+        "stress_2x": {
+          "alpha_ex": -0.07001659334883786,
+          "maxdd_delta": -0.05633745527911818
+        }
+      },
+      "bull": {
+        "base": {
+          "alpha_ex": 0.012884656950222284,
+          "maxdd_delta": -0.003117823641210604
+        },
+        "quarters": 2,
+        "stress_2x": {
+          "alpha_ex": 0.010546331040765522,
+          "maxdd_delta": -0.0015975860097671157
+        }
+      },
+      "sideways": {
+        "base": {
+          "alpha_ex": 0.1066485365035762,
+          "maxdd_delta": -0.09571101377796903
+        },
+        "quarters": 2,
+        "stress_2x": {
+          "alpha_ex": 0.10343934018223544,
+          "maxdd_delta": -0.09491201749307165
+        }
+      }
+    }
+  },
+  "policy_id": "common_robust",
+  "schema": "oracle-common-robust-separate-window-context-v1",
+  "selection_performed": false,
+  "source_bindings": {
+    "codex_outputs/oracle_additional_window_replay_v1/results.json": "8579e40b5be9ed737acf6c633c92d33b383d0fb338c75832f7b3a125bdd474d1",
+    "codex_outputs/oracle_mean_shrinkage_decisions_v1/results.json": "a06c1ed0d6b85eb4d808c2741dca9cfd19b9d1f79023043ade3fbbb5897d212e"
+  }
+}

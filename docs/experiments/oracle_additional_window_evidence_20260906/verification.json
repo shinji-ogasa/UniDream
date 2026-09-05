@@ -1,0 +1,28 @@
+{
+  "complete_run_exit_code": 0,
+  "copied_outputs_match": {
+    "preflight.json": true,
+    "registration.json": true,
+    "results.json": true
+  },
+  "full_tests": {
+    "count": 589,
+    "log_sha256": "ea4d8c52dc70e5c4758a2c9f051133c5af50f037d41f1fc9a6035bc560db0417",
+    "seconds": 56.591,
+    "status": "OK"
+  },
+  "high_probability_generalization_established": false,
+  "independent_scalar_session": 19505,
+  "new_candidate_count": 0,
+  "prospective_confirmation": false,
+  "registered_source_revision": "73cb806bffb7dc39d7454886e9bcfce9119dc435",
+  "registered_sources_unchanged": true,
+  "ridge_audit_sha256": "2517b88b5f029bd1e34b8a0e31ef038fd7a53e117b72405f7f3a5cf10991285a",
+  "run_log_sha256": "ebe11432b0ab8365d3f324986f15497a56e9b0ec2d9395dcb88478c022fdc003",
+  "run_session": 8868,
+  "scalar_audit_sha256": "c639c30b45fe727de489447fd23b2d2dfbcc0c6f74109c407cdf61fcdf6c98b8",
+  "scalar_ridge_session": 40863,
+  "schema": "oracle-additional-window-final-verification-v1",
+  "selection_performed": false,
+  "summary_audit_sha256": "2e62adc67dc11dd68c4f3e715fc51edeaff3354706ba3cd7b60d529e2724ef33"
+}

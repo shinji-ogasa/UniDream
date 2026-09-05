@@ -1,0 +1,1141 @@
+{
+  "all_policy_aggregate": {
+    "bh": {
+      "base": {
+        "alpha_ex_mean": 5.551115123125783e-17,
+        "borrow_initial_equity_units_mean": 0.0,
+        "fees_initial_equity_units_mean": 0.0,
+        "joint_positive_quarters": 2,
+        "maxdd_delta_mean": -3.3306690738754695e-17,
+        "trades_mean": 0.0,
+        "turnover_mean": 0.0
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 5.551115123125783e-17,
+        "borrow_initial_equity_units_mean": 0.0,
+        "fees_initial_equity_units_mean": 0.0,
+        "joint_positive_quarters": 2,
+        "maxdd_delta_mean": -3.3306690738754695e-17,
+        "trades_mean": 0.0,
+        "turnover_mean": 0.0
+      }
+    },
+    "common_robust": {
+      "base": {
+        "alpha_ex_mean": 0.0164467034352623,
+        "borrow_initial_equity_units_mean": 0.0015457863119820803,
+        "fees_initial_equity_units_mean": 0.002553934836937517,
+        "joint_positive_quarters": 5,
+        "maxdd_delta_mean": -0.047516322525849516,
+        "trades_mean": 71.7,
+        "turnover_mean": 4.61649161475344
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.012289397982283701,
+        "borrow_initial_equity_units_mean": 0.0030747258925194736,
+        "fees_initial_equity_units_mean": 0.005094900652105016,
+        "joint_positive_quarters": 5,
+        "maxdd_delta_mean": -0.04654601105894096,
+        "trades_mean": 71.5,
+        "turnover_mean": 4.615265199775811
+      }
+    },
+    "perp_delay0_half_utility_risk1": {
+      "base": {
+        "alpha_ex_mean": 0.0004767153888755482,
+        "borrow_initial_equity_units_mean": 0.0013541652907091814,
+        "fees_initial_equity_units_mean": 0.00046262269440963097,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.028256936470125383,
+        "trades_mean": 12.7,
+        "turnover_mean": 0.8846679566607645
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": -0.0012969506756735471,
+        "borrow_initial_equity_units_mean": 0.0026844846363922787,
+        "fees_initial_equity_units_mean": 0.0009214090753556333,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.028042054733006194,
+        "trades_mean": 12.5,
+        "turnover_mean": 0.8821816024483309
+      }
+    },
+    "perp_delay0_half_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex_mean": 0.008660518150346231,
+        "borrow_initial_equity_units_mean": 0.0014178766262193784,
+        "fees_initial_equity_units_mean": 0.00047498498639342735,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.02852600153876479,
+        "trades_mean": 13.0,
+        "turnover_mean": 0.9033144295277542
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.006803297997984803,
+        "borrow_initial_equity_units_mean": 0.002812755050278731,
+        "fees_initial_equity_units_mean": 0.0009461198325743596,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.028306733602263233,
+        "trades_mean": 12.8,
+        "turnover_mean": 0.9008423038068083
+      }
+    },
+    "perp_delay0_scaled_utility_risk1": {
+      "base": {
+        "alpha_ex_mean": 0.014988859763191165,
+        "borrow_initial_equity_units_mean": 0.001377342066255553,
+        "fees_initial_equity_units_mean": 0.002227760835855566,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.026741326479683258,
+        "trades_mean": 53.3,
+        "turnover_mean": 4.014039275906056
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.01116997997519752,
+        "borrow_initial_equity_units_mean": 0.0027566728639097852,
+        "fees_initial_equity_units_mean": 0.004446153530775996,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.0261384862092356,
+        "trades_mean": 53.3,
+        "turnover_mean": 4.013312755741271
+      }
+    },
+    "perp_delay0_scaled_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex_mean": 0.02319449100391825,
+        "borrow_initial_equity_units_mean": 0.0013944030462214047,
+        "fees_initial_equity_units_mean": 0.0022401637813264747,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.026741326479683247,
+        "trades_mean": 53.4,
+        "turnover_mean": 4.0177159355782655
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.019335390627636773,
+        "borrow_initial_equity_units_mean": 0.002790754368518304,
+        "fees_initial_equity_units_mean": 0.0044708464123583355,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.026138486209235555,
+        "trades_mean": 53.4,
+        "turnover_mean": 4.016978333398175
+      }
+    },
+    "scale_mean_utility_risk1": {
+      "base": {
+        "alpha_ex_mean": 0.0030977355768701752,
+        "borrow_initial_equity_units_mean": 0.0005660341868803394,
+        "fees_initial_equity_units_mean": 3.5661904007954015e-05,
+        "joint_positive_quarters": 2,
+        "maxdd_delta_mean": 0.003621581780424432,
+        "trades_mean": 0.9,
+        "turnover_mean": 0.05020154271570258
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.0026040342939376627,
+        "borrow_initial_equity_units_mean": 0.0011045207539215154,
+        "fees_initial_equity_units_mean": 6.986652449061596e-05,
+        "joint_positive_quarters": 2,
+        "maxdd_delta_mean": 0.003571051415082749,
+        "trades_mean": 0.8,
+        "turnover_mean": 0.049035930728487935
+      }
+    },
+    "scale_mean_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex_mean": 0.0030977355768701752,
+        "borrow_initial_equity_units_mean": 0.0005660341868803394,
+        "fees_initial_equity_units_mean": 3.5661904007954015e-05,
+        "joint_positive_quarters": 2,
+        "maxdd_delta_mean": 0.003621581780424432,
+        "trades_mean": 0.9,
+        "turnover_mean": 0.05020154271570258
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.0026040342939376627,
+        "borrow_initial_equity_units_mean": 0.0011045207539215154,
+        "fees_initial_equity_units_mean": 6.986652449061596e-05,
+        "joint_positive_quarters": 2,
+        "maxdd_delta_mean": 0.003571051415082749,
+        "trades_mean": 0.8,
+        "turnover_mean": 0.049035930728487935
+      }
+    },
+    "technical_half_utility_risk1": {
+      "base": {
+        "alpha_ex_mean": 0.013364261761680185,
+        "borrow_initial_equity_units_mean": 0.0013851885817013458,
+        "fees_initial_equity_units_mean": 0.00039707124799106733,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.02992182601698562,
+        "trades_mean": 11.2,
+        "turnover_mean": 0.7603077399586307
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.011621114028764168,
+        "borrow_initial_equity_units_mean": 0.0027507681767658925,
+        "fees_initial_equity_units_mean": 0.0007904616248355024,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.0297076248416257,
+        "trades_mean": 11.0,
+        "turnover_mean": 0.75779977837177
+      }
+    },
+    "technical_half_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex_mean": 0.01542313302882813,
+        "borrow_initial_equity_units_mean": 0.0013553490116352718,
+        "fees_initial_equity_units_mean": 0.00039601069581673347,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.03015472725773861,
+        "trades_mean": 11.2,
+        "turnover_mean": 0.7600164249697189
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.013712056792014626,
+        "borrow_initial_equity_units_mean": 0.002688695180155404,
+        "fees_initial_equity_units_mean": 0.0007883439795470785,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.029950261154201942,
+        "trades_mean": 11.0,
+        "turnover_mean": 0.7575087059633073
+      }
+    },
+    "technical_scaled_utility_risk1": {
+      "base": {
+        "alpha_ex_mean": 0.005085447239107787,
+        "borrow_initial_equity_units_mean": 0.0014561636190648685,
+        "fees_initial_equity_units_mean": 0.0017758398005488635,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.02294349664404328,
+        "trades_mean": 42.9,
+        "turnover_mean": 3.1867467526401745
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.0016918777443950983,
+        "borrow_initial_equity_units_mean": 0.00291747794487983,
+        "fees_initial_equity_units_mean": 0.0035445144959350507,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.022223325262233928,
+        "trades_mean": 42.9,
+        "turnover_mean": 3.1858816436519573
+      }
+    },
+    "technical_scaled_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex_mean": 0.013649591430119911,
+        "borrow_initial_equity_units_mean": 0.0014715884287763578,
+        "fees_initial_equity_units_mean": 0.0017938656893651597,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.02294349664404325,
+        "trades_mean": 43.2,
+        "turnover_mean": 3.206601878326731
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex_mean": 0.01020895000254447,
+        "borrow_initial_equity_units_mean": 0.0029482741768076686,
+        "fees_initial_equity_units_mean": 0.0035804604108903185,
+        "joint_positive_quarters": 4,
+        "maxdd_delta_mean": -0.022223325262233938,
+        "trades_mean": 43.2,
+        "turnover_mean": 3.205729997553041
+      }
+    }
+  },
+  "bh_roundoff": {
+    "interpretation": "B&H against itself is the zero reference. Stored strict-sign counts from floating-point roundoff are not economic improvement; leave immutable result untouched and label reference zero in prose/tables.",
+    "maximum_abs_alpha_ratio": 2.220446049250313e-16,
+    "maximum_abs_dd_ratio": 2.220446049250313e-16,
+    "stored_joint_positive_quarters": 2
+  },
+  "candidate_conditions": {
+    "perp_delay0_half_utility_risk1": {
+      "high_probability_generalization_established": false,
+      "observed_economic_signs": false,
+      "observed_metric_and_coverage_conditions_met": false,
+      "observed_predictive_signs": false
+    },
+    "perp_delay0_half_utility_risk1_fallback_bh": {
+      "high_probability_generalization_established": false,
+      "observed_economic_signs": false,
+      "observed_metric_and_coverage_conditions_met": false,
+      "observed_predictive_signs": false
+    },
+    "technical_half_utility_risk1": {
+      "high_probability_generalization_established": false,
+      "observed_economic_signs": false,
+      "observed_metric_and_coverage_conditions_met": false,
+      "observed_predictive_signs": false
+    },
+    "technical_half_utility_risk1_fallback_bh": {
+      "high_probability_generalization_established": false,
+      "observed_economic_signs": false,
+      "observed_metric_and_coverage_conditions_met": false,
+      "observed_predictive_signs": false
+    }
+  },
+  "checks": {
+    "recursive_comparisons": 2519
+  },
+  "comparison": {
+    "descriptive_components": {
+      "at": "descriptive_components[10].value",
+      "max_absolute_difference": 6.938893903907228e-18,
+      "numeric_values": 80
+    },
+    "fallback_minus_hold": {
+      "at": null,
+      "max_absolute_difference": 0.0,
+      "numeric_values": 96
+    },
+    "means": {
+      "at": "means.technical_half.all.row_pooled.return_sign_accuracy",
+      "max_absolute_difference": 1.1102230246251565e-16,
+      "numeric_values": 216
+    },
+    "paired_mse": {
+      "at": "paired_mse.technical_half_vs_technical_scaled.bear.return_mae_relative_loss_reduction",
+      "max_absolute_difference": 1.1102230246251565e-16,
+      "numeric_values": 80
+    },
+    "paired_policies": {
+      "at": "paired_policies.technical_half_utility_risk1_vs_technical_scaled_utility_risk1.bear.base.trades",
+      "max_absolute_difference": 7.105427357601002e-15,
+      "numeric_values": 480
+    },
+    "policies": {
+      "at": "policies.perp_delay0_scaled_utility_risk1.sideways.base.trades_mean",
+      "max_absolute_difference": 7.105427357601002e-15,
+      "numeric_values": 576
+    }
+  },
+  "failed_components": {
+    "perp_delay0_half_utility_risk1": {
+      "economic": [
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/all/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.0012969506756735471
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/bull/base/alpha_ex",
+          "p_value": null,
+          "value": -0.013779136846324563
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/bull/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.014688679826824869
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/sideways/base/alpha_ex",
+          "p_value": null,
+          "value": -0.038344280175650426
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/sideways/base/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.01768485211995478
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/sideways/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.04069672828478769
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1/sideways/stress_2x/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.01810684126090108
+        }
+      ],
+      "predictive": [
+        {
+          "id": "predictive/perp_delay0_half/scale_mean/all/negative_mse_difference",
+          "p_value": null,
+          "value": -2.2657220954315645e-08
+        },
+        {
+          "id": "predictive/perp_delay0_half/scale_mean/bear/negative_mse_difference",
+          "p_value": null,
+          "value": -8.846494319466471e-07
+        },
+        {
+          "id": "predictive/perp_delay0_half/scale_mean/sideways/negative_mse_difference",
+          "p_value": null,
+          "value": -2.0575194874472786e-07
+        },
+        {
+          "id": "predictive/perp_delay0_half/perp_delay0_scaled/bull/negative_mse_difference",
+          "p_value": null,
+          "value": -2.2195298313146456e-08
+        }
+      ]
+    },
+    "perp_delay0_half_utility_risk1_fallback_bh": {
+      "economic": [
+        {
+          "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/base/alpha_ex",
+          "p_value": null,
+          "value": -0.013779136846324563
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.014688679826824869
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/base/alpha_ex",
+          "p_value": null,
+          "value": -0.011064937637414821
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/base/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.016787968557823423
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.01369589937259319
+        },
+        {
+          "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/stress_2x/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.017224578363377614
+        }
+      ],
+      "predictive": [
+        {
+          "id": "predictive/perp_delay0_half/scale_mean/all/negative_mse_difference",
+          "p_value": null,
+          "value": -2.2657220954315645e-08
+        },
+        {
+          "id": "predictive/perp_delay0_half/scale_mean/bear/negative_mse_difference",
+          "p_value": null,
+          "value": -8.846494319466471e-07
+        },
+        {
+          "id": "predictive/perp_delay0_half/scale_mean/sideways/negative_mse_difference",
+          "p_value": null,
+          "value": -2.0575194874472786e-07
+        },
+        {
+          "id": "predictive/perp_delay0_half/perp_delay0_scaled/bull/negative_mse_difference",
+          "p_value": null,
+          "value": -2.2195298313146456e-08
+        }
+      ]
+    },
+    "technical_half_utility_risk1": {
+      "economic": [
+        {
+          "id": "economic/technical_half_utility_risk1/bull/base/alpha_ex",
+          "p_value": null,
+          "value": -0.004353071175605516
+        },
+        {
+          "id": "economic/technical_half_utility_risk1/bull/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.00521918219997472
+        },
+        {
+          "id": "economic/technical_half_utility_risk1/sideways/base/alpha_ex",
+          "p_value": null,
+          "value": -0.007516165835352566
+        },
+        {
+          "id": "economic/technical_half_utility_risk1/sideways/base/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.02053636934383966
+        },
+        {
+          "id": "economic/technical_half_utility_risk1/sideways/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.009931366521138685
+        },
+        {
+          "id": "economic/technical_half_utility_risk1/sideways/stress_2x/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.020963847715757027
+        }
+      ],
+      "predictive": [
+        {
+          "id": "predictive/technical_half/scale_mean/all/negative_mse_difference",
+          "p_value": null,
+          "value": -8.672642714576941e-08
+        },
+        {
+          "id": "predictive/technical_half/scale_mean/bear/negative_mse_difference",
+          "p_value": null,
+          "value": -7.473439529369263e-07
+        },
+        {
+          "id": "predictive/technical_half/scale_mean/sideways/negative_mse_difference",
+          "p_value": null,
+          "value": -6.140510997619365e-07
+        },
+        {
+          "id": "predictive/technical_half/technical_scaled/bull/negative_mse_difference",
+          "p_value": null,
+          "value": -1.4086759263461145e-07
+        }
+      ]
+    },
+    "technical_half_utility_risk1_fallback_bh": {
+      "economic": [
+        {
+          "id": "economic/technical_half_utility_risk1_fallback_bh/bull/base/alpha_ex",
+          "p_value": null,
+          "value": -0.004353071175605516
+        },
+        {
+          "id": "economic/technical_half_utility_risk1_fallback_bh/bull/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.00521918219997472
+        },
+        {
+          "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/base/alpha_ex",
+          "p_value": null,
+          "value": -0.0006532616115260866
+        },
+        {
+          "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/base/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.01976003187466302
+        },
+        {
+          "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/stress_2x/alpha_ex",
+          "p_value": null,
+          "value": -0.002961557310303823
+        },
+        {
+          "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/stress_2x/negative_maxdd_delta",
+          "p_value": null,
+          "value": -0.020155060007169563
+        }
+      ],
+      "predictive": [
+        {
+          "id": "predictive/technical_half/scale_mean/all/negative_mse_difference",
+          "p_value": null,
+          "value": -8.672642714576941e-08
+        },
+        {
+          "id": "predictive/technical_half/scale_mean/bear/negative_mse_difference",
+          "p_value": null,
+          "value": -7.473439529369263e-07
+        },
+        {
+          "id": "predictive/technical_half/scale_mean/sideways/negative_mse_difference",
+          "p_value": null,
+          "value": -6.140510997619365e-07
+        },
+        {
+          "id": "predictive/technical_half/technical_scaled/bull/negative_mse_difference",
+          "p_value": null,
+          "value": -1.4086759263461145e-07
+        }
+      ]
+    }
+  },
+  "findings": {
+    "perp_delay0_half": {
+      "economic_means_percentage_points": {
+        "utility_risk1": {
+          "all": {
+            "base": {
+              "alpha_ex": 0.04767153888755482,
+              "maxdd_delta": -2.8256936470125384
+            },
+            "stress_2x": {
+              "alpha_ex": -0.12969506756735472,
+              "maxdd_delta": -2.8042054733006196
+            }
+          },
+          "bear": {
+            "base": {
+              "alpha_ex": 5.830551393366834,
+              "maxdd_delta": -4.801742607939563
+            },
+            "stress_2x": {
+              "alpha_ex": 5.595846580164236,
+              "maxdd_delta": -4.751115464020224
+            }
+          },
+          "bull": {
+            "base": {
+              "alpha_ex": -1.3779136846324564,
+              "maxdd_delta": -4.789291070573282
+            },
+            "stress_2x": {
+              "alpha_ex": -1.4688679826824869,
+              "maxdd_delta": -4.805190179803962
+            }
+          },
+          "sideways": {
+            "base": {
+              "alpha_ex": -3.8344280175650427,
+              "maxdd_delta": 1.768485211995478
+            },
+            "stress_2x": {
+              "alpha_ex": -4.069672828478769,
+              "maxdd_delta": 1.810684126090108
+            }
+          }
+        },
+        "utility_risk1_fallback_bh": {
+          "all": {
+            "base": {
+              "alpha_ex": 0.8660518150346231,
+              "maxdd_delta": -2.852600153876479
+            },
+            "stress_2x": {
+              "alpha_ex": 0.6803297997984803,
+              "maxdd_delta": -2.8306733602263234
+            }
+          },
+          "bear": {
+            "base": {
+              "alpha_ex": 5.830551393366834,
+              "maxdd_delta": -4.801742607939563
+            },
+            "stress_2x": {
+              "alpha_ex": 5.595846580164236,
+              "maxdd_delta": -4.751115464020224
+            }
+          },
+          "bull": {
+            "base": {
+              "alpha_ex": -1.3779136846324564,
+              "maxdd_delta": -4.789291070573282
+            },
+            "stress_2x": {
+              "alpha_ex": -1.4688679826824869,
+              "maxdd_delta": -4.805190179803962
+            }
+          },
+          "sideways": {
+            "base": {
+              "alpha_ex": -1.106493763741482,
+              "maxdd_delta": 1.6787968557823423
+            },
+            "stress_2x": {
+              "alpha_ex": -1.369589937259319,
+              "maxdd_delta": 1.7224578363377614
+            }
+          }
+        }
+      },
+      "fallback_changes_only_these_folds": [
+        18
+      ],
+      "fallback_minus_hold_all": {
+        "base": {
+          "alpha_ex": 0.008183802761470682,
+          "borrow_initial_equity_units": 6.371133551019703e-05,
+          "fees_initial_equity_units": 1.2362291983796392e-05,
+          "maxdd_delta": -0.00026906506863940696,
+          "trades": 0.3,
+          "turnover": 0.018646472866989727
+        },
+        "quarters": 10,
+        "stress_2x": {
+          "alpha_ex": 0.00810024867365835,
+          "borrow_initial_equity_units": 0.00012827041388645198,
+          "fees_initial_equity_units": 2.4710757218726295e-05,
+          "maxdd_delta": -0.0002646788692570401,
+          "trades": 0.3,
+          "turnover": 0.01866070135847745
+        }
+      },
+      "forecast_loss_reduction_percent": {
+        "perp_delay0_scaled": {
+          "all": {
+            "return_mae": 0.9789728565857143,
+            "return_mse": 0.7811221197978385
+          },
+          "bear": {
+            "return_mae": 2.1214260433836905,
+            "return_mse": 2.1682258690009544
+          },
+          "bull": {
+            "return_mae": 0.4721670874809497,
+            "return_mse": -0.01414336449007758
+          },
+          "sideways": {
+            "return_mae": 0.6118132734721814,
+            "return_mse": 0.6514010758170494
+          }
+        },
+        "scale_mean": {
+          "all": {
+            "return_mae": -0.2839432445486474,
+            "return_mse": -0.01476232401030853
+          },
+          "bear": {
+            "return_mae": -0.9296865216611861,
+            "return_mse": -0.669773412046611
+          },
+          "bull": {
+            "return_mae": -0.028414195053364195,
+            "return_mse": 0.48261862086977114
+          },
+          "sideways": {
+            "return_mae": -0.05067191900294449,
+            "return_mse": -0.12157933085358567
+          }
+        }
+      },
+      "mse_improved_quarters_vs_own_full": {
+        "all": 8,
+        "bear": 3,
+        "bull": 2,
+        "sideways": 3
+      },
+      "mse_improved_quarters_vs_scale": {
+        "all": 5,
+        "bear": 0,
+        "bull": 3,
+        "sideways": 2
+      }
+    },
+    "technical_half": {
+      "economic_means_percentage_points": {
+        "utility_risk1": {
+          "all": {
+            "base": {
+              "alpha_ex": 1.3364261761680185,
+              "maxdd_delta": -2.9921826016985618
+            },
+            "stress_2x": {
+              "alpha_ex": 1.1621114028764168,
+              "maxdd_delta": -2.97076248416257
+            }
+          },
+          "bear": {
+            "base": {
+              "alpha_ex": 5.786779994176054,
+              "maxdd_delta": -5.304402948930394
+            },
+            "stress_2x": {
+              "alpha_ex": 5.562732288365221,
+              "maxdd_delta": -5.2522424017563125
+            }
+          },
+          "bull": {
+            "base": {
+              "alpha_ex": -0.4353071175605516,
+              "maxdd_delta": -5.042381993336583
+            },
+            "stress_2x": {
+              "alpha_ex": -0.521918219997472,
+              "maxdd_delta": -5.060012987770968
+            }
+          },
+          "sideways": {
+            "base": {
+              "alpha_ex": -0.7516165835352566,
+              "maxdd_delta": 2.053636934383966
+            },
+            "stress_2x": {
+              "alpha_ex": -0.9931366521138685,
+              "maxdd_delta": 2.096384771575703
+            }
+          }
+        },
+        "utility_risk1_fallback_bh": {
+          "all": {
+            "base": {
+              "alpha_ex": 1.5423133028828129,
+              "maxdd_delta": -3.015472725773861
+            },
+            "stress_2x": {
+              "alpha_ex": 1.3712056792014626,
+              "maxdd_delta": -2.995026115420194
+            }
+          },
+          "bear": {
+            "base": {
+              "alpha_ex": 5.786779994176054,
+              "maxdd_delta": -5.304402948930394
+            },
+            "stress_2x": {
+              "alpha_ex": 5.562732288365221,
+              "maxdd_delta": -5.2522424017563125
+            }
+          },
+          "bull": {
+            "base": {
+              "alpha_ex": -0.4353071175605516,
+              "maxdd_delta": -5.042381993336583
+            },
+            "stress_2x": {
+              "alpha_ex": -0.521918219997472,
+              "maxdd_delta": -5.060012987770968
+            }
+          },
+          "sideways": {
+            "base": {
+              "alpha_ex": -0.06532616115260867,
+              "maxdd_delta": 1.976003187466302
+            },
+            "stress_2x": {
+              "alpha_ex": -0.2961557310303823,
+              "maxdd_delta": 2.015506000716956
+            }
+          }
+        }
+      },
+      "fallback_changes_only_these_folds": [
+        18
+      ],
+      "fallback_minus_hold_all": {
+        "base": {
+          "alpha_ex": 0.002058871267147944,
+          "borrow_initial_equity_units": -2.9839570066074092e-05,
+          "fees_initial_equity_units": -1.0605521743338432e-06,
+          "maxdd_delta": -0.0002329012407529918,
+          "trades": 0.0,
+          "turnover": -0.00029131498891177277
+        },
+        "quarters": 10,
+        "stress_2x": {
+          "alpha_ex": 0.0020909427632504586,
+          "borrow_initial_equity_units": -6.207299661048844e-05,
+          "fees_initial_equity_units": -2.1176452884239093e-06,
+          "maxdd_delta": -0.00024263631257623875,
+          "trades": 0.0,
+          "turnover": -0.00029107240846260594
+        }
+      },
+      "forecast_loss_reduction_percent": {
+        "scale_mean": {
+          "all": {
+            "return_mae": -0.24063931916262307,
+            "return_mse": -0.05650664838217894
+          },
+          "bear": {
+            "return_mae": -0.8048273470499516,
+            "return_mse": -0.5658186070718609
+          },
+          "bull": {
+            "return_mae": 0.058686981072279265,
+            "return_mse": 0.5099289359637663
+          },
+          "sideways": {
+            "return_mae": -0.1354224156988895,
+            "return_mse": -0.3628443000148191
+          }
+        },
+        "technical_scaled": {
+          "all": {
+            "return_mae": 0.8751596887433287,
+            "return_mse": 0.7995186291667141
+          },
+          "bear": {
+            "return_mae": 1.9043146319463244,
+            "return_mse": 2.051651304625734
+          },
+          "bull": {
+            "return_mae": 0.33762690058758216,
+            "return_mse": -0.08985674591665618
+          },
+          "sideways": {
+            "return_mae": 0.651119611468776,
+            "return_mse": 0.8934541099339905
+          }
+        }
+      },
+      "mse_improved_quarters_vs_own_full": {
+        "all": 8,
+        "bear": 3,
+        "bull": 2,
+        "sideways": 3
+      },
+      "mse_improved_quarters_vs_scale": {
+        "all": 5,
+        "bear": 0,
+        "bull": 3,
+        "sideways": 2
+      }
+    }
+  },
+  "inventory": {
+    "components": 80,
+    "cost_metric_objects": 240,
+    "economic_rows": 120,
+    "fallback_rule_pairs": 2,
+    "forecast_pairs": 5,
+    "forecast_scores": 50,
+    "policy_pairs": 10,
+    "primary_economic_components": 64,
+    "primary_predictive_components": 16
+  },
+  "old_test_folds": [
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "paired_policy_all": {
+    "perp_delay0_half_utility_risk1_fallback_bh_vs_perp_delay0_scaled_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex": -0.01453397285357202,
+        "borrow_initial_equity_units": 2.3473579997973755e-05,
+        "fees_initial_equity_units": -0.0017651787949330474,
+        "maxdd_delta": -0.0017846750590815418,
+        "trades": -40.4,
+        "turnover": -3.114401506050511
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": -0.01253209262965197,
+        "borrow_initial_equity_units": 2.200068176042669e-05,
+        "fees_initial_equity_units": -0.0035247265797839758,
+        "maxdd_delta": -0.002168247393027678,
+        "trades": -40.6,
+        "turnover": -3.1161360295913663
+      }
+    },
+    "perp_delay0_half_utility_risk1_fallback_bh_vs_scale_mean_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex": 0.005562782573476055,
+        "borrow_initial_equity_units": 0.000851842439339039,
+        "fees_initial_equity_units": 0.00043932308238547337,
+        "maxdd_delta": -0.032147583319189224,
+        "trades": 12.1,
+        "turnover": 0.8531128868120517
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": 0.00419926370404714,
+        "borrow_initial_equity_units": 0.0017082342963572153,
+        "fees_initial_equity_units": 0.0008762533080837436,
+        "maxdd_delta": -0.031877785017345985,
+        "trades": 12.0,
+        "turnover": 0.8518063730783204
+      }
+    },
+    "perp_delay0_half_utility_risk1_fallback_bh_vs_technical_half_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex": -0.0067626148784818985,
+        "borrow_initial_equity_units": 6.252761458410662e-05,
+        "fees_initial_equity_units": 7.897429057669388e-05,
+        "maxdd_delta": 0.0016287257189738225,
+        "trades": 1.8,
+        "turnover": 0.14329800455803532
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": -0.006908758794029824,
+        "borrow_initial_equity_units": 0.0001240598701233267,
+        "fees_initial_equity_units": 0.00015777585302728114,
+        "maxdd_delta": 0.001643527551938706,
+        "trades": 1.8,
+        "turnover": 0.14333359784350097
+      }
+    },
+    "perp_delay0_half_utility_risk1_vs_perp_delay0_scaled_utility_risk1": {
+      "base": {
+        "alpha_ex": -0.014512144374315616,
+        "borrow_initial_equity_units": -2.3176775546371653e-05,
+        "fees_initial_equity_units": -0.001765138141445935,
+        "maxdd_delta": -0.001515609990442124,
+        "trades": -40.6,
+        "turnover": -3.1293713192452914
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": -0.012466930650871066,
+        "borrow_initial_equity_units": -7.218822751750631e-05,
+        "fees_initial_equity_units": -0.0035247444554203622,
+        "maxdd_delta": -0.0019035685237705935,
+        "trades": -40.8,
+        "turnover": -3.1311311532929404
+      }
+    },
+    "perp_delay0_half_utility_risk1_vs_scale_mean_utility_risk1": {
+      "base": {
+        "alpha_ex": -0.002621020187994627,
+        "borrow_initial_equity_units": 0.000788131103828842,
+        "fees_initial_equity_units": 0.00042696079040167693,
+        "maxdd_delta": -0.03187851825054981,
+        "trades": 11.8,
+        "turnover": 0.8344664139450619
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": -0.0039009849696112096,
+        "borrow_initial_equity_units": 0.0015799638824707633,
+        "fees_initial_equity_units": 0.0008515425508650174,
+        "maxdd_delta": -0.031613106148088946,
+        "trades": 11.7,
+        "turnover": 0.833145671719843
+      }
+    },
+    "perp_delay0_half_utility_risk1_vs_technical_half_utility_risk1": {
+      "base": {
+        "alpha_ex": -0.012887546372804638,
+        "borrow_initial_equity_units": -3.1023290992164505e-05,
+        "fees_initial_equity_units": 6.555144641856365e-05,
+        "maxdd_delta": 0.0016648895468602376,
+        "trades": 1.5,
+        "turnover": 0.12436021670213383
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": -0.012918064704437715,
+        "borrow_initial_equity_units": -6.628354037361374e-05,
+        "fees_initial_equity_units": 0.00013094745052013093,
+        "maxdd_delta": 0.0016655701086195074,
+        "trades": 1.5,
+        "turnover": 0.12438182407656091
+      }
+    },
+    "technical_half_utility_risk1_fallback_bh_vs_scale_mean_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex": 0.012325397451957954,
+        "borrow_initial_equity_units": 0.0007893148247549324,
+        "fees_initial_equity_units": 0.00036034879180877943,
+        "maxdd_delta": -0.033776309038163047,
+        "trades": 10.3,
+        "turnover": 0.7098148822540162
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": 0.011108022498076964,
+        "borrow_initial_equity_units": 0.0015841744262338885,
+        "fees_initial_equity_units": 0.0007184774550564625,
+        "maxdd_delta": -0.033521312569284686,
+        "trades": 10.2,
+        "turnover": 0.7084727752348194
+      }
+    },
+    "technical_half_utility_risk1_fallback_bh_vs_technical_scaled_utility_risk1_fallback_bh": {
+      "base": {
+        "alpha_ex": 0.0017735415987082171,
+        "borrow_initial_equity_units": -0.00011623941714108602,
+        "fees_initial_equity_units": -0.0013978549935484263,
+        "maxdd_delta": -0.007211230613695363,
+        "trades": -32.0,
+        "turnover": -2.446585453357012
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": 0.003503106789470156,
+        "borrow_initial_equity_units": -0.00025957899665226473,
+        "fees_initial_equity_units": -0.00279211643134324,
+        "maxdd_delta": -0.007726935891968001,
+        "trades": -32.2,
+        "turnover": -2.4482212915897335
+      }
+    },
+    "technical_half_utility_risk1_vs_scale_mean_utility_risk1": {
+      "base": {
+        "alpha_ex": 0.010266526184810009,
+        "borrow_initial_equity_units": 0.0008191543948210065,
+        "fees_initial_equity_units": 0.0003614093439831133,
+        "maxdd_delta": -0.03354340779741005,
+        "trades": 10.3,
+        "turnover": 0.710106197242928
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": 0.009017079734826506,
+        "borrow_initial_equity_units": 0.0016462474228443771,
+        "fees_initial_equity_units": 0.0007205951003448865,
+        "maxdd_delta": -0.03327867625670845,
+        "trades": 10.2,
+        "turnover": 0.708763847643282
+      }
+    },
+    "technical_half_utility_risk1_vs_technical_scaled_utility_risk1": {
+      "base": {
+        "alpha_ex": 0.008278814522572397,
+        "borrow_initial_equity_units": -7.097503736352261e-05,
+        "fees_initial_equity_units": -0.0013787685525577962,
+        "maxdd_delta": -0.006978329372942338,
+        "trades": -31.7,
+        "turnover": -2.426439012681544
+      },
+      "quarters": 10,
+      "stress_2x": {
+        "alpha_ex": 0.00992923628436907,
+        "borrow_initial_equity_units": -0.00016670976811393765,
+        "fees_initial_equity_units": -0.0027540528710995483,
+        "maxdd_delta": -0.007484299579391773,
+        "trades": -31.9,
+        "turnover": -2.428081865280187
+      }
+    }
+  },
+  "passed": true,
+  "regime_counts": {
+    "bear": 3,
+    "bull": 4,
+    "sideways": 3,
+    "unavailable": 0
+  },
+  "regime_coverage": true,
+  "schema": "independent-additional-window-summary-audit-v1",
+  "scope": "Reused original test15..24 only; independent Decimal60 sum of saved rows/scores, no new models, policies, selection, intervals or p-values. Forecast scalar/accounting path audits are separate.",
+  "script_sha256": "b52fd2130d1c152407df0d76ad8a3814a8ca6405ab11593f798b3c3480362dcf",
+  "source_file_sha256": {
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_15.json": "fcc4f7fad4b419b5ae9b7214f73ddf15fed1931bb287e0b242e3bb3586c2efa3",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_16.json": "37aa296efa9b908af9175de36d4e3f2c4d96aa7202c82a6849179fae40c828c6",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_17.json": "e95c2dc58779b96b06895145ac550249edc64f9ccc1697f6e202188d8699beea",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_18.json": "836d11b76f2228a8b7dec0b332a177d45de6d4a0023e068cbc44076ce6ba9bd1",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_19.json": "6e20dc975ebdbb0a71f62e016f157fa6e63ceee8dc3944afbe9ad605407732b9",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_20.json": "7955111e17248fd6a1b665af4192020badaf88ef7b95265343317281144abc0f",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_21.json": "249c0703ca6875c13a7572ab83a553a76890f1157aa06c2739b0386b8197d546",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_22.json": "70709402ea7c58249080a17f473e31810bfc5719adfd757199d87065df31b504",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_23.json": "265cfeb7c3ea269dcb38dfe65e950c69764c41a56e90d927f2c344bb50dcc772",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/fold_24.json": "c8619d78922e5e82aa74b2aba9c9a6cdae41123373691f5a5cf769db4586ea32",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/preflight.json": "8416f5a21389606e9a1834bb12898349178d34e2cc8a92ca6041a0f3241228b5",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/registration.json": "b1838eca2efc6523537a49415803eb5f9a07a7603257fd11f6abaa1c4d5653eb",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_additional_window_replay_v1/results.json": "8579e40b5be9ed737acf6c633c92d33b383d0fb338c75832f7b3a125bdd474d1",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/configs/oracle_additional_window_replay_20260906.yaml": "3c7fb4ffe95ace7f941a107f6b097865cafd1fc681af1c69b641c5bf5d7ea8da",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/docs/experiments/oracle_additional_window_evidence_20260906/data_manifest.json": "609ae008f1cb47919d19f5997409f5833fed1a12d5c106a32af985377945088c",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/docs/experiments/oracle_mean_shrinkage_evidence_20260905/candidate_family_freeze.json": "245cc711aabe395e2fcc93b45695cafeac03550e435cdc4f2f5b2a6a13f12cd0",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_additional_window_replay.py": "f82d48f25f4234a858a872bddd0c9aac498b4b4ccfc9fd56686041ee1fdf260c",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_confirmation_contract.py": "7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_derivative_delay.py": "04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_derivative_delay_features.py": "bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_fallback_decisions.py": "c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_fallback_planner.py": "e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_frozen_forecasts.py": "352802b2c26caf43b9fe1e2285385676e6e111d355af0883ed0136ec76c07679",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_frozen_procedure_parity.py": "0a84c0010737518c989c5320c3b6cfcb7b7a61fb08bd5a909ff5a7d0ad00ad83",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_mean_controls.py": "07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_mean_shrinkage.py": "fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/unidream/experiments/robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  },
+  "source_revision": "73cb806bffb7dc39d7454886e9bcfce9119dc435"
+}

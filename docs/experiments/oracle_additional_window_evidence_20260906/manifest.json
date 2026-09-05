@@ -1,0 +1,23 @@
+{
+  "files": {
+    "docs/experiments/oracle_additional_window_evidence_20260906/acquisition_registration.json": "1da698872d69894f046c49c9677ce6a402b9b7d517ce11643878c1db04047e96",
+    "docs/experiments/oracle_additional_window_evidence_20260906/acquisition_source_ledger.jsonl": "70001bacc380b3e4cd7615ee0a1a9ba05fef3b8a859afaf640fbe8725691c110",
+    "docs/experiments/oracle_additional_window_evidence_20260906/common_robust_context.json": "87d1a4f8538848139b640aef84a9578d159463853ae4da384f76d22e6b71e0d3",
+    "docs/experiments/oracle_additional_window_evidence_20260906/data_manifest.json": "609ae008f1cb47919d19f5997409f5833fed1a12d5c106a32af985377945088c",
+    "docs/experiments/oracle_additional_window_evidence_20260906/independent_scalar_audit.json": "c639c30b45fe727de489447fd23b2d2dfbcc0c6f74109c407cdf61fcdf6c98b8",
+    "docs/experiments/oracle_additional_window_evidence_20260906/independent_scalar_audit.py": "9fe86c25f9948f43d4d4f623b1824146eb85c30534f412cf122aa274735df94c",
+    "docs/experiments/oracle_additional_window_evidence_20260906/independent_summary_audit.json": "2e62adc67dc11dd68c4f3e715fc51edeaff3354706ba3cd7b60d529e2724ef33",
+    "docs/experiments/oracle_additional_window_evidence_20260906/independent_summary_audit.py": "b52fd2130d1c152407df0d76ad8a3814a8ca6405ab11593f798b3c3480362dcf",
+    "docs/experiments/oracle_additional_window_evidence_20260906/pre_outcome_verification.json": "78e6250dd65c09cd8250d83451acc31b28d40d34cba43b7d538309f40c5ec56f",
+    "docs/experiments/oracle_additional_window_evidence_20260906/preflight.json": "8416f5a21389606e9a1834bb12898349178d34e2cc8a92ca6041a0f3241228b5",
+    "docs/experiments/oracle_additional_window_evidence_20260906/raw_reparse_audit.json": "f121bbee18d64cdfe8e0b0d8789a26117f1d3af27f26da6ce6f8bcbc08768341",
+    "docs/experiments/oracle_additional_window_evidence_20260906/registration.json": "b1838eca2efc6523537a49415803eb5f9a07a7603257fd11f6abaa1c4d5653eb",
+    "docs/experiments/oracle_additional_window_evidence_20260906/results.json": "8579e40b5be9ed737acf6c633c92d33b383d0fb338c75832f7b3a125bdd474d1",
+    "docs/experiments/oracle_additional_window_evidence_20260906/scalar_ridge_audit.json": "2517b88b5f029bd1e34b8a0e31ef038fd7a53e117b72405f7f3a5cf10991285a",
+    "docs/experiments/oracle_additional_window_evidence_20260906/scalar_ridge_audit.py": "ecb28ca1befc829f572bcfce16546fe0679f1c2f221be5fe0e7f4704a75ca434",
+    "docs/experiments/oracle_additional_window_evidence_20260906/um_15m.sha256.json": "61970ea37db7e0d59dc530b923c1f82702b5ac2aff61539471b751c30651df2b",
+    "docs/experiments/oracle_additional_window_evidence_20260906/verification.json": "1a32f3571b818ac8b5a42515914af3c34055d06476d1393ac6ff874033138b04",
+    "docs/experiments/oracle_additional_window_results_20260906.md": "201c2a5b04ba9258fef802fff8568694af209406a2a778f8de11411cca1f3709"
+  },
+  "schema": "oracle-additional-window-report-manifest-v1"
+}
