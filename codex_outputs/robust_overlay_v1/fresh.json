@@ -1,0 +1,113 @@
+{
+  "confirmation_is_report_only": true,
+  "data_file_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+  "formal_p1_result": false,
+  "orders_submitted": 0,
+  "policy": {
+    "consensus_scale": 0.5,
+    "consensus_threshold": 0.15,
+    "decision_cadence_hours": 6,
+    "horizons_days": [
+      7,
+      30,
+      90
+    ],
+    "lower_exposure": 0.5,
+    "missing_feature_policy": "hold_previous_position",
+    "slow_weight": 0.5,
+    "upper_exposure": 1.12
+  },
+  "registration_sha256": "676fd8bc7f1660d1c867991fd7d5560f1460a47e7de87dee2d56a5832e77e803",
+  "rows": [
+    {
+      "base": {
+        "alpha_ex": 0.01504402449222042,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2964805407962193,
+        "bh_total_return": -0.13999817161265093,
+        "borrow_initial_equity_units": 0.00066714049181312,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.002833784848374514,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.23786802067997959,
+        "maxdd_delta": -0.05861252011623974,
+        "mean_exposure": 0.7604185300754384,
+        "rows": 8736,
+        "total_return": -0.12495414712043051,
+        "trades": 82,
+        "turnover": 5.3973246300857305
+      },
+      "end": "2026-07-16 13:45:00+00:00",
+      "fold": 24,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 364
+      },
+      "start": "2026-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.011875207842774294,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2964805407962193,
+        "bh_total_return": -0.13999817161265093,
+        "borrow_initial_equity_units": 0.0013343944331396956,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.005658012580138305,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.23908830715176088,
+        "maxdd_delta": -0.057392233644458446,
+        "mean_exposure": 0.7604558348755714,
+        "rows": 8736,
+        "total_return": -0.12812296376987664,
+        "trades": 82,
+        "turnover": 5.39802440222429
+      }
+    }
+  ],
+  "schema": "robust-overlay-v1",
+  "source_revision": "126144fe03a67de4bd2bad009c7cae8037f653b8",
+  "stage": "fresh",
+  "stress_2x": {
+    "alpha_ex_mean": 0.011875207842774294,
+    "alpha_ex_median": 0.011875207842774294,
+    "alpha_ex_worst": 0.011875207842774294,
+    "alpha_positive_folds": 1,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 1,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      0.011875207842774294,
+      0.011875207842774294
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.057392233644458446,
+      -0.057392233644458446
+    ],
+    "folds": 1,
+    "maxdd_delta_mean": -0.057392233644458446,
+    "maxdd_delta_median": -0.057392233644458446,
+    "minimum_target_pass": true,
+    "preferred_target_pass": false,
+    "selection_score": 0.011875207842774294
+  },
+  "summary": {
+    "alpha_ex_mean": 0.01504402449222042,
+    "alpha_ex_median": 0.01504402449222042,
+    "alpha_ex_worst": 0.01504402449222042,
+    "alpha_positive_folds": 1,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 1,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      0.01504402449222042,
+      0.01504402449222042
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.05861252011623974,
+      -0.05861252011623974
+    ],
+    "folds": 1,
+    "maxdd_delta_mean": -0.05861252011623974,
+    "maxdd_delta_median": -0.05861252011623974,
+    "minimum_target_pass": true,
+    "preferred_target_pass": false,
+    "selection_score": 0.01504402449222042
+  }
+}

@@ -1,0 +1,629 @@
+{
+  "confirmation_is_report_only": false,
+  "data_file_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+  "formal_p1_result": false,
+  "orders_submitted": 0,
+  "policy": {
+    "consensus_scale": 0.5,
+    "consensus_threshold": 0.15,
+    "decision_cadence_hours": 6,
+    "horizons_days": [
+      7,
+      30,
+      90
+    ],
+    "lower_exposure": 0.5,
+    "missing_feature_policy": "hold_previous_position",
+    "slow_weight": 0.5,
+    "upper_exposure": 1.12
+  },
+  "registration_sha256": "676fd8bc7f1660d1c867991fd7d5560f1460a47e7de87dee2d56a5832e77e803",
+  "rows": [
+    {
+      "base": {
+        "alpha_ex": -0.08818489060610912,
+        "bar_coverage": 0.9972527472527473,
+        "bh_maxdd": 0.174635871702286,
+        "bh_total_return": 0.292407303774775,
+        "borrow_initial_equity_units": 0.0015531021501543132,
+        "close_coverage": 0.9972527472527473,
+        "fees_initial_equity_units": 0.003753186951815538,
+        "intent_coverage": 0.03514194139194139,
+        "maxdd": 0.14624653368380758,
+        "maxdd_delta": -0.028389338018478427,
+        "mean_exposure": 0.9613678706739215,
+        "rows": 8736,
+        "total_return": 0.20422241316866585,
+        "trades": 84,
+        "turnover": 5.592930926996714
+      },
+      "end": "2020-07-16 13:45:00+00:00",
+      "fold": 0,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 307
+      },
+      "start": "2020-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.09336458019709726,
+        "bar_coverage": 0.9972527472527473,
+        "bh_maxdd": 0.174635871702286,
+        "bh_total_return": 0.292407303774775,
+        "borrow_initial_equity_units": 0.00309903051446164,
+        "close_coverage": 0.9972527472527473,
+        "fees_initial_equity_units": 0.007493337635412843,
+        "intent_coverage": 0.03514194139194139,
+        "maxdd": 0.14744002869152917,
+        "maxdd_delta": -0.027195843010756837,
+        "mean_exposure": 0.9613984937822591,
+        "rows": 8736,
+        "total_return": 0.19904272357767772,
+        "trades": 84,
+        "turnover": 5.5935898819950225
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.00016535579634169295,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2030930117416908,
+        "bh_total_return": 0.24961905653828986,
+        "borrow_initial_equity_units": 0.0027908910648959963,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.00270576403076111,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.2149584702851095,
+        "maxdd_delta": 0.011865458543418694,
+        "mean_exposure": 1.0590276220352242,
+        "rows": 8832,
+        "total_return": 0.24945370074194817,
+        "trades": 62,
+        "turnover": 4.3167152092687315
+      },
+      "end": "2020-10-16 13:45:00+00:00",
+      "fold": 1,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2020-07-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.005869696030077476,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2030930117416908,
+        "bh_total_return": 0.24961905653828986,
+        "borrow_initial_equity_units": 0.005578692669338804,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.005397121936041132,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.21567516935022513,
+        "maxdd_delta": 0.012582157608534317,
+        "mean_exposure": 1.0591714936877301,
+        "rows": 8832,
+        "total_return": 0.2437493605082124,
+        "trades": 62,
+        "turnover": 4.316105706399714
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.43191613975726195,
+        "bar_coverage": 0.9972826086956522,
+        "bh_maxdd": 0.2659161794730476,
+        "bh_total_return": 2.28514609323269,
+        "borrow_initial_equity_units": 0.0057563069023557276,
+        "close_coverage": 0.9972826086956522,
+        "fees_initial_equity_units": 0.0004312740859700108,
+        "intent_coverage": 0.033740942028985504,
+        "maxdd": 0.2947537601382306,
+        "maxdd_delta": 0.02883758066518305,
+        "mean_exposure": 1.115302440107067,
+        "rows": 8832,
+        "total_return": 2.717062232989952,
+        "trades": 22,
+        "turnover": 0.39103481616349506
+      },
+      "end": "2021-01-16 13:45:00+00:00",
+      "fold": 2,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 298
+      },
+      "start": "2020-10-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.4209106550135706,
+        "bar_coverage": 0.9972826086956522,
+        "bh_maxdd": 0.2659161794730476,
+        "bh_total_return": 2.28514609323269,
+        "borrow_initial_equity_units": 0.011498709988000483,
+        "close_coverage": 0.9972826086956522,
+        "fees_initial_equity_units": 0.0008567016386640668,
+        "intent_coverage": 0.033740942028985504,
+        "maxdd": 0.2948580172911255,
+        "maxdd_delta": 0.02894183781807791,
+        "mean_exposure": 1.1153551096889673,
+        "rows": 8832,
+        "total_return": 2.7060567482462607,
+        "trades": 22,
+        "turnover": 0.3889218494232952
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.05898086001518532,
+        "bar_coverage": 0.9986111111111111,
+        "bh_maxdd": 0.25990517233685106,
+        "bh_total_return": 0.6340397710742356,
+        "borrow_initial_equity_units": 0.003855197278595284,
+        "close_coverage": 0.9986111111111111,
+        "fees_initial_equity_units": 0.000765254651716228,
+        "intent_coverage": 0.0349537037037037,
+        "maxdd": 0.2884183674369296,
+        "maxdd_delta": 0.028513195100078548,
+        "mean_exposure": 1.1157937963195363,
+        "rows": 8640,
+        "total_return": 0.6930206310894209,
+        "trades": 31,
+        "turnover": 1.008650496176249
+      },
+      "end": "2021-04-16 13:45:00+00:00",
+      "fold": 3,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 302
+      },
+      "start": "2021-01-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.053408982564052465,
+        "bar_coverage": 0.9986111111111111,
+        "bh_maxdd": 0.25990517233685106,
+        "bh_total_return": 0.6340397710742356,
+        "borrow_initial_equity_units": 0.007705225567539813,
+        "close_coverage": 0.9986111111111111,
+        "fees_initial_equity_units": 0.0015253736241285538,
+        "intent_coverage": 0.0349537037037037,
+        "maxdd": 0.2886185141562668,
+        "maxdd_delta": 0.02871334181941576,
+        "mean_exposure": 1.1159170708470614,
+        "rows": 8640,
+        "total_return": 0.6874487536382881,
+        "trades": 31,
+        "turnover": 1.0073963662380732
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.11550102881801505,
+        "bar_coverage": 0.9966804029304029,
+        "bh_maxdd": 0.5320001920722192,
+        "bh_total_return": -0.4776610385576684,
+        "borrow_initial_equity_units": 0.0005333556754908169,
+        "close_coverage": 0.9966804029304029,
+        "fees_initial_equity_units": 0.0012169780672613543,
+        "intent_coverage": 0.03594322344322344,
+        "maxdd": 0.408786565400325,
+        "maxdd_delta": -0.12321362667189417,
+        "mean_exposure": 0.6830572655881404,
+        "rows": 8736,
+        "total_return": -0.36216000973965334,
+        "trades": 76,
+        "turnover": 2.8920864838205085
+      },
+      "end": "2021-07-16 13:45:00+00:00",
+      "fold": 4,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 314
+      },
+      "start": "2021-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.11424941805718924,
+        "bar_coverage": 0.9966804029304029,
+        "bh_maxdd": 0.5320001920722192,
+        "bh_total_return": -0.4776610385576684,
+        "borrow_initial_equity_units": 0.0010659837810660948,
+        "close_coverage": 0.9966804029304029,
+        "fees_initial_equity_units": 0.0024102509311151334,
+        "intent_coverage": 0.03594322344322344,
+        "maxdd": 0.4096492638127127,
+        "maxdd_delta": -0.12235092825950644,
+        "mean_exposure": 0.6830565960071584,
+        "rows": 8736,
+        "total_return": -0.36341162050047915,
+        "trades": 75,
+        "turnover": 2.871873326067189
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.2249357491803774,
+        "bar_coverage": 0.9969429347826086,
+        "bh_maxdd": 0.2359298407022371,
+        "bh_total_return": 0.9206898395049308,
+        "borrow_initial_equity_units": 0.0017747067960721982,
+        "close_coverage": 0.9969429347826086,
+        "fees_initial_equity_units": 0.0028877759398306447,
+        "intent_coverage": 0.034986413043478264,
+        "maxdd": 0.255193948730411,
+        "maxdd_delta": 0.01926410802817391,
+        "mean_exposure": 0.9350288563487824,
+        "rows": 8832,
+        "total_return": 0.6957540903245534,
+        "trades": 67,
+        "turnover": 4.532521747356405
+      },
+      "end": "2021-10-16 13:45:00+00:00",
+      "fold": 5,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 309
+      },
+      "start": "2021-07-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.23160085821090903,
+        "bar_coverage": 0.9969429347826086,
+        "bh_maxdd": 0.2359298407022371,
+        "bh_total_return": 0.9206898395049308,
+        "borrow_initial_equity_units": 0.0035446140313418785,
+        "close_coverage": 0.9969429347826086,
+        "fees_initial_equity_units": 0.005766001963940495,
+        "intent_coverage": 0.034986413043478264,
+        "maxdd": 0.2563407496911121,
+        "maxdd_delta": 0.020410908988874987,
+        "mean_exposure": 0.9350886698799035,
+        "rows": 8832,
+        "total_return": 0.6890889812940217,
+        "trades": 68,
+        "turnover": 4.5331698786634425
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.01259438567108273,
+        "bar_coverage": 0.9998867753623188,
+        "bh_maxdd": 0.4193296167429921,
+        "bh_total_return": -0.2963378137227616,
+        "borrow_initial_equity_units": 0.0012523313575489691,
+        "close_coverage": 0.9998867753623188,
+        "fees_initial_equity_units": 0.003087446772723678,
+        "intent_coverage": 0.041553442028985504,
+        "maxdd": 0.4154735156543291,
+        "maxdd_delta": -0.0038561010886629665,
+        "mean_exposure": 0.8891382413074997,
+        "rows": 8832,
+        "total_return": -0.3089321993938443,
+        "trades": 99,
+        "turnover": 6.871292424480497
+      },
+      "end": "2022-01-16 13:45:00+00:00",
+      "fold": 6,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 367
+      },
+      "start": "2021-10-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.016119283153602115,
+        "bar_coverage": 0.9998867753623188,
+        "bh_maxdd": 0.4193296167429921,
+        "bh_total_return": -0.2963378137227616,
+        "borrow_initial_equity_units": 0.0025051353200675392,
+        "close_coverage": 0.9998867753623188,
+        "fees_initial_equity_units": 0.006158006660854966,
+        "intent_coverage": 0.041553442028985504,
+        "maxdd": 0.4179452748054605,
+        "maxdd_delta": -0.0013843419375315635,
+        "mean_exposure": 0.8892032038805106,
+        "rows": 8832,
+        "total_return": -0.3124570968763637,
+        "trades": 99,
+        "turnover": 6.872242987617499
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.051119768060432946,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.24622632253905063,
+        "bh_total_return": -0.05985636705483599,
+        "borrow_initial_equity_units": 8.095860754572576e-05,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0031723323301137037,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.1837940964213166,
+        "maxdd_delta": -0.062432226117734024,
+        "mean_exposure": 0.6494866093143061,
+        "rows": 8640,
+        "total_return": -0.11097613511526894,
+        "trades": 100,
+        "turnover": 5.875908272587095
+      },
+      "end": "2022-04-16 13:45:00+00:00",
+      "fold": 7,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 360
+      },
+      "start": "2022-01-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.054066301681345186,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.24622632253905063,
+        "bh_total_return": -0.05985636705483599,
+        "borrow_initial_equity_units": 0.00016149847623386966,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.006334588361650579,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.18462619864880814,
+        "maxdd_delta": -0.0616001238902425,
+        "mean_exposure": 0.6494902200371782,
+        "rows": 8640,
+        "total_return": -0.11392266873618118,
+        "trades": 100,
+        "turnover": 5.875971463130795
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.1659000023355942,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.5861862648730183,
+        "bh_total_return": -0.48511275315075775,
+        "borrow_initial_equity_units": 3.211707297952604e-05,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0019419267328805482,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.4000365127461958,
+        "maxdd_delta": -0.1861497521268225,
+        "mean_exposure": 0.5675694739312573,
+        "rows": 8736,
+        "total_return": -0.31921275081516354,
+        "trades": 80,
+        "turnover": 3.7902936211554317
+      },
+      "end": "2022-07-16 13:45:00+00:00",
+      "fold": 8,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 364
+      },
+      "start": "2022-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.16445943858605672,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.5861862648730183,
+        "bh_total_return": -0.48511275315075775,
+        "borrow_initial_equity_units": 6.420016554229973e-05,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0038801034641559305,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.40089665008007846,
+        "maxdd_delta": -0.18528961479293982,
+        "mean_exposure": 0.5675698535272292,
+        "rows": 8736,
+        "total_return": -0.32065331456470103,
+        "trades": 80,
+        "turnover": 3.7904217040964823
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.02703793725015502,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2719106075213903,
+        "bh_total_return": -0.08028420258735691,
+        "borrow_initial_equity_units": 2.320045398558744e-05,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.003763894093640217,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.22197368018628671,
+        "maxdd_delta": -0.049936927335103576,
+        "mean_exposure": 0.6381723028923393,
+        "rows": 8832,
+        "total_return": -0.10732213983751193,
+        "trades": 104,
+        "turnover": 6.962711651109786
+      },
+      "end": "2022-10-16 13:45:00+00:00",
+      "fold": 9,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2022-07-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.03047304461746836,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2719106075213903,
+        "bh_total_return": -0.08028420258735691,
+        "borrow_initial_equity_units": 4.625373364709759e-05,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.007514069916321682,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.224639665923981,
+        "maxdd_delta": -0.0472709415974093,
+        "mean_exposure": 0.638172497023383,
+        "rows": 8832,
+        "total_return": -0.11075724720482527,
+        "trades": 104,
+        "turnover": 6.962775423147443
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.008640967952041168,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2707956585616108,
+        "bh_total_return": 0.08806853817014137,
+        "borrow_initial_equity_units": 7.804421760041405e-05,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.003742744665678276,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.16565277968181702,
+        "maxdd_delta": -0.10514287887979379,
+        "mean_exposure": 0.6094475767638503,
+        "rows": 8832,
+        "total_return": 0.09670950612218254,
+        "trades": 102,
+        "turnover": 6.9447247556349225
+      },
+      "end": "2023-01-16 13:45:00+00:00",
+      "fold": 10,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2022-10-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.004382127297483107,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2707956585616108,
+        "bh_total_return": 0.08806853817014137,
+        "borrow_initial_equity_units": 0.00015553480360394053,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.007471368405076236,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.16594527645747303,
+        "maxdd_delta": -0.10485038210413777,
+        "mean_exposure": 0.609448425343949,
+        "rows": 8832,
+        "total_return": 0.09245066546762448,
+        "trades": 102,
+        "turnover": 6.944513656488812
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.04671041357595307,
+        "bar_coverage": 0.9993055555555556,
+        "bh_maxdd": 0.22005722276413464,
+        "bh_total_return": 0.45244182225885843,
+        "borrow_initial_equity_units": 0.0030647883113231237,
+        "close_coverage": 0.9993055555555556,
+        "fees_initial_equity_units": 0.0010136507408456071,
+        "intent_coverage": 0.038425925925925926,
+        "maxdd": 0.21539008379449298,
+        "maxdd_delta": -0.00466713896964166,
+        "mean_exposure": 1.0840604701629215,
+        "rows": 8640,
+        "total_return": 0.4991522358348115,
+        "trades": 30,
+        "turnover": 1.6943999664418379
+      },
+      "end": "2023-04-16 13:45:00+00:00",
+      "fold": 11,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 332
+      },
+      "start": "2023-01-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.041674077625049044,
+        "bar_coverage": 0.9993055555555556,
+        "bh_maxdd": 0.22005722276413464,
+        "bh_total_return": 0.45244182225885843,
+        "borrow_initial_equity_units": 0.006142484745476206,
+        "close_coverage": 0.9993055555555556,
+        "fees_initial_equity_units": 0.00202475623701798,
+        "intent_coverage": 0.038425925925925926,
+        "maxdd": 0.2161799491355536,
+        "maxdd_delta": -0.003877273628581035,
+        "mean_exposure": 1.0844148758807934,
+        "rows": 8640,
+        "total_return": 0.4941158998839075,
+        "trades": 30,
+        "turnover": 1.6942884758345484
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.07312495118881746,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.18422548892057478,
+        "bh_total_return": 0.002555246540280054,
+        "borrow_initial_equity_units": 0.0016886205244351293,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0034847557305406488,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.20352922671549645,
+        "maxdd_delta": 0.01930373779492167,
+        "mean_exposure": 1.022641656034035,
+        "rows": 8736,
+        "total_return": -0.0705697046485374,
+        "trades": 98,
+        "turnover": 7.21902253374798
+      },
+      "end": "2023-07-16 13:45:00+00:00",
+      "fold": 12,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 364
+      },
+      "start": "2023-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.0785151413836479,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.18422548892057478,
+        "bh_total_return": 0.002555246540280054,
+        "borrow_initial_equity_units": 0.0033727037054111144,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.006950027876868796,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.2066385343073055,
+        "maxdd_delta": 0.022413045386730723,
+        "mean_exposure": 1.0227444747524967,
+        "rows": 8736,
+        "total_return": -0.07595989484336785,
+        "trades": 98,
+        "turnover": 7.220209478623641
+      }
+    }
+  ],
+  "schema": "robust-overlay-v1",
+  "source_revision": "126144fe03a67de4bd2bad009c7cae8037f653b8",
+  "stage": "development",
+  "stress_2x": {
+    "alpha_ex_mean": 0.022236599528404143,
+    "alpha_ex_median": -0.005869696030077476,
+    "alpha_ex_worst": -0.23160085821090903,
+    "alpha_positive_folds": 6,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 8,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      -0.05598645085644743,
+      0.10728171267278493
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.07096619476949134,
+      -0.0010340460628628094
+    ],
+    "folds": 13,
+    "maxdd_delta_mean": -0.03390447366149781,
+    "maxdd_delta_median": -0.003877273628581035,
+    "minimum_target_pass": true,
+    "preferred_target_pass": false,
+    "selection_score": 0.022236599528404143
+  },
+  "summary": {
+    "alpha_ex_mean": 0.026960490361594956,
+    "alpha_ex_median": -0.00016535579634169295,
+    "alpha_ex_worst": -0.2249357491803774,
+    "alpha_positive_folds": 6,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 8,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      -0.051362100463541276,
+      0.11318458850537128
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.07224402512127655,
+      -0.0022374574316352293
+    ],
+    "folds": 13,
+    "maxdd_delta_mean": -0.03507722377510425,
+    "maxdd_delta_median": -0.00466713896964166,
+    "minimum_target_pass": true,
+    "preferred_target_pass": false,
+    "selection_score": 0.026960490361594956
+  }
+}

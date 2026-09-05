@@ -1,0 +1,457 @@
+{
+  "confirmation_is_report_only": true,
+  "data_file_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+  "formal_p1_result": false,
+  "orders_submitted": 0,
+  "policy": {
+    "consensus_scale": 0.5,
+    "consensus_threshold": 0.15,
+    "decision_cadence_hours": 6,
+    "horizons_days": [
+      7,
+      30,
+      90
+    ],
+    "lower_exposure": 0.5,
+    "missing_feature_policy": "hold_previous_position",
+    "slow_weight": 0.5,
+    "upper_exposure": 1.12
+  },
+  "registration_sha256": "676fd8bc7f1660d1c867991fd7d5560f1460a47e7de87dee2d56a5832e77e803",
+  "rows": [
+    {
+      "base": {
+        "alpha_ex": 0.04271528423017101,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.17150152565353138,
+        "bh_total_return": 0.45536101509728266,
+        "borrow_initial_equity_units": 0.003630109062999413,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0015882511534497591,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.19032676486493838,
+        "maxdd_delta": 0.018825239211406997,
+        "mean_exposure": 1.094965617551929,
+        "rows": 8736,
+        "total_return": 0.4980762993274537,
+        "trades": 39,
+        "turnover": 2.2673776428325114
+      },
+      "end": "2024-04-16 13:45:00+00:00",
+      "fold": 15,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 364
+      },
+      "start": "2024-01-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.037856799988644996,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.17150152565353138,
+        "bh_total_return": 0.45536101509728266,
+        "borrow_initial_equity_units": 0.00711107930637534,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0031437281215082125,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.1911097126916409,
+        "maxdd_delta": 0.019608187038109515,
+        "mean_exposure": 1.0930124186441663,
+        "rows": 8736,
+        "total_return": 0.49321781508592766,
+        "trades": 37,
+        "turnover": 2.25148649221549
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.023054735977737773,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2505879413939519,
+        "bh_total_return": 0.021369656366909018,
+        "borrow_initial_equity_units": 0.0013377842799709545,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.003952089707819668,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.17817773805375003,
+        "maxdd_delta": -0.07241020334020187,
+        "mean_exposure": 0.8582206284719499,
+        "rows": 8736,
+        "total_return": 0.04442439234464679,
+        "trades": 102,
+        "turnover": 6.908815525637712
+      },
+      "end": "2024-07-16 13:45:00+00:00",
+      "fold": 16,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 364
+      },
+      "start": "2024-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.017798180576866995,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2505879413939519,
+        "bh_total_return": 0.021369656366909018,
+        "borrow_initial_equity_units": 0.002674203168926951,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.007881851234639881,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.17989101951526565,
+        "maxdd_delta": -0.07069692187868626,
+        "mean_exposure": 0.8582839030099756,
+        "rows": 8736,
+        "total_return": 0.03916783694377601,
+        "trades": 102,
+        "turnover": 6.908575544341529
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.021792612379949672,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2890942573991916,
+        "bh_total_return": 0.05237211176244183,
+        "borrow_initial_equity_units": 0.0011876737600108288,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.002947328960138674,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.22008625350512778,
+        "maxdd_delta": -0.06900800389406381,
+        "mean_exposure": 0.8288827389560989,
+        "rows": 8832,
+        "total_return": 0.03057949938249216,
+        "trades": 83,
+        "turnover": 5.587007164174019
+      },
+      "end": "2024-10-16 13:45:00+00:00",
+      "fold": 17,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2024-07-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.02620798942745295,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2890942573991916,
+        "bh_total_return": 0.05237211176244183,
+        "borrow_initial_equity_units": 0.0023721950494171194,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0058829922102230855,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.22053863874728707,
+        "maxdd_delta": -0.06855561865190452,
+        "mean_exposure": 0.8289288891044965,
+        "rows": 8832,
+        "total_return": 0.026164122334988882,
+        "trades": 83,
+        "turnover": 5.587358916605186
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.018964588735703725,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.16189405735666307,
+        "bh_total_return": 0.4782944511969842,
+        "borrow_initial_equity_units": 0.0033817231347907594,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0027974591542758993,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.17925055300754256,
+        "maxdd_delta": 0.01735649565087949,
+        "mean_exposure": 1.0857749543564639,
+        "rows": 8832,
+        "total_return": 0.49725903993268794,
+        "trades": 61,
+        "turnover": 3.937839160508634
+      },
+      "end": "2025-01-16 13:45:00+00:00",
+      "fold": 18,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2024-10-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.012025894237714718,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.16189405735666307,
+        "bh_total_return": 0.4782944511969842,
+        "borrow_initial_equity_units": 0.006759531931035506,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.005575654288709785,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.18044174700731952,
+        "maxdd_delta": 0.01854768965065645,
+        "mean_exposure": 1.0859040168670566,
+        "rows": 8832,
+        "total_return": 0.49032034543469893,
+        "trades": 61,
+        "turnover": 3.9358233489298224
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.016693203816046442,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.31461085444772763,
+        "bh_total_return": -0.15439736903293333,
+        "borrow_initial_equity_units": 0.0008568390124747225,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.002703035675383839,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.2625989912443176,
+        "maxdd_delta": -0.05201186320341,
+        "mean_exposure": 0.7419413559966327,
+        "rows": 8640,
+        "total_return": -0.1377041652168869,
+        "trades": 83,
+        "turnover": 5.2518558110315885
+      },
+      "end": "2025-04-16 13:45:00+00:00",
+      "fold": 19,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 360
+      },
+      "start": "2025-01-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.0134578205710576,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.31461085444772763,
+        "bh_total_return": -0.15439736903293333,
+        "borrow_initial_equity_units": 0.0017140898266829693,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.005395063323848882,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.26496051549990085,
+        "maxdd_delta": -0.04965033894782678,
+        "mean_exposure": 0.7419721909318335,
+        "rows": 8640,
+        "total_return": -0.14093954846187573,
+        "trades": 83,
+        "turnover": 5.252553287939272
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.047605030865123465,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.11999777656120159,
+        "bh_total_return": 0.4082041953801845,
+        "borrow_initial_equity_units": 0.0025530006155603984,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0019216521937333033,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.12298174447288357,
+        "maxdd_delta": 0.002983967911681984,
+        "mean_exposure": 1.0252410787535504,
+        "rows": 8736,
+        "total_return": 0.360599164515061,
+        "trades": 50,
+        "turnover": 3.172707368399803
+      },
+      "end": "2025-07-16 13:45:00+00:00",
+      "fold": 20,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 364
+      },
+      "start": "2025-04-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.05281578679618226,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.11999777656120159,
+        "bh_total_return": 0.4082041953801845,
+        "borrow_initial_equity_units": 0.00508935291252133,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0038411525881174233,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.1241297630799193,
+        "maxdd_delta": 0.004131986518717712,
+        "mean_exposure": 1.0251659701735332,
+        "rows": 8736,
+        "total_return": 0.3553884085840022,
+        "trades": 50,
+        "turnover": 3.174911465225351
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": -0.0129472701644755,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.13950420907097294,
+        "bh_total_return": -0.05943375453999633,
+        "borrow_initial_equity_units": 0.00193572209491387,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.002572501831320853,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.15109027318189783,
+        "maxdd_delta": 0.011586064110924887,
+        "mean_exposure": 1.0162648145253945,
+        "rows": 8832,
+        "total_return": -0.07238102470447183,
+        "trades": 69,
+        "turnover": 4.954431194413378
+      },
+      "end": "2025-10-16 13:45:00+00:00",
+      "fold": 21,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2025-07-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": -0.01731500461046509,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.13950420907097294,
+        "bh_total_return": -0.05943375453999633,
+        "borrow_initial_equity_units": 0.0038765775889439994,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.005133325002813085,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.15124558343322947,
+        "maxdd_delta": 0.01174137436225653,
+        "mean_exposure": 1.016518617938523,
+        "rows": 8832,
+        "total_return": -0.07674875915046142,
+        "trades": 69,
+        "turnover": 4.956263397052415
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.04266044230878374,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.3025142113347906,
+        "bh_total_return": -0.14281129024926642,
+        "borrow_initial_equity_units": 0.0,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0020304697608364134,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.17819040581015944,
+        "maxdd_delta": -0.12432380552463118,
+        "mean_exposure": 0.5547037157692529,
+        "rows": 8832,
+        "total_return": -0.10015084794048268,
+        "trades": 70,
+        "turnover": 4.093537211422927
+      },
+      "end": "2026-01-16 13:45:00+00:00",
+      "fold": 22,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 368
+      },
+      "start": "2025-10-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.0406366328052008,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.3025142113347906,
+        "bh_total_return": -0.14281129024926642,
+        "borrow_initial_equity_units": 0.0,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.004056560059479619,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.17837391579568362,
+        "maxdd_delta": -0.12414029553910699,
+        "mean_exposure": 0.5547037157692529,
+        "rows": 8832,
+        "total_return": -0.10217465744406562,
+        "trades": 70,
+        "turnover": 4.093541058161451
+      }
+    },
+    {
+      "base": {
+        "alpha_ex": 0.08617145628038758,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.37046213671757877,
+        "bh_total_return": -0.21819446633556117,
+        "borrow_initial_equity_units": 0.0,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.0021905599099459913,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.2209135406527365,
+        "maxdd_delta": -0.14954859606484228,
+        "mean_exposure": 0.5771997149789571,
+        "rows": 8640,
+        "total_return": -0.13202301005517358,
+        "trades": 78,
+        "turnover": 4.592830780511315
+      },
+      "end": "2026-04-16 13:45:00+00:00",
+      "fold": 23,
+      "policy": {
+        "decision_cadence_hours": 6,
+        "scheduled_decisions": 360
+      },
+      "start": "2026-01-16 13:45:00+00:00",
+      "stress_2x": {
+        "alpha_ex": 0.08398152030990136,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.37046213671757877,
+        "bh_total_return": -0.21819446633556117,
+        "borrow_initial_equity_units": 0.0,
+        "close_coverage": 1.0,
+        "fees_initial_equity_units": 0.004375865358621215,
+        "intent_coverage": 0.041666666666666664,
+        "maxdd": 0.22140819722041183,
+        "maxdd_delta": -0.14905393949716694,
+        "mean_exposure": 0.5771997149789571,
+        "rows": 8640,
+        "total_return": -0.1342129460256598,
+        "trades": 78,
+        "turnover": 4.592845319283364
+      }
+    }
+  ],
+  "schema": "robust-overlay-v1",
+  "source_revision": "126144fe03a67de4bd2bad009c7cae8037f653b8",
+  "stage": "historical",
+  "stress_2x": {
+    "alpha_ex_mean": 0.012157563072809574,
+    "alpha_ex_median": 0.0134578205710576,
+    "alpha_ex_worst": -0.05281578679618226,
+    "alpha_positive_folds": 6,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 5,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      -0.013296924150534002,
+      0.03756449574204641
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.08522768753643324,
+      -0.008317442440364633
+    ],
+    "folds": 9,
+    "maxdd_delta_mean": -0.0453408752161057,
+    "maxdd_delta_median": -0.04965033894782678,
+    "minimum_target_pass": true,
+    "preferred_target_pass": false,
+    "selection_score": 0.012157563072809574
+  },
+  "summary": {
+    "alpha_ex_mean": 0.01643497754880907,
+    "alpha_ex_median": 0.018964588735703725,
+    "alpha_ex_worst": -0.047605030865123465,
+    "alpha_positive_folds": 6,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 5,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      -0.008667181902676638,
+      0.041105666710773724
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.08599456284643472,
+      -0.009152263748534697
+    ],
+    "folds": 9,
+    "maxdd_delta_mean": -0.046283411682472866,
+    "maxdd_delta_median": -0.05201186320341,
+    "minimum_target_pass": true,
+    "preferred_target_pass": false,
+    "selection_score": 0.01643497754880907
+  }
+}
