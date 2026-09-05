@@ -736,6 +736,10 @@ def _contract_position_record(
     hold_scored = np.asarray(hold.scored_mask, dtype=np.bool_)
     action_pnl = np.asarray(trajectory.net_pnl[scored], dtype=np.float64)
     hold_pnl = np.asarray(hold.net_pnl[hold_scored], dtype=np.float64)
+    position_stats = action_stats(
+        np.asarray(trajectory.effective_positions[scored], dtype=np.float64),
+        benchmark_position=contract.p_start,
+    )
     return {
         "window": [start, end],
         "start_timestamp": str(dataset.timestamps[start]),
@@ -759,6 +763,14 @@ def _contract_position_record(
         "sharpe": float(metrics.sharpe),
         "benchmark_sharpe": float(metrics.benchmark_sharpe or 0.0),
         "n_trades": int(metrics.n_trades),
+        "position_stats": {
+            "long": float(position_stats["long"]),
+            "short": float(position_stats["short"]),
+            "flat": float(position_stats["flat"]),
+            "mean_overlay": float(position_stats["mean"]),
+            "switches": int(position_stats["switches"]),
+            "avg_hold_bars": float(position_stats["avg_hold"]),
+        },
         "mask_hashes": dict(trajectory.block_masks.mask_hash_registry),
         "contract_hash": contract.contract_hash,
     }
@@ -785,6 +797,9 @@ def _build_training_config(
             "encoder_layers": 2 if full else 1,
             "batch_size": 128 if full else 64,
             "max_steps": 700 if full else 4,
+            # Consume the declared full-run WM budget instead of stopping at
+            # the trainer's implicit validation-patience default.
+            "patience": 1000 if full else 10,
             "val_max_batches": 10 if full else 1,
             "lr": 3e-4 if full else 1e-3,
             "return_horizons": [SOURCE_HORIZON],
@@ -909,6 +924,21 @@ def _evaluate_actor(
         "reference_window": [outer_start, outer_end],
     }
     return rolling, outer
+
+
+def _aggregate_window_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    if not records:
+        raise FormalForecastPipelineError("cannot aggregate an empty evaluation")
+    return {
+        "net_total_mean": float(np.mean([float(row["net_total"]) for row in records])),
+        "hold_net_total_mean": float(np.mean([float(row["hold_net_total"]) for row in records])),
+        "alpha_ex_vs_hold_mean": float(np.mean([float(row["alpha_ex_vs_hold"]) for row in records])),
+        "filled_blocks_mean": float(np.mean([float(row["filled_blocks"]) for row in records])),
+        "cost_total_mean": float(np.mean([float(row["cost_total"]) for row in records])),
+        "sharpe_mean": float(np.mean([float(row["sharpe"]) for row in records])),
+        "all_windows": len(records),
+        "clean_forward_windows": max(len(records) - 1, 0),
+    }
 
 
 def run_formal_forecast_wm_bc_ac(
@@ -1083,6 +1113,17 @@ def run_formal_forecast_wm_bc_ac(
         conditional_config=cfg,
         log_ts=log_timestamp,
     )
+    # Evaluate the behavior-cloned actor before AC can mutate it.  Keeping
+    # this on the identical evaluator separates representation/BC
+    # learnability from the subsequent imagination objective.
+    bc_rolling, bc_outer = _evaluate_actor(
+        body,
+        dataset,
+        wm_trainer,
+        actor,
+        contract,
+        seq_len=seq_len,
+    )
     ac_trainer = run_ac_stage(
         actor=actor,
         ensemble=ensemble,
@@ -1138,16 +1179,8 @@ def run_formal_forecast_wm_bc_ac(
         start=source_start,
         end=source_end,
     )
-    aggregate = {
-        "net_total_mean": float(np.mean([row["net_total"] for row in rolling])),
-        "hold_net_total_mean": float(np.mean([row["hold_net_total"] for row in rolling])),
-        "alpha_ex_vs_hold_mean": float(np.mean([row["alpha_ex_vs_hold"] for row in rolling])),
-        "filled_blocks_mean": float(np.mean([row["filled_blocks"] for row in rolling])),
-        "cost_total_mean": float(np.mean([row["cost_total"] for row in rolling])),
-        "sharpe_mean": float(np.mean([row["sharpe"] for row in rolling])),
-        "clean_forward_windows": 4,
-        "all_windows": len(rolling),
-    }
+    aggregate = _aggregate_window_records(rolling)
+    bc_aggregate = _aggregate_window_records(bc_rolling)
     report = {
         "schema_version": 1,
         "report_id": "p1-formal-forecast-wm-bc-ac-20260904",
@@ -1170,16 +1203,32 @@ def run_formal_forecast_wm_bc_ac(
             "test_rows": int(len(wfo_dataset.test_features)),
             "world_model": {
                 "max_steps": int(cfg["world_model"]["max_steps"]),
+                "actual_steps": int(
+                    getattr(
+                        wm_trainer,
+                        "global_step",
+                        len(getattr(wm_trainer, "loss_history", [])),
+                    )
+                ),
+                "validation_patience": int(cfg["world_model"].get("patience", 10)),
                 "batch_size": int(cfg["world_model"]["batch_size"]),
                 "d_model": int(cfg["world_model"]["d_model"]),
                 "n_layers": int(cfg["world_model"]["n_layers"]),
             },
             "bc": {
                 "epochs": int(cfg["bc"]["n_epochs"]),
+                "actual_epochs": int(len(getattr(bc_trainer, "last_train_logs", []))),
+                "final_loss": (
+                    None
+                    if not getattr(bc_trainer, "last_train_logs", [])
+                    else float(getattr(bc_trainer, "last_train_logs", [])[-1]["bc_loss"])
+                ),
                 "batch_size": int(cfg["bc"]["batch_size"]),
             },
             "ac": {
                 "max_steps": int(cfg["ac"]["max_steps"]),
+                "actual_steps": int(getattr(ac_trainer, "global_step", 0)),
+                "loss_history_rows": int(len(getattr(ac_trainer, "loss_history", []))),
                 "batch_size": int(cfg["ac"]["batch_size"]),
                 "horizon": int(cfg["ac"]["horizon"]),
             },
@@ -1211,6 +1260,16 @@ def run_formal_forecast_wm_bc_ac(
             "source_teacher": source_teacher_record,
             "source_fit_is_fixed_registered_oos": True,
             "student_uses_same_source_support": True,
+        },
+        "bc_evaluation": {
+            "rolling_windows": bc_rolling,
+            "outer_evaluation": bc_outer,
+            "aggregate_mean": bc_aggregate,
+        },
+        "ac_evaluation": {
+            "rolling_windows": rolling,
+            "outer_evaluation": outer,
+            "aggregate_mean": aggregate,
         },
         "rolling_windows": rolling,
         "outer_evaluation": outer,

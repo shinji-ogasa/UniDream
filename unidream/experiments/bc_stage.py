@@ -222,7 +222,7 @@ def run_bc_stage(
             returns=train_returns[:t_enc] if train_returns is not None else None,
         )
         print(f"[BC] {describe_benchmark_overlay_teacher(oracle_positions[:t_enc], train_positions, reward_cfg=reward_cfg)}")
-    bc_trainer.train(
+    training_logs = bc_trainer.train(
         z=z_train[:t_enc],
         h=h_train[:t_enc],
         oracle_positions=train_positions,
@@ -234,5 +234,8 @@ def run_bc_stage(
         route_soft_labels=train_route_soft_labels[:t_enc] if train_route_soft_labels is not None else None,
         route_advantage=train_route_advantage[:t_enc] if train_route_advantage is not None else None,
     )
+    # Preserve compact stage telemetry for report-only experiments without
+    # changing the trainer checkpoint format.
+    bc_trainer.last_train_logs = list(training_logs or [])
     bc_trainer.save(bc_path)
     return bc_trainer

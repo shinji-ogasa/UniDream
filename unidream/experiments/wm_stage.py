@@ -78,9 +78,19 @@ def prepare_world_model_stage(
         returns=wfo_dataset.val_returns,
         regime_probs=val_regime_probs[: len(wfo_dataset.val_features)] if val_regime_probs is not None else None,
     )
-    wm_trainer.train_on_dataset(
-        train_ds_with_actions,
-        val_dataset=val_ds,
-        checkpoint_path=wm_path,
-    )
+    train_kwargs = {
+        "val_dataset": val_ds,
+        "checkpoint_path": wm_path,
+    }
+    # Keep the historical default when callers do not opt in, while allowing
+    # an experiment to pin validation patience explicitly.  This matters for
+    # a declared training budget: otherwise the trainer's implicit patience
+    # can stop a run far below max_steps.
+    world_model_cfg = effective_cfg.get("world_model", {})
+    if "patience" in world_model_cfg:
+        patience = int(world_model_cfg["patience"])
+        if patience <= 0:
+            raise ValueError("world_model.patience must be positive when configured")
+        train_kwargs["patience"] = patience
+    wm_trainer.train_on_dataset(train_ds_with_actions, **train_kwargs)
     return ensemble, wm_trainer
