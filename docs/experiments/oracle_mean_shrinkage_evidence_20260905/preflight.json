@@ -1,0 +1,288 @@
+{
+  "anchor_provenance": [
+    {
+      "fold": 5,
+      "scale_mean": 0.0026764683121793084,
+      "scale_mean_forecast_sha256": "5248865cbe572b19b5a8968de317c3c19d7e5eb8d90ebe1f1ae51006fc714a1e"
+    },
+    {
+      "fold": 6,
+      "scale_mean": 0.0007918203312419019,
+      "scale_mean_forecast_sha256": "6d11c683f281fca6c909fb6afa047d7bee4815d682f1c107060e249e95d4dc91"
+    },
+    {
+      "fold": 7,
+      "scale_mean": -0.0012450158338171678,
+      "scale_mean_forecast_sha256": "72147c599f891b3ad72f38cf85c285e16163e6ed2cab4c5005622133ed8c4a46"
+    },
+    {
+      "fold": 8,
+      "scale_mean": 0.0019395011666806313,
+      "scale_mean_forecast_sha256": "3be2a9d0abd7d45ade1a69a3470289905e542a9ba96cdfb934aa834c905a3d56"
+    },
+    {
+      "fold": 9,
+      "scale_mean": -0.0009469246714869778,
+      "scale_mean_forecast_sha256": "e3f84e6ca22129aaf7f2c74f81fe23400de7310d98caf388e82ed7ede26e2e70"
+    },
+    {
+      "fold": 10,
+      "scale_mean": -0.00017871874768812123,
+      "scale_mean_forecast_sha256": "228da9e172171a4b38e149edd33e8e937a4b53467d4aaa24e8bed9bfe055a608"
+    },
+    {
+      "fold": 11,
+      "scale_mean": -0.001925936764186263,
+      "scale_mean_forecast_sha256": "1ba873fd96b141042af59094ad96774ebeb4bd25ed3dcb66470b0dd2d73b07aa"
+    },
+    {
+      "fold": 12,
+      "scale_mean": -0.0002960386748985654,
+      "scale_mean_forecast_sha256": "f972d49db47c16e60ee464f722f9ce4b4cda4c0144e524dcdc3b41ba82205479"
+    }
+  ],
+  "config_contract_sha256": "795b2c30ed405c617e804af868c3b98e2c5f7980c15260e8a9025500b1784953",
+  "new_forecast_or_policy_computed": false,
+  "scope": "data-only frozen endpoint geometry and provenance; no half predictions or losses",
+  "source_registration_sha256": "139f1397a28c7296b73828103e5ab3e1ea856df2049c1a02367bee02a8375a3f",
+  "source_results_sha256": "cf7a4b84af462bc645863fae2646aa32eef57cc30572f01b88912cda78a92954",
+  "source_sha256": {
+    "alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "oracle_fallback_decisions.py": "c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771",
+    "oracle_fallback_planner.py": "e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348",
+    "oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "oracle_mean_controls.py": "07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb",
+    "oracle_mean_shrinkage.py": "fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb",
+    "oracle_mean_shrinkage_decisions.py": "d0a8b9ec9c716a91529fbfad2dc4714435b18e583655768789d8f66229325eaf"
+  },
+  "spot_data_proof": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "support": [
+    {
+      "action_support_counts": {
+        "fallback_eligible": 140,
+        "learned_eligible": 223,
+        "missing_current_open": 1,
+        "scheduled": 364
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 5,
+      "inference_rows": 223,
+      "mask_sha256": {
+        "fallback_eligible": "2869ec2b0f5f09e7c19a9040c68b5214b44a117421ca4caa058eec7e2c0431eb",
+        "inference": "09b20c4ee4372984b9097ab54cef179e147cb8b67883cad78380abd2a3d66478",
+        "learned_eligible": "09b20c4ee4372984b9097ab54cef179e147cb8b67883cad78380abd2a3d66478",
+        "missing_current_open": "de2cc32ab91f9234da3ea9d121eca6aaf818cce0621cd3d22682ad2ebc48c146",
+        "scheduled": "ea4d2befbbff407e31396866d7dc2f4bf8bbbde3d9e60a21b3fb3cb478eee114",
+        "score": "e8acb7b1f501f8fdc413ea12c5774a39da67d82d3b6e43238c15382efcf11077"
+      },
+      "regime": {
+        "normalized_momentum_90": 1.780845277652582,
+        "trend": "bull",
+        "volatility_7": 0.5801795809125846
+      },
+      "score_rows": 221,
+      "validation_end_exclusive": "2021-07-16 13:45:00+00:00",
+      "validation_start": "2021-04-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 149,
+        "learned_eligible": 218,
+        "missing_current_open": 1,
+        "scheduled": 368
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 6,
+      "inference_rows": 218,
+      "mask_sha256": {
+        "fallback_eligible": "a435d6adb5a6b15d0796ae5f837c757c3dba08aed995963799c0cb8084cd787e",
+        "inference": "3b0d58249d474a280ec999db1e99a082cf850d547dbd32a11540811793b87be9",
+        "learned_eligible": "3b0d58249d474a280ec999db1e99a082cf850d547dbd32a11540811793b87be9",
+        "missing_current_open": "f9d06a5062342505faddcf769fe0e4d866f6ed83e520b777ebcbe1c249999a86",
+        "scheduled": "9b66e3de9165e56dd47f0cfc4974f4768632effc54fef191950fc3bfe2dbe5f0",
+        "score": "ff71e004fa541e31b7770e1f5cc1446203c87509b10ce429385784b6cb053514"
+      },
+      "regime": {
+        "normalized_momentum_90": -2.305593133860444,
+        "trend": "bear",
+        "volatility_7": 0.5432613329538639
+      },
+      "score_rows": 215,
+      "validation_end_exclusive": "2021-10-16 13:45:00+00:00",
+      "validation_start": "2021-07-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 5,
+        "learned_eligible": 363,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 7,
+      "inference_rows": 363,
+      "mask_sha256": {
+        "fallback_eligible": "d236c5e18dd88267fcd3eb8cdd8e0edadef5ee4a0f2016dd7a1d763796075d10",
+        "inference": "0ec5ca40685482dfc59c6759e81e32f27996f7a6ac923f4bc2a6d7f4001cbbef",
+        "learned_eligible": "0ec5ca40685482dfc59c6759e81e32f27996f7a6ac923f4bc2a6d7f4001cbbef",
+        "missing_current_open": "a806c2a3cbe76e1cbd83d76623cc729d096bcd92e37d2ed2b36a9bc899b6a303",
+        "scheduled": "4c40ca26e37de44dc925ebbdd3543b68998017da7ae02433f55272d543fd0be2",
+        "score": "113a7b77c9a1343db6f53bec8d846ca9eafee5802bd349422b8a83e8190ecbae"
+      },
+      "regime": {
+        "normalized_momentum_90": 2.0615398618679524,
+        "trend": "bull",
+        "volatility_7": 0.6361003670890434
+      },
+      "score_rows": 361,
+      "validation_end_exclusive": "2022-01-16 13:45:00+00:00",
+      "validation_start": "2021-10-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 360,
+        "missing_current_open": 0,
+        "scheduled": 360
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 8,
+      "inference_rows": 360,
+      "mask_sha256": {
+        "fallback_eligible": "2bc45592863a35171f99a4112ebbd433682afc9a05ce42586e7fb339e627fe22",
+        "inference": "c9490e14f3af9c0e93731083a680deb6a5cfee54324f78ab775ac7e0fdffe027",
+        "learned_eligible": "c9490e14f3af9c0e93731083a680deb6a5cfee54324f78ab775ac7e0fdffe027",
+        "missing_current_open": "2bc45592863a35171f99a4112ebbd433682afc9a05ce42586e7fb339e627fe22",
+        "scheduled": "c9490e14f3af9c0e93731083a680deb6a5cfee54324f78ab775ac7e0fdffe027",
+        "score": "18a3a975ff79ecc6b53108c56a3d0a33ce8e791845d25cab6bcd0ee32b58d72e"
+      },
+      "regime": {
+        "normalized_momentum_90": -1.2709536034140199,
+        "trend": "bear",
+        "volatility_7": 0.5704724376504191
+      },
+      "score_rows": 359,
+      "validation_end_exclusive": "2022-04-16 13:45:00+00:00",
+      "validation_start": "2022-01-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 9,
+        "learned_eligible": 355,
+        "missing_current_open": 0,
+        "scheduled": 364
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 9,
+      "inference_rows": 355,
+      "mask_sha256": {
+        "fallback_eligible": "813279c120a1648c0e39102f5be73d8b48163551ba77d5fa2cf2bcc8e069492c",
+        "inference": "db3d7afaa704c1d11b15a660fa2122ff225f166370f1c09b9a2929b4bf61d6d7",
+        "learned_eligible": "db3d7afaa704c1d11b15a660fa2122ff225f166370f1c09b9a2929b4bf61d6d7",
+        "missing_current_open": "1c3e2d352eb061993fd0b90c7c195bd92be197d603edb638e259a3d4778ea2d2",
+        "scheduled": "aab3e5c1aa1e784c1be2fe499bf7bd3286e8e193241703184bae19068125c634",
+        "score": "7b5613452032e623c81e7e451ed853052ffa91210ea412c27d2d6cbdcbb8f420"
+      },
+      "regime": {
+        "normalized_momentum_90": -0.3063132802752636,
+        "trend": "sideways",
+        "volatility_7": 0.46135005267211665
+      },
+      "score_rows": 354,
+      "validation_end_exclusive": "2022-07-16 13:45:00+00:00",
+      "validation_start": "2022-04-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 368,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 10,
+      "inference_rows": 368,
+      "mask_sha256": {
+        "fallback_eligible": "f4952d1132237d3047c684280a7cddd66363fb8c68d55406ee8bbaeaa10fcb7b",
+        "inference": "1e648b087be6d77f51b109a60b9f7bf3f5779e2aa4db38ef43f46919ea663542",
+        "learned_eligible": "1e648b087be6d77f51b109a60b9f7bf3f5779e2aa4db38ef43f46919ea663542",
+        "missing_current_open": "f4952d1132237d3047c684280a7cddd66363fb8c68d55406ee8bbaeaa10fcb7b",
+        "scheduled": "1e648b087be6d77f51b109a60b9f7bf3f5779e2aa4db38ef43f46919ea663542",
+        "score": "42c790f832d5b1bfcee88eb43f89236e25598200d1c1d3a933de93bafe88a48f"
+      },
+      "regime": {
+        "normalized_momentum_90": -1.8800777545149427,
+        "trend": "bear",
+        "volatility_7": 0.6804144427385063
+      },
+      "score_rows": 367,
+      "validation_end_exclusive": "2022-10-16 13:45:00+00:00",
+      "validation_start": "2022-07-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 0,
+        "learned_eligible": 368,
+        "missing_current_open": 0,
+        "scheduled": 368
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 11,
+      "inference_rows": 368,
+      "mask_sha256": {
+        "fallback_eligible": "2ef398be0d7998d260cb87fb15537a4999160c3308a8971ac0127672f7e03b5b",
+        "inference": "a3c24c0a811e02207ca3fe62612c97cbcdc5eaf21f968e79c0b45591191eaaa3",
+        "learned_eligible": "a3c24c0a811e02207ca3fe62612c97cbcdc5eaf21f968e79c0b45591191eaaa3",
+        "missing_current_open": "2ef398be0d7998d260cb87fb15537a4999160c3308a8971ac0127672f7e03b5b",
+        "scheduled": "a3c24c0a811e02207ca3fe62612c97cbcdc5eaf21f968e79c0b45591191eaaa3",
+        "score": "647c80efbe95a9390982cd522fcaad4e6639621a4dc575dd6c69edf283dd01da"
+      },
+      "regime": {
+        "normalized_momentum_90": -0.6509166065000529,
+        "trend": "bear",
+        "volatility_7": 0.41493281932773673
+      },
+      "score_rows": 367,
+      "validation_end_exclusive": "2023-01-16 13:45:00+00:00",
+      "validation_start": "2022-10-16 13:45:00+00:00"
+    },
+    {
+      "action_support_counts": {
+        "fallback_eligible": 29,
+        "learned_eligible": 331,
+        "missing_current_open": 0,
+        "scheduled": 360
+      },
+      "fallback_slots_missing_next_open_descriptive_only": 0,
+      "fold": 12,
+      "inference_rows": 331,
+      "mask_sha256": {
+        "fallback_eligible": "4c8d3bc5bf81e257627d2fd9a5eb350a8c8a761a79330e0c24180ff2e24a8fb9",
+        "inference": "a785f68eb986f93386876b58fe7d4728420960e3e95d6ffe1d02df31e1d93bdb",
+        "learned_eligible": "a785f68eb986f93386876b58fe7d4728420960e3e95d6ffe1d02df31e1d93bdb",
+        "missing_current_open": "b54ad3ccb5e290471c8c6caeb65dcbb6fd4b88cc19c393cdb9bbeb7eb6646822",
+        "scheduled": "933fd557a611e9a8f19a4714b003ffbac7b255f30966239c087cab63bc638706",
+        "score": "2b169106bb7e299a8cb69725c942edaba5212f700698f6d6140bf8a38a5b08d0"
+      },
+      "regime": {
+        "normalized_momentum_90": 0.27819873257950606,
+        "trend": "sideways",
+        "volatility_7": 0.6069218076141697
+      },
+      "score_rows": 330,
+      "validation_end_exclusive": "2023-04-16 13:45:00+00:00",
+      "validation_start": "2023-01-16 13:45:00+00:00"
+    }
+  ],
+  "verified_source_artifacts": 920
+}
