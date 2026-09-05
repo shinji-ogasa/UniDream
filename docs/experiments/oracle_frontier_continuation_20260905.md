@@ -34,7 +34,79 @@ Runtime: `/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/.venv/bin/py
 - Final410 unit tests passed. Audit details and immutable snapshots accompany
   the results report. No production model, HF Space, or paper account changed.
 
-## Next useful investigations, before larger model architectures
+## Second completed stage: risk reliability and conditional decisions
+
+The previous next steps1 and2 below have now been executed; do not repeat them.
+See `oracle_risk_reliability_results_20260905.md` and its evidence directory.
+All81 candidate names across the first36, ratio12, calibration24 and conditional9
+families remain exploratory. Some names yield identical targets;81 is not an
+independent-trial count. No family passed all three trend means at both costs.
+
+- Registered `65a1d4f` before computing the stronger persistence comparison.
+  Existing HGB6h risk vs causal RMS24/96/672 uses the same3863 score rows.
+  Technical vs96bar persistence: variance MSE loss reduction9.967%, QLIKE13.011%,
+  RMS MSE14.954%; all11/13 quarters improve. Sideways variance MSE is0.70% worse.
+  This is a loss diagnostic, not a policy selection or significance result.
+- Registered `8e3dbd9` before disjoint18month fit/3month scale+meanbias/
+  3month interval calibration/3month validation. Six risk forecasters,
+  raw/scaled and point/interval gates produce24 economic candidates.
+  Technical variance calibration improves QLIKE.5142→.4382, while calibrated
+  HAR is.4273. Technical90% return interval coverage90.27%, but its risk
+  interval bear coverage78.77%. Technical point alpha/DD improves from
+  -.925/+.666 to+.849/-1.568pt, stress+.218/-1.471. Bear alpha still negative;
+  bull DD marginally positive at2x. Technical interval gate trades0 times.
+  Scaled forecasts also shift return mean; scale alone cancels quantile widths.
+- Registered `b56551d` before9 conditional-utility policies with frozen
+  forecasts, actual own inventory, known current open and a2x fee budget.
+  Risk coefficients0/1/4. Score only feasible current-open max-step projection;
+  next fill remains unknown. All117 target arrays replay identically in the
+  canonical account. Risk0 names have identical targets because they sharemu.
+  Risk0 alpha/DD+2.382/-4.516pt, stress+1.947/-4.444; bear alpha-1.518/-1.918pt.
+  Turnover38.378 vs technical point112.676;531 vs2786 trades. Risk4 further
+  reducesDD but losesalpha. Never present this as all-regime success.
+- Baseline/calibration/decision artifacts hash-audited. Independent conditional
+  replay covered27 policies,54 cost paths,6876 choices; maxalpha error1.20e-13.
+  Final436 tests OK in56.154s; full log `/tmp/oracle-reliability-full-tests.log`.
+- Registered `83f72a1` before downloading UM raw15m. The official44month
+  request Sep2019–Apr2023 yielded40 SHA-verified months Jan2020–Apr2023;
+  2019Sep–Dec404 stay missing. Dataset grid128448/observed116736; eligible
+  observed115350 beforecutoff2023-04-16T13:45Z. The1386 observedApril-tail
+  bars remain ineligible. No derivatives model fit/result has run yet.
+
+Runtime outputs, immutable and locally retained:
+`codex_outputs/oracle_risk_baselines_v1`, `oracle_risk_calibration_v1`,
+`oracle_conditional_decision_v1`.
+New raw data: `checkpoints/oracle_derivative_data/um_15m.parquet`,
+SHA `c365cbb6cd6d46dafea19b7fd3a62cb1b91ae3169f7a27532e40486ecfebfcdd`.
+Sidecar, availability parquet, source ledger and40 raw verified ZIPs retained.
+Index is barOPEN, not decision time. All features shift exactly once.
+Historical receipt/publication timesunknown; live_causal_eligible=false.
+
+## Next useful investigation: new Spot/perpetual information
+
+Keep model architectures small and fixed. Proposed three matched-support groups:
+existing technical29, +2perp weightedflow24/96, +all8derivative features.
+Eight extras: perpflow24/96, perp-minus-spotflow24/96, log relativevolume
+intensity24normalized672, logperp/spot trade-close premium, its24bar change,
+log past24bar realizedvariance ratio. Flow=(2takerbuyquote-quote)/quote,
+aggregated with paired observed quote weights. All inputs<=t-1.
+
+Availability and period gates must be committed before performance. Early
+Spot folds cannot pretend to have prelaunchUM training data. Refit parent on
+identical support; do not compare derivative survivors with previous13fold
+means. Prefer the same18/3/3 calibration timeline, if data-only512/64/64 row
+gates can be met. No omitted/fresh test scoring is authorized as selection.
+Silantyev2019 supports contemporaneous flow impact, not6h OOSalpha. New2026
+quarter-hour paper's4–12h association is full-sampleOLS, while its rollingOOS
+is10secondreturns; our15m bars cannot reproduce its10second burst features.
+The proposed derivative feature family is an untested information hypothesis.
+
+Keep return forecast losses, risk forecast losses and economic value separate.
+If a policy clears exploratory trend/cost signs, freeze it before constructing
+a prospective paper protocol and selection-aware dependent-data inference.
+No reused development result alone establishes high generalization probability.
+
+## Original next-step rationale, retained for context
 
 1. Measure calibration of the promising6h risk forecast on strictly disjoint
    fit/calibration/validation chronology; compare with a causal persistence

@@ -1,0 +1,50 @@
+{
+  "scope": "reused development evidence and free raw-data acquisition only",
+  "files": [
+    {
+      "source": "codex_outputs/oracle_risk_baselines_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_risk_baselines_v1/registration.json",
+      "sha256": "71b5bcc0c0fefcf550caec71192d7cddfc279fa99072a371bff0c87b57d087d2"
+    },
+    {
+      "source": "codex_outputs/oracle_risk_baselines_v1/results.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_risk_baselines_v1/results.json",
+      "sha256": "79aaabaf121fbd3bd212711434307fc640d77c2707ad93ea69e540cf54ae5df3"
+    },
+    {
+      "source": "codex_outputs/oracle_risk_calibration_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_risk_calibration_v1/registration.json",
+      "sha256": "10db614c05c7a9be42f900622ce27c5707fed0cca01b22bf4f27601071aa6c54"
+    },
+    {
+      "source": "codex_outputs/oracle_risk_calibration_v1/results.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_risk_calibration_v1/results.json",
+      "sha256": "0ad804eee619981d225ff6a587ab44a3d86407730c5106b4e2b3e101df695c40"
+    },
+    {
+      "source": "checkpoints/oracle_derivative_data/registration.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/derivative_acquisition/registration.json",
+      "sha256": "a44131ef735df17f2f51fec83ae9c0767c75375f88af141636e35ebaf8647b34"
+    },
+    {
+      "source": "checkpoints/oracle_derivative_data/um_15m.sha256.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/derivative_acquisition/um_15m.sha256.json",
+      "sha256": "8c83cd74e9939642d825e3c71b585c85b3bba9fcb633a69cf3284ce6e678e78f"
+    },
+    {
+      "source": "checkpoints/oracle_derivative_data/source_ledger.jsonl",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/derivative_acquisition/source_ledger.jsonl",
+      "sha256": "f6d77a6ede8e0531a2d326820a58a4473315ea1224f2e2f49b100c71f8a7a682"
+    },
+    {
+      "source": "codex_outputs/oracle_conditional_decision_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_conditional_decision_v1/registration.json",
+      "sha256": "7d2500e67fc6f5b5f9cda53aa9fe1488231edcee6863db6d22c6c9e5ee19a7c0"
+    },
+    {
+      "source": "codex_outputs/oracle_conditional_decision_v1/results.json",
+      "snapshot": "docs/experiments/oracle_risk_reliability_evidence_20260905/oracle_conditional_decision_v1/results.json",
+      "sha256": "d94fede7a11540680646e3465438962e98e499057f211529debb5df3a1e30a02"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "availability_path": "checkpoints/oracle_derivative_data/um_15m_availability.parquet",
+  "availability_sha256": "80cc8851edd1169a23c13220f42c69e626e4b60484fcce59f9375746164a0cb6",
+  "available_months": 40,
+  "bar_open_end_exclusive": "2023-05-01 00:00:00+00:00",
+  "bar_open_start": "2019-09-01 00:00:00+00:00",
+  "data_path": "checkpoints/oracle_derivative_data/um_15m.parquet",
+  "data_sha256": "c365cbb6cd6d46dafea19b7fd3a62cb1b91ae3169f7a27532e40486ecfebfcdd",
+  "feature_decision_cutoff_exclusive": "2023-04-16 13:45:00+00:00",
+  "feature_eligible_observed_rows": 115350,
+  "first_observed_bar_open": "2020-01-01 00:00:00+00:00",
+  "last_observed_bar_open": "2023-04-30 23:45:00+00:00",
+  "live_causal_eligible": false,
+  "missing_policy": "full grid; NaN raw observations and false observation mask; no interpolation",
+  "missing_rows": 11712,
+  "model_fitting_performed": false,
+  "observed_rows": 116736,
+  "raw_fields": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "quote_volume",
+    "n_trades",
+    "taker_buy_base",
+    "taker_buy_quote"
+  ],
+  "raw_zip_payloads_retained": true,
+  "registration_path": "checkpoints/oracle_derivative_data/registration.json",
+  "registration_sha256": "a44131ef735df17f2f51fec83ae9c0767c75375f88af141636e35ebaf8647b34",
+  "requested_months": 44,
+  "retained_post_cutoff_observed_rows": 1386,
+  "rows": 128448,
+  "schema": "oracle-derivative-raw-v1",
+  "source": "um_klines",
+  "source_ledger_path": "checkpoints/oracle_derivative_data/source_ledger.jsonl",
+  "source_ledger_sha256": "f6d77a6ede8e0531a2d326820a58a4473315ea1224f2e2f49b100c71f8a7a682",
+  "status": "complete_with_gaps",
+  "symbol": "BTCUSDT",
+  "timestamp_semantics": {
+    "bar_close_ts": "observed inclusive exchange close = bar open + 15 minutes - 1 millisecond",
+    "decision_ts": "bar open + 15 minutes; clock retained even when observation absent",
+    "feature_cutoff": "decision_ts strictly before registered cutoff; April raw tail retained only",
+    "index": "bar OPEN time, UTC"
+  },
+  "unavailable_months": [
+    "2019-09",
+    "2019-10",
+    "2019-11",
+    "2019-12"
+  ]
+}

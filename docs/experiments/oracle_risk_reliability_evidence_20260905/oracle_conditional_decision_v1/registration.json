@@ -1,0 +1,140 @@
+{
+  "calibration_registration_sha256": "10db614c05c7a9be42f900622ce27c5707fed0cca01b22bf4f27601071aa6c54",
+  "calibration_results_sha256": "0ad804eee619981d225ff6a587ab44a3d86407730c5106b4e2b3e101df695c40",
+  "config": {
+    "calibration_root": "codex_outputs/oracle_risk_calibration_v1",
+    "cost_multiplier": 2.0,
+    "forecast_models": [
+      "base16_hgb_scaled",
+      "technical_hgb_scaled",
+      "har_ridge_scaled"
+    ],
+    "output_dir": "codex_outputs/oracle_conditional_decision_v1",
+    "risk_aversions": [
+      0.0,
+      1.0,
+      4.0
+    ],
+    "schema": "oracle-conditional-decision-v1",
+    "source_config": "configs/oracle_frontier_20260905.yaml"
+  },
+  "data_proof": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "forecast_bindings": {
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold0_base16_hgb_scaled.npz": "4e55e1ea2e73c96103c358fb24de84b672871e17b0b44c83cbbe244cd2724121",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold0_har_ridge_scaled.npz": "f9ee7fcd6fd99b8944a64c57b0b1d5fad608e5d1cc9c9a09fddf407770ec2429",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold0_technical_hgb_scaled.npz": "e2c77b8d4da9268f651283376022ee718697b4efa1cfbbf07525c8290cd95a58",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold10_base16_hgb_scaled.npz": "4baa9ecc590d4fa5e2d52eb97a081f6fbad407f1718f9b3b8ebcb68c3b75578a",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold10_har_ridge_scaled.npz": "e0eb57a2e9e44d77b134f4ed2dcce6db41f0e38fd254fce26c8dee02a1a32211",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold10_technical_hgb_scaled.npz": "5cfb563ee59a4a8c154ba8b8899e005d1115f4c594c42a426f6576dc09e297b3",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold11_base16_hgb_scaled.npz": "bfd428ad2d18b6b6f70c99916241744c781b8358c068d02bb87c90120663d595",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold11_har_ridge_scaled.npz": "671a52c9abd3db1ff18756d6b8cf4588011e16ad1e2cca38835ce04bc5727605",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold11_technical_hgb_scaled.npz": "c12998bb6cf980fea66bae339a351431165d4575a73b14fdd4dfaf6eda6e90d7",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold12_base16_hgb_scaled.npz": "22bd68f7a064431cc4cdf03d5ebabf88feed951cc1fe5aa5b7a93c6cc54c0f8c",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold12_har_ridge_scaled.npz": "ec7fe44814ee891a05053d7285fad02935c5f08afe6e15af7da9d52d531ae8fe",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold12_technical_hgb_scaled.npz": "44ad2ee4dc7ea109c9f220340b4ce4700fe5459fb8f3456e607de411af90af84",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold1_base16_hgb_scaled.npz": "fd80307d2da5ffb32bb72d7d0b750eecf2f9acec45593354c5c9dfa7081d3daf",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold1_har_ridge_scaled.npz": "8cd478b1b0bace59b8f3f5d47350a8f2c55fe71935152635b61aac5218e994c7",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold1_technical_hgb_scaled.npz": "6eb3de8d8fbf6c6f9dd97c315b209d41df0492bf377fe6a44420f75ccd44705d",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold2_base16_hgb_scaled.npz": "711f099910599c20a4ea87707021f53220104dc91c2eb5981d4fe2cf8824effa",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold2_har_ridge_scaled.npz": "c75fcd2f986d80ae47942cd1771b26b158d4a5121b2e54a8cfd61c4e6f934f6b",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold2_technical_hgb_scaled.npz": "2341d7ae825e6c2e92804534303a4f5b503198a5da0387e829a3191903a69a62",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold3_base16_hgb_scaled.npz": "03cf309c955d709d3d637a2d1f31137dcfff00a7e526f832a2cf12282ba4cf10",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold3_har_ridge_scaled.npz": "409af8d4ad582f380df05c2ac6c8d5a4a4a94575af579039038af5551c73ad37",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold3_technical_hgb_scaled.npz": "18034da42f463961e855e8ed5df41325411afe83ec47ac5f5781c7f1d44ac9ad",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold4_base16_hgb_scaled.npz": "f3852e33b83fedfac92798d89e5e5ce5acb24662b90faef10f316c10ad7447a0",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold4_har_ridge_scaled.npz": "1d6d40861601a93062cb875bea8c523ea04c24b0119d768003655196559c1f8a",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold4_technical_hgb_scaled.npz": "12a3e0f8eaf20cea9b00b78fa449624406b2df2ad3cca18d95ad7ecbe2dc429c",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold5_base16_hgb_scaled.npz": "1146156f8c7bb97370da22b85aa73f555c83a1122492a16dfecd6cda76fc3f3f",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold5_har_ridge_scaled.npz": "055b361b9d425793e6c9e3075b278fc0475dc75877b38dc89fa845bf1a6828c3",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold5_technical_hgb_scaled.npz": "05ca2172fa2c8a3d95c64b73fb64349543754261172c3a714e754c0409c11bf4",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold6_base16_hgb_scaled.npz": "b6c1a128356f5585786fd77167415c7d7bd31d11f4d9494bd384d15f4a8929c3",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold6_har_ridge_scaled.npz": "1d6f9123137805097a572970f2521905f0ac83399b8d0a77be6e805e77007af4",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold6_technical_hgb_scaled.npz": "02ab12a1f4bf6fef951f5247c369ab38a768710bacadb0da7fe08ead48cb052b",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold7_base16_hgb_scaled.npz": "2ed6b0e8669e4181a70ed426abd62b97e96daf7dcc84698cabf141a0241ae954",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold7_har_ridge_scaled.npz": "bfb0614cd1e4f0fc03ae5724fe3a5229150fdc77baed98529995b45eb82420c8",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold7_technical_hgb_scaled.npz": "214f4bc1f1f63948e9740ce2df0ad7038ba206ca1b44aa0c7cf14f01476453fc",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold8_base16_hgb_scaled.npz": "e25c6c8b1eb11f56532f1bffa8215a023989e81c467073836d07e6ae1b589ce8",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold8_har_ridge_scaled.npz": "44c6456dbd8104e290eeb8d3bca26e829643016565988af21d126bcd247d2bcd",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold8_technical_hgb_scaled.npz": "72bd4dbb5bf871b86cbe8b8d61ba26e16d19f78a88b12dd44b0d5803005884e5",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold9_base16_hgb_scaled.npz": "3e5f45536e9cb1643094dfa81b1697defb03ed5ea79d128e08e5445491e79803",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold9_har_ridge_scaled.npz": "a8886a35ea4a9208ec2988c2c6b9d1731ceb59744b81edc34d839d3c61fd6f3f",
+    "codex_outputs/oracle_risk_calibration_v1/forecasts/fold9_technical_hgb_scaled.npz": "53d3dfb8a83c524419d9f223b6666c2b336ffbae8e4cf9bc7c5ccd80ba7abe91"
+  },
+  "scope": "estimated one-step conditional utility; adaptive reused validation; not exact/global oracle",
+  "source_config": {
+    "data_cutoff": "2023-04-16T13:45:00Z",
+    "data_path": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet",
+    "decision_cadence_hours": 6,
+    "development_folds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "execution": {
+      "borrow_annual": 0.1,
+      "deadband": 0.01,
+      "max_step": 0.08,
+      "one_way_cost": 0.00055
+    },
+    "feature_groups": [
+      "base16",
+      "technical",
+      "flow"
+    ],
+    "fold_anchor": "2020-04-16T13:45:00Z",
+    "hindsight": {
+      "beam_width": 32,
+      "risk_penalties": [
+        0.0,
+        1.0
+      ]
+    },
+    "horizons_bars": [
+      24,
+      96,
+      672
+    ],
+    "mappers": [
+      "return",
+      "downside"
+    ],
+    "minimum_bar_coverage": 0.995,
+    "minimum_fit_rows": 512,
+    "models": [
+      "ridge",
+      "hgb"
+    ],
+    "output_dir": "codex_outputs/oracle_frontier_v1",
+    "regime": {
+      "minimum_quarters_per_regime": 3,
+      "normalized_momentum_90_threshold": 0.5
+    },
+    "schema": "oracle-feature-frontier-v1",
+    "seed": 20260905,
+    "symbol": "BTCUSDT",
+    "train_years": 2
+  },
+  "source_sha256": {
+    "alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "oracle_conditional_decision.py": "80e5b412bf27e0897d6ff7c709aa9e41f9c2fe3d3945558507f2bdbcd8833631",
+    "oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57"
+  }
+}

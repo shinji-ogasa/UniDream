@@ -1,0 +1,115 @@
+{
+  "config": {
+    "fit_months": 18,
+    "horizon_bars": 24,
+    "interval_months": 3,
+    "minimum_fit_rows": 512,
+    "minimum_interval_rows": 64,
+    "minimum_scale_rows": 64,
+    "models": [
+      "persistence24",
+      "persistence96",
+      "persistence672",
+      "har_ridge",
+      "base16_hgb",
+      "technical_hgb"
+    ],
+    "nominal_coverage": 0.9,
+    "output_dir": "codex_outputs/oracle_risk_calibration_v1",
+    "policies": [
+      "point",
+      "interval_gate"
+    ],
+    "scale_months": 3,
+    "schema": "oracle-risk-calibration-v1",
+    "seed": 20260905,
+    "source_config": "configs/oracle_frontier_20260905.yaml",
+    "variance_floor": 1e-12,
+    "versions": [
+      "raw",
+      "scaled"
+    ]
+  },
+  "config_sha256": "feed67e55c699f514258f8625515235814d0309f5e8e0e1397c3617eefb9d95b",
+  "data_proof": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "scope": "adaptive reused validation; no later test selection; no exact conditional guarantee",
+  "source_config": {
+    "data_cutoff": "2023-04-16T13:45:00Z",
+    "data_path": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet",
+    "decision_cadence_hours": 6,
+    "development_folds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "execution": {
+      "borrow_annual": 0.1,
+      "deadband": 0.01,
+      "max_step": 0.08,
+      "one_way_cost": 0.00055
+    },
+    "feature_groups": [
+      "base16",
+      "technical",
+      "flow"
+    ],
+    "fold_anchor": "2020-04-16T13:45:00Z",
+    "hindsight": {
+      "beam_width": 32,
+      "risk_penalties": [
+        0.0,
+        1.0
+      ]
+    },
+    "horizons_bars": [
+      24,
+      96,
+      672
+    ],
+    "mappers": [
+      "return",
+      "downside"
+    ],
+    "minimum_bar_coverage": 0.995,
+    "minimum_fit_rows": 512,
+    "models": [
+      "ridge",
+      "hgb"
+    ],
+    "output_dir": "codex_outputs/oracle_frontier_v1",
+    "regime": {
+      "minimum_quarters_per_regime": 3,
+      "normalized_momentum_90_threshold": 0.5
+    },
+    "schema": "oracle-feature-frontier-v1",
+    "seed": 20260905,
+    "symbol": "BTCUSDT",
+    "train_years": 2
+  },
+  "source_config_sha256": "5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d",
+  "source_sha256": {
+    "alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  }
+}
