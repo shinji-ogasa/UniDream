@@ -98,6 +98,19 @@ def _kline_row(open_epoch: int, close_epoch: int) -> list[str]:
 
 
 class AlphaDDDataTest(unittest.TestCase):
+    def test_timing_quarantine_does_not_hide_numeric_corruption(self) -> None:
+        from unidream.data.official_v4_sources import OfficialSourceError
+        start = 1_735_689_600_000_000
+        valid = _kline_row(start, start + 900_000_000 - 1)
+        for bad_value in ("not-a-number", "inf", "-1"):
+            with self.subTest(value=bad_value):
+                bad = _kline_row(start + 900_000_000, start + 900_000_000 + 1)
+                bad[4] = bad_value
+                payload = _zip_csv("BTCUSDT-15m-2025-01.csv", [valid, bad])
+                with self.assertRaises(OfficialSourceError):
+                    _parse_kline_archive_bytes(payload, source="spot_klines", symbol="BTCUSDT",
+                        interval="15m", month="2025-01", quarantine_invalid_rows=True, timestamp_unit="auto")
+
     def test_opt_in_parser_detects_microseconds_and_quarantines_bad_timing_row(self) -> None:
         open_us = 1_735_689_600_000_000
         valid = _kline_row(open_us, open_us + 900_000_000 - 1)

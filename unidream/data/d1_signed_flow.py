@@ -463,8 +463,7 @@ def _parse_kline_archive_bytes_quarantined(
 
     for offset, row in enumerate(rows[data_start:], data_start + 1):
         if len(row) != 12:
-            quarantine_row(offset, row, "malformed_row")
-            continue
+            raise OfficialSourceError(f"{source} archive has malformed CSV row {offset}")
         try:
             parsed.append(
                 [
@@ -485,8 +484,8 @@ def _parse_kline_archive_bytes_quarantined(
                     ),
                 ]
             )
-        except (TypeError, ValueError):
-            quarantine_row(offset, row, "malformed_numeric_row")
+        except (TypeError, ValueError) as exc:
+            raise OfficialSourceError(f"{source} archive has malformed numeric row {offset}") from exc
     if not parsed:
         raise OfficialSourceError(f"{source} archive has no valid data rows")
 
@@ -506,6 +505,19 @@ def _parse_kline_archive_bytes_quarantined(
         "_raw_row_sha256",
     ]
     frame = pd.DataFrame(parsed, columns=columns)
+    # Timing quarantine must not conceal corrupted price/volume fields on the
+    # same row. Integrity checks apply before any timing row is removed.
+    values = frame[list(_KLINE_FIELD_COLUMNS)].to_numpy(dtype=float)
+    if not np.isfinite(values).all() or (values < 0).any():
+        raise OfficialSourceError(f"{source} archive contains invalid numeric fields before quarantine")
+    if (frame[["open", "high", "low", "close"]].to_numpy(dtype=float) <= 0).any():
+        raise OfficialSourceError(f"{source} archive contains non-positive OHLC before quarantine")
+    if ((frame["high"] < frame[["open", "close", "low"]].max(axis=1))
+            | (frame["low"] > frame[["open", "close", "high"]].min(axis=1))).any():
+        raise OfficialSourceError(f"{source} archive violates OHLC consistency before quarantine")
+    if ((frame["taker_buy_base"] > frame["volume"])
+            | (frame["taker_buy_quote"] > frame["quote_volume"])).any():
+        raise OfficialSourceError(f"{source} archive taker-buy exceeds total before quarantine")
     if timestamp_unit == "auto":
         epoch_values = frame[["bar_open_ms", "bar_close_ms"]].to_numpy(dtype=np.int64)
         detected_units = {

@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import inspect
 import json
 import math
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -127,13 +128,15 @@ def load_bars(path: Path, *, cutoff: str) -> pd.DataFrame:
     return bars
 
 
-def validate_data_artifact(path: Path) -> dict:
+def validate_data_artifact(path: Path, *, expected_symbol: str | None = None) -> dict:
     sidecar_path = path.with_suffix(".sha256.json")
     sidecar = json.loads(sidecar_path.read_text())
     if sidecar.get("kind") != "alpha_dd_spot_15m_artifact_sha256":
         raise ValueError("audited Spot acquisition sidecar required")
     if sidecar.get("status") not in ("complete", "complete_with_gaps"):
         raise ValueError("data acquisition did not complete")
+    if expected_symbol is not None and sidecar.get("symbol") != expected_symbol:
+        raise ValueError("registered symbol disagrees with source artifact")
     bindings = [(path, "artifact_sha256"),
                 (Path(sidecar["availability_path"]), "availability_sha256"),
                 (Path(sidecar["source_ledger_path"]), "source_ledger_sha256")]
@@ -154,6 +157,7 @@ def validate_data_artifact(path: Path) -> dict:
     if not np.array_equal(observed, price_observed):
         raise ValueError("raw-field and price availability disagree; independent masks required")
     return {"sidecar_sha256": file_digest(sidecar_path),
+            "symbol": sidecar.get("symbol"),
             "artifact_sha256": sidecar["artifact_sha256"],
             "availability_sha256": sidecar["availability_sha256"],
             "ledger_sha256": sidecar["source_ledger_sha256"], "status": sidecar["status"]}
@@ -324,8 +328,9 @@ def fold_spec(fold: int, anchor: str) -> dict:
 
 
 def fit_predictions(candidate: Candidate, features: pd.DataFrame, bars: pd.DataFrame,
-                    fold: dict, output: Path) -> tuple[np.ndarray, dict]:
-    x = features.loc[:, FEATURE_NAMES].to_numpy(float)
+                    fold: dict, output: Path, *,
+                    feature_names: Sequence[str] = FEATURE_NAMES) -> tuple[np.ndarray, dict]:
+    x = features.loc[:, list(feature_names)].to_numpy(float)
     horizon = candidate.lookback * BARS_DAY
     # Decision t -> fill open[t+1] -> horizon realized at close[t+h].
     y = (np.log(bars.close.shift(-horizon)) - np.log(bars.open.shift(-1))).to_numpy()
@@ -381,14 +386,20 @@ def select_development(summary: dict[str, dict]) -> str:
                    -summary[k]["alpha_ex_mean"], summary[k]["maxdd_delta_mean"], k))[0]
 
 
-def run(config_path: Path, stage: str) -> dict:
+def run(config_path: Path, stage: str, *, candidates: Sequence[Candidate] | None = None,
+        feature_builder: Callable[[pd.DataFrame], pd.DataFrame] = make_features,
+        feature_names: Sequence[str] = FEATURE_NAMES, recipe_name: str = "v1") -> dict:
     config = yaml.safe_load(config_path.read_text())
     out = Path(config["output_dir"])
     out.mkdir(parents=True, exist_ok=True)
-    universe = candidate_universe()
+    universe = candidate_universe() if candidates is None else list(candidates)
+    if not universe or len({c.id for c in universe}) != len(universe) or universe[0].family != "hold":
+        raise ValueError("unique registered candidates beginning with B&H required")
     registration = {"schema": "alpha-dd-research-v1", "config": config,
                     "candidates": [{"id": c.id, **asdict(c)} for c in universe],
-                    "source_sha256": file_digest(Path(__file__))}
+                    "source_sha256": file_digest(Path(__file__)), "recipe_name": recipe_name,
+                    "feature_names": list(feature_names),
+                    "feature_source_sha256": file_digest(Path(inspect.getsourcefile(feature_builder)))}
     reg_sha = digest(registration)
     registry_path = out / "registration.json"
     if registry_path.exists():
@@ -415,9 +426,11 @@ def run(config_path: Path, stage: str) -> dict:
     # Development features are built from a physically truncated view.
     support = config["stages"][stage]
     path = Path(config["data_path"])
-    data_proof = validate_data_artifact(path)
+    data_proof = validate_data_artifact(path, expected_symbol=config.get("symbol"))
     bars = load_bars(path, cutoff=support["data_cutoff"])
-    features = make_features(bars)
+    features = feature_builder(bars)
+    if not features.index.equals(bars.index) or not set(feature_names).issubset(features.columns):
+        raise ValueError("registered feature builder violated row/column contract")
     rows: dict[str, list[dict]] = {c.id: [] for c in active}
     unavailable: dict[str, list[dict]] = {}
     provenance = []
@@ -437,7 +450,8 @@ def run(config_path: Path, stage: str) -> dict:
                 key = (c.family, c.lookback)
                 if key not in predictions:
                     try:
-                        pred, proof = fit_predictions(c, features, bars, fold, out)
+                        pred, proof = fit_predictions(c, features, bars, fold, out,
+                                                      feature_names=feature_names)
                         predictions[key] = pred
                         provenance.append({"fold": fold_id, "family": c.family, "horizon_days": c.lookback, **proof})
                     except CandidateUnavailable as exc:
