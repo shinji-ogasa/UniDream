@@ -829,6 +829,7 @@ def _build_training_config(
             "val_patience": 0,
         }
     )
+    cfg.setdefault("logging", {})["log_interval"] = 25 if full else 1
     return cfg
 
 

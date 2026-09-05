@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
 
 from unidream.data.dataset import SequenceDataset
@@ -86,7 +87,13 @@ def prepare_world_model_stage(
     # an experiment to pin validation patience explicitly.  This matters for
     # a declared training budget: otherwise the trainer's implicit patience
     # can stop a run far below max_steps.
-    world_model_cfg = effective_cfg.get("world_model", {})
+    world_model_cfg = effective_cfg.get("world_model")
+    if not isinstance(world_model_cfg, Mapping):
+        # ``conditional_runtime_config(full, section)`` returns the section
+        # itself; callers that pass only a full config return the nested
+        # world_model mapping.  Support both shapes without weakening the
+        # strict conditional gate.
+        world_model_cfg = effective_cfg
     if "patience" in world_model_cfg:
         patience = int(world_model_cfg["patience"])
         if patience <= 0:
