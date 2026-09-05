@@ -200,7 +200,20 @@ def _parse_kline_archive_bytes(
     symbol: str,
     interval: str,
     month: str | pd.Timestamp,
+    quarantine_invalid_rows: bool = False,
+    timestamp_unit: str = "ms",
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
+    if timestamp_unit not in {"ms", "us", "auto"}:
+        raise ValueError(f"timestamp_unit must be 'ms', 'us', or 'auto', got {timestamp_unit!r}")
+    if quarantine_invalid_rows:
+        return _parse_kline_archive_bytes_quarantined(
+            payload,
+            source=source,
+            symbol=symbol,
+            interval=interval,
+            month=month,
+            timestamp_unit=timestamp_unit,
+        )
     delta = _interval_delta(interval)
     month_value = _archive_month(month)
     expected_member_name = (
@@ -268,9 +281,25 @@ def _parse_kline_archive_bytes(
         "taker_buy_quote",
     ]
     frame = pd.DataFrame(parsed, columns=columns)
+    resolved_timestamp_unit = timestamp_unit
+    if resolved_timestamp_unit == "auto":
+        epoch_values = frame[["bar_open_ms", "bar_close_ms"]].to_numpy(dtype=np.int64)
+        detected_units = {
+            "us" if abs(int(value)) >= 100_000_000_000_000 else "ms"
+            for value in epoch_values.ravel()
+        }
+        if len(detected_units) != 1:
+            raise OfficialSourceError(
+                f"{source} archive mixes timestamp units: {sorted(detected_units)}"
+            )
+        resolved_timestamp_unit = next(iter(detected_units))
     try:
-        frame["bar_open_ts"] = pd.to_datetime(frame.pop("bar_open_ms"), unit="ms", utc=True)
-        frame["bar_close_ts"] = pd.to_datetime(frame.pop("bar_close_ms"), unit="ms", utc=True)
+        frame["bar_open_ts"] = pd.to_datetime(
+            frame.pop("bar_open_ms"), unit=resolved_timestamp_unit, utc=True
+        )
+        frame["bar_close_ts"] = pd.to_datetime(
+            frame.pop("bar_close_ms"), unit=resolved_timestamp_unit, utc=True
+        )
     except (TypeError, ValueError, OverflowError) as exc:
         raise OfficialSourceError(f"{source} archive has invalid timestamps: {exc}") from exc
     frame = frame.set_index("bar_open_ts")
@@ -284,7 +313,12 @@ def _parse_kline_archive_bytes(
     epoch = pd.Timestamp("1970-01-01", tz="UTC")
     if ((frame.index - epoch) % delta != pd.Timedelta(0)).any():
         raise OfficialSourceError(f"{source} archive bar_open_ts is not aligned to {interval}")
-    expected_close = frame.index + delta - pd.Timedelta(milliseconds=1)
+    close_quantum = (
+        pd.Timedelta(microseconds=1)
+        if resolved_timestamp_unit == "us"
+        else pd.Timedelta(milliseconds=1)
+    )
+    expected_close = frame.index + delta - close_quantum
     if not frame["bar_close_ts"].equals(pd.Series(expected_close, index=frame.index, name="bar_close_ts")):
         mismatched = int((frame["bar_close_ts"] != expected_close).sum())
         raise OfficialSourceError(
@@ -356,7 +390,283 @@ def _parse_kline_archive_bytes(
         "parsed_first_bar_close_ts": str(frame["bar_close_ts"].iloc[0]),
         "parsed_last_bar_close_ts": str(frame["bar_close_ts"].iloc[-1]),
         "parsed_frame_sha256": _frame_digest(frame),
+        "timestamp_unit": resolved_timestamp_unit,
+        "quarantine_enabled": False,
+        "quarantined_rows": 0,
     }
+
+
+def _parse_kline_archive_bytes_quarantined(
+    payload: bytes,
+    *,
+    source: str,
+    symbol: str,
+    interval: str,
+    month: str | pd.Timestamp,
+    timestamp_unit: str,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Strictly parse an archive while quarantining bad timing rows only.
+
+    The historical strict parser rejects a complete archive when one CSV row
+    has a bad open/close timestamp.  The alpha/DD acquisition opts into this
+    mode so valid rows remain usable and the rejected source rows remain
+    explicit in the ledger.  No timestamps are rounded, shifted, or filled.
+    Numeric/price integrity failures still fail closed for the whole archive.
+    """
+    delta = _interval_delta(interval)
+    month_value = _archive_month(month)
+    expected_member_name = (
+        f"{symbol}-{interval}-{month_value.year:04d}-{month_value.month:02d}.csv"
+    )
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            names = archive.namelist()
+            csv_names = [name for name in names if name.lower().endswith(".csv")]
+            if names != [expected_member_name] or csv_names != [expected_member_name]:
+                raise OfficialSourceError(f"expected one CSV member, found {names}")
+            raw_csv = archive.read(expected_member_name)
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise OfficialSourceError(f"{source} archive is not a valid zip: {exc}") from exc
+
+    try:
+        rows = list(csv.reader(io.StringIO(raw_csv.decode("utf-8"))))
+    except (UnicodeDecodeError, csv.Error) as exc:
+        raise OfficialSourceError(f"{source} archive CSV is invalid: {exc}") from exc
+    if not rows or not rows[0]:
+        raise OfficialSourceError(f"{source} archive CSV is empty")
+    header_present = not rows[0][0].lstrip("+-").isdigit()
+    data_start = 1 if header_present else 0
+    parsed: list[list[Any]] = []
+    quarantine: list[dict[str, Any]] = []
+
+    def quarantine_row(
+        row_number: int,
+        row: list[str],
+        reason: str,
+        *,
+        extra: Mapping[str, Any] | None = None,
+    ) -> None:
+        entry: dict[str, Any] = {
+            "row_number": row_number,
+            "reason": reason,
+            "raw_row_sha256": _sha256_bytes(
+                json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ),
+        }
+        if row:
+            entry["bar_open_raw"] = row[0]
+        if len(row) > 6:
+            entry["bar_close_raw"] = row[6]
+        if extra:
+            entry.update(dict(extra))
+        quarantine.append(entry)
+
+    for offset, row in enumerate(rows[data_start:], data_start + 1):
+        if len(row) != 12:
+            quarantine_row(offset, row, "malformed_row")
+            continue
+        try:
+            parsed.append(
+                [
+                    int(row[0]),
+                    float(row[1]),
+                    float(row[2]),
+                    float(row[3]),
+                    float(row[4]),
+                    float(row[5]),
+                    int(row[6]),
+                    float(row[7]),
+                    int(row[8]),
+                    float(row[9]),
+                    float(row[10]),
+                    offset,
+                    _sha256_bytes(
+                        json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                    ),
+                ]
+            )
+        except (TypeError, ValueError):
+            quarantine_row(offset, row, "malformed_numeric_row")
+    if not parsed:
+        raise OfficialSourceError(f"{source} archive has no valid data rows")
+
+    columns = [
+        "bar_open_ms",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "bar_close_ms",
+        "quote_volume",
+        "n_trades",
+        "taker_buy_base",
+        "taker_buy_quote",
+        "_row_number",
+        "_raw_row_sha256",
+    ]
+    frame = pd.DataFrame(parsed, columns=columns)
+    if timestamp_unit == "auto":
+        epoch_values = frame[["bar_open_ms", "bar_close_ms"]].to_numpy(dtype=np.int64)
+        detected_units = {
+            "us" if abs(int(value)) >= 100_000_000_000_000 else "ms"
+            for value in epoch_values.ravel()
+        }
+        if len(detected_units) != 1:
+            raise OfficialSourceError(
+                f"{source} archive mixes timestamp units: {sorted(detected_units)}"
+            )
+        resolved_unit = next(iter(detected_units))
+    else:
+        resolved_unit = timestamp_unit
+    try:
+        frame["bar_open_ts"] = pd.to_datetime(
+            frame.pop("bar_open_ms"), unit=resolved_unit, utc=True, errors="coerce"
+        )
+        frame["bar_close_ts"] = pd.to_datetime(
+            frame.pop("bar_close_ms"), unit=resolved_unit, utc=True, errors="coerce"
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise OfficialSourceError(f"{source} archive has invalid timestamps: {exc}") from exc
+
+    bad_indices: set[int] = set()
+    epoch = pd.Timestamp("1970-01-01", tz="UTC")
+    month_end = (month_value + pd.offsets.MonthBegin(1)).normalize()
+    for position, row in frame.iterrows():
+        reasons: list[str] = []
+        open_ts = row["bar_open_ts"]
+        close_ts = row["bar_close_ts"]
+        if pd.isna(open_ts):
+            reasons.append("invalid_bar_open_timestamp")
+        if pd.isna(close_ts):
+            reasons.append("invalid_bar_close_timestamp")
+        if not pd.isna(open_ts):
+            if open_ts < month_value or open_ts >= month_end:
+                reasons.append("bar_open_outside_requested_month")
+            elif (open_ts - epoch) % delta != pd.Timedelta(0):
+                reasons.append("bar_open_not_aligned_to_15m")
+        if not pd.isna(open_ts) and not pd.isna(close_ts):
+            close_quantum = (
+                pd.Timedelta(microseconds=1)
+                if resolved_unit == "us"
+                else pd.Timedelta(milliseconds=1)
+            )
+            expected_close = open_ts + delta - close_quantum
+            if close_ts != expected_close:
+                reasons.append("bar_close_does_not_match_15m")
+        if reasons:
+            bad_indices.add(position)
+            quarantine_row(
+                int(row["_row_number"]),
+                [],
+                ";".join(reasons),
+                extra={
+                    "reasons": reasons,
+                    "bar_open_ts": None if pd.isna(open_ts) else str(open_ts),
+                    "bar_close_ts": None if pd.isna(close_ts) else str(close_ts),
+                    "raw_row_sha256": row["_raw_row_sha256"],
+                },
+            )
+    if bad_indices:
+        frame = frame.drop(index=sorted(bad_indices))
+    if frame.empty:
+        raise OfficialSourceError(f"{source} archive has no rows after timestamp quarantine")
+
+    if frame["bar_open_ts"].duplicated(keep=False).any() or not frame["bar_open_ts"].is_monotonic_increasing:
+        raise OfficialSourceError(
+            f"{source} archive timestamps remain unsorted or duplicated after timestamp quarantine"
+        )
+
+    frame = frame.set_index("bar_open_ts")
+    numeric = frame[list(_KLINE_FIELD_COLUMNS)].to_numpy(dtype=float)
+    if not np.isfinite(numeric).all():
+        raise OfficialSourceError(f"{source} archive contains non-finite kline fields")
+    if (numeric < 0).any():
+        raise OfficialSourceError(f"{source} archive contains negative kline fields")
+    price_values = frame[["open", "high", "low", "close"]].to_numpy(dtype=float)
+    if (price_values <= 0).any():
+        raise OfficialSourceError(f"{source} archive contains non-positive OHLC prices")
+    invalid_ohlc = (
+        (frame["high"] < frame[["open", "close", "low"]].max(axis=1))
+        | (frame["low"] > frame[["open", "close", "high"]].min(axis=1))
+    )
+    if invalid_ohlc.any():
+        raise OfficialSourceError(f"{source} archive violates basic OHLC consistency")
+    trades = frame["n_trades"].to_numpy(dtype=float)
+    if not np.equal(trades, np.floor(trades)).all():
+        raise OfficialSourceError(f"{source} archive trade count is not integral")
+    if (frame["taker_buy_base"] > frame["volume"]).any():
+        raise OfficialSourceError(f"{source} archive taker-buy base exceeds volume")
+    if (frame["taker_buy_quote"] > frame["quote_volume"]).any():
+        raise OfficialSourceError(f"{source} archive taker-buy quote exceeds quote volume")
+
+    frame = frame[
+        [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "quote_volume",
+            "n_trades",
+            "taker_buy_base",
+            "taker_buy_quote",
+            "bar_close_ts",
+        ]
+    ]
+    for column in _KLINE_FIELD_COLUMNS:
+        frame[column] = frame[column].astype(float)
+    frame["n_trades"] = frame["n_trades"].astype("int64")
+    return frame, {
+        "archive_member": expected_member_name,
+        "archive_payload_sha256": _sha256_bytes(raw_csv),
+        "schema": {
+            "kind": "kline_metadata",
+            "header_present": header_present,
+            "column_count": 12,
+            "fields": [
+                "open_time",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "close_time",
+                "quote_volume",
+                "n_trades",
+                "taker_buy_base",
+                "taker_buy_quote",
+                "ignore",
+            ],
+        },
+        "parsed_rows": int(len(frame)),
+        "parsed_first_bar_open_ts": str(frame.index[0]),
+        "parsed_last_bar_open_ts": str(frame.index[-1]),
+        "parsed_first_bar_close_ts": str(frame["bar_close_ts"].iloc[0]),
+        "parsed_last_bar_close_ts": str(frame["bar_close_ts"].iloc[-1]),
+        "parsed_frame_sha256": _frame_digest(frame),
+        "timestamp_unit": resolved_unit,
+        "quarantine_enabled": True,
+        "quarantined_rows": len(quarantine),
+        "quarantine_records": quarantine,
+    }
+
+
+def _parser_error_kind(exc: BaseException) -> str:
+    """Classify parser failures without weakening numeric integrity checks."""
+    message = str(exc).lower()
+    timing_markers = (
+        "timestamps are not sorted and unique",
+        "timestamps remain unsorted or duplicated",
+        "outside requested month",
+        "bar_open_ts is not aligned",
+        "close timestamp does not match",
+        "has invalid timestamps",
+        "no rows after timestamp quarantine",
+    )
+    if any(marker in message for marker in timing_markers):
+        return "timing"
+    return "integrity_or_structure"
 
 
 def download_d1_kline_month(
@@ -368,10 +678,14 @@ def download_d1_kline_month(
     raw_dir: str | Path | None = None,
     timeout: float = 30.0,
     session: requests.Session | None = None,
+    quarantine_invalid_rows: bool = False,
+    timestamp_unit: str = "ms",
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Download one official monthly kline metadata archive with checksum evidence."""
     if source not in D1_SOURCE_NAMES:
         raise ValueError(f"unsupported D1 kline source: {source!r}")
+    if timestamp_unit not in {"ms", "us", "auto"}:
+        raise ValueError(f"timestamp_unit must be 'ms', 'us', or 'auto', got {timestamp_unit!r}")
     month_value = _archive_month(month)
     url = official_archive_url(source, symbol, interval, month_value)
     archive_name = Path(urlparse(url).path).name
@@ -394,6 +708,8 @@ def download_d1_kline_month(
         "archive_revision_id": None,
         "checksum_url": f"{url}.CHECKSUM",
         "checksum_verified": False,
+        "quarantine_enabled": bool(quarantine_invalid_rows),
+        "timestamp_unit_requested": timestamp_unit,
     }
     try:
         response = active.get(url, timeout=timeout)
@@ -441,11 +757,15 @@ def download_d1_kline_month(
             symbol=symbol,
             interval=interval,
             month=month_value,
+            quarantine_invalid_rows=quarantine_invalid_rows,
+            timestamp_unit=timestamp_unit,
         )
         record.update(parsed)
         return frame, record
     except (OSError, requests.RequestException, OfficialSourceError) as exc:
         record["error"] = f"{type(exc).__name__}: {exc}"
+        if isinstance(exc, OfficialSourceError):
+            record["parser_error_kind"] = _parser_error_kind(exc)
         return pd.DataFrame(), record
     finally:
         if owns_session:
