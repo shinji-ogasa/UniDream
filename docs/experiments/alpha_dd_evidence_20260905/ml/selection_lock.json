@@ -1,0 +1,7 @@
+{
+  "development_file_sha256": "74843252b4218a07ccd4e0b82c2eb1cb611c5699f577f7a745b00b6932809ec6",
+  "registration_sha256": "2326728f1df450c6b2289ae2bf43ae45de56fafa13d06e3a4b3a9dac9d6dcc1f",
+  "rule": "maximum min(mean AlphaEx, -mean MaxDDDelta); deterministic ties",
+  "selected_before_historical_or_fresh_results": true,
+  "selected_id": "ridge_d7_lo0.5_hi1.12_p2"
+}

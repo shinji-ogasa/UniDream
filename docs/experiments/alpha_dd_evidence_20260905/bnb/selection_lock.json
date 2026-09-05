@@ -1,0 +1,7 @@
+{
+  "development_file_sha256": "3831c742e9a9190a4d9b76a34d14a834ec3338bd0bda4616ca34aea8235724cb",
+  "registration_sha256": "4a21738d0035a006785881aba50b599dfb67ed399f7e2d4147f7d8f99e057b1e",
+  "rule": "maximum min(mean AlphaEx, -mean MaxDDDelta); deterministic ties",
+  "selected_before_historical_or_fresh_results": true,
+  "selected_id": "trend_d90_lo0_hi1.12_p0"
+}

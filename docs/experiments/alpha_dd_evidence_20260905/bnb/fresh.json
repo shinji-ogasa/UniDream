@@ -1,0 +1,148 @@
+{
+  "candidate_count_development": 83,
+  "confirmation_is_report_only": true,
+  "data_file_sha256": "8dbddc11313b1e883df159a5493b8a5f29c46b0569a76914f95fd12a403f3f55",
+  "data_provenance": {
+    "artifact_sha256": "8dbddc11313b1e883df159a5493b8a5f29c46b0569a76914f95fd12a403f3f55",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "a54ef3d3912d40dfd304af15c9670f6c8b506b3875e0f1c4c65ec23469cc9ed1",
+    "sidecar_sha256": "a591ff8e5e3bcc803dd413c94b6f0edf21337c7ab694719f321a8b1ca763058a",
+    "status": "complete_with_gaps",
+    "symbol": "BNBUSDT"
+  },
+  "formal_p1_result": false,
+  "model_provenance": [],
+  "orders_submitted": 0,
+  "registration_sha256": "4a21738d0035a006785881aba50b599dfb67ed399f7e2d4147f7d8f99e057b1e",
+  "rows": {
+    "hold_d30_lo1_hi1_p0": [
+      {
+        "alpha_ex": 0.0,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.27122530177355186,
+        "bh_total_return": -0.07145267284734169,
+        "borrow_initial_equity_units": 0.0,
+        "close_coverage": 1.0,
+        "end": "2026-07-16 13:45:00+00:00",
+        "fees_initial_equity_units": 0.0,
+        "fold": 24,
+        "intent_coverage": 1.0,
+        "maxdd": 0.27122530177355186,
+        "maxdd_delta": 0.0,
+        "mean_exposure": 1.0,
+        "rows": 8736,
+        "start": "2026-04-16 13:45:00+00:00",
+        "stress_2x": {
+          "alpha_ex": 0.0,
+          "bar_coverage": 1.0,
+          "bh_maxdd": 0.27122530177355186,
+          "bh_total_return": -0.07145267284734169,
+          "borrow_initial_equity_units": 0.0,
+          "close_coverage": 1.0,
+          "fees_initial_equity_units": 0.0,
+          "intent_coverage": 1.0,
+          "maxdd": 0.27122530177355186,
+          "maxdd_delta": 0.0,
+          "mean_exposure": 1.0,
+          "rows": 8736,
+          "total_return": -0.07145267284734169,
+          "trades": 0,
+          "turnover": 0.0
+        },
+        "total_return": -0.07145267284734169,
+        "trades": 0,
+        "turnover": 0.0
+      }
+    ],
+    "trend_d90_lo0_hi1.12_p0": [
+      {
+        "alpha_ex": 0.06598890321506534,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.27122530177355186,
+        "bh_total_return": -0.07145267284734169,
+        "borrow_initial_equity_units": 0.0008244814426072238,
+        "close_coverage": 1.0,
+        "end": "2026-07-16 13:45:00+00:00",
+        "fees_initial_equity_units": 0.003652361145775574,
+        "fold": 24,
+        "intent_coverage": 1.0,
+        "maxdd": 0.14975673190597427,
+        "maxdd_delta": -0.12146856986757759,
+        "mean_exposure": 0.3243039618179395,
+        "rows": 8736,
+        "start": "2026-04-16 13:45:00+00:00",
+        "stress_2x": {
+          "alpha_ex": 0.06242674123353498,
+          "bar_coverage": 1.0,
+          "bh_maxdd": 0.27122530177355186,
+          "bh_total_return": -0.07145267284734169,
+          "borrow_initial_equity_units": 0.0016490633382351932,
+          "close_coverage": 1.0,
+          "fees_initial_equity_units": 0.007300047795324771,
+          "intent_coverage": 1.0,
+          "maxdd": 0.14989607170163266,
+          "maxdd_delta": -0.1213292300719192,
+          "mean_exposure": 0.3214674866711012,
+          "rows": 8736,
+          "total_return": -0.009025931613806715,
+          "trades": 85,
+          "turnover": 6.617888863057407
+        },
+        "total_return": -0.00546376963227635,
+        "trades": 84,
+        "turnover": 6.60964891579197
+      }
+    ]
+  },
+  "selected_id": "trend_d90_lo0_hi1.12_p0",
+  "source_revision": "4b949036ce9206784ae60b4f22fbade43970a773",
+  "source_sha256": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+  "stage": "fresh",
+  "summary": {
+    "hold_d30_lo1_hi1_p0": {
+      "alpha_ex_mean": 0.0,
+      "alpha_ex_median": 0.0,
+      "alpha_ex_worst": 0.0,
+      "alpha_positive_folds": 0,
+      "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+      "dd_improved_folds": 0,
+      "descriptive_fold_bootstrap_alpha_ci": [
+        0.0,
+        0.0
+      ],
+      "descriptive_fold_bootstrap_dd_ci": [
+        0.0,
+        0.0
+      ],
+      "folds": 1,
+      "maxdd_delta_mean": 0.0,
+      "maxdd_delta_median": 0.0,
+      "minimum_target_pass": false,
+      "preferred_target_pass": false,
+      "selection_score": 0.0
+    },
+    "trend_d90_lo0_hi1.12_p0": {
+      "alpha_ex_mean": 0.06598890321506534,
+      "alpha_ex_median": 0.06598890321506534,
+      "alpha_ex_worst": 0.06598890321506534,
+      "alpha_positive_folds": 1,
+      "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+      "dd_improved_folds": 1,
+      "descriptive_fold_bootstrap_alpha_ci": [
+        0.06598890321506534,
+        0.06598890321506534
+      ],
+      "descriptive_fold_bootstrap_dd_ci": [
+        -0.12146856986757759,
+        -0.12146856986757759
+      ],
+      "folds": 1,
+      "maxdd_delta_mean": -0.12146856986757759,
+      "maxdd_delta_median": -0.12146856986757759,
+      "minimum_target_pass": true,
+      "preferred_target_pass": true,
+      "selection_score": 0.06598890321506534
+    }
+  },
+  "unavailable_candidates": {}
+}

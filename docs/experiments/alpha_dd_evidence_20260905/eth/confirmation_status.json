@@ -1,0 +1,32 @@
+{
+  "development_file_sha256": "4e1958929caa168a4cf0be2e4ea02c729e638cfe3e30cd85068cc0df2da78a8f",
+  "reason": "Cross-asset lock selected BNBUSDT before confirmation and explicitly forbids ETH confirmation.",
+  "registration_sha256": "e96b28fb6eb8385f5d9d6796a1477eb7271d9062e637c4a297dc9d2934ad6721",
+  "schema_version": "alpha-dd-confirmation-status-v1",
+  "selected_development_candidate": "trend_d30_lo0.5_hi1.12_p0",
+  "selected_development_summary": {
+    "alpha_ex_mean": 0.03985533244332188,
+    "alpha_ex_median": -0.009191717933150101,
+    "alpha_ex_worst": -0.07605243885428448,
+    "alpha_positive_folds": 6,
+    "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+    "dd_improved_folds": 8,
+    "descriptive_fold_bootstrap_alpha_ci": [
+      -0.01796085373051912,
+      0.102066671173043
+    ],
+    "descriptive_fold_bootstrap_dd_ci": [
+      -0.076490011635201,
+      -0.0012640712680450981
+    ],
+    "folds": 13,
+    "maxdd_delta_mean": -0.035155743973017115,
+    "maxdd_delta_median": -0.012428931845855251,
+    "minimum_target_pass": true,
+    "preferred_target_pass": true,
+    "selection_score": 0.035155743973017115
+  },
+  "selection_lock_source": "docs/experiments/alpha_dd_cross_asset_lock_20260905.json",
+  "status": "not_run",
+  "symbol": "ETHUSDT"
+}

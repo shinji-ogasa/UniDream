@@ -1,0 +1,740 @@
+{
+  "candidates": [
+    {
+      "ceiling": 1.0,
+      "family": "hold",
+      "floor": 1.0,
+      "id": "hold_d30_lo1_hi1_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.0,
+      "id": "trend_d7_lo0_hi1_p0",
+      "lookback": 7,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.0,
+      "id": "trend_d7_lo0_hi1.12_p0",
+      "lookback": 7,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.5,
+      "id": "trend_d7_lo0.5_hi1_p0",
+      "lookback": 7,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.5,
+      "id": "trend_d7_lo0.5_hi1.12_p0",
+      "lookback": 7,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.8,
+      "id": "trend_d7_lo0.8_hi1_p0",
+      "lookback": 7,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.8,
+      "id": "trend_d7_lo0.8_hi1.12_p0",
+      "lookback": 7,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.0,
+      "id": "trend_d30_lo0_hi1_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.0,
+      "id": "trend_d30_lo0_hi1.12_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.5,
+      "id": "trend_d30_lo0.5_hi1_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.5,
+      "id": "trend_d30_lo0.5_hi1.12_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.8,
+      "id": "trend_d30_lo0.8_hi1_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.8,
+      "id": "trend_d30_lo0.8_hi1.12_p0",
+      "lookback": 30,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.0,
+      "id": "trend_d90_lo0_hi1_p0",
+      "lookback": 90,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.0,
+      "id": "trend_d90_lo0_hi1.12_p0",
+      "lookback": 90,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.5,
+      "id": "trend_d90_lo0.5_hi1_p0",
+      "lookback": 90,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.5,
+      "id": "trend_d90_lo0.5_hi1.12_p0",
+      "lookback": 90,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "trend",
+      "floor": 0.8,
+      "id": "trend_d90_lo0.8_hi1_p0",
+      "lookback": 90,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend",
+      "floor": 0.8,
+      "id": "trend_d90_lo0.8_hi1.12_p0",
+      "lookback": 90,
+      "parameter": 0.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "volatility",
+      "floor": 0.5,
+      "id": "volatility_d7_lo0.5_hi1_p0.4",
+      "lookback": 7,
+      "parameter": 0.4
+    },
+    {
+      "ceiling": 1.12,
+      "family": "volatility",
+      "floor": 0.5,
+      "id": "volatility_d7_lo0.5_hi1.12_p0.4",
+      "lookback": 7,
+      "parameter": 0.4
+    },
+    {
+      "ceiling": 1.0,
+      "family": "volatility",
+      "floor": 0.8,
+      "id": "volatility_d7_lo0.8_hi1_p0.4",
+      "lookback": 7,
+      "parameter": 0.4
+    },
+    {
+      "ceiling": 1.12,
+      "family": "volatility",
+      "floor": 0.8,
+      "id": "volatility_d7_lo0.8_hi1.12_p0.4",
+      "lookback": 7,
+      "parameter": 0.4
+    },
+    {
+      "ceiling": 1.0,
+      "family": "volatility",
+      "floor": 0.5,
+      "id": "volatility_d7_lo0.5_hi1_p0.6",
+      "lookback": 7,
+      "parameter": 0.6
+    },
+    {
+      "ceiling": 1.12,
+      "family": "volatility",
+      "floor": 0.5,
+      "id": "volatility_d7_lo0.5_hi1.12_p0.6",
+      "lookback": 7,
+      "parameter": 0.6
+    },
+    {
+      "ceiling": 1.0,
+      "family": "volatility",
+      "floor": 0.8,
+      "id": "volatility_d7_lo0.8_hi1_p0.6",
+      "lookback": 7,
+      "parameter": 0.6
+    },
+    {
+      "ceiling": 1.12,
+      "family": "volatility",
+      "floor": 0.8,
+      "id": "volatility_d7_lo0.8_hi1.12_p0.6",
+      "lookback": 7,
+      "parameter": 0.6
+    },
+    {
+      "ceiling": 1.0,
+      "family": "volatility",
+      "floor": 0.5,
+      "id": "volatility_d7_lo0.5_hi1_p0.8",
+      "lookback": 7,
+      "parameter": 0.8
+    },
+    {
+      "ceiling": 1.12,
+      "family": "volatility",
+      "floor": 0.5,
+      "id": "volatility_d7_lo0.5_hi1.12_p0.8",
+      "lookback": 7,
+      "parameter": 0.8
+    },
+    {
+      "ceiling": 1.0,
+      "family": "volatility",
+      "floor": 0.8,
+      "id": "volatility_d7_lo0.8_hi1_p0.8",
+      "lookback": 7,
+      "parameter": 0.8
+    },
+    {
+      "ceiling": 1.12,
+      "family": "volatility",
+      "floor": 0.8,
+      "id": "volatility_d7_lo0.8_hi1.12_p0.8",
+      "lookback": 7,
+      "parameter": 0.8
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend_volatility",
+      "floor": 0.5,
+      "id": "trend_volatility_d30_lo0.5_hi1.12_p0.6",
+      "lookback": 30,
+      "parameter": 0.6
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend_volatility",
+      "floor": 0.5,
+      "id": "trend_volatility_d30_lo0.5_hi1.12_p0.8",
+      "lookback": 30,
+      "parameter": 0.8
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d30_lo0.5_hi1_p0.05",
+      "lookback": 30,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d30_lo0.5_hi1.12_p0.05",
+      "lookback": 30,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d30_lo0.8_hi1_p0.05",
+      "lookback": 30,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d30_lo0.8_hi1.12_p0.05",
+      "lookback": 30,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d30_lo0.5_hi1_p0.1",
+      "lookback": 30,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d30_lo0.5_hi1.12_p0.1",
+      "lookback": 30,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d30_lo0.8_hi1_p0.1",
+      "lookback": 30,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d30_lo0.8_hi1.12_p0.1",
+      "lookback": 30,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d30_lo0.5_hi1_p0.15",
+      "lookback": 30,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d30_lo0.5_hi1.12_p0.15",
+      "lookback": 30,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d30_lo0.8_hi1_p0.15",
+      "lookback": 30,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d30_lo0.8_hi1.12_p0.15",
+      "lookback": 30,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend_volatility",
+      "floor": 0.5,
+      "id": "trend_volatility_d90_lo0.5_hi1.12_p0.6",
+      "lookback": 90,
+      "parameter": 0.6
+    },
+    {
+      "ceiling": 1.12,
+      "family": "trend_volatility",
+      "floor": 0.5,
+      "id": "trend_volatility_d90_lo0.5_hi1.12_p0.8",
+      "lookback": 90,
+      "parameter": 0.8
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d90_lo0.5_hi1_p0.05",
+      "lookback": 90,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d90_lo0.5_hi1.12_p0.05",
+      "lookback": 90,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d90_lo0.8_hi1_p0.05",
+      "lookback": 90,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d90_lo0.8_hi1.12_p0.05",
+      "lookback": 90,
+      "parameter": 0.05
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d90_lo0.5_hi1_p0.1",
+      "lookback": 90,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d90_lo0.5_hi1.12_p0.1",
+      "lookback": 90,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d90_lo0.8_hi1_p0.1",
+      "lookback": 90,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d90_lo0.8_hi1.12_p0.1",
+      "lookback": 90,
+      "parameter": 0.1
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d90_lo0.5_hi1_p0.15",
+      "lookback": 90,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.5,
+      "id": "drawdown_d90_lo0.5_hi1.12_p0.15",
+      "lookback": 90,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.0,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d90_lo0.8_hi1_p0.15",
+      "lookback": 90,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.12,
+      "family": "drawdown",
+      "floor": 0.8,
+      "id": "drawdown_d90_lo0.8_hi1.12_p0.15",
+      "lookback": 90,
+      "parameter": 0.15
+    },
+    {
+      "ceiling": 1.0,
+      "family": "ridge",
+      "floor": 0.5,
+      "id": "ridge_d7_lo0.5_hi1_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "ridge",
+      "floor": 0.5,
+      "id": "ridge_d7_lo0.5_hi1.12_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "ridge",
+      "floor": 0.8,
+      "id": "ridge_d7_lo0.8_hi1_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "ridge",
+      "floor": 0.8,
+      "id": "ridge_d7_lo0.8_hi1.12_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "ridge",
+      "floor": 0.5,
+      "id": "ridge_d30_lo0.5_hi1_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "ridge",
+      "floor": 0.5,
+      "id": "ridge_d30_lo0.5_hi1.12_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "ridge",
+      "floor": 0.8,
+      "id": "ridge_d30_lo0.8_hi1_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "ridge",
+      "floor": 0.8,
+      "id": "ridge_d30_lo0.8_hi1.12_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "hgb",
+      "floor": 0.5,
+      "id": "hgb_d7_lo0.5_hi1_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "hgb",
+      "floor": 0.5,
+      "id": "hgb_d7_lo0.5_hi1.12_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "hgb",
+      "floor": 0.8,
+      "id": "hgb_d7_lo0.8_hi1_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "hgb",
+      "floor": 0.8,
+      "id": "hgb_d7_lo0.8_hi1.12_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "hgb",
+      "floor": 0.5,
+      "id": "hgb_d30_lo0.5_hi1_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "hgb",
+      "floor": 0.5,
+      "id": "hgb_d30_lo0.5_hi1.12_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "hgb",
+      "floor": 0.8,
+      "id": "hgb_d30_lo0.8_hi1_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "hgb",
+      "floor": 0.8,
+      "id": "hgb_d30_lo0.8_hi1.12_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "logistic",
+      "floor": 0.5,
+      "id": "logistic_d7_lo0.5_hi1_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "logistic",
+      "floor": 0.5,
+      "id": "logistic_d7_lo0.5_hi1.12_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "logistic",
+      "floor": 0.8,
+      "id": "logistic_d7_lo0.8_hi1_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "logistic",
+      "floor": 0.8,
+      "id": "logistic_d7_lo0.8_hi1.12_p2",
+      "lookback": 7,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "logistic",
+      "floor": 0.5,
+      "id": "logistic_d30_lo0.5_hi1_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "logistic",
+      "floor": 0.5,
+      "id": "logistic_d30_lo0.5_hi1.12_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.0,
+      "family": "logistic",
+      "floor": 0.8,
+      "id": "logistic_d30_lo0.8_hi1_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    },
+    {
+      "ceiling": 1.12,
+      "family": "logistic",
+      "floor": 0.8,
+      "id": "logistic_d30_lo0.8_hi1.12_p2",
+      "lookback": 30,
+      "parameter": 2.0
+    }
+  ],
+  "config": {
+    "data_path": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data_eth/spot_15m.parquet",
+    "execution": {
+      "borrow_annual": 0.1,
+      "deadband": 0.01,
+      "max_step": 0.08,
+      "one_way_cost": 0.00055
+    },
+    "fold_anchor": "2020-04-16T13:45:00Z",
+    "minimum_bar_coverage": 0.995,
+    "output_dir": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/codex_outputs/alpha_dd_eth_v1",
+    "stages": {
+      "development": {
+        "data_cutoff": "2023-07-16T13:45:00Z",
+        "folds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      "fresh": {
+        "data_cutoff": "2026-07-16T13:45:00Z",
+        "folds": [
+          24
+        ]
+      },
+      "historical": {
+        "data_cutoff": "2026-04-16T13:45:00Z",
+        "folds": [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ]
+      }
+    },
+    "symbol": "ETHUSDT"
+  },
+  "feature_names": [
+    "momentum_1",
+    "momentum_7",
+    "momentum_30",
+    "momentum_90",
+    "vol_1",
+    "vol_7",
+    "vol_30",
+    "drawdown_7",
+    "drawdown_30",
+    "drawdown_90",
+    "vol_ratio",
+    "flow_1",
+    "flow_7"
+  ],
+  "feature_source_sha256": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+  "recipe_name": "v1",
+  "schema": "alpha-dd-research-v1",
+  "source_sha256": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64"
+}

@@ -1,0 +1,161 @@
+{
+  "candidate_count_development": 25,
+  "confirmation_is_report_only": true,
+  "data_file_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+  "data_provenance": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "formal_p1_result": false,
+  "model_provenance": [
+    {
+      "family": "ridge",
+      "fit_cutoff": "2026-01-16 13:45:00+00:00",
+      "fit_last_feature_ts": "2026-01-09 12:00:00+00:00",
+      "fit_last_target_end_exclusive": "2026-01-16 12:15:00+00:00",
+      "fit_rows": 4344,
+      "fold": 24,
+      "horizon_days": 7,
+      "model_file": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/codex_outputs/alpha_dd_ml_v1/models/fold24_ridge_h7.joblib",
+      "model_sha256": "f30cd5db5067eb20543b713bbc18354356ab0df82f2b512538e5ed6bde41fda9",
+      "predict_rows": 17376
+    }
+  ],
+  "orders_submitted": 0,
+  "registration_sha256": "2326728f1df450c6b2289ae2bf43ae45de56fafa13d06e3a4b3a9dac9d6dcc1f",
+  "rows": {
+    "hold_d30_lo1_hi1_p0": [
+      {
+        "alpha_ex": 0.0,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2964805407962193,
+        "bh_total_return": -0.13999817161265093,
+        "borrow_initial_equity_units": 0.0,
+        "close_coverage": 1.0,
+        "end": "2026-07-16 13:45:00+00:00",
+        "fees_initial_equity_units": 0.0,
+        "fold": 24,
+        "intent_coverage": 1.0,
+        "maxdd": 0.2964805407962192,
+        "maxdd_delta": -1.1102230246251565e-16,
+        "mean_exposure": 1.0,
+        "rows": 8736,
+        "start": "2026-04-16 13:45:00+00:00",
+        "stress_2x": {
+          "alpha_ex": 0.0,
+          "bar_coverage": 1.0,
+          "bh_maxdd": 0.2964805407962193,
+          "bh_total_return": -0.13999817161265093,
+          "borrow_initial_equity_units": 0.0,
+          "close_coverage": 1.0,
+          "fees_initial_equity_units": 0.0,
+          "intent_coverage": 1.0,
+          "maxdd": 0.2964805407962192,
+          "maxdd_delta": -1.1102230246251565e-16,
+          "mean_exposure": 1.0,
+          "rows": 8736,
+          "total_return": -0.13999817161265093,
+          "trades": 0,
+          "turnover": 0.0
+        },
+        "total_return": -0.13999817161265093,
+        "trades": 0,
+        "turnover": 0.0
+      }
+    ],
+    "ridge_d7_lo0.5_hi1.12_p2": [
+      {
+        "alpha_ex": -0.013960405043847435,
+        "bar_coverage": 1.0,
+        "bh_maxdd": 0.2964805407962193,
+        "bh_total_return": -0.13999817161265093,
+        "borrow_initial_equity_units": 0.0014759202204414673,
+        "close_coverage": 1.0,
+        "end": "2026-07-16 13:45:00+00:00",
+        "fees_initial_equity_units": 0.001600998991734191,
+        "fold": 24,
+        "intent_coverage": 1.0,
+        "maxdd": 0.31476679282893316,
+        "maxdd_delta": 0.018286252032713834,
+        "mean_exposure": 1.0639849800177477,
+        "rows": 8736,
+        "start": "2026-04-16 13:45:00+00:00",
+        "stress_2x": {
+          "alpha_ex": -0.01666257175220276,
+          "bar_coverage": 1.0,
+          "bh_maxdd": 0.2964805407962193,
+          "bh_total_return": -0.13999817161265093,
+          "borrow_initial_equity_units": 0.0029472559307012957,
+          "close_coverage": 1.0,
+          "fees_initial_equity_units": 0.003198214670315655,
+          "intent_coverage": 1.0,
+          "maxdd": 0.3160623994543934,
+          "maxdd_delta": 0.01958185865817408,
+          "mean_exposure": 1.0639982330762443,
+          "rows": 8736,
+          "total_return": -0.1566607433648537,
+          "trades": 207,
+          "turnover": 2.895188353530691
+        },
+        "total_return": -0.15395857665649837,
+        "trades": 207,
+        "turnover": 2.8948259160783953
+      }
+    ]
+  },
+  "selected_id": "ridge_d7_lo0.5_hi1.12_p2",
+  "source_revision": "d12c44cc0de628376515a69b85412f27edcb75df",
+  "source_sha256": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+  "stage": "fresh",
+  "summary": {
+    "hold_d30_lo1_hi1_p0": {
+      "alpha_ex_mean": 0.0,
+      "alpha_ex_median": 0.0,
+      "alpha_ex_worst": 0.0,
+      "alpha_positive_folds": 0,
+      "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+      "dd_improved_folds": 1,
+      "descriptive_fold_bootstrap_alpha_ci": [
+        0.0,
+        0.0
+      ],
+      "descriptive_fold_bootstrap_dd_ci": [
+        -1.1102230246251565e-16,
+        -1.1102230246251565e-16
+      ],
+      "folds": 1,
+      "maxdd_delta_mean": -1.1102230246251565e-16,
+      "maxdd_delta_median": -1.1102230246251565e-16,
+      "minimum_target_pass": false,
+      "preferred_target_pass": false,
+      "selection_score": 0.0
+    },
+    "ridge_d7_lo0.5_hi1.12_p2": {
+      "alpha_ex_mean": -0.013960405043847435,
+      "alpha_ex_median": -0.013960405043847435,
+      "alpha_ex_worst": -0.013960405043847435,
+      "alpha_positive_folds": 0,
+      "ci_scope": "descriptive iid fold bootstrap; not selection-adjusted proof",
+      "dd_improved_folds": 0,
+      "descriptive_fold_bootstrap_alpha_ci": [
+        -0.013960405043847435,
+        -0.013960405043847435
+      ],
+      "descriptive_fold_bootstrap_dd_ci": [
+        0.018286252032713834,
+        0.018286252032713834
+      ],
+      "folds": 1,
+      "maxdd_delta_mean": 0.018286252032713834,
+      "maxdd_delta_median": 0.018286252032713834,
+      "minimum_target_pass": false,
+      "preferred_target_pass": false,
+      "selection_score": -0.018286252032713834
+    }
+  },
+  "unavailable_candidates": {}
+}
