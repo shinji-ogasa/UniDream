@@ -71,7 +71,8 @@ independent-trial count. No family passed all three trend means at both costs.
   request Sep2019–Apr2023 yielded40 SHA-verified months Jan2020–Apr2023;
   2019Sep–Dec404 stay missing. Dataset grid128448/observed116736; eligible
   observed115350 beforecutoff2023-04-16T13:45Z. The1386 observedApril-tail
-  bars remain ineligible. No derivatives model fit/result has run yet.
+  bars remain ineligible. Derivative fitting had not run at this stage;
+  the completed matched experiment is recorded below.
 
 Runtime outputs, immutable and locally retained:
 `codex_outputs/oracle_risk_baselines_v1`, `oracle_risk_calibration_v1`,
@@ -82,7 +83,98 @@ Sidecar, availability parquet, source ledger and40 raw verified ZIPs retained.
 Index is barOPEN, not decision time. All features shift exactly once.
 Historical receipt/publication timesunknown; live_causal_eligible=false.
 
-## Next useful investigation: new Spot/perpetual information
+## Third completed stage: Spot / perpetual information
+
+Source registration commit `99f3cd9` preceded the derivative model run.
+Output: `codex_outputs/oracle_derivative_ablation_v1`; result report:
+`oracle_derivative_ablation_results_20260905.md` with tracked evidence.
+The run completed successfully; original handle28926 is terminal, not live.
+
+- Four feature groups: base16, technical29, technical+perpflow2 (31), and
+  technical+all8 (37). Separate Ridge100 mean and HGB100/7leaf logvariance
+  per group,18/3/3 chronology, folds5–12 only.64 models,64 forecasts,
+  32 calibration records,208 targets,128 utility traces.
+- Exact preflight masks retained:2587 causal decisions,2575 scored labels,
+  on2920 scheduled6h slots. Parent comparators were refit on identical rows.
+- Perp2 mean-return MSE vs technical improves .456% raw / .802% scaled;
+  scaled improves6/8 quarters and all three equal-quarter regime means.
+  Sideways improvement .008% flips to .0375% worsening when rows are pooled;
+  do not claim stable all-regime predictive improvement.
+  But every return model remains worse than zero/fitmean MSE. Scaling mean
+  worsens MSE while helping some economic policies; do not conflate them.
+- Perp2 variance QLIKE worsens .834% raw / .545% scaled vs technical.
+  This motivated the completed frozen crossing below. All8 is a representation ablation because
+  of redundant spot/perp96 and newly accessible spot24 information.
+- Perp2 scaled utilityrisk0/risk1 are the first two in this branch with
+  all observed regime means having alpha>0/DDdelta<0 at both costs.
+  Risk1 overall+2.144/-3.137pt, stress+1.737/-3.008. Regime base values:
+  bull+4.063/-4.749, bear+.967/-2.784, sideways+2.579/-2.231.
+  Stillbull2/bear4/sideways2, so existing3quarters/regime gate remainsfalse.
+  Only4/8 quarters meet both signs. IIDfold economic CIs crosszero.
+  All8 scaled risk1 fails sideways. No winner/promotion was selected.
+- Post-outcome concentration diagnostic: perp2-minus-technical scaledrisk1
+  overall AlphaEx uplift+1.531pt includes+1.994pt contribution fromfold12
+  alone (2023-01-16 through2023-04-16). Other7quarters average-.529pt.
+  Risk0 andpoint have the same concentration pattern. Full8fold evaluation
+  stays unchanged; all8 leave-one-out diagnostics saved without selection.
+- Primary paired return-MSE intervals belowzero at all3 fixed blocklengths,
+  while QLIKE intervals abovezero. These are bootstrap-mean-centered
+  conditional descriptive intervals, not conventional basic/DM/SPA tests,
+  selection-adjusted evidence or prospective proof. All8 scaled riskQLIKE
+  interval crosseszero at112slots despite beingnegative at28slots.
+- All518 source/data/artifact hashes checked. All32 Ridge predictions and
+  normal equations independently reconstructed.9 HGB tree traversals exact.
+  108 accountpaths/10968 decisions maxalphaerror2.66e-15, DD5.55e-16.
+  All64 forecast scores and all12x3x2000 bootstrapreplicates independently
+  reproduced. Matmul warning rootcause remains unknown; scalarvalues match.
+- Final full suite after the crossed diagnostic:463 tests OK in56.801s,
+  `uv run python -m unittest discover -s tests -v`.
+  Log `/tmp/oracle-derivative-final-tests.log`; handle43152 terminal exit0.
+
+The prior81 policy names plus24 derivative names make105 adaptively explored
+names, not independent trials. Six of24 new names pass aggregate signs;
+two pass observed regime means, zero pass the unchanged coverage gate.
+The goal remains active. Research significance and future economic validity
+must be strengthened; do not mark complete on these exploratory means.
+
+## Fourth completed stage: separate mean and variance contributions
+
+Source registration `64de0fe` preceded the four new crossed-policy outputs.
+`codex_outputs/oracle_derivative_crossed_decisions_v1` is complete; handle89709
+terminal exit0. Exact registration/results and independent audit are tracked
+beside the derivative report. No new fitting, calibration, intervals or selection.
+Frozen scaled forecasts: perp2 mean+technical variance andtechnical mean+perp2
+variance, each withpoint andutilityrisk1. Samebase intents replayed at2x.
+
+-96 rows/targets,48 traces include64 byte-identical parent control rows.
+  Same2587 causal/2575 score rows. Four new names make109 total adaptive names,
+  not independent trials. Two new names pass aggregate signs; one passes all
+  observed regime signs; zero pass existing coverage gate.
+-Perpmean+technicalrisk utility1: Alpha/DD+2.143/-3.137pt, stress+1.736/-3.008.
+  Technicalmean+perprisk utility1:+.622/-4.319, stress+.303/-4.207.
+  Improvement follows the mean forecast and resulting inventory trajectory;
+  switching risk source barely changes this utility policy. Point crosses
+  both fail aggregateAlphaEx. This does not curefold12 concentration.
+-Independent342 hashchecks; everypointpath and all summaries reconstructed.
+  Scalar24accountpaths/1828 decisions overfolds5/8/12: alphaerror1.55e-15,
+  DD5.55e-16,tradecount0. No mismatches or artifact modifications.
+
+## Next: concentration, availability and horizon stability
+
+Keep architectures fixed. Investigate the concentration of mean-forecast
+economic uplift and support/arrival sensitivity before widening the search.
+A bounded preregistered comparison could delayUM inputs1bar/1hour on identical
+support, separating the unavailable live receipt provenance from predictive
+information. Source archives do not establish historical real-time arrival.
+Any horizon comparison h96/672 must first register label purge and controller
+horizon changes; the current utility logic is h24. Do not adaptively omitfold12
+or choose delays/horizons from their already observed results.
+Use a fixed small design before further outcomes; do not weaken regime counts or start
+using report-only test for selection. More reused historical tuning cannot
+alone establish prospective success. An unobserved-data/paper protocol must
+be defined before a final deployment decision.
+
+## Original Spot / perpetual design rationale, now executed
 
 Keep model architectures small and fixed. Proposed three matched-support groups:
 existing technical29, +2perp weightedflow24/96, +all8derivative features.
@@ -110,7 +202,8 @@ preflight report and `oracle_risk_reliability_evidence_20260905/derivative_prefl
 Silantyev2019 supports contemporaneous flow impact, not6h OOSalpha. New2026
 quarter-hour paper's4–12h association is full-sampleOLS, while its rollingOOS
 is10secondreturns; our15m bars cannot reproduce its10second burst features.
-The proposed derivative feature family is an untested information hypothesis.
+That original untested information hypothesis has now been evaluated above;
+the positive and failed outcomes must remain in the research record.
 
 Keep return forecast losses, risk forecast losses and economic value separate.
 If a policy clears exploratory trend/cost signs, freeze it before constructing

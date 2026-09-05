@@ -1,0 +1,39 @@
+{
+  "counts": {
+    "hash_bindings": 342,
+    "identical_control_rows": 64,
+    "independent_scalar_account_paths": 24,
+    "point_paths_reconstructed": 16,
+    "utility_decisions_replayed": 1828
+  },
+  "inference_rows": 2587,
+  "max_absolute_differences": {
+    "account_alpha_ex": 1.5543122344752192e-15,
+    "account_bh_maxdd": 0,
+    "account_bh_total_return": 0,
+    "account_borrow_initial_equity_units": 1.734723475976807e-18,
+    "account_fees_initial_equity_units": 1.0408340855860843e-17,
+    "account_maxdd": 5.551115123125783e-16,
+    "account_maxdd_delta": 5.551115123125783e-16,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_total_return": 1.5543122344752192e-15,
+    "account_trades": 0,
+    "account_turnover": 1.0658141036401503e-14,
+    "all_paired_summary_means": 1.0842021724855044e-19,
+    "all_point_summary_means": 0,
+    "point_formula_all_folds": 2.220446049250313e-16,
+    "trace_estimated_trade_turnover": 1.0061396160665481e-15,
+    "trace_estimated_utility_gain_over_hold": 1.2468324983583301e-18,
+    "trace_known_open_exposure": 1.1102230246251565e-15,
+    "trace_known_open_nav": 1.5543122344752192e-15,
+    "utility_scalar_targets": 8.881784197001252e-16
+  },
+  "scope": "All source/control hashes, copied row identity and all point/paired summaries; every point target; scalar decisions/accounting on all four new policies folds5/8/12 under base/stress. No model or source artifacts edited.",
+  "score_rows": 2575,
+  "source_controls_exactly_identical": 64,
+  "source_forecast_bindings": 16,
+  "source_revision": "64de0fe58bc89ac285c1410ca2b3e9248ced8702",
+  "status": "pass",
+  "target_files": 96,
+  "trace_files": 48
+}

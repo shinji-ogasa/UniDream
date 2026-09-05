@@ -1,0 +1,40 @@
+{
+  "scope": "adaptive reused development evidence; no selected production model",
+  "files": [
+    {
+      "source": "codex_outputs/oracle_derivative_ablation_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/ablation/registration.json",
+      "sha256": "5c1fcda4bf329c6e099adada30de2fc525bb8aa50eb25e5753092a47d5147891"
+    },
+    {
+      "source": "codex_outputs/oracle_derivative_ablation_v1/results.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/ablation/results.json",
+      "sha256": "2360421c9436416e149bf30642caea4c019f0b4b21ab61d488b62694f14a660a"
+    },
+    {
+      "source": "/tmp/oracle_derivative_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/independent_audit.json",
+      "sha256": "223667a8ef61ca59173063c0383eb1986fdcefa4c304c38f71503b6c6aa413aa"
+    },
+    {
+      "source": "/tmp/oracle_derivative_loss_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/loss_fit_audit.json",
+      "sha256": "9de261e629b4b13bc53a638a9c000b53d338c82909a9a1568a115e6065c9dcc2"
+    },
+    {
+      "source": "codex_outputs/oracle_derivative_crossed_decisions_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/crossed/registration.json",
+      "sha256": "d49df877ea069dd7d7c1a7f6fab4b65a4325600f92e893e7dcf221631d5d2cc3"
+    },
+    {
+      "source": "codex_outputs/oracle_derivative_crossed_decisions_v1/results.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/crossed/results.json",
+      "sha256": "c0764466f070e63b130b5463e9249fd59c72201b85f457abfc9cee541b005813"
+    },
+    {
+      "source": "/tmp/oracle_derivative_crossed_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_derivative_ablation_evidence_20260905/crossed_audit.json",
+      "sha256": "9b0e79f1979a93c18a1ad31fdbee57d8302784f919120d523e18f6f58f106f14"
+    }
+  ]
+}

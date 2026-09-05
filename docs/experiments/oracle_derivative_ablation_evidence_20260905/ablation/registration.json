@@ -1,0 +1,204 @@
+{
+  "config": {
+    "bootstrap": {
+      "block_slots": [
+        4,
+        28,
+        112
+      ],
+      "primary_block_slots": 28,
+      "replicates": 2000,
+      "seed": 20260905
+    },
+    "development_folds": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "feature_groups": [
+      "base16",
+      "technical",
+      "perp_flow",
+      "derivative"
+    ],
+    "fit_months": 18,
+    "horizon_bars": 24,
+    "interval_months": 3,
+    "minimum_fit_rows": 512,
+    "minimum_interval_rows": 64,
+    "minimum_scale_rows": 64,
+    "nominal_coverage": 0.9,
+    "output_dir": "codex_outputs/oracle_derivative_ablation_v1",
+    "preflight_path": "codex_outputs/oracle_derivative_preflight_v1/preflight.json",
+    "preflight_sha256": "cb051b9b866cde77ddf3c3ce73d1c15fa15bab729e8fb32de09dfcca961b21b7",
+    "return_ridge_alpha": 100.0,
+    "scale_months": 3,
+    "schema": "oracle-derivative-ablation-v1",
+    "seed": 20260905,
+    "source_config": "configs/oracle_frontier_20260905.yaml",
+    "um_path": "checkpoints/oracle_derivative_data/um_15m.parquet",
+    "utility_cost_multiplier": 2,
+    "utility_risk_aversions": [
+      0,
+      1
+    ],
+    "variance_floor": 1e-12,
+    "versions": [
+      "raw",
+      "scaled"
+    ]
+  },
+  "config_sha256": "21f4fa7f1c74b0db1b645413e9f13eae2ebb34b4c0af7aefc2015b8c0ec150b2",
+  "preflight_sha256": "cb051b9b866cde77ddf3c3ce73d1c15fa15bab729e8fb32de09dfcca961b21b7",
+  "scope": "adaptive matched-support reused validation; not formal P1 or prospective evidence",
+  "source_config": {
+    "data_cutoff": "2023-04-16T13:45:00Z",
+    "data_path": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet",
+    "decision_cadence_hours": 6,
+    "development_folds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "execution": {
+      "borrow_annual": 0.1,
+      "deadband": 0.01,
+      "max_step": 0.08,
+      "one_way_cost": 0.00055
+    },
+    "feature_groups": [
+      "base16",
+      "technical",
+      "flow"
+    ],
+    "fold_anchor": "2020-04-16T13:45:00Z",
+    "hindsight": {
+      "beam_width": 32,
+      "risk_penalties": [
+        0.0,
+        1.0
+      ]
+    },
+    "horizons_bars": [
+      24,
+      96,
+      672
+    ],
+    "mappers": [
+      "return",
+      "downside"
+    ],
+    "minimum_bar_coverage": 0.995,
+    "minimum_fit_rows": 512,
+    "models": [
+      "ridge",
+      "hgb"
+    ],
+    "output_dir": "codex_outputs/oracle_frontier_v1",
+    "regime": {
+      "minimum_quarters_per_regime": 3,
+      "normalized_momentum_90_threshold": 0.5
+    },
+    "schema": "oracle-feature-frontier-v1",
+    "seed": 20260905,
+    "symbol": "BTCUSDT",
+    "train_years": 2
+  },
+  "source_config_sha256": "5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d",
+  "source_revision": "99f3cd9367797a40951c9e683a62ce01ec2666a6",
+  "source_sha256": {
+    "alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+    "oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "oracle_paired_loss_bootstrap.py": "fb61468ac18da5979690a07ed3946ddef8884586b33454e41eadecbb1b78e89e",
+    "oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  },
+  "spot_data_proof": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "um_data_proof": {
+    "availability_path": "checkpoints/oracle_derivative_data/um_15m_availability.parquet",
+    "availability_sha256": "80cc8851edd1169a23c13220f42c69e626e4b60484fcce59f9375746164a0cb6",
+    "available_months": 40,
+    "bar_open_end_exclusive": "2023-05-01 00:00:00+00:00",
+    "bar_open_start": "2019-09-01 00:00:00+00:00",
+    "data_path": "checkpoints/oracle_derivative_data/um_15m.parquet",
+    "data_sha256": "c365cbb6cd6d46dafea19b7fd3a62cb1b91ae3169f7a27532e40486ecfebfcdd",
+    "feature_decision_cutoff_exclusive": "2023-04-16 13:45:00+00:00",
+    "feature_eligible_observed_rows": 115350,
+    "first_observed_bar_open": "2020-01-01 00:00:00+00:00",
+    "last_observed_bar_open": "2023-04-30 23:45:00+00:00",
+    "live_causal_eligible": false,
+    "missing_policy": "full grid; NaN raw observations and false observation mask; no interpolation",
+    "missing_rows": 11712,
+    "model_fitting_performed": false,
+    "observed_rows": 116736,
+    "raw_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "quote_volume",
+      "n_trades",
+      "taker_buy_base",
+      "taker_buy_quote"
+    ],
+    "raw_zip_payloads_retained": true,
+    "registration_path": "checkpoints/oracle_derivative_data/registration.json",
+    "registration_sha256": "a44131ef735df17f2f51fec83ae9c0767c75375f88af141636e35ebaf8647b34",
+    "requested_months": 44,
+    "retained_post_cutoff_observed_rows": 1386,
+    "rows": 128448,
+    "schema": "oracle-derivative-raw-v1",
+    "sidecar_sha256": "8c83cd74e9939642d825e3c71b585c85b3bba9fcb633a69cf3284ce6e678e78f",
+    "source": "um_klines",
+    "source_ledger_path": "checkpoints/oracle_derivative_data/source_ledger.jsonl",
+    "source_ledger_sha256": "f6d77a6ede8e0531a2d326820a58a4473315ea1224f2e2f49b100c71f8a7a682",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT",
+    "timestamp_semantics": {
+      "bar_close_ts": "observed inclusive exchange close = bar open + 15 minutes - 1 millisecond",
+      "decision_ts": "bar open + 15 minutes; clock retained even when observation absent",
+      "feature_cutoff": "decision_ts strictly before registered cutoff; April raw tail retained only",
+      "index": "bar OPEN time, UTC"
+    },
+    "unavailable_months": [
+      "2019-09",
+      "2019-10",
+      "2019-11",
+      "2019-12"
+    ]
+  },
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.3.3",
+    "python": "3.12.13",
+    "sklearn": "1.8.0"
+  }
+}
