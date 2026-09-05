@@ -1,0 +1,9 @@
+schema: oracle-derivative-acquisition-v1
+source: um_klines
+symbol: BTCUSDT
+interval: 15m
+start_month: '2022-01'
+end_month: '2026-07'
+feature_decision_cutoff: '2026-07-16T13:45:00Z'
+timeout_seconds: 30
+output_dir: checkpoints/oracle_additional_window_data
