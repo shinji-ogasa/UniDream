@@ -59,6 +59,17 @@ class AlphaDDSearchTests(unittest.TestCase):
         self.assertAlmostEqual(changed["total_return"], reference["total_return"])
         self.assertAlmostEqual(changed["fees_initial_equity_units"], reference["fees_initial_equity_units"])
 
+    def test_missing_close_on_fill_bar_cannot_cancel_order(self):
+        data = bars(8)
+        target = np.zeros(8)
+        reference = metrics(data, target, CONTRACT)
+        data.loc[data.index[1], ["high", "low", "close"]] = np.nan
+        data.loc[data.index[1], "bar_available"] = False
+        changed = metrics(data, target, CONTRACT)
+        self.assertEqual(changed["trades"], reference["trades"])
+        self.assertAlmostEqual(changed["total_return"], reference["total_return"])
+        self.assertAlmostEqual(changed["turnover"], reference["turnover"])
+
     def test_rebalance_is_not_free_and_borrow_is_charged(self):
         data = bars(48, np.exp(np.arange(48) * 0.003) * 100)
         leveraged = metrics(data, np.full(48, 1.12), CONTRACT)

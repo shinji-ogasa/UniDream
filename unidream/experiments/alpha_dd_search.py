@@ -177,7 +177,7 @@ def forecast_targets(candidate: Candidate, predictions: np.ndarray,
 
 
 @njit(cache=True)
-def _simulate(open_price, close_price, available, targets, schedule, cost,
+def _simulate(open_price, close_price, targets, schedule, cost,
               borrow_annual, max_step, deadband):
     """Self-financing cash/units account, delayed fills, and no free rebalancing."""
     n = len(open_price)
@@ -190,16 +190,13 @@ def _simulate(open_price, close_price, available, targets, schedule, cost,
     borrow = 0.0
     trades = 0
     for i in range(n):
-        if cash < 0:
-            charge = -cash * (math.exp(borrow_annual / BARS_YEAR) - 1)
-            cash -= charge
-            borrow += charge
-        if not available[i]:
-            continue  # Keep units/cash; a later observed open marks the full gap.
-        nav = cash + units * open_price[i]
-        if nav <= 0:
+        # Fill availability is observable open only. Unknown high/low/close must
+        # never suppress an order that already filled at this bar's open.
+        fill_available = np.isfinite(open_price[i])
+        nav = cash + units * open_price[i] if fill_available else np.nan
+        if fill_available and nav <= 0:
             return equity, exposure, turnover, fees, borrow, trades
-        if i > 0 and schedule[i - 1] and np.isfinite(targets[i - 1]):
+        if fill_available and i > 0 and schedule[i - 1] and np.isfinite(targets[i - 1]):
             old_exposure = units * open_price[i] / nav
             desired = min(max(targets[i - 1], 0.0), 1.12)
             change = min(max(desired - old_exposure, -max_step), max_step)
@@ -213,6 +210,12 @@ def _simulate(open_price, close_price, available, targets, schedule, cost,
                 turnover += abs(x) / nav
                 fees += fee
                 trades += 1
+        if cash < 0:
+            charge = -cash * (math.exp(borrow_annual / BARS_YEAR) - 1)
+            cash -= charge
+            borrow += charge
+        if not np.isfinite(close_price[i]):
+            continue  # Carry filled units/cash; later observed prices mark the gap.
         equity[i] = cash + units * close_price[i]
         if equity[i] <= 0:
             return equity, exposure, turnover, fees, borrow, trades
@@ -231,13 +234,13 @@ def metrics(bars: pd.DataFrame, targets: np.ndarray, contract: dict) -> dict:
     # Fixed UTC hourly decisions; targets use only the previous completed bar.
     schedule = (bars.index.minute == 0).astype(bool)
     equity, positions, turnover, fees, borrow, trades = _simulate(
-        bars.open.to_numpy(float), bars.close.to_numpy(float), bars.bar_available.to_numpy(bool),
+        bars.open.to_numpy(float), bars.close.to_numpy(float),
         np.asarray(targets, dtype=float), np.asarray(schedule),
         contract["one_way_cost"], contract["borrow_annual"], contract["max_step"], contract["deadband"],
     )
     if not np.isfinite(equity[-1]) or equity[-1] <= 0:
         raise ValueError("insolvency or missing terminal equity")
-    observed = bars.bar_available.to_numpy(bool)
+    observed = np.isfinite(bars.close.to_numpy(float))
     values = np.r_[1.0, equity[observed]]
     benchmark = np.r_[1.0, bars.close.to_numpy(float)[observed] / float(bars.open.iloc[0])]
     dd = float(np.max(1 - values / np.maximum.accumulate(values)))
@@ -247,7 +250,8 @@ def metrics(bars: pd.DataFrame, targets: np.ndarray, contract: dict) -> dict:
         "total_return": float(values[-1] - 1), "bh_total_return": float(benchmark[-1] - 1),
         "maxdd": dd, "bh_maxdd": bh_dd, "turnover": float(turnover), "trades": int(trades),
         "fees_initial_equity_units": float(fees), "borrow_initial_equity_units": float(borrow),
-        "mean_exposure": float(np.nanmean(positions)), "bar_coverage": float(observed.mean()),
+        "mean_exposure": float(np.nanmean(positions)),
+        "bar_coverage": float(bars.bar_available.mean()), "close_coverage": float(observed.mean()),
         "intent_coverage": float(finite.mean()), "rows": len(bars),
     }
 
