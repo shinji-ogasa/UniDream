@@ -1,0 +1,53 @@
+schema: oracle-derivative-crossed-decisions-v1
+source_root: codex_outputs/oracle_derivative_ablation_v1
+source_registration_sha256: 5c1fcda4bf329c6e099adada30de2fc525bb8aa50eb25e5753092a47d5147891
+source_results_sha256: 2360421c9436416e149bf30642caea4c019f0b4b21ab61d488b62694f14a660a
+output_dir: codex_outputs/oracle_derivative_crossed_decisions_v1
+development_folds:
+- 5
+- 6
+- 7
+- 8
+- 9
+- 10
+- 11
+- 12
+crosses:
+- name: mu_perp_flow_scaled__var_technical_scaled
+  mu: perp_flow_scaled
+  variance: technical_scaled
+- name: mu_technical_scaled__var_perp_flow_scaled
+  mu: technical_scaled
+  variance: perp_flow_scaled
+policies:
+- point
+- utility_risk1
+control_ids:
+- bh
+- common_robust
+- technical_scaled_point
+- technical_scaled_utility_risk0
+- technical_scaled_utility_risk1
+- perp_flow_scaled_point
+- perp_flow_scaled_utility_risk0
+- perp_flow_scaled_utility_risk1
+utility_cost_multiplier: 2
+minimum_quarters_per_regime: 3
+adaptive_prior_policy_names_observed: 105
+forecast_sha256:
+  fold5_technical_scaled.npz: f49bc84ed22935d7d674f755b507735e6deb0859b8b52e293ee181325e00db51
+  fold5_perp_flow_scaled.npz: 27a5f7bb7542a5208f84e727c5c50454119def85c4e70deaa2cada5dffb4ca5d
+  fold6_technical_scaled.npz: b1c8948991813c9c8236472a6bf825f6c542aca93163a3dc3f8d52c2f9bc4a00
+  fold6_perp_flow_scaled.npz: 39a50e9bd26f943f45c943b5c146f87fa749332feae5706f46401784de70c9b8
+  fold7_technical_scaled.npz: df114da8ebdf097026cb842ee49b6b85202891312878cbe5f4a30e680e24f06c
+  fold7_perp_flow_scaled.npz: 86d6f92048cbc9ed3c799da7e053aa1c2f2e9458f05cd0df36c9794261d889fd
+  fold8_technical_scaled.npz: 2a11ac41050ed347ea1f3ce7e4c39c449376d96e99b84aec2b9cc9a5b4828867
+  fold8_perp_flow_scaled.npz: 40ad7a0533f5720c7f2136ea7539c97eaa5f44a1e683a5744647e1446b72eff3
+  fold9_technical_scaled.npz: e3b6a25dd1795513dab1fe49cb4b46ed595ff8c3c8ff85f5892b745bf2c6aa9a
+  fold9_perp_flow_scaled.npz: 227ad50ed188dae08ae9fb781ccc5a8c992b93be8b93523cf525d272928c00bc
+  fold10_technical_scaled.npz: 978cc2abad7f2396fd1c56129fd3e80b17bb2282e015f560b8a23640ba7fe787
+  fold10_perp_flow_scaled.npz: 9b1857ab0d580a34e2e9dbf228981146a9f44ec438ee149c60152a154547ba2a
+  fold11_technical_scaled.npz: 48357cee1cde46c26caaf49b768d4f2b89dbb7f162bfb75b5e2446a5b92ffb7c
+  fold11_perp_flow_scaled.npz: 6224cbc08255ba9c568e357b08fb9f63fbf9bfc84e617a6dcf65a9a3b2bd20c4
+  fold12_technical_scaled.npz: 0a7e5344df6e26915722966a5b4668fddba714b614ff99fd413a2232dedaa910
+  fold12_perp_flow_scaled.npz: 329f215882e2b85038ea58f0e9b33fd3288cde2860a9aaecec7193c282425aa7
