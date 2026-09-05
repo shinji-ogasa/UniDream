@@ -1,0 +1,14 @@
+schema: oracle-risk-baselines-v1
+frontier_config: configs/oracle_frontier_20260905.yaml
+frontier_results: codex_outputs/oracle_frontier_v1/results.json
+frontier_registration: codex_outputs/oracle_frontier_v1/registration.json
+frontier_result_sha256: b60346ede5110eb6ad620df5effca168356ba598eeba3d3d1f6fe08d57c6dc6d
+frontier_registration_sha256: ddb51a292ba0bc51017148e6c90b6805e70d8a3b7bbd8f6aee1c1dea29a96c21
+registration_document: docs/experiments/oracle_risk_baselines_registration_20260905.md
+test_path: tests/test_oracle_risk_baselines.py
+output_dir: codex_outputs/oracle_risk_baselines_v1
+forecast_groups: [base16, technical, flow]
+horizon_bars: 24
+baseline_windows: [24, 96, 672]
+minimum_coverage: 0.995
+qlike_epsilon: 1.0e-12
