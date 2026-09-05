@@ -1,0 +1,53 @@
+schema: oracle-fallback-decisions-v1
+source_root: codex_outputs/oracle_mean_control_decisions_v1
+source_config: configs/oracle_mean_control_decisions_20260905.yaml
+source_registration_sha256: 4c2a0cdd0a68717d6bec9016b5cb4d4436eab395f2515bd51ca76b0544867ac6
+source_results_sha256: 0ed7a02b02c36e2e7ecd4d2b0566ba61d3a692ba4bfe5eb26b05b591ef3dd2d3
+source_fold_sha256:
+  fold_5.json: 093f4733286d51a5b1204336b0d311188edda2d23fd9475fec8ccda00efc69d2
+  fold_6.json: bff2af7632a1bb452925415e17fd53aa48fa846b6bd1402c0e07288022916540
+  fold_7.json: 3a261b92d0369e5a7c20de28050105afdb02c36279b02fea655ee616a262abf7
+  fold_8.json: 7ac05cc2880ab45c71bd066b0ced293dbc76c8faf337e0f12db5ba2aa7ffa600
+  fold_9.json: d291445b104ef83bd22a68eff9f58d6076d2c33f9e62e605a20bd5bb5a8d0742
+  fold_10.json: 60bdab2c7c1a7e970f903dfee9bec81208b5a9680bb4c5614314c82ffd8b3d3d
+  fold_11.json: dd9949487c407ed809720c51aec7b36803a56d0aada86bf7ac20a0f018145d99
+  fold_12.json: 3176817e9d66cb89b699ba5d64374326fc0aaca5c5878b964a16ef7008acebab
+output_dir: codex_outputs/oracle_fallback_decisions_v1
+preflight_sha256: 4eef7d65cf66a57841536c5bf1b69ab4d0f29b8489d3ba43d1afd1bc33717ad0
+development_folds:
+- 5
+- 6
+- 7
+- 8
+- 9
+- 10
+- 11
+- 12
+mean_sources:
+- zero
+- fit_mean
+- scale_mean
+- technical_raw
+- technical_scaled
+- perp_delay0_raw
+- perp_delay0_scaled
+variance_source: technical_scaled
+policy: utility_risk1
+fallback_target: 1.0
+control_ids:
+- bh
+- common_robust
+- zero_utility_risk1
+- fit_mean_utility_risk1
+- scale_mean_utility_risk1
+- technical_raw_utility_risk1
+- technical_scaled_utility_risk1
+- perp_delay0_raw_utility_risk1
+- perp_delay0_scaled_utility_risk1
+utility_cost_multiplier: 2
+minimum_quarters_per_regime: 3
+inference_rows: 2586
+score_rows: 2574
+fallback_eligible_rows: 332
+missing_current_open_rows: 2
+adaptive_prior_policy_names_observed: 147
