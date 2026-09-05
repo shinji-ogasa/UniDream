@@ -1,0 +1,30 @@
+{
+  "scope": "adaptive frozen mean control evidence; no selected strongest model",
+  "files": [
+    {
+      "source": "codex_outputs/oracle_mean_control_decisions_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_mean_control_evidence_20260905/registration.json",
+      "sha256": "4c2a0cdd0a68717d6bec9016b5cb4d4436eab395f2515bd51ca76b0544867ac6"
+    },
+    {
+      "source": "codex_outputs/oracle_mean_control_decisions_v1/results.json",
+      "snapshot": "docs/experiments/oracle_mean_control_evidence_20260905/results.json",
+      "sha256": "0ed7a02b02c36e2e7ecd4d2b0566ba61d3a692ba4bfe5eb26b05b591ef3dd2d3"
+    },
+    {
+      "source": "/tmp/oracle_mean_control_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_mean_control_evidence_20260905/independent_account_audit.json",
+      "sha256": "df67b894042ad9fe6add85091118ffea019bc235292d653d25abcc2b10bd2f2d"
+    },
+    {
+      "source": "/tmp/oracle_mean_control_forecast_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_mean_control_evidence_20260905/independent_forecast_audit.json",
+      "sha256": "bb645a3cdea2b9257080c6dfda85b56b75eaa2acfced8dd8befe1af296c0ad6b"
+    },
+    {
+      "source": "/tmp/oracle_mean_control_availability_diagnostic_20260905.json",
+      "snapshot": "docs/experiments/oracle_mean_control_evidence_20260905/availability_diagnostic.json",
+      "sha256": "973de8259936fbe6ba6d2acd01610c1ac4d5cf30448dbf093a666eefe10e1995"
+    }
+  ]
+}

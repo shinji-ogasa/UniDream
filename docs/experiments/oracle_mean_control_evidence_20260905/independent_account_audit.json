@@ -1,0 +1,160 @@
+{
+  "constant_mean_provenance": [
+    {
+      "fit_mean": 0.00038919594200159403,
+      "fold": 5,
+      "scale_end_exclusive": "2021-01-16 13:45:00+00:00",
+      "scale_first_decision": "2020-10-16 18:00:00+00:00",
+      "scale_last_label_end": "2020-12-21 12:15:00+00:00",
+      "scale_mean": 0.002676468312179308,
+      "scale_rows": 233
+    },
+    {
+      "fit_mean": 0.0009049429689168443,
+      "fold": 6,
+      "scale_end_exclusive": "2021-04-16 13:45:00+00:00",
+      "scale_first_decision": "2021-01-21 00:00:00+00:00",
+      "scale_last_label_end": "2021-04-16 12:15:00+00:00",
+      "scale_mean": 0.000791820331241902,
+      "scale_rows": 279
+    },
+    {
+      "fit_mean": 0.0008809054853591071,
+      "fold": 7,
+      "scale_end_exclusive": "2021-07-16 13:45:00+00:00",
+      "scale_first_decision": "2021-04-16 18:00:00+00:00",
+      "scale_last_label_end": "2021-07-16 12:15:00+00:00",
+      "scale_mean": -0.0012450158338171678,
+      "scale_rows": 221
+    },
+    {
+      "fit_mean": 0.0005615743545971145,
+      "fold": 8,
+      "scale_end_exclusive": "2021-10-16 13:45:00+00:00",
+      "scale_first_decision": "2021-07-16 18:00:00+00:00",
+      "scale_last_label_end": "2021-10-16 12:15:00+00:00",
+      "scale_mean": 0.0019395011666806315,
+      "scale_rows": 215
+    },
+    {
+      "fit_mean": 0.0006929656948370803,
+      "fold": 9,
+      "scale_end_exclusive": "2022-01-16 13:45:00+00:00",
+      "scale_first_decision": "2021-10-16 18:00:00+00:00",
+      "scale_last_label_end": "2022-01-16 12:15:00+00:00",
+      "scale_mean": -0.0009469246714869777,
+      "scale_rows": 361
+    },
+    {
+      "fit_mean": 0.00043515293599892687,
+      "fold": 10,
+      "scale_end_exclusive": "2022-04-16 13:45:00+00:00",
+      "scale_first_decision": "2022-01-16 18:00:00+00:00",
+      "scale_last_label_end": "2022-04-16 12:15:00+00:00",
+      "scale_mean": -0.0001787187476881213,
+      "scale_rows": 359
+    },
+    {
+      "fit_mean": 0.00036028706548825776,
+      "fold": 11,
+      "scale_end_exclusive": "2022-07-16 13:45:00+00:00",
+      "scale_first_decision": "2022-04-16 18:00:00+00:00",
+      "scale_last_label_end": "2022-07-16 12:15:00+00:00",
+      "scale_mean": -0.0019259367641862634,
+      "scale_rows": 354
+    },
+    {
+      "fit_mean": -0.00039513284619190905,
+      "fold": 12,
+      "scale_end_exclusive": "2022-10-16 13:45:00+00:00",
+      "scale_first_decision": "2022-07-16 18:00:00+00:00",
+      "scale_last_label_end": "2022-10-16 12:15:00+00:00",
+      "scale_mean": -0.00029603867489856535,
+      "scale_rows": 367
+    }
+  ],
+  "counts": {
+    "calibration_labels_verified": 4912,
+    "copied_control_rows_exact": 16,
+    "forecasts_and_losses_verified": 56,
+    "full_pair_summaries_verified": 21,
+    "hash_binding_checks": 1086,
+    "independent_account_paths": 84,
+    "mask_hashes_verified": 32,
+    "new_manifest_files": 240,
+    "parent_manifest_files": 496,
+    "point_paths_verified": 56,
+    "technical_scaled_target_identity": 16,
+    "technical_scaled_trace_identity": 8,
+    "unscored_inference_point_intents_retained": 84,
+    "utility_decisions_replayed": 6398,
+    "utility_paths_replayed": 21,
+    "zero_point_bh_parity_paths": 8
+  },
+  "distinct_hashed_files": 765,
+  "inference_rows": 2586,
+  "inventory": {
+    "economic_rows": 128,
+    "forecasts": 56,
+    "score_rows": 56,
+    "targets": 128,
+    "traces": 56
+  },
+  "limitations": [
+    "Recycled adaptive development, not a new holdout or selection-adjusted significance test.",
+    "Retrospective common availability mask; no operational receipt/latency proof.",
+    "Minimum three quarters per regime still fails: 2/4/2.",
+    "Full raw files are cryptographically hashed; all semantic outcome/account calculations end at the registered development cutoff."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 1.3322676295501878e-15,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 4.7704895589362195e-18,
+    "account_fees_initial_equity_units": 1.0408340855860843e-17,
+    "account_maxdd": 5.551115123125783e-16,
+    "account_maxdd_delta": 5.551115123125783e-16,
+    "account_mean_exposure": 4.440892098500626e-16,
+    "account_total_return": 1.3322676295501878e-15,
+    "account_trades": 0.0,
+    "account_turnover": 9.769962616701378e-15,
+    "calibration_actual_scalar_labels": 3.958747392396322e-15,
+    "constant_fit_parent_identity": 0.0,
+    "constant_forecast_identity": 4.336808689942018e-19,
+    "constant_scale_raw_price_recompute": 4.336808689942018e-19,
+    "constant_scale_saved_vs_fsum": 4.336808689942018e-19,
+    "economic_summary_point_means": 0.0,
+    "fixed_variance_parent_identity": 0.0,
+    "forecast_score_fit_mean_return_mse": 5.421010862427522e-20,
+    "forecast_score_return_mae": 3.469446951953614e-18,
+    "forecast_score_return_mse": 1.0842021724855044e-19,
+    "forecast_score_return_rank_ic": 0.0,
+    "forecast_score_return_sign_accuracy": 0.0,
+    "forecast_score_zero_return_mse": 0.0,
+    "learned_mean_parent_identity": 0.0,
+    "paired_economic_mean": 1.7763568394002505e-15,
+    "paired_prediction_mean": 0.0,
+    "paired_relative_loss_reduction": 1.3877787807814457e-17,
+    "point_scalar_formula": 2.220446049250313e-16,
+    "prediction_summary_equal_quarter": 1.1102230246251565e-16,
+    "prediction_summary_pooled_rows": 0.0,
+    "prediction_summary_rank_ic": 6.938893903907228e-18,
+    "technical_scaled_parent_metrics_identity": 0.0,
+    "trace_estimated_trade_turnover": 9.818534874028728e-16,
+    "trace_estimated_utility_gain_over_hold": 2.439454888092385e-18,
+    "trace_known_open_exposure": 1.3322676295501878e-15,
+    "trace_known_open_nav": 6.661338147750939e-16,
+    "utility_scalar_targets": 1.1102230246251565e-15,
+    "validation_actual_scalar_labels": 3.958747392396322e-15,
+    "zero_point_bh_economic_parity": 0.0
+  },
+  "regime_quarters": {
+    "bear": 4,
+    "bull": 2,
+    "sideways": 2
+  },
+  "scope": "All source/data/manifests and saved forecast/mask/constant identities; all 56 return scores and point targets; all 21 comparisons and aggregate point summaries; independent scalar cash/units and causal utility replay on seven means and both policies in folds 5/8/12, base/stress. No canonical metrics/_simulate/outcome_frame/mapper/planner imports; audit-only temporary files. Fit mean is immutable parent statistic previously independently audited, no predictor refit repeated.",
+  "scoring_rows": 2574,
+  "source_revision": "c93b9ffacfe33571230f771d7e54ba072464c0ae",
+  "status": "pass"
+}

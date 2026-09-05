@@ -225,18 +225,97 @@ No newmodels, policies orselection were run inthisdiagnostic.
   other7quarters+1.537pt, whereas scaled-.529pt. Do notclaimallUMinformation
   exists onlyinfold12. Signzeroalonecannotexplainendogenousorders.
 
-## Next: causal mean controls and calibration stability
+## Sixth completed stage: frozen mean decision controls
 
-Keep architectures fixed. Before addingcomplexity, compare thesamepolicy with
-zero/fitmean/scaleactualmean returns against learnedmeans on the same support,
-holding variance source fixed. These economic controls have not yet been run;
-forecast MSE referencesalone do not establish decision value. Register the
-small exact family, masks, source forecasts, chronology and allcomparisons
-before outputs. Do notchoose a favorable delay fromthe completedagecomparison.
-Then assess fixedmean-bias transfer versus a prespecified causal update/shrinkage
-method using only finalized prior outcomes; never use validationfuturelabels
-or fitinterval choices afterobservingtheir economic results. Past mistakes
-motivate registration, not permission to retune report-only tests.
+The causal mean controls above are complete; do not rerun or choose a winning
+mean after seeing them. Source registration commit `c93b9ff` preceded all new
+policy outcomes. Output `codex_outputs/oracle_mean_control_decisions_v1`,
+run handle14681 terminal exit0. Report `oracle_mean_control_results_20260905.md`
+and tracked `oracle_mean_control_evidence_20260905/` contain exact evidence.
+499 tests OK in56.852s before registration, `/tmp/oracle-mean-controls-full-tests.log`.
+
+- Seven means: zero,fit_mean,scale_mean,technical_raw,technical_scaled,
+  perp_delay0_raw,perp_delay0_scaled. Every arm uses technical_scaled variance.
+  Each feeds point andutilityrisk1:14 names,147 adaptive names total, not
+  independent trials.128 rows/targets,56 forecasts,56 traces,56 scores,
+  all21 unordered mean comparisons. No new models or calibration choices.
+- Same2586 inference/2574 score rows,8quarters2bull/4bear/2sideways.
+  scale_mean uses purged actuals from validation minus6months to minus3months,
+  NOT the most recent3months. Constant mean still uses learned HGB variance.
+  Raw means with common scaled technical variance differ from parent raw policies.
+- Utility1 equal-quarter Alpha/DDpt: scale_mean+3.128/-6.531,
+  stress+3.061/-6.494; technical_scaled+.595/-4.323,stress+.277/-4.211;
+  perp_scaled+2.131/-3.130,stress+1.723/-3.001.3/14 aggregate joint signs,
+  onlyperp_scaled observed regime means pass;0 unchanged coverage passes.
+  scale_mean bearalpha-.873pt/stress-.914,perp+.967/+.595.
+  Scale_mean sideways+9.597pt averages fold9+22.714 andfold12-3.519.
+- Versus scale_mean, technical_scaled MSE6.296%worse/MAE4.569%worse,
+  both0/8 improving;perp_scaled MSE5.443%worse(2/8 improving),MAE3.990%worse(0/8).
+  All learned mean MSE remains worse than zero/fitmean. The dynamic component
+  includes validation-period mean shifts, not solely mean-zero temporal noise.
+  Mean trades/quarter scale4,technical44.5,perp57.625;turnover.247/3.187/4.232.
+  Extra perp fees+borrow .302ptinitialNAV do not explain whole Alpha difference;
+  own inventory paths also change. Do not discard dynamicmean bear value.
+- Independent audit1086 hashbindings/765distinctfiles,all56scores/all21pairs.
+  84scalar accountpaths,21utilitypaths/6398decisions overfold5/8/12:
+  alphaerror1.33e-15,DD5.56e-16,tradecount0. All56forecast streams separately
+  checked,4912calibrationlabels matured;scaleconstant rawpriceerror4.34e-19.
+  technical_scaled16targets/8traces/metrics matchparent exactly;
+  zero_point BH economic parity all8, control maxdifference0.
+
+## New diagnosis: forecast availability and passive inventory drift
+
+Fold5 three scaled mean utility policies have identical targets:1.08 at
+2021-04-16 18:00UTC,1.12 atApr17 00:00,then221 valid holds. All223 available
+mean forecasts positive. Their identical performance is a decision-path result,
+not evidence of identical forecast accuracy.
+
+141 scheduled decisions fromApr20 06:00 throughMay25 06:00 are unavailable:
+140 missingforecast and1missingcurrentopen. This is NOT35days of missingprices.
+Spot has10 missing15m bars Apr20 02:00–04:15 and19 unusablebars Apr25 04:00–08:30.
+OneApr25 04:00bar was quarantined for incomplete close time04:00:58.146;
+the remaining28 are absent. April2851acceptedof2880. Do not invent exchange
+outage causation or historical receipt provenance from these archive records.
+Strict7d coverage669/672 and30d2866/2880 propagate the gaps. The needed
+technical29 itself fails all141 rows, so removing unused common-mask columns
+restores ZERO fold5 rows. UMflow24/96 at extra0/1/4 remains finite there.
+30d finite returns2849 onApr28/2860 onMay20; finalMay25 06:00 momentum30
+stillreferencesmissingApr25close. Alltechnical columns recoverMay25 12:00.
+
+Fold5 was classified bull at START, but actualquarter BHreturn-47.766%,
+threepolicies-53.942%;alpha-6.176pt/DDdelta+6.505pt. Negativecash and declining
+prices cause actualexposure todrift above the1.12 TARGETbound:observed1.22348
+atMay25 12:00 and1.27840 atfinalvaliddecision. These are observeddecision
+states, not maximum full-period exposure. Forecasts resume but choosehold too;
+do not attribute the entire loss solely to availability.
+
+## Next: forecast-unavailable inventory fallback, then mean stability
+
+Priority is a small registered comparison of holding versus targeting own-NAV
+exposure1 when a scheduled6h currentopen is known but forecasts are unavailable.
+This returns toward B&H exposure, not resetting units or historical losses.
+Suggested exact family: allseven frozen means,utilityrisk1 only;7new fallback
+policies versus7oldutility controls plusBH/common_robust,128rows. Keep common
+technical_scaled variance, forecast/score support, masks, periods and costs.
+The action support explicitly adds unavailableforecast/knownopen slots; do not
+mislabel these as newly available forecasts. No outcomes for this family yet.
+
+Integrate fallback within a NEW sibling sequentialplanner; preserve old source
+hashes. Never overwrite saved NaNtargets: valid utilityhold isalsoNaN and a
+fallback changes own inventory used by later valid forecasts. Trigger from
+schedule/currentopen/inference availability, not scoremask or target-is-NaN.
+Fallback intent1 passes canonical nextopen maxstep.08/deadband.01/costs; actual
+exposure1.30 may onlyreach1.22 inone trade. No forced actualleverageclip.
+Missing currentopen means noorder;missing nextopen skipsfill without rollover.
+Missingclose doesnotcancelotherwisevalidopen execution;borrowing continues.
+Save fallback reason/knownstate,notfabricatedutilitygain. Replay samebase intents
+at2x costs. Test validhold preservation, allmissingBHparity, future invariance,
+fallback ownstate, driftoutsideintentbounds,missingopens/closes,canonical parity.
+
+After this assess fixed mean-bias transfer versus a prespecified causal update
+or shrinkage method using only finalized prior outcomes. Keep architectures
+fixed, do not select a favorable delay, do not use future labels or retune windows
+after economic outcomes. Existing failed outcomes and locks remain unchanged.
 Any horizon comparisonh96/672 must registerpurge/controllerhorizonchanges;
 currentutilitylogic ish24. Do notadaptivelyomitfold12 orweakencoveragecounts.
 Use a fixed small design before further outcomes; do not weaken regime counts or start

@@ -1,0 +1,1263 @@
+{
+  "all_56_forecast_support_actual_and_risk_arrays_identical_to_frozen_source": true,
+  "all_56_scalar_return_scores_verified": true,
+  "constant_values_use_only_fit_metadata_and_purged_scale_outcomes": true,
+  "counts": {
+    "constant_forecast_records": 24,
+    "constant_rank_ic_none": 24,
+    "fixed_risk_comparisons": 56,
+    "forecast_records": 56,
+    "learned_forecast_records": 32,
+    "unique_inference_rows": 2586,
+    "unique_score_rows": 2574,
+    "verified_hash_bindings": 308
+  },
+  "created_utc": "2026-09-05T12:20:23.666598+00:00",
+  "finished_utc": "2026-09-05T12:23:00.699458+00:00",
+  "fold5_descriptive_diagnostic": {
+    "archived_spot_missing_bar_runs": [
+      {
+        "first": "2021-04-20 02:00:00+00:00",
+        "last": "2021-04-20 04:15:00+00:00",
+        "rows": 10
+      },
+      {
+        "first": "2021-04-25 04:00:00+00:00",
+        "last": "2021-04-25 08:30:00+00:00",
+        "rows": 19
+      }
+    ],
+    "available_scheduled_runs": [
+      {
+        "first": "2021-04-16 18:00:00+00:00",
+        "last": "2021-04-20 00:00:00+00:00",
+        "rows": 14
+      },
+      {
+        "first": "2021-05-25 12:00:00+00:00",
+        "last": "2021-07-16 12:00:00+00:00",
+        "rows": 209
+      }
+    ],
+    "comparisons": {
+      "perp_delay0_raw": {
+        "base": {
+          "alpha_ex": 0.10529008244445115,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.0011068972762453737,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.0010779461160478124,
+          "intent_coverage": 0.003434065934065934,
+          "maxdd": 0.4426201230166631,
+          "maxdd_delta": -0.08938006905555607,
+          "mean_exposure": 0.8973853271627237,
+          "rows": 8736,
+          "total_return": -0.37237095611321724,
+          "trades": 30,
+          "turnover": 2.3137369994748442
+        },
+        "counts": {
+          "hold_decision_count": 193,
+          "missing_open_decision_count": 1,
+          "positive_intent_count": 30,
+          "scheduled_decision_count": 364,
+          "unavailable_forecast_decision_count": 140,
+          "valid_decision_count": 223
+        },
+        "events": [
+          {
+            "decision_utc": "2021-04-16 18:00:00+00:00",
+            "next_open_price": 61411.85,
+            "next_open_utc": "2021-04-16 18:15:00+00:00",
+            "target": 0.92
+          },
+          {
+            "decision_utc": "2021-04-17 00:00:00+00:00",
+            "next_open_price": 61636.81,
+            "next_open_utc": "2021-04-17 00:15:00+00:00",
+            "target": 0.8399075635141702
+          },
+          {
+            "decision_utc": "2021-04-17 06:00:00+00:00",
+            "next_open_price": 61964.37,
+            "next_open_utc": "2021-04-17 06:15:00+00:00",
+            "target": 0.7613992826763761
+          },
+          {
+            "decision_utc": "2021-04-17 12:00:00+00:00",
+            "next_open_price": 60845.68,
+            "next_open_utc": "2021-04-17 12:15:00+00:00",
+            "target": 0.6781980046035814
+          },
+          {
+            "decision_utc": "2021-04-17 18:00:00+00:00",
+            "next_open_price": 60170.43,
+            "next_open_utc": "2021-04-17 18:15:00+00:00",
+            "target": 0.5940561267322714
+          },
+          {
+            "decision_utc": "2021-04-18 00:00:00+00:00",
+            "next_open_price": 60298.68,
+            "next_open_utc": "2021-04-18 00:15:00+00:00",
+            "target": 0.5151010944995834
+          },
+          {
+            "decision_utc": "2021-04-18 06:00:00+00:00",
+            "next_open_price": 56013.22,
+            "next_open_utc": "2021-04-18 06:15:00+00:00",
+            "target": 0.5758557407910642
+          },
+          {
+            "decision_utc": "2021-04-18 12:00:00+00:00",
+            "next_open_price": 53843.65,
+            "next_open_utc": "2021-04-18 12:15:00+00:00",
+            "target": 0.6436821129803445
+          },
+          {
+            "decision_utc": "2021-04-18 18:00:00+00:00",
+            "next_open_price": 55250.01,
+            "next_open_utc": "2021-04-18 18:15:00+00:00",
+            "target": 0.7291657744407685
+          },
+          {
+            "decision_utc": "2021-04-19 12:00:00+00:00",
+            "next_open_price": 57027.35,
+            "next_open_utc": "2021-04-19 12:15:00+00:00",
+            "target": 0.6556459289159446
+          },
+          {
+            "decision_utc": "2021-05-25 12:00:00+00:00",
+            "next_open_price": 37000.0,
+            "next_open_utc": "2021-05-25 12:15:00+00:00",
+            "target": 0.6295244876878542
+          },
+          {
+            "decision_utc": "2021-05-25 18:00:00+00:00",
+            "next_open_price": 37928.82,
+            "next_open_utc": "2021-05-25 18:15:00+00:00",
+            "target": 0.715429553614858
+          },
+          {
+            "decision_utc": "2021-05-26 00:00:00+00:00",
+            "next_open_price": 38162.33,
+            "next_open_utc": "2021-05-26 00:15:00+00:00",
+            "target": 0.7973980200278721
+          },
+          {
+            "decision_utc": "2021-05-26 12:00:00+00:00",
+            "next_open_price": 40142.74,
+            "next_open_utc": "2021-05-26 12:15:00+00:00",
+            "target": 0.7234622224845788
+          },
+          {
+            "decision_utc": "2021-05-27 06:00:00+00:00",
+            "next_open_price": 37980.0,
+            "next_open_utc": "2021-05-27 06:15:00+00:00",
+            "target": 0.7942771398729379
+          },
+          {
+            "decision_utc": "2021-05-27 12:00:00+00:00",
+            "next_open_price": 39639.01,
+            "next_open_utc": "2021-05-27 12:15:00+00:00",
+            "target": 0.8805500521010565
+          },
+          {
+            "decision_utc": "2021-05-28 00:00:00+00:00",
+            "next_open_price": 38404.87,
+            "next_open_utc": "2021-05-28 00:15:00+00:00",
+            "target": 0.9573231470935979
+          },
+          {
+            "decision_utc": "2021-05-28 06:00:00+00:00",
+            "next_open_price": 36881.79,
+            "next_open_utc": "2021-05-28 06:15:00+00:00",
+            "target": 1.035407678095932
+          },
+          {
+            "decision_utc": "2021-05-28 12:00:00+00:00",
+            "next_open_price": 36513.52,
+            "next_open_utc": "2021-05-28 12:15:00+00:00",
+            "target": 1.116860865642415
+          },
+          {
+            "decision_utc": "2021-06-03 06:00:00+00:00",
+            "next_open_price": 38692.26,
+            "next_open_utc": "2021-06-03 06:15:00+00:00",
+            "target": 1.12
+          },
+          {
+            "decision_utc": "2021-06-09 18:00:00+00:00",
+            "next_open_price": 36505.99,
+            "next_open_utc": "2021-06-09 18:15:00+00:00",
+            "target": 1.0482434665756095
+          },
+          {
+            "decision_utc": "2021-06-10 18:00:00+00:00",
+            "next_open_price": 36643.37,
+            "next_open_utc": "2021-06-10 18:15:00+00:00",
+            "target": 1.12
+          },
+          {
+            "decision_utc": "2021-06-14 00:00:00+00:00",
+            "next_open_price": 38845.27,
+            "next_open_utc": "2021-06-14 00:15:00+00:00",
+            "target": 1.031982037849536
+          },
+          {
+            "decision_utc": "2021-06-14 06:00:00+00:00",
+            "next_open_price": 39246.75,
+            "next_open_utc": "2021-06-14 06:15:00+00:00",
+            "target": 0.9520706708375309
+          },
+          {
+            "decision_utc": "2021-06-14 12:00:00+00:00",
+            "next_open_price": 39106.79,
+            "next_open_utc": "2021-06-14 12:15:00+00:00",
+            "target": 0.8721097833338716
+          },
+          {
+            "decision_utc": "2021-06-14 18:00:00+00:00",
+            "next_open_price": 40117.08,
+            "next_open_utc": "2021-06-14 18:15:00+00:00",
+            "target": 0.7952007104972465
+          },
+          {
+            "decision_utc": "2021-06-16 00:00:00+00:00",
+            "next_open_price": 40112.68,
+            "next_open_utc": "2021-06-16 00:15:00+00:00",
+            "target": 0.8753091237522391
+          },
+          {
+            "decision_utc": "2021-06-16 12:00:00+00:00",
+            "next_open_price": 39126.13,
+            "next_open_utc": "2021-06-16 12:15:00+00:00",
+            "target": 0.9523057803896996
+          },
+          {
+            "decision_utc": "2021-06-16 18:00:00+00:00",
+            "next_open_price": 38808.62,
+            "next_open_utc": "2021-06-16 18:15:00+00:00",
+            "target": 1.0323573938090624
+          },
+          {
+            "decision_utc": "2021-06-17 00:00:00+00:00",
+            "next_open_price": 38550.0,
+            "next_open_utc": "2021-06-17 00:15:00+00:00",
+            "target": 1.1123316324955428
+          }
+        ],
+        "mean_forecast_max": 0.013211426528467338,
+        "mean_forecast_min": -0.0035046164195101873,
+        "negative_mean_forecast_rows": 17,
+        "stress_2x": {
+          "alpha_ex": 0.10345132350378616,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.002216948729958595,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.002153930335617496,
+          "intent_coverage": 0.003434065934065934,
+          "maxdd": 0.44369876922421503,
+          "maxdd_delta": -0.08830142284800413,
+          "mean_exposure": 0.8976067822686122,
+          "rows": 8736,
+          "total_return": -0.37420971505388223,
+          "trades": 30,
+          "turnover": 2.313231306411448
+        },
+        "targets_identical_to_scale_mean": false
+      },
+      "perp_delay0_scaled": {
+        "base": {
+          "alpha_ex": -0.06175538404300329,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.003058161910191385,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 6.679201553369047e-05,
+          "intent_coverage": 0.00022893772893772894,
+          "maxdd": 0.5970544673023191,
+          "maxdd_delta": 0.06505427523009999,
+          "mean_exposure": 1.2011597057280732,
+          "rows": 8736,
+          "total_return": -0.5394164226006717,
+          "trades": 2,
+          "turnover": 0.12023704776098958
+        },
+        "counts": {
+          "hold_decision_count": 221,
+          "missing_open_decision_count": 1,
+          "positive_intent_count": 2,
+          "scheduled_decision_count": 364,
+          "unavailable_forecast_decision_count": 140,
+          "valid_decision_count": 223
+        },
+        "events": [
+          {
+            "decision_utc": "2021-04-16 18:00:00+00:00",
+            "next_open_price": 61411.85,
+            "next_open_utc": "2021-04-16 18:15:00+00:00",
+            "target": 1.08
+          },
+          {
+            "decision_utc": "2021-04-17 00:00:00+00:00",
+            "next_open_price": 61636.81,
+            "next_open_utc": "2021-04-17 00:15:00+00:00",
+            "target": 1.12
+          }
+        ],
+        "mean_forecast_max": 0.017877957400348633,
+        "mean_forecast_min": 0.0011619144523711085,
+        "negative_mean_forecast_rows": 0,
+        "stress_2x": {
+          "alpha_ex": -0.0649174171133427,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.006192570016776482,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.000133495020713621,
+          "intent_coverage": 0.00022893772893772894,
+          "maxdd": 0.5992682156442862,
+          "maxdd_delta": 0.06726802357206707,
+          "mean_exposure": 1.204671784375128,
+          "rows": 8736,
+          "total_return": -0.5425784556710112,
+          "trades": 2,
+          "turnover": 0.12015894136477623
+        },
+        "targets_identical_to_scale_mean": true
+      },
+      "scale_mean": {
+        "base": {
+          "alpha_ex": -0.06175538404300329,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.003058161910191385,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 6.679201553369047e-05,
+          "intent_coverage": 0.00022893772893772894,
+          "maxdd": 0.5970544673023191,
+          "maxdd_delta": 0.06505427523009999,
+          "mean_exposure": 1.2011597057280732,
+          "rows": 8736,
+          "total_return": -0.5394164226006717,
+          "trades": 2,
+          "turnover": 0.12023704776098958
+        },
+        "counts": {
+          "hold_decision_count": 221,
+          "missing_open_decision_count": 1,
+          "positive_intent_count": 2,
+          "scheduled_decision_count": 364,
+          "unavailable_forecast_decision_count": 140,
+          "valid_decision_count": 223
+        },
+        "events": [
+          {
+            "decision_utc": "2021-04-16 18:00:00+00:00",
+            "next_open_price": 61411.85,
+            "next_open_utc": "2021-04-16 18:15:00+00:00",
+            "target": 1.08
+          },
+          {
+            "decision_utc": "2021-04-17 00:00:00+00:00",
+            "next_open_price": 61636.81,
+            "next_open_utc": "2021-04-17 00:15:00+00:00",
+            "target": 1.12
+          }
+        ],
+        "mean_forecast_max": 0.0026764683121793084,
+        "mean_forecast_min": 0.0026764683121793084,
+        "negative_mean_forecast_rows": 0,
+        "stress_2x": {
+          "alpha_ex": -0.0649174171133427,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.006192570016776482,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.000133495020713621,
+          "intent_coverage": 0.00022893772893772894,
+          "maxdd": 0.5992682156442862,
+          "maxdd_delta": 0.06726802357206707,
+          "mean_exposure": 1.204671784375128,
+          "rows": 8736,
+          "total_return": -0.5425784556710112,
+          "trades": 2,
+          "turnover": 0.12015894136477623
+        },
+        "targets_identical_to_scale_mean": true
+      },
+      "technical_raw": {
+        "base": {
+          "alpha_ex": 0.0997364854651136,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.0011470546626545627,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.0010132797934109693,
+          "intent_coverage": 0.0030906593406593405,
+          "maxdd": 0.4477660127571571,
+          "maxdd_delta": -0.08423417931506205,
+          "mean_exposure": 0.9008363278057387,
+          "rows": 8736,
+          "total_return": -0.3779245530925548,
+          "trades": 27,
+          "turnover": 2.1499502163999376
+        },
+        "counts": {
+          "hold_decision_count": 196,
+          "missing_open_decision_count": 1,
+          "positive_intent_count": 27,
+          "scheduled_decision_count": 364,
+          "unavailable_forecast_decision_count": 140,
+          "valid_decision_count": 223
+        },
+        "events": [
+          {
+            "decision_utc": "2021-04-16 18:00:00+00:00",
+            "next_open_price": 61411.85,
+            "next_open_utc": "2021-04-16 18:15:00+00:00",
+            "target": 0.92
+          },
+          {
+            "decision_utc": "2021-04-17 00:00:00+00:00",
+            "next_open_price": 61636.81,
+            "next_open_utc": "2021-04-17 00:15:00+00:00",
+            "target": 0.8399075635141702
+          },
+          {
+            "decision_utc": "2021-04-17 06:00:00+00:00",
+            "next_open_price": 61964.37,
+            "next_open_utc": "2021-04-17 06:15:00+00:00",
+            "target": 0.7613992826763761
+          },
+          {
+            "decision_utc": "2021-04-17 12:00:00+00:00",
+            "next_open_price": 60845.68,
+            "next_open_utc": "2021-04-17 12:15:00+00:00",
+            "target": 0.6781980046035814
+          },
+          {
+            "decision_utc": "2021-04-17 18:00:00+00:00",
+            "next_open_price": 60170.43,
+            "next_open_utc": "2021-04-17 18:15:00+00:00",
+            "target": 0.5940561267322714
+          },
+          {
+            "decision_utc": "2021-04-18 00:00:00+00:00",
+            "next_open_price": 60298.68,
+            "next_open_utc": "2021-04-18 00:15:00+00:00",
+            "target": 0.5151010944995834
+          },
+          {
+            "decision_utc": "2021-04-18 06:00:00+00:00",
+            "next_open_price": 56013.22,
+            "next_open_utc": "2021-04-18 06:15:00+00:00",
+            "target": 0.5758557407910642
+          },
+          {
+            "decision_utc": "2021-04-18 12:00:00+00:00",
+            "next_open_price": 53843.65,
+            "next_open_utc": "2021-04-18 12:15:00+00:00",
+            "target": 0.6436821129803445
+          },
+          {
+            "decision_utc": "2021-04-18 18:00:00+00:00",
+            "next_open_price": 55250.01,
+            "next_open_utc": "2021-04-18 18:15:00+00:00",
+            "target": 0.7291657744407685
+          },
+          {
+            "decision_utc": "2021-04-19 12:00:00+00:00",
+            "next_open_price": 57027.35,
+            "next_open_utc": "2021-04-19 12:15:00+00:00",
+            "target": 0.6556459289159446
+          },
+          {
+            "decision_utc": "2021-05-25 12:00:00+00:00",
+            "next_open_price": 37000.0,
+            "next_open_utc": "2021-05-25 12:15:00+00:00",
+            "target": 0.6295244876878542
+          },
+          {
+            "decision_utc": "2021-05-25 18:00:00+00:00",
+            "next_open_price": 37928.82,
+            "next_open_utc": "2021-05-25 18:15:00+00:00",
+            "target": 0.715429553614858
+          },
+          {
+            "decision_utc": "2021-05-26 00:00:00+00:00",
+            "next_open_price": 38162.33,
+            "next_open_utc": "2021-05-26 00:15:00+00:00",
+            "target": 0.7973980200278721
+          },
+          {
+            "decision_utc": "2021-05-26 12:00:00+00:00",
+            "next_open_price": 40142.74,
+            "next_open_utc": "2021-05-26 12:15:00+00:00",
+            "target": 0.7234622224845788
+          },
+          {
+            "decision_utc": "2021-05-27 06:00:00+00:00",
+            "next_open_price": 37980.0,
+            "next_open_utc": "2021-05-27 06:15:00+00:00",
+            "target": 0.7942771398729379
+          },
+          {
+            "decision_utc": "2021-05-27 12:00:00+00:00",
+            "next_open_price": 39639.01,
+            "next_open_utc": "2021-05-27 12:15:00+00:00",
+            "target": 0.8805500521010565
+          },
+          {
+            "decision_utc": "2021-05-27 18:00:00+00:00",
+            "next_open_price": 39108.0,
+            "next_open_utc": "2021-05-27 18:15:00+00:00",
+            "target": 0.9587013899957123
+          },
+          {
+            "decision_utc": "2021-05-28 00:00:00+00:00",
+            "next_open_price": 38404.87,
+            "next_open_utc": "2021-05-28 00:15:00+00:00",
+            "target": 1.0381078004185667
+          },
+          {
+            "decision_utc": "2021-05-28 06:00:00+00:00",
+            "next_open_price": 36881.79,
+            "next_open_utc": "2021-05-28 06:15:00+00:00",
+            "target": 1.1194825769158858
+          },
+          {
+            "decision_utc": "2021-06-14 00:00:00+00:00",
+            "next_open_price": 38845.27,
+            "next_open_utc": "2021-06-14 00:15:00+00:00",
+            "target": 1.032772692614013
+          },
+          {
+            "decision_utc": "2021-06-14 06:00:00+00:00",
+            "next_open_price": 39246.75,
+            "next_open_utc": "2021-06-14 06:15:00+00:00",
+            "target": 0.9528537566808729
+          },
+          {
+            "decision_utc": "2021-06-14 12:00:00+00:00",
+            "next_open_price": 39106.79,
+            "next_open_utc": "2021-06-14 12:15:00+00:00",
+            "target": 0.8728976706376023
+          },
+          {
+            "decision_utc": "2021-06-14 18:00:00+00:00",
+            "next_open_price": 40117.08,
+            "next_open_utc": "2021-06-14 18:15:00+00:00",
+            "target": 0.7959722637606226
+          },
+          {
+            "decision_utc": "2021-06-16 00:00:00+00:00",
+            "next_open_price": 40112.68,
+            "next_open_utc": "2021-06-16 00:15:00+00:00",
+            "target": 0.8760803733210105
+          },
+          {
+            "decision_utc": "2021-06-16 06:00:00+00:00",
+            "next_open_price": 40218.34,
+            "next_open_utc": "2021-06-16 06:15:00+00:00",
+            "target": 0.9563288144535195
+          },
+          {
+            "decision_utc": "2021-06-16 12:00:00+00:00",
+            "next_open_price": 39126.13,
+            "next_open_utc": "2021-06-16 12:15:00+00:00",
+            "target": 1.0350226867652246
+          },
+          {
+            "decision_utc": "2021-06-16 18:00:00+00:00",
+            "next_open_price": 38808.62,
+            "next_open_utc": "2021-06-16 18:15:00+00:00",
+            "target": 1.1149838745475513
+          }
+        ],
+        "mean_forecast_max": 0.01355484811144036,
+        "mean_forecast_min": -0.0028812716845117337,
+        "negative_mean_forecast_rows": 13,
+        "stress_2x": {
+          "alpha_ex": 0.09794169869751046,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.0022988741110648845,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.002025190566742082,
+          "intent_coverage": 0.0030906593406593405,
+          "maxdd": 0.448793528971105,
+          "maxdd_delta": -0.08320666310111413,
+          "mean_exposure": 0.9011126221779855,
+          "rows": 8736,
+          "total_return": -0.37971933986015793,
+          "trades": 27,
+          "turnover": 2.1499038149391256
+        },
+        "targets_identical_to_scale_mean": false
+      },
+      "technical_scaled": {
+        "base": {
+          "alpha_ex": -0.06175538404300329,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.003058161910191385,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 6.679201553369047e-05,
+          "intent_coverage": 0.00022893772893772894,
+          "maxdd": 0.5970544673023191,
+          "maxdd_delta": 0.06505427523009999,
+          "mean_exposure": 1.2011597057280732,
+          "rows": 8736,
+          "total_return": -0.5394164226006717,
+          "trades": 2,
+          "turnover": 0.12023704776098958
+        },
+        "counts": {
+          "hold_decision_count": 221,
+          "missing_open_decision_count": 1,
+          "positive_intent_count": 2,
+          "scheduled_decision_count": 364,
+          "unavailable_forecast_decision_count": 140,
+          "valid_decision_count": 223
+        },
+        "events": [
+          {
+            "decision_utc": "2021-04-16 18:00:00+00:00",
+            "next_open_price": 61411.85,
+            "next_open_utc": "2021-04-16 18:15:00+00:00",
+            "target": 1.08
+          },
+          {
+            "decision_utc": "2021-04-17 00:00:00+00:00",
+            "next_open_price": 61636.81,
+            "next_open_utc": "2021-04-17 00:15:00+00:00",
+            "target": 1.12
+          }
+        ],
+        "mean_forecast_max": 0.01834062254147363,
+        "mean_forecast_min": 0.001904502745521537,
+        "negative_mean_forecast_rows": 0,
+        "stress_2x": {
+          "alpha_ex": -0.0649174171133427,
+          "bar_coverage": 0.9966804029304029,
+          "bh_maxdd": 0.5320001920722192,
+          "bh_total_return": -0.4776610385576684,
+          "borrow_initial_equity_units": 0.006192570016776482,
+          "close_coverage": 0.9966804029304029,
+          "fees_initial_equity_units": 0.000133495020713621,
+          "intent_coverage": 0.00022893772893772894,
+          "maxdd": 0.5992682156442862,
+          "maxdd_delta": 0.06726802357206707,
+          "mean_exposure": 1.204671784375128,
+          "rows": 8736,
+          "total_return": -0.5425784556710112,
+          "trades": 2,
+          "turnover": 0.12015894136477623
+        },
+        "targets_identical_to_scale_mean": true
+      }
+    },
+    "dated_states": [
+      {
+        "decision_utc": "2021-04-16 18:00:00+00:00",
+        "estimated_trade_turnover": 0.07995250821012331,
+        "estimated_utility_gain_over_hold": 0.00010385472864463806,
+        "inference_available": true,
+        "known_open_exposure": 1.0,
+        "known_open_nav": 1.0113157857132415,
+        "open_price": 61572.03
+      },
+      {
+        "decision_utc": "2021-04-17 00:00:00+00:00",
+        "estimated_trade_turnover": 0.03986123156123928,
+        "estimated_utility_gain_over_hold": 5.1056537466391915e-05,
+        "inference_available": true,
+        "known_open_exposure": 1.080114213920119,
+        "known_open_nav": 1.0072686432760671,
+        "open_price": 61334.81
+      },
+      {
+        "decision_utc": "2021-04-20 00:00:00+00:00",
+        "estimated_trade_turnover": 0.0,
+        "estimated_utility_gain_over_hold": 0.0,
+        "inference_available": true,
+        "known_open_exposure": 1.1348193580546602,
+        "known_open_nav": 0.9020359995071067,
+        "open_price": 55633.14
+      },
+      {
+        "decision_utc": "2021-05-25 06:00:00+00:00",
+        "inference_available": false,
+        "open_price": 38354.92
+      },
+      {
+        "decision_utc": "2021-05-25 12:00:00+00:00",
+        "estimated_trade_turnover": 0.0,
+        "estimated_utility_gain_over_hold": 0.0,
+        "inference_available": true,
+        "known_open_exposure": 1.2234840029193292,
+        "known_open_nav": 0.5494822191872157,
+        "open_price": 36537.17
+      },
+      {
+        "decision_utc": "2021-07-16 12:00:00+00:00",
+        "estimated_trade_turnover": 0.0,
+        "estimated_utility_gain_over_hold": 0.0,
+        "inference_available": true,
+        "known_open_exposure": 1.2783964637423972,
+        "known_open_nav": 0.4474284337649479,
+        "open_price": 31086.52
+      }
+    ],
+    "explanation": [
+      "All three positive scaled/static means submit the same two buy intents: 1.08 on 2021-04-16 18:00 UTC and 1.12 on 2021-04-17 00:00 UTC, with next-bar open fills.",
+      "All remaining 221 valid decisions hold; 141 scheduled slots are unavailable from 2021-04-20 06:00 to 2021-05-25 06:00 UTC. The trace attributes 140 to unavailable forecasts and 1 to a missing current open.",
+      "Identical targets on identical prices and costs give identical accounting, including AlphaEx -6.1755384043pt and MaxDDDelta +6.5054275230pt at base costs.",
+      "Data-only Spot feature checks explain persistent unavailability: 30-day variance needs at least 2866/2880 finite returns. On 2021-04-28 only 2849 remain, and on 2021-05-20 only 2860 remain. At 2021-05-25 06:00 variance is eligible again but momentum_30 still points into a missing April-25 close; both are eligible by 12:00. This is a rolling-history availability consequence, not a 35-day absence of price bars.",
+      "The target ceiling constrains submitted intents, while existing leveraged cash/units inventory may drift. Stored open exposure is 1.2234840029 at the first resumed decision on 2021-05-25 12:00 UTC and 1.2783964637 at the final decision.",
+      "The common behavior is specific to the scaled learned means and positive scale-mean control; raw learned means submit 27/30 intents and have different paths.",
+      "This equality is evidence of identical decision paths in one reused quarter, not evidence that learned mean forecasts add useful information or generalize. Archived missingness does not identify contemporaneous live delivery.",
+      "Fold5 is labeled bull from the pre-quarter trend, not its realized outcome: stored B&H return over the validation quarter is -47.7661038558%, whereas the identical leveraged paths return -53.9416422601%."
+    ],
+    "inference_rows": 223,
+    "means_compared": [
+      "scale_mean",
+      "technical_scaled",
+      "perp_delay0_scaled"
+    ],
+    "scheduled_rows": 364,
+    "scope": "descriptive explanation of identical existing fold5 paths; no causal generalization, no new policy rollout",
+    "spot_feature_availability_checks": [
+      {
+        "decision_utc": "2021-04-20 06:00:00+00:00",
+        "finite_returns_in_prior_2880_bars": 2869,
+        "minimum_returns_required_2880": 2866,
+        "unavailable_original_flow_columns": [
+          "vol_1",
+          "vol_7",
+          "drawdown_7",
+          "vol_ratio",
+          "flow_1",
+          "flow_7",
+          "weighted_flow96",
+          "weighted_flow672",
+          "quote_volume_intensity96",
+          "quote_volume_intensity672",
+          "trade_intensity96",
+          "trade_intensity672",
+          "mean_trade_size_relative96",
+          "mean_trade_size_relative672"
+        ],
+        "unavailable_persistence_windows": [
+          "24",
+          "96",
+          "672"
+        ],
+        "unavailable_technical_columns": [
+          "vol_1",
+          "vol_7",
+          "drawdown_7",
+          "vol_ratio",
+          "flow_1",
+          "flow_7",
+          "rsi14",
+          "rsi96",
+          "atr14_relative",
+          "atr96_relative",
+          "channel_position96",
+          "channel_position672",
+          "price_zscore96",
+          "price_zscore672",
+          "downside_upside_log_vol_ratio96",
+          "efficiency_ratio96",
+          "efficiency_ratio672",
+          "weighted_flow96",
+          "weighted_flow672"
+        ]
+      },
+      {
+        "decision_utc": "2021-04-28 12:00:00+00:00",
+        "finite_returns_in_prior_2880_bars": 2849,
+        "minimum_returns_required_2880": 2866,
+        "unavailable_original_flow_columns": [
+          "vol_7",
+          "vol_30",
+          "drawdown_7",
+          "drawdown_30",
+          "vol_ratio",
+          "flow_7",
+          "weighted_flow672",
+          "quote_volume_intensity672",
+          "trade_intensity672",
+          "mean_trade_size_relative672"
+        ],
+        "unavailable_persistence_windows": [
+          "672",
+          "2880"
+        ],
+        "unavailable_technical_columns": [
+          "vol_7",
+          "vol_30",
+          "drawdown_7",
+          "drawdown_30",
+          "vol_ratio",
+          "flow_7",
+          "channel_position672",
+          "price_zscore672",
+          "efficiency_ratio672",
+          "weighted_flow672"
+        ]
+      },
+      {
+        "decision_utc": "2021-05-20 12:00:00+00:00",
+        "finite_returns_in_prior_2880_bars": 2860,
+        "minimum_returns_required_2880": 2866,
+        "unavailable_original_flow_columns": [
+          "vol_30",
+          "drawdown_30",
+          "vol_ratio"
+        ],
+        "unavailable_persistence_windows": [
+          "2880"
+        ],
+        "unavailable_technical_columns": [
+          "vol_30",
+          "drawdown_30",
+          "vol_ratio"
+        ]
+      },
+      {
+        "decision_utc": "2021-05-25 06:00:00+00:00",
+        "finite_returns_in_prior_2880_bars": 2868,
+        "minimum_returns_required_2880": 2866,
+        "unavailable_original_flow_columns": [
+          "momentum_30"
+        ],
+        "unavailable_persistence_windows": [],
+        "unavailable_technical_columns": [
+          "momentum_30"
+        ]
+      },
+      {
+        "decision_utc": "2021-05-25 12:00:00+00:00",
+        "finite_returns_in_prior_2880_bars": 2880,
+        "minimum_returns_required_2880": 2866,
+        "unavailable_original_flow_columns": [],
+        "unavailable_persistence_windows": [],
+        "unavailable_technical_columns": []
+      }
+    ],
+    "unavailable_scheduled_runs": [
+      {
+        "first": "2021-04-20 06:00:00+00:00",
+        "last": "2021-05-25 06:00:00+00:00",
+        "rows": 141
+      }
+    ]
+  },
+  "folds": [
+    {
+      "fit_mean": 0.00038919594200159403,
+      "fold": 5,
+      "inference_rows": 223,
+      "scale_mean": 0.002676468312179308,
+      "scale_rows": 233,
+      "score_rows": 221
+    },
+    {
+      "fit_mean": 0.0009049429689168443,
+      "fold": 6,
+      "inference_rows": 218,
+      "scale_mean": 0.000791820331241902,
+      "scale_rows": 279,
+      "score_rows": 215
+    },
+    {
+      "fit_mean": 0.0008809054853591071,
+      "fold": 7,
+      "inference_rows": 363,
+      "scale_mean": -0.0012450158338171678,
+      "scale_rows": 221,
+      "score_rows": 361
+    },
+    {
+      "fit_mean": 0.0005615743545971145,
+      "fold": 8,
+      "inference_rows": 360,
+      "scale_mean": 0.0019395011666806315,
+      "scale_rows": 215,
+      "score_rows": 359
+    },
+    {
+      "fit_mean": 0.0006929656948370803,
+      "fold": 9,
+      "inference_rows": 355,
+      "scale_mean": -0.0009469246714869777,
+      "scale_rows": 361,
+      "score_rows": 354
+    },
+    {
+      "fit_mean": 0.00043515293599892687,
+      "fold": 10,
+      "inference_rows": 368,
+      "scale_mean": -0.0001787187476881213,
+      "scale_rows": 359,
+      "score_rows": 367
+    },
+    {
+      "fit_mean": 0.00036028706548825776,
+      "fold": 11,
+      "inference_rows": 368,
+      "scale_mean": -0.0019259367641862634,
+      "scale_rows": 354,
+      "score_rows": 367
+    },
+    {
+      "fit_mean": -0.00039513284619190905,
+      "fold": 12,
+      "inference_rows": 331,
+      "scale_mean": -0.00029603867489856535,
+      "scale_rows": 367,
+      "score_rows": 330
+    }
+  ],
+  "maximum_absolute_difference": {
+    "constant_mean_scalar_values": 4.336808689942018e-19,
+    "metric_fit_mean_return_mse": 5.421010862427522e-20,
+    "metric_return_mae": 3.469446951953614e-18,
+    "metric_return_mse": 1.0842021724855044e-19,
+    "metric_return_rank_ic": 0.0,
+    "metric_return_sign_accuracy": 0.0,
+    "metric_rows": 0.0,
+    "metric_zero_return_mse": 0.0,
+    "provenance_scale_mean": 4.336808689942018e-19,
+    "support_scale_mean": 4.336808689942018e-19
+  },
+  "registration_sha256": "4c2a0cdd0a68717d6bec9016b5cb4d4436eab395f2515bd51ca76b0544867ac6",
+  "results_sha256": "0ed7a02b02c36e2e7ecd4d2b0566ba61d3a692ba4bfe5eb26b05b591ef3dd2d3",
+  "scope": "read-only verification of all frozen mean forecasts and descriptive inspection of existing fold5 targets/traces; no fitting, prediction runs or policy rollouts",
+  "source_revision": "c93b9ffacfe33571230f771d7e54ba072464c0ae",
+  "status": "passed",
+  "verified_artifact_sha256": {
+    "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold10_perp_delay0.npz": "899b024ae294a7313e71f087e6ee096389e4c8b97e132378a51081cfe03977cd",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold10_technical.npz": "609136af3875f233a787832ee8a67a14455cef9d8e4479859409a87b52e102f6",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold11_perp_delay0.npz": "911dc7a2f939d0ec2474dc7195af9dd8794db7938ae13898a4c1821cdf8bbcea",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold11_technical.npz": "75596ec62b2c51b5858a660761616ec1e635dc07ca6dab0faa194bf683b7dc5c",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold12_perp_delay0.npz": "c85b8d23597b6b6fe599b34b323d6c3b2f6a7cc634206d64c1c0d07e140d588b",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold12_technical.npz": "06e69b1abdb2e4238734c7a879c36ffc402e56aa2cc935658f8ac8a91b952284",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold5_perp_delay0.npz": "5e1e51a860e233098ef8c78bd177beb2096e82a2809df51999d4815b4c1873a0",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold5_technical.npz": "abbc56e0c2485bf91d7d41d1fc2fc6be4a50496c52298b8e72829127eab48d8b",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold6_perp_delay0.npz": "14ea704cc50d9bedb949900521a438021d6da6877ed57b52e04b15baa9386aa9",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold6_technical.npz": "668042a95ecd90a720025257e0ce4e65cc021e5df378f8fd8909dd3b94300e80",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold7_perp_delay0.npz": "531397ca8f6c5ce071ea842f4d926c677f2de54e44ba7dcd0865bed41ae024e2",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold7_technical.npz": "b44c83485c004d273a3d82cf3e5bb263a2f65c8f09350e2e5ba6661dae574659",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold8_perp_delay0.npz": "3333be181efceca37e931fff72c0f9c57a609d8c71f05d505ccf330b5cdba347",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold8_technical.npz": "4b61cc7f7c2aa0266a3c5fd855e318b8a6e4670becc870ab8ade8ca924ac3d10",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold9_perp_delay0.npz": "56ca36ee0e770dd87914c6a998433fba92d405a3f566dcb794126782a49e37c9",
+    "codex_outputs/oracle_derivative_delay_v1/calibration/fold9_technical.npz": "1aa05f04262620edd472af05164075381147dd6ae990bb8ff652bb5f9ca2a0f7",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold10_perp_delay0_raw.npz": "b2967fa073d0fac4146901980279e277ff2b5dc29d55811914ef37594c6726c3",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold10_perp_delay0_scaled.npz": "9b1857ab0d580a34e2e9dbf228981146a9f44ec438ee149c60152a154547ba2a",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold10_technical_raw.npz": "6b6b6a42dfb25ff974224ed616d7d79e6637cf4933b8570bb41980f3bde3eed5",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold10_technical_scaled.npz": "978cc2abad7f2396fd1c56129fd3e80b17bb2282e015f560b8a23640ba7fe787",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold11_perp_delay0_raw.npz": "d5b59e88bd9b5d943f6a31fc964baa61aaa8d269bf22c0b11da51d053e86abc8",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold11_perp_delay0_scaled.npz": "0e539e60aa27d6062b87dbe0679c0882f0674384dc45ee79fc288fa99bcbf5d3",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold11_technical_raw.npz": "047aa4bfe79719b1b68d275b75769fd8c72ab30b3f0a68935f20e9c3be8ee562",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold11_technical_scaled.npz": "0c1f1f858e62a3a42e925f7c5d979c8366596f38eb915a477dc21846c4788907",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold12_perp_delay0_raw.npz": "6fbbe1a1f749359b5c3e7569284b81a1b411aa891f3e0202ea5da2e9d6cd9dc7",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold12_perp_delay0_scaled.npz": "99f8ae0091f84aebbb0207e239b0ca40fd8f66bc7201049139247dee0b1ac815",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold12_technical_raw.npz": "d95b24082fce8becf5e3b58f1226d7343aa3283ec4856341edb9995c43b487b4",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold12_technical_scaled.npz": "54487be1772b29425be93eb530639234fe8da2bc942edaa2104682d6e8f418de",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold5_perp_delay0_raw.npz": "68648dc3233eab2d592256ea3eddaa10ab4f99c6ab393e63c84fe38adac03ffc",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold5_perp_delay0_scaled.npz": "27a5f7bb7542a5208f84e727c5c50454119def85c4e70deaa2cada5dffb4ca5d",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold5_technical_raw.npz": "03b9453685fcc14c80811a5301ef8a9524b8311a51cff640c6613684af53a8b1",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold5_technical_scaled.npz": "f49bc84ed22935d7d674f755b507735e6deb0859b8b52e293ee181325e00db51",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold6_perp_delay0_raw.npz": "4e3cc3e05729646975b53988ea7fef0de3641768d42eb4345398102086737f4e",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold6_perp_delay0_scaled.npz": "39a50e9bd26f943f45c943b5c146f87fa749332feae5706f46401784de70c9b8",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold6_technical_raw.npz": "1c367b4838fc0c0d3b054de8068ab743f7fa7de732980ad9cad5a14bcbcf5160",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold6_technical_scaled.npz": "b1c8948991813c9c8236472a6bf825f6c542aca93163a3dc3f8d52c2f9bc4a00",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold7_perp_delay0_raw.npz": "3fccdda24203ce622dae1ced8e8659ca157fc18d31943cc795b8415bd9f250b6",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold7_perp_delay0_scaled.npz": "86d6f92048cbc9ed3c799da7e053aa1c2f2e9458f05cd0df36c9794261d889fd",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold7_technical_raw.npz": "6477b60bca80cafda7fa67ea24af6e6c3c83097ae2c52d817989481010d64e75",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold7_technical_scaled.npz": "df114da8ebdf097026cb842ee49b6b85202891312878cbe5f4a30e680e24f06c",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold8_perp_delay0_raw.npz": "0d0b748c1b4aeff7821fcbaad9a3c101857f57efcd36a2de7a1b5fc14c0f4c0d",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold8_perp_delay0_scaled.npz": "40ad7a0533f5720c7f2136ea7539c97eaa5f44a1e683a5744647e1446b72eff3",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold8_technical_raw.npz": "4bcb61fa060bd950246e1168e2f4e9b17a548fbd8794e6765e64ddd38a98e5df",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold8_technical_scaled.npz": "2a11ac41050ed347ea1f3ce7e4c39c449376d96e99b84aec2b9cc9a5b4828867",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold9_perp_delay0_raw.npz": "94e47cb802da31fcfaacf186eb8a5e9f76599a55c3ffa84472fe6a54cc0567ab",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold9_perp_delay0_scaled.npz": "027007c7c0d02335d287f21d508de1985ef117d4a3defe74995b3d7d27274fdd",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold9_technical_raw.npz": "8b0f0be19fd4144678638fdcf109545049806778a135c089464c17deda2ba8ac",
+    "codex_outputs/oracle_derivative_delay_v1/forecasts/fold9_technical_scaled.npz": "b8a5b540ba7c263923246ad4639b6683cf5e5ba03526ba7659ae3676dd06775a",
+    "codex_outputs/oracle_derivative_delay_v1/preflight.json": "d20d0a23096a6693dc7125e0f5fd9e761efc7e5f7bfdb6ca42c5b890c91252c4",
+    "codex_outputs/oracle_derivative_delay_v1/registration.json": "060941929569b086ada6170632a0232b2b1ad05f800d5d7588b5f59ba5e68b86",
+    "codex_outputs/oracle_derivative_delay_v1/results.json": "b838b1ba45f4cac71c12595ab48610dbaac77abed2b1b4222ac2a6e9ec9171f4",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_fit_mean.npz": "7b924750c50503e6d874201cfb4c44f36becc41e426a27e8470d301ac177f195",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_perp_delay0_raw.npz": "81cc66069f95c8ad0c4d20163629469a7a4f1f3322a8cee163644cc4371f95cb",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_perp_delay0_scaled.npz": "5b685b81a0c4581a969d67103693103e0c1f51e326854928a245432a86a6e5e6",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_scale_mean.npz": "228da9e172171a4b38e149edd33e8e937a4b53467d4aaa24e8bed9bfe055a608",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_technical_raw.npz": "dabb42b68a72db4dc84205f0f33905d483605c1bbd6f2878709aefe6974d6767",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_technical_scaled.npz": "1a6acd5d1ef217e15988a833433d3de4a42d22ae3cfd74ae9b94270dfc746735",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold10_zero.npz": "aeacc588bd8a6b54d38fcb7556b5e642c28e1a478c51439a78074f97bdc92795",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_fit_mean.npz": "707d379bdeb10a1b08eb4a7a264088a04c2e506a414b94823df42ccc998a4c37",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_perp_delay0_raw.npz": "c305204cd361a9a8332d427998ee3042ea628fcfeda029b79eeecb587dc10107",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_perp_delay0_scaled.npz": "94040cf2454e322de2887c4907d1bde289f514b958b93bf152a54cedf998f67a",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_scale_mean.npz": "1ba873fd96b141042af59094ad96774ebeb4bd25ed3dcb66470b0dd2d73b07aa",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_technical_raw.npz": "eb8397f330c4efd6a5d7575ef74e6d68968e4299a7e897954ee206b9841f45a2",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_technical_scaled.npz": "75d3c87950d6aaf73925956a0a06e8839395f6822d75512b3f1745657963c79e",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold11_zero.npz": "1e8c14ef7c0ee14e3b91d39dbfb9029869892312b7f34eada4758c425de4ab04",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_fit_mean.npz": "7fd33ae32a993d2c3cb35998b1f3b185d8b7ba5e759158597e2f902017763a1f",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_perp_delay0_raw.npz": "7e461e9439ddbaf1ca4f967d7fbe09c421616e340712b47d2472163c4f963268",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_perp_delay0_scaled.npz": "b5fcb6a23cd4d3a62e98df266dac1e8791269adaa0188487621f4d69d2b4e61c",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_scale_mean.npz": "f972d49db47c16e60ee464f722f9ce4b4cda4c0144e524dcdc3b41ba82205479",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_technical_raw.npz": "bbaba64659eae3ac5d23ff43768ab86e10ab420988bf23fc4fbe7a47b603e7be",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_technical_scaled.npz": "ed12319c5721d16a0ef7a250b173133ec0e1de439949b35e13a86c63fa8a8db2",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold12_zero.npz": "62e8dc5aa0271f30ba1de60454819ffde8d01518e1d1389250a573dfae31ce5c",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_fit_mean.npz": "0b4e73274ff266ec07c80b28ad686d1f9f222ea705feaf90a3976702ba1f0950",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_perp_delay0_raw.npz": "512490a3c4e204a4b0e48912b86f42fc363acacf8bd7339f1963559f1f611f71",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_perp_delay0_scaled.npz": "73c88ce31af5366f1f76e5d04a51225c3b4fe115b0f777fe0f1b825c43725a89",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_scale_mean.npz": "5248865cbe572b19b5a8968de317c3c19d7e5eb8d90ebe1f1ae51006fc714a1e",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_technical_raw.npz": "5cce70086bb1959c9e05fc1f386f4bea6fd3ff1fced4a9b1543c2244a43c0348",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_technical_scaled.npz": "5ed5c6235bc4a988a63da29c7ff429a03938066315460ed318ada799ee43806f",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold5_zero.npz": "63d741b7cc53946de0085bf7c89d56c16974d426e073e2ff6bc659f91090795d",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_fit_mean.npz": "d0abbd96c1b240fdd7148d712a44d7311e2e1fe99ece41429212818a4b76fa69",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_perp_delay0_raw.npz": "3e0b77282c41c75eef6d97ba36e96250138e11aabada7a8d1d34141a731f0224",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_perp_delay0_scaled.npz": "fdee33828e201b2dc8869d7da405ba7bfc6dc2afc32563b06cb9852c6f43ac8a",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_scale_mean.npz": "6d11c683f281fca6c909fb6afa047d7bee4815d682f1c107060e249e95d4dc91",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_technical_raw.npz": "ae2db565168381a967261bb254c4f0ee6cda0a1942d52116a5009ad1a20cc647",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_technical_scaled.npz": "c1807d6cdd19e059cbc383f27d7ecd9fc27dd537152a1baa90a2896861ad8212",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold6_zero.npz": "530cf62cb2bba80c2e9ee800cf3c0abe4cb3350c7702854025e72e40670c7d47",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_fit_mean.npz": "b7971a9a17095e37d5be554d931631b15d8b433e540926a7acfafdadc5e49e81",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_perp_delay0_raw.npz": "0d51d52802625fc9037733bd449f00c24dc413b02512367e3d4f814cc1dc8aeb",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_perp_delay0_scaled.npz": "af4af652eef2555868c235a548a5add03cdff57c0bb006ea8ce87c4bc97d2b3e",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_scale_mean.npz": "72147c599f891b3ad72f38cf85c285e16163e6ed2cab4c5005622133ed8c4a46",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_technical_raw.npz": "1020126739b4b8217b5cc87ee3a4d8d6c434f69bad814bf9d8df2ca848a9bfc4",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_technical_scaled.npz": "394845d7819447445fb9e791ebdba90177fe0fc038ae813139c10866c3e03fa7",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold7_zero.npz": "ab79f8af4b9dedfa0cffc782c97228e55f6d739a643066e11cd17208c1065789",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_fit_mean.npz": "a974965d099f1b8a48a5bd2174c0cb9c554c8113a14c1b22bd152f45bc1bf228",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_perp_delay0_raw.npz": "d36ab6ef8ca30e0f8dc58bcd4531b180eb50bcbe2dbe4d3c134be2d9f87584db",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_perp_delay0_scaled.npz": "4da9053f19fbb125d43a5caa1b207f7101541d1bf92f1f7ccf7b4b61a09af2b9",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_scale_mean.npz": "3be2a9d0abd7d45ade1a69a3470289905e542a9ba96cdfb934aa834c905a3d56",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_technical_raw.npz": "1ba6c9dd47344362e36b7fcc4ac5f5f63816447f7b5936c321f3291e2a60b0cb",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_technical_scaled.npz": "d14492e5936f40931015d3b6a2615150a8647b9ea9a1e265b207db4edabf2d86",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold8_zero.npz": "877fc21183a25be66e64e33f5e9088a19d3135534d0841ec44c7ef55dde71ae2",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_fit_mean.npz": "653829cdb8ec12a25ec8e0fe4dcb1a6495e8c2cd89819e3bc3b27cdc0388f42c",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_perp_delay0_raw.npz": "a5b0fddecfe04b6f078f65d83bf818ac223d863997c4d583570da2145569fa46",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_perp_delay0_scaled.npz": "a190aad1a3eb01b1675e72f694126bb61d0baf3fa6dc4a317e404167cf9a1c6f",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_scale_mean.npz": "e3f84e6ca22129aaf7f2c74f81fe23400de7310d98caf388e82ed7ede26e2e70",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_technical_raw.npz": "b92396adac759c7f0539f935a1450004fcd61ad46c4bf3ff55a98dd3077469ca",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_technical_scaled.npz": "b24037fd0775d8cf31eaa8fb2e52aec73dd9965ff8b57da686bdeed32e9a6a23",
+    "codex_outputs/oracle_mean_control_decisions_v1/forecasts/fold9_zero.npz": "73c3c328f4f8bf583073d7f85aedb5ada89438a4d635ee4c7fae8e095f6b24b0",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_bh.npz": "af4d5ae61565ba1415a0c96ad06f0ef24fb4a6f6535e875803bc308a7538ad71",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_common_robust.npz": "df6f826b65a6db36a637e4981ba58362dde4776762c0a158ba4fe57b68a4f852",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_fit_mean_point.npz": "11dc70bf867e4d40692944dec2a8d01af30ff53c07a6163690da88dbe1b76293",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_fit_mean_utility_risk1.npz": "af4d5ae61565ba1415a0c96ad06f0ef24fb4a6f6535e875803bc308a7538ad71",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_perp_delay0_raw_point.npz": "bfb06eb6e567fb279a7ab8242e91a8b4484b703e7c36c49b8aa36e5a85f2e36b",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_perp_delay0_raw_utility_risk1.npz": "8a465803a6becfbc8889b67f156fdb3453c76551a565e1e597321f402d86b887",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_perp_delay0_scaled_point.npz": "d1f25881312c89f22f6e5ca87021095ef425c6ee6dc5e6c70426283d976ceb36",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_perp_delay0_scaled_utility_risk1.npz": "73a492fb8650a6ddbe8aa320cb42975cb1ae698a83ee55c3504675363b484d2d",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_scale_mean_point.npz": "321bc8dcc21c7521f674be4fd15eea558c82af32cd0175e31b01b89beb4be627",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_scale_mean_utility_risk1.npz": "3582e2e80de6a7f498f9750cee0c10e70af6617000a8fc3ebfcd4a97241b9215",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_technical_raw_point.npz": "b22deb52d81e713f705cb3c8793b7a7c7ec663708f225a5892d54d9c500038c9",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_technical_raw_utility_risk1.npz": "514ef78228196b97b7b6c457eaf0dcc07e5af2727f76819a77917302dec3a9c7",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_technical_scaled_point.npz": "420cb20905261fb5fe761d690c940482d7e5e95792fc8f91349332ad7eee75e2",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_technical_scaled_utility_risk1.npz": "0d9202ef0b8eb030d5c5e3bab51870608b0fc90215fbdd26d40de5109b9e0172",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_zero_point.npz": "d39470fd6539baccf10ce2ea1aa31c792ee992ca911826bad501d669960fbdaa",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold10_zero_utility_risk1.npz": "ff94d3130a2e5aeba33a86320b82775547cebe41da871aa486169c4c7eb4f403",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_bh.npz": "a24da7ba3f4bf6e816c2fd3bb0ad9dea7f172e844c069a11be5a16747132651d",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_common_robust.npz": "d7e2bf000f74242f3f7b723748166ca4eef650ec1bc24cd2bcfe979848866604",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_fit_mean_point.npz": "240663b8f1b6f3a9a41d9614dbb52b07d2818e4625fe8999c86ccdae6cd5dff1",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_fit_mean_utility_risk1.npz": "a24da7ba3f4bf6e816c2fd3bb0ad9dea7f172e844c069a11be5a16747132651d",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_perp_delay0_raw_point.npz": "d50a872577278c71ed80373f683a05431268fd07d43e3248b7687494abd4fe09",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_perp_delay0_raw_utility_risk1.npz": "b7dddc953c8a9bac1b003f1bb169f1b2f984f3ec9a82820186f5e5fec886bf28",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_perp_delay0_scaled_point.npz": "903bc57eac89a05f63a052f5fa6cad2688984d5809ac9a2744b8a34821693a21",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_perp_delay0_scaled_utility_risk1.npz": "9f2cceb804367aeb28c7ecb06b758a1e3fa206e99903b3ad99eef6e535936e24",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_scale_mean_point.npz": "345a4d91b1ad333f8ebe7c083f374558ed11781920ba2ca5e1d40b4c6bb8bca7",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_scale_mean_utility_risk1.npz": "a70fa714691975c288ed2cf773c75692e080f3696656ef25cc947261d8e37986",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_technical_raw_point.npz": "f0c277a4f93e4a57818867dcf89e7614292f98809b682fdcb54d77d41564d695",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_technical_raw_utility_risk1.npz": "ce5ab929e5711b60616dddb62a393e2dfcde28b9e889eb5259934a41ee306554",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_technical_scaled_point.npz": "f5209b5d5512a9b05fb9defac12888dbb5fdd7a9e6019c84dd98067c7ac5030b",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_technical_scaled_utility_risk1.npz": "80fecb28cef3a1af8a9872d67a61343e063734e651b9068afdb2775d0ec610e4",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_zero_point.npz": "c6e43b7a93ab24a4461e68d8de5bff577f959754bff654679db5cf4ab85d4bb4",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold11_zero_utility_risk1.npz": "de9442658634b679bdac5097c32b247ec323888f83e7621546845be4eb0b7ee8",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_bh.npz": "38d7ff93054a5948d7dfce7734a4be8d9b9bf5e498556e59c55d30ac545191a2",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_common_robust.npz": "b85f7dbd18d0fe548a665aa70b7154f7a56f8cd653546a42d44b4ef16acb844a",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_fit_mean_point.npz": "0389f53c7d87d05c7bdf59813b1a7c0574bb5ac98124a64111500486555a095f",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_fit_mean_utility_risk1.npz": "0bbd713132f25e94e9cb79edce8bb536cb798ac73983e0b479300d608f95c261",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_perp_delay0_raw_point.npz": "fb0b6b14b890affaabeb36ea4dbdbfad5fe6d73e440a08f92f60112870fc0427",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_perp_delay0_raw_utility_risk1.npz": "ad303e8b0dc9b3cd03e3cbc2201068e27c6e7fdde17b1c1917c91feceaefee38",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_perp_delay0_scaled_point.npz": "d7d1e812f106d0f30afdd4a2bdd50b7c3d9a3bb612c011fd8980f025287fe899",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_perp_delay0_scaled_utility_risk1.npz": "f534934b42ca5df91fac22908205d7fc8dd53a87efc6f1264cce17a34b11c4a8",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_scale_mean_point.npz": "ac67d90c30fec8471f0a3f698057cad18a66dc2f1f3bf27bc68cc102567ebe8b",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_scale_mean_utility_risk1.npz": "6c03ec1df9618277268435fe5c2cad212c3d73ac0ab9caa81bd5651f153a5690",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_technical_raw_point.npz": "40e3dc4d42049a41a05765e0b8e1aa07625dcd2b5eb520b7ddad294e7f22cebe",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_technical_raw_utility_risk1.npz": "f3fd589d498b431ae1b25263890f3fdef15f83924e7ca0ee0410fd488635c46b",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_technical_scaled_point.npz": "f69b3b6f09e1edc0d9104bb33874acf5125bd153a523e5e6c08bcde8d6404c10",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_technical_scaled_utility_risk1.npz": "43b0202c0bfcd06f1ed9e4395194a5d8c965760f8daa52d09b2b92869fa6dbf6",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_zero_point.npz": "4b45b8351c24a1ab8bdcfbeb79d440360486682660204b293703af0ed4e995ae",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold12_zero_utility_risk1.npz": "38d7ff93054a5948d7dfce7734a4be8d9b9bf5e498556e59c55d30ac545191a2",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_bh.npz": "44e066d6d5154f5b45bb1c7daa0bc1fefd7e07aa7baa717f632032b4277e0dcc",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_common_robust.npz": "7b03ffc9d5b4909b4d638704ebadf3099590a51fd3ee5a5c915713b37205761c",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_fit_mean_point.npz": "279afd47f8b29415227e121a5a63be77efa6fe5dfbc7e2e37dbb23937e8f0e52",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_fit_mean_utility_risk1.npz": "44e066d6d5154f5b45bb1c7daa0bc1fefd7e07aa7baa717f632032b4277e0dcc",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_perp_delay0_raw_point.npz": "07c559414bace9f9e4a041fe2d2444d52bb892e415cc4c8886bd1a065f1fa8e0",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_perp_delay0_raw_utility_risk1.npz": "58e2b68b93acef70d7b1814a4997ca76d717eb5c09a8e538536f034c751a1bdf",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_perp_delay0_scaled_point.npz": "cb76c44da2b8acf1d061c1621cca1e3d94b34c711a9b6b2aac2250f9bf82945d",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_perp_delay0_scaled_utility_risk1.npz": "a5eb692898a10c028116e126cd24589023e216c6c6a8a2e20b1ca128d69beb24",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_scale_mean_point.npz": "6fc9ef6201c0b835c521293670cf30c8d968306d04d4e1023b140579fb9a92a9",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_scale_mean_utility_risk1.npz": "a5eb692898a10c028116e126cd24589023e216c6c6a8a2e20b1ca128d69beb24",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_technical_raw_point.npz": "c20fa895cd6e374e1e6a17b20f773cf5a56b9d90cf242e43975ed8c7214262e3",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_technical_raw_utility_risk1.npz": "7fa22676658a8834197a1fdb17c0e7e34f99aed78d49bf1496d063351c095e08",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_technical_scaled_point.npz": "f6d580e4b16d0acce0137f5d18e84bd92594a2db9ec842898443ccf73adea7f3",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_technical_scaled_utility_risk1.npz": "a5eb692898a10c028116e126cd24589023e216c6c6a8a2e20b1ca128d69beb24",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_zero_point.npz": "5e2e1169fd2b231795492b5499ee9c0c362350672506ac17c96e3cb7332e3693",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold5_zero_utility_risk1.npz": "44e066d6d5154f5b45bb1c7daa0bc1fefd7e07aa7baa717f632032b4277e0dcc",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_bh.npz": "5c2e0b32ccb7d3dbe26ddc185a267e4f8d920838aa02174f417322fe41238205",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_common_robust.npz": "d21e5bc4799ff4259cf884a3491631d41470cf8fc04ddafecf24134cca9de8fe",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_fit_mean_point.npz": "03f346f7130916157c86cedb6de0cfa06f768d1d8c2a999c4744453d152603f8",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_fit_mean_utility_risk1.npz": "5c2e0b32ccb7d3dbe26ddc185a267e4f8d920838aa02174f417322fe41238205",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_perp_delay0_raw_point.npz": "9b092c2a6e89ff1eeaf34bae8cc3534c9cc0b430eac810f5181c5241e9fb1ff1",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_perp_delay0_raw_utility_risk1.npz": "11d931c016ba85915ded459de58533fea0b18a78e2ce37a133c424d024344d78",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_perp_delay0_scaled_point.npz": "06344408c2fd14ccc265303d669ed18cef470f1f5d6f01ec2c0c9d2f08185ae7",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_perp_delay0_scaled_utility_risk1.npz": "7bc0972275b5f47c567123f1dafa7b2f12b867b71de1318adbf2b65e75cb8bfc",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_scale_mean_point.npz": "32c8c8f02c0cbc6a3eb7a4abe8872cd577595373e89ee0eff673f69a454bf255",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_scale_mean_utility_risk1.npz": "5c2e0b32ccb7d3dbe26ddc185a267e4f8d920838aa02174f417322fe41238205",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_technical_raw_point.npz": "ec9935e1de64c29f4c28ea26147657986f96e0b32dca2ee100104e744e51fb68",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_technical_raw_utility_risk1.npz": "879e9dd720146b7d973ffd859276605e59bc793e2e8823aff135f7a8dbb99284",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_technical_scaled_point.npz": "9678c2eaf6a0f914ebc771cf6e65cbe6b5009fadfe522a54fcbead94fbaf7f1a",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_technical_scaled_utility_risk1.npz": "fba3677f9fb1f5d7e9277c3a6e7149e9ce0154703065bff0abfd6f9ee7039db3",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_zero_point.npz": "0cce5bf3d4adb8f49072371b804a2695cf98af2db7e8df8f166ba35b62514936",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold6_zero_utility_risk1.npz": "c151a45922673b35c7c6564efb6b21f527b778be8501574386aba8aac527387b",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_bh.npz": "44410d3fef111f176229ad413fd8a6d6337471c1a963e24ed0723c085897e69c",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_common_robust.npz": "aaac2e593a523bfb7d509472fa53a2b2c4e0b181393905a81860f82c7d114cad",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_fit_mean_point.npz": "6396925801ea275fa350d12fd801f0c97a7af3005cea5ba31d16ee84505ef22e",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_fit_mean_utility_risk1.npz": "44410d3fef111f176229ad413fd8a6d6337471c1a963e24ed0723c085897e69c",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_perp_delay0_raw_point.npz": "ea7d4e5ba265f728d25c01a1db66ebffe435c2bd3e24f9443c04be04b28c5937",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_perp_delay0_raw_utility_risk1.npz": "3b81d9b8fc6a92b54464e7e7bd782b0a97e455f6522eeaa49024357846f6f0c5",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_perp_delay0_scaled_point.npz": "a0f77f935a726496d390a209273c6f71d9b118cc5026444a727974c2468b87ad",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_perp_delay0_scaled_utility_risk1.npz": "0b464e975d9102fe94e949f6771b433880ff8052f22076782253dada319c042f",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_scale_mean_point.npz": "6705c77ac58b1c3e695cb9f4f16c96ca754aa257cf3d216ee8643b0b1d924fe7",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_scale_mean_utility_risk1.npz": "0777f0eccc621a5b7979986d6c2c9645ae6b6d070aa71119fb558f1abd143f00",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_technical_raw_point.npz": "de9c2af6a970f6781ce6b02106b1337e4d2ed7b517e5c1a73afcbb65f625925a",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_technical_raw_utility_risk1.npz": "484d912d2d51fb86841ba85f5b29a0d04ff861ad9de0b1383b78496284ac054a",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_technical_scaled_point.npz": "bba56ac185b03cff4f56c4f496c563f127eae79d82ad0d96437a6b404ac880cc",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_technical_scaled_utility_risk1.npz": "39393263a408a4037ab776c13932de0ca8d51d604418ad31bb0373cf1fd2b9c8",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_zero_point.npz": "2b027960fddd3bc754f88a00b9d27566d7057f314d17fe6d04407b2619ea2891",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold7_zero_utility_risk1.npz": "621cba960e3bbdb7b2b6447895a68bb76e4f784627c209dccd20e22ac8330ede",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_bh.npz": "b79a95b7961d827ecb5e917138d92d83171f2fe77c5324556e61bf19f4248cab",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_common_robust.npz": "a3bd342c1faeebe9742141cdd02726990946531db1639633de9eef0d5fd1b3b6",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_fit_mean_point.npz": "7cb34d4ef310645822e004d7a9ba519ef0217c19fb54869038a9356bade3bd5a",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_fit_mean_utility_risk1.npz": "b79a95b7961d827ecb5e917138d92d83171f2fe77c5324556e61bf19f4248cab",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_perp_delay0_raw_point.npz": "9418526c30363a217e84670a4fae6e8547967f7f7186e0191e4ecebf111308c0",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_perp_delay0_raw_utility_risk1.npz": "5a44c6dc16fa74072a7061662dd5ebdf867d10917bd90325bc793565edfa5927",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_perp_delay0_scaled_point.npz": "5f2426956beaf3f0c169b003946d0a9e017a80c0f04271e20bbec6526d2bbc11",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_perp_delay0_scaled_utility_risk1.npz": "fc044898c3bf54ecf605fdad4f08b7f9b430a33c899082d1b2d34e81ed61a0cd",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_scale_mean_point.npz": "6c103d3ee5501f6d8e501197e199565207a3b71285d3ddfc37e6ca9feb08c875",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_scale_mean_utility_risk1.npz": "acf3f01667a11fff49dba7adde7edad440d833ef0f9277534e632defe8d5d5e5",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_technical_raw_point.npz": "46563267df8d10a9a801a0630120befab7adca6dd8b5ce8243d4363643e96a3a",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_technical_raw_utility_risk1.npz": "5d1f3cb32815975e8545be4cc30e14021dde3123e6e277663d1894156c589e5c",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_technical_scaled_point.npz": "221501682be429e22be9270ec4e6309095b4f31e505f9b1d36c875a2dcb5fdaa",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_technical_scaled_utility_risk1.npz": "763b40de16e5fdc88aa207aa07e9a61832bebb7a9cdc3c9fece24d1aed9209b8",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_zero_point.npz": "25638aca835107a65217b694231fd35ab39bf038f76dc06831d4da50052f15fd",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold8_zero_utility_risk1.npz": "a25ae635fb9dee51e3e103d520848903aae123059b82356f599b030ae40bc0d2",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_bh.npz": "5278c0052cbe08cfc79f61e75d5abe33a9f1fde466f4271320733e355de0243c",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_common_robust.npz": "488ae7a17c83572baa2b32ba790e00bdcac6cc1af2f3ac9f80b672f25ac44318",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_fit_mean_point.npz": "18eb1ae71919ba9e7bb3a4c7d56a60ea97d27405a9ad3790d39b27d97547f188",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_fit_mean_utility_risk1.npz": "5278c0052cbe08cfc79f61e75d5abe33a9f1fde466f4271320733e355de0243c",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_perp_delay0_raw_point.npz": "1dc97038c98df30280ffd9fc5f36e6f41bb9881930db09960ad036e9d8ea8777",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_perp_delay0_raw_utility_risk1.npz": "7b7a12a06a444008425b850dd7d16153f6ae733ae8343579895f6026ba8dc56f",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_perp_delay0_scaled_point.npz": "f625b0432c61de79a88fc636c3ad6c6db57a87b851dac7b29ad2207a9d2dda15",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_perp_delay0_scaled_utility_risk1.npz": "dc08335b4f1531a5812c1855639a1004bb83882412cf5bfd908e1b0539091226",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_scale_mean_point.npz": "434588070e3c9de5cd080e54511270de2c1434480af10d9db62f641066e34812",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_scale_mean_utility_risk1.npz": "d14a1ea141e03bf09d94077f5a68862e1135a857a089f42daa46ca6e8518dd85",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_technical_raw_point.npz": "6f0f9c97a59815982b78e0772fc001149c1cc3213066759c9f0c33b97651832f",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_technical_raw_utility_risk1.npz": "5a0e091298988517968c033940d5d73ab62a79ccb685f89a77ee6dcfd505c5e9",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_technical_scaled_point.npz": "e32f0c8738fee367a6ec229e72b821b4ccd376f834d5a3d4c08f1cbec182d31e",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_technical_scaled_utility_risk1.npz": "24a3cad4492a9cea9ea881e2bbb333899449148e7ea89e357dd97681742d2f55",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_zero_point.npz": "7e976aa7f55e7485fd5d4a2a82b3f69251545759a14b55db7bf4790261c59fed",
+    "codex_outputs/oracle_mean_control_decisions_v1/targets/fold9_zero_utility_risk1.npz": "4e148d8dfaac867d895f5b933c87dab0bc7a828a0cdc99d5d2d2243b1cf1677a",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_fit_mean_utility_risk1.json": "231a653903e51990db42428d46e183d17fc81981247d60255585a957d6832303",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_perp_delay0_raw_utility_risk1.json": "692cf1256f081fcffb14840aac8d2a512196c979762e3e09cb2a363db405aa1e",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_perp_delay0_scaled_utility_risk1.json": "99dcce04f091bca788f6c750c8a49ce27a104d9eac2512a0ef5ba321af31aca6",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_scale_mean_utility_risk1.json": "3bba388383829618cddbad7f769c9fe62bd0a2c15f7c679709045305e2ee0f57",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_technical_raw_utility_risk1.json": "faddebbcf3b3c319c987dcfd53dbb0c15346a65037e4604eeb9ab283aa55efc6",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_technical_scaled_utility_risk1.json": "157feb8b6fcddafa33831b2db317b653353c9d8e57fd044699596f37e3c5e362",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold10_zero_utility_risk1.json": "da7cb6c73052445339e3942f79c5cefd85da3a2536d66ff650665f8dbc887159",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_fit_mean_utility_risk1.json": "c226f72897286148b29ff320db7be80e53de7f607e995f7e1e3dece1d01314a5",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_perp_delay0_raw_utility_risk1.json": "4ce1da11075c9207390152ff0db2b1c65999918f11a4ae315cd11374fb7fa88e",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_perp_delay0_scaled_utility_risk1.json": "6d89a35b0331d3082c2bf9a4a0caf16bde152d7e83fa6ee52f215adae5366a2c",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_scale_mean_utility_risk1.json": "7f49692c8983eee6e5986d4e9fdf449c582d56cc63765b16402b889f57f2c635",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_technical_raw_utility_risk1.json": "7186c1165d0d41dfb1f835a016ab4dc797cb786c13e6a9d39542d5305cfa846b",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_technical_scaled_utility_risk1.json": "a309aadac25f3acd983b91b8560b8be7df26fb043c14d1ea3901b7221c250e36",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold11_zero_utility_risk1.json": "acf14c77304ff2bab8258ed2161bbb9942fd6a4840116e96e9063fe444bcd160",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_fit_mean_utility_risk1.json": "359c5312036f26029079de1fba0636571aabd794c32cbe30b7e8436ffa4ff20f",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_perp_delay0_raw_utility_risk1.json": "a6f0334258dd32f7132e61e6851ed88b8ea091cd0d326a616c163cabccd16818",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_perp_delay0_scaled_utility_risk1.json": "a53893bfbee283cef8286f0dd23701520f2e03ed337bc0a3aa558987ffaabc13",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_scale_mean_utility_risk1.json": "da35f05e0b53e806cd63d966f861e82c906f194ad580fea214f0dfd8e696b8f8",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_technical_raw_utility_risk1.json": "0e5d8197a622c2f124f0ea631686aa3cb41f45674aeb8d3998260c55947abff2",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_technical_scaled_utility_risk1.json": "87efbb66abbcd6f59f87a9dd8bd9b750a7df35894ff305da48a420164619599a",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold12_zero_utility_risk1.json": "beed5ec3ff8a8a02a89f9aa497c36bfa0d690dc38874c008f5ce265fe7d22a79",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_fit_mean_utility_risk1.json": "bb30b2314529f164e90efa5b4bb22062d666a500f4e5b1434fa54f4d434405c8",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_perp_delay0_raw_utility_risk1.json": "e03f35cf1bc26227356e4e27e2a4725b3f25676ebf42146b4e936fd99c805410",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_perp_delay0_scaled_utility_risk1.json": "52a66369a8ca4be0a8324ab0bfa174afa1ddf474914713859c408eb84a48394a",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_scale_mean_utility_risk1.json": "4a22325bd491dc6861b2996deb42bd189e06c6336faf7160c47e0cedc40dc3f9",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_technical_raw_utility_risk1.json": "e14b50bd67a1cc0a172ad282a14873701df25cc6f30ece5017b0ede6ec92caec",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_technical_scaled_utility_risk1.json": "01c6e5a2119c50f3e6b9b361b330cd46b9911f1c41e86f52613e338508cee8af",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold5_zero_utility_risk1.json": "bb30b2314529f164e90efa5b4bb22062d666a500f4e5b1434fa54f4d434405c8",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_fit_mean_utility_risk1.json": "c9982bcb87aebb1be6d0bf7c9cce6cdbd7dda95eb0dffc63ca784fc4372546e2",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_perp_delay0_raw_utility_risk1.json": "7453c049ec7d81af51bb68a2c86d88881be5c52ddb048125b5d406634459499b",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_perp_delay0_scaled_utility_risk1.json": "007279c3f426fcc694394fef9b1bf50547aede374b9d64ad031b586e9df18ade",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_scale_mean_utility_risk1.json": "c9982bcb87aebb1be6d0bf7c9cce6cdbd7dda95eb0dffc63ca784fc4372546e2",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_technical_raw_utility_risk1.json": "a256d7c5af95cf8716c32e725882a4fcf66ebfc66c35aad7e5fc5556f4830189",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_technical_scaled_utility_risk1.json": "bbc4f4b00172194f10b2773990a1a8490b3455aaadbcaa5109c66fc0cd6696fd",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold6_zero_utility_risk1.json": "2236a363cae84bf34678ce72795bf1dd8e38e4e1716994e918b76767cbe475a4",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_fit_mean_utility_risk1.json": "6f74a87a06be780f4e51026fc97b3261528fb6fc6f907375c2226e413f5c7778",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_perp_delay0_raw_utility_risk1.json": "9d2f9252b8a292e89a6238713dc281d3fbbd1697ebdbc660ded06e75924a35dd",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_perp_delay0_scaled_utility_risk1.json": "5dadb3321040f6f06accbcdfb03ac0d0fb24d3e2d13f65fe8c8ac65a16a5507a",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_scale_mean_utility_risk1.json": "d6bf02a9ebd834b2ba1d51b22e336efd2f63972ffacc1d7f3b25486ff9a86b81",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_technical_raw_utility_risk1.json": "b097278ce20ed7526fb1fa5d0cd88b408c755875046089cfe139234a32922fac",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_technical_scaled_utility_risk1.json": "57f6d24dd4d18aa6ada969c262db1363ce04ae6e56f3975adf8aa38ee9093d2d",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold7_zero_utility_risk1.json": "5bfd29050d39acf574efe50066eaa0b9cff5b5f68d5355e07e2c338f43fdf920",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_fit_mean_utility_risk1.json": "76fec2e28b191293fc0ce9c8688e09ff28115f36c271b5cb3cd550c0977a0ab0",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_perp_delay0_raw_utility_risk1.json": "d0b34098c180d76eff063341df39d8d252418fac22a995568e334e317905e9ca",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_perp_delay0_scaled_utility_risk1.json": "26f91a50c59664ebccc1e3f7c82633642c8a5d2b98d0acfa1f7286ccf96b9368",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_scale_mean_utility_risk1.json": "efd1880296fd4d14b2d9d84bb6faf43383573472a54abc3cee37f09806268b02",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_technical_raw_utility_risk1.json": "1c12abe378cce8743a0ab598c301295726f5e54cd7ebe9e21eea16dade1a920d",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_technical_scaled_utility_risk1.json": "264ce559f073e45c638aa631d1a6323776c6d40ecb3a2e835b9da2e902078fe1",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold8_zero_utility_risk1.json": "39bfd54186626fb66eef267864cb472fe8c7c68183b712ec059c55c895d10129",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_fit_mean_utility_risk1.json": "3b3239b1c440928a500a2cd55e85c96bbaa54e36ab3e70fbc4eff6f81e3fcaea",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_perp_delay0_raw_utility_risk1.json": "d46e6195bb44da2d8858342a02dc5d3570d77333be8539aa1268fad26d4f2d64",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_perp_delay0_scaled_utility_risk1.json": "199f9dba1c0409608052f63daf80ed99091e41b81f1162234c773298297812fa",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_scale_mean_utility_risk1.json": "93f8756352f57392292fa6c02795c218d3f0fa145744eb6879dbb9528c930025",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_technical_raw_utility_risk1.json": "f7b2629af0435aaa87fefd3f7c8ff2807a18e3cbe6ffdfc02250dc5e91154fe9",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_technical_scaled_utility_risk1.json": "50e63c59f3646024e123fc10805a86ee46b24bd4b62fec0a6f270f305b28215c",
+    "codex_outputs/oracle_mean_control_decisions_v1/traces/fold9_zero_utility_risk1.json": "d1e8dd1ddaf7fe6dcd24e6f04c02d93e0e1469403230703586043f287f93c658",
+    "configs/oracle_derivative_delay_20260905.yaml": "50f438fd6f7ed4532ab1f4da77bff3da8938d1b63514483b26e87561537d404f",
+    "configs/oracle_mean_control_decisions_20260905.yaml": "0bc28e7bdcd649246c21a2780eab4d5619b91f4ef10669a9ebe680287e785236",
+    "unidream/experiments/alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "unidream/experiments/alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "unidream/experiments/oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "unidream/experiments/oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "unidream/experiments/oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "unidream/experiments/oracle_derivative_delay.py": "04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9",
+    "unidream/experiments/oracle_derivative_delay_features.py": "bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862",
+    "unidream/experiments/oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+    "unidream/experiments/oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "unidream/experiments/oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "unidream/experiments/oracle_mean_control_decisions.py": "0518d0bfaf1e7edb261e3ff566cb39438743776b2688b02e21821a3acd609a16",
+    "unidream/experiments/oracle_mean_controls.py": "07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb",
+    "unidream/experiments/oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "unidream/experiments/robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  }
+}
