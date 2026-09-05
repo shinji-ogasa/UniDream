@@ -1,0 +1,133 @@
+{
+  "config": {
+    "development_folds": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "extra_delay_bars": [
+      0,
+      1,
+      4
+    ],
+    "fit_months": 18,
+    "horizon_bars": 24,
+    "interval_months": 3,
+    "minimum_fit_rows": 512,
+    "minimum_interval_rows": 64,
+    "minimum_scale_rows": 64,
+    "nominal_coverage": 0.9,
+    "output_dir": "codex_outputs/oracle_derivative_delay_v1",
+    "parent_preflight_path": "codex_outputs/oracle_derivative_preflight_v1/preflight.json",
+    "parent_preflight_sha256": "cb051b9b866cde77ddf3c3ce73d1c15fa15bab729e8fb32de09dfcca961b21b7",
+    "preflight_path": "codex_outputs/oracle_derivative_delay_v1/preflight.json",
+    "preflight_sha256": "d20d0a23096a6693dc7125e0f5fd9e761efc7e5f7bfdb6ca42c5b890c91252c4",
+    "return_ridge_alpha": 100.0,
+    "scale_months": 3,
+    "schema": "oracle-derivative-delay-v1",
+    "seed": 20260905,
+    "source_config": "configs/oracle_frontier_20260905.yaml",
+    "um_path": "checkpoints/oracle_derivative_data/um_15m.parquet",
+    "utility_cost_multiplier": 2,
+    "utility_risk_aversions": [
+      1
+    ],
+    "variance_floor": 1e-12,
+    "versions": [
+      "raw",
+      "scaled"
+    ]
+  },
+  "config_sha256": "50f438fd6f7ed4532ab1f4da77bff3da8938d1b63514483b26e87561537d404f",
+  "preflight_sha256": "d20d0a23096a6693dc7125e0f5fd9e761efc7e5f7bfdb6ca42c5b890c91252c4",
+  "scope": "adaptive reused validation input-age diagnostic; no selection or new inference",
+  "source_config": {
+    "data_cutoff": "2023-04-16T13:45:00Z",
+    "data_path": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet",
+    "decision_cadence_hours": 6,
+    "development_folds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "execution": {
+      "borrow_annual": 0.1,
+      "deadband": 0.01,
+      "max_step": 0.08,
+      "one_way_cost": 0.00055
+    },
+    "feature_groups": [
+      "base16",
+      "technical",
+      "flow"
+    ],
+    "fold_anchor": "2020-04-16T13:45:00Z",
+    "hindsight": {
+      "beam_width": 32,
+      "risk_penalties": [
+        0.0,
+        1.0
+      ]
+    },
+    "horizons_bars": [
+      24,
+      96,
+      672
+    ],
+    "mappers": [
+      "return",
+      "downside"
+    ],
+    "minimum_bar_coverage": 0.995,
+    "minimum_fit_rows": 512,
+    "models": [
+      "ridge",
+      "hgb"
+    ],
+    "output_dir": "codex_outputs/oracle_frontier_v1",
+    "regime": {
+      "minimum_quarters_per_regime": 3,
+      "normalized_momentum_90_threshold": 0.5
+    },
+    "schema": "oracle-feature-frontier-v1",
+    "seed": 20260905,
+    "symbol": "BTCUSDT",
+    "train_years": 2
+  },
+  "source_revision": "a75b55a9994aacbacd69ff130cb79d8293292033",
+  "source_sha256": {
+    "alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "oracle_derivative_delay.py": "04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9",
+    "oracle_derivative_delay_features.py": "bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862",
+    "oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+    "oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  },
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.3.3",
+    "python": "3.12.13",
+    "sklearn": "1.8.0"
+  }
+}

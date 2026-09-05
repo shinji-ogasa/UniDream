@@ -159,16 +159,86 @@ variance, each withpoint andutilityrisk1. Samebase intents replayed at2x.
   Scalar24accountpaths/1828 decisions overfolds5/8/12: alphaerror1.55e-15,
   DD5.55e-16,tradecount0. No mismatches or artifact modifications.
 
-## Next: concentration, availability and horizon stability
+## Fifth completed stage: UM information staleness
 
-Keep architectures fixed. Investigate the concentration of mean-forecast
-economic uplift and support/arrival sensitivity before widening the search.
-A bounded preregistered comparison could delayUM inputs1bar/1hour on identical
-support, separating the unavailable live receipt provenance from predictive
-information. Source archives do not establish historical real-time arrival.
-Any horizon comparison h96/672 must first register label purge and controller
-horizon changes; the current utility logic is h24. Do not adaptively omitfold12
-or choose delays/horizons from their already observed results.
+The previous next-action delay diagnostic is complete; do not rerun or choose
+a best delay after seeing it. Source+registration+preflight commit `a75b55a`
+preceded all model outputs. Run handle95064 is terminal exit0.
+Output `codex_outputs/oracle_derivative_delay_v1`; report
+`oracle_derivative_delay_results_20260905.md` and tracked evidence directory.
+Full suite481 tests OK in56.410s, `/tmp/oracle-delay-full-tests.log`, handle78456
+terminal exit0. Runtime is this worktree's ignored `.venv` via `uv run python`.
+
+-Same18/3/3 chronology, h24, folds5–12, Ridge100/HGB100iter7leaf fixed.
+  OnlyUM flow24/96 shiftedextra0/1/4bars; Spot/decision/labels/fills unchanged.
+  Technical+delay0/1/4 refit on acommonmask. Frozen1/4 use NEWdelay0 fitted
+  scaler/models/bias/variance multiplier/quantiles at validation only.
+-Data-only final preflightSHA
+  `d20d0a23096a6693dc7125e0f5fd9e761efc7e5f7bfdb6ca42c5b890c91252c4`.
+  2586inference/2574scored of2920scheduled; one more row lost infold9.
+  The previous sharedmask is intersected with alldelays: it includes knowledge
+  of undelayed availability, so this is NOT an operational delayed-feed mask.
+  No historical receipt-provenance claim. The earlier pre-regime-guard draft
+  preflight remains locally retained; onlythe abovefinalhash is registered.
+-64 models/32calibration/96forecasts/208targets/96traces;24policy names.
+  Newtotal133adaptive names, notindependenttrials.6/24aggregatejointsigns,
+  5/24observedregimemeans,0/24unchangedcoveragegate. Counts2bull4bear2sideways.
+-Scaledutilityrisk1 equalquarter Alpha/DDpt:
+  technical+.595/-4.323, stress+.277/-4.211;
+  delay0+2.144/-3.137, stress+1.737/-3.008;
+  delay1refit+1.818/-3.309, stress+1.423/-3.185;
+  delay4refit+2.381/-3.358, stress+2.003/-3.234;
+  frozen1+2.265/-3.310, stress+1.885/-3.183;
+  frozen4+2.290/-3.244, stress+1.895/-3.116.
+  AllfiveUMscaledutility conditions preserve observedregimesigns atbothcosts.
+  Delay4refit/frozen4 joint5/8quarters, otherUMscaledutility4/8.
+-ScaledreturnMSE improvements vstechnical:delay0.802%,delay1refit.868%,
+  delay4refit.665%. Allreturnmodels stillworse thanzero/fitmean. Frozen15/60min
+  makesreturnMSEslightlyworse whileimprovingeconomics. No newintervals/tests.
+  Do notconflate MSE, averageAlpha andprobabilityofgoalcompletion.
+-AllfiveUMscaledutility improvements versusparent stilldependonfold12:
+  refit60min uplift+1.786pt includes+2.142ptfold12 contribution; other7mean
+  -.407pt. Frozen60min uplift+1.695pt includes+2.327pt; other7mean-.722pt.
+  All8 registeredfolds remain in evaluation; postoutcomeLOO isdescriptiveonly.
+-Audits:496manifestartifacts/525files, all96forecastmetrics/source/masks;
+  48Ridgevalidationstreams scalarmax3.47e-18, all48HGBstreams directtrees0.
+  Allfrozen32records matchdelay0sourceandcalibration.144accountpaths and
+  10968choices independentoverfold5/8/12:alpha2.44e-15,DD6.66e-16,trades0.
+  NumPymatmulwarningsremainundiagnosed; storedpredictions independentlymatch.
+  Audits reconstructstoredcoefficients, notindependentfullretraining.
+
+## Additional completed diagnosis: fixed mean-bias drift
+
+Use the saved `parent_meanbias_diagnostic.json` for the PRIOR broader-mask
+derivative ablation, not thenewdelayfamily. Fiftysourcehashbindings checked.
+No newmodels, policies orselection were run inthisdiagnostic.
+-Fold12 inference331rows rawmu technical-.781bps/perp+11.731bps;
+  bias technical-6.286bps/perp-12.223bps; correctedmu-7.066/-.491bps.
+  Bothgroupscorrectdownward, narrowingthepredictiongap12.512→6.575bps.
+  Positivepredictions164→101 versus232→168, with63/64 downwardcrossings.
+-CalibrationactualmeanJul–Oct2022-2.960bps, scoredvalJan–Apr2023+10.704bps.
+  Causalfixedbiasdoesnottransferwellhere. Fold12MSE worsens.977%/.676%.
+  Across8quarters5/8MSEworsen forbothgroups afterbiascorrection.
+-Risk0varianceignored:fold12technicalAlpha-8.365→-16.560pt,perp+5.352→+.057pt
+  raw→scaled. Relativegapwidensbecauseparentdeterioratesmore; risk1similar.
+  Concentration is specific tocorrectedutility: priorrawrisk1perp-minus-tech
+  other7quarters+1.537pt, whereas scaled-.529pt. Do notclaimallUMinformation
+  exists onlyinfold12. Signzeroalonecannotexplainendogenousorders.
+
+## Next: causal mean controls and calibration stability
+
+Keep architectures fixed. Before addingcomplexity, compare thesamepolicy with
+zero/fitmean/scaleactualmean returns against learnedmeans on the same support,
+holding variance source fixed. These economic controls have not yet been run;
+forecast MSE referencesalone do not establish decision value. Register the
+small exact family, masks, source forecasts, chronology and allcomparisons
+before outputs. Do notchoose a favorable delay fromthe completedagecomparison.
+Then assess fixedmean-bias transfer versus a prespecified causal update/shrinkage
+method using only finalized prior outcomes; never use validationfuturelabels
+or fitinterval choices afterobservingtheir economic results. Past mistakes
+motivate registration, not permission to retune report-only tests.
+Any horizon comparisonh96/672 must registerpurge/controllerhorizonchanges;
+currentutilitylogic ish24. Do notadaptivelyomitfold12 orweakencoveragecounts.
 Use a fixed small design before further outcomes; do not weaken regime counts or start
 using report-only test for selection. More reused historical tuning cannot
 alone establish prospective success. An unobserved-data/paper protocol must

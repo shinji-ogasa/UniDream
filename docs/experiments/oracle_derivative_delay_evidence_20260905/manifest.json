@@ -1,0 +1,35 @@
+{
+  "scope": "adaptive reused development diagnostic; no selected strongest model",
+  "files": [
+    {
+      "source": "codex_outputs/oracle_derivative_delay_v1/preflight.json",
+      "snapshot": "docs/experiments/oracle_derivative_delay_evidence_20260905/preflight.json",
+      "sha256": "d20d0a23096a6693dc7125e0f5fd9e761efc7e5f7bfdb6ca42c5b890c91252c4"
+    },
+    {
+      "source": "codex_outputs/oracle_derivative_delay_v1/registration.json",
+      "snapshot": "docs/experiments/oracle_derivative_delay_evidence_20260905/registration.json",
+      "sha256": "060941929569b086ada6170632a0232b2b1ad05f800d5d7588b5f59ba5e68b86"
+    },
+    {
+      "source": "codex_outputs/oracle_derivative_delay_v1/results.json",
+      "snapshot": "docs/experiments/oracle_derivative_delay_evidence_20260905/results.json",
+      "sha256": "b838b1ba45f4cac71c12595ab48610dbaac77abed2b1b4222ac2a6e9ec9171f4"
+    },
+    {
+      "source": "/tmp/oracle_parent_meanbias_diagnostic_20260905.json",
+      "snapshot": "docs/experiments/oracle_derivative_delay_evidence_20260905/parent_meanbias_diagnostic.json",
+      "sha256": "074877117381d3a7fb5a0f3d54b10f0de49a06fb16c5ea10cda42aea1a182937"
+    },
+    {
+      "source": "/tmp/oracle_derivative_delay_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_derivative_delay_evidence_20260905/independent_audit.json",
+      "sha256": "13f7a817e155862a8605a2e46252b703627d47699d9df4498bc774cc5194d011"
+    },
+    {
+      "source": "/tmp/oracle_derivative_delay_forecast_audit_20260905.json",
+      "snapshot": "docs/experiments/oracle_derivative_delay_evidence_20260905/forecast_audit.json",
+      "sha256": "dd5e2162de594c760f6331798b064941586cc8cdd9c5576cef18652f72518638"
+    }
+  ]
+}
