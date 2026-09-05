@@ -1,0 +1,16 @@
+schema: oracle-risk-calibration-v1
+source_config: configs/oracle_frontier_20260905.yaml
+output_dir: codex_outputs/oracle_risk_calibration_v1
+horizon_bars: 24
+fit_months: 18
+scale_months: 3
+interval_months: 3
+minimum_fit_rows: 512
+minimum_scale_rows: 64
+minimum_interval_rows: 64
+nominal_coverage: 0.90
+variance_floor: 1.0e-12
+models: [persistence24, persistence96, persistence672, har_ridge, base16_hgb, technical_hgb]
+versions: [raw, scaled]
+policies: [point, interval_gate]
+seed: 20260905
