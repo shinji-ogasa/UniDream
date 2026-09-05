@@ -1,0 +1,7 @@
+schema: oracle-conditional-decision-v1
+source_config: configs/oracle_frontier_20260905.yaml
+calibration_root: codex_outputs/oracle_risk_calibration_v1
+output_dir: codex_outputs/oracle_conditional_decision_v1
+forecast_models: [base16_hgb_scaled, technical_hgb_scaled, har_ridge_scaled]
+risk_aversions: [0.0, 1.0, 4.0]
+cost_multiplier: 2.0
