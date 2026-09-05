@@ -812,6 +812,12 @@ def _build_training_config(
             "batch_size": 256 if full else 128,
             "n_epochs": 8 if full else 1,
             "lr": 3e-4 if full else 1e-3,
+            # The pilot inherited zero auxiliary coefficients, which made
+            # BC's objective identically zero despite running epochs.  The
+            # formal-source diagnostic must train the target and execution
+            # heads, then fail closed if telemetry still reports no loss.
+            "target_aux_coef": 1.0,
+            "trade_aux_coef": 0.5,
         }
     )
     cfg["ac"].update(
@@ -1114,6 +1120,15 @@ def run_formal_forecast_wm_bc_ac(
         conditional_config=cfg,
         log_ts=log_timestamp,
     )
+    bc_logs = list(getattr(bc_trainer, "last_train_logs", []))
+    if len(bc_logs) != int(cfg["bc"]["n_epochs"]):
+        raise FormalForecastPipelineError(
+            "BC did not complete the declared number of epochs"
+        )
+    if not any(abs(float(row.get("bc_loss", 0.0))) > 1e-12 for row in bc_logs):
+        raise FormalForecastPipelineError(
+            "BC loss is identically zero; refusing to treat a no-op as training"
+        )
     # Evaluate the behavior-cloned actor before AC can mutate it.  Keeping
     # this on the identical evaluator separates representation/BC
     # learnability from the subsequent imagination objective.
@@ -1218,12 +1233,14 @@ def run_formal_forecast_wm_bc_ac(
             },
             "bc": {
                 "epochs": int(cfg["bc"]["n_epochs"]),
-                "actual_epochs": int(len(getattr(bc_trainer, "last_train_logs", []))),
+                "actual_epochs": int(len(bc_logs)),
                 "final_loss": (
                     None
-                    if not getattr(bc_trainer, "last_train_logs", [])
-                    else float(getattr(bc_trainer, "last_train_logs", [])[-1]["bc_loss"])
+                    if not bc_logs
+                    else float(bc_logs[-1]["bc_loss"])
                 ),
+                "first_loss": None if not bc_logs else float(bc_logs[0]["bc_loss"]),
+                "min_loss": None if not bc_logs else float(min(row["bc_loss"] for row in bc_logs)),
                 "batch_size": int(cfg["bc"]["batch_size"]),
             },
             "ac": {
