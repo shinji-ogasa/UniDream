@@ -1,0 +1,1058 @@
+{
+  "bindings": {
+    "configs/oracle_derivative_delay_20260905.yaml": "50f438fd6f7ed4532ab1f4da77bff3da8938d1b63514483b26e87561537d404f",
+    "configs/oracle_frontier_20260905.yaml": "5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d",
+    "configs/oracle_mean_shrinkage_decisions_20260905.yaml": "97fa36692b5c3ad58b41d77d34e4707e83c9a2bfa18d21a0c2862579ab5e2f70",
+    "docs/experiments/oracle_mean_shrinkage_evidence_20260905/confirmation_access_audit.md": "dffb80fce1d176f0cffac31d3f98a87e5febb3635c3d540bc471600d5692e749",
+    "docs/experiments/oracle_mean_shrinkage_evidence_20260905/confirmation_design_draft.md": "7c6053af4d6911cb9316148361566ae9590f9840b44488569a678a95f923e78f",
+    "unidream/experiments/alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+    "unidream/experiments/alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+    "unidream/experiments/oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+    "unidream/experiments/oracle_confirmation_contract.py": "7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503",
+    "unidream/experiments/oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+    "unidream/experiments/oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+    "unidream/experiments/oracle_derivative_delay.py": "04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9",
+    "unidream/experiments/oracle_derivative_delay_features.py": "bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862",
+    "unidream/experiments/oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+    "unidream/experiments/oracle_fallback_planner.py": "e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348",
+    "unidream/experiments/oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+    "unidream/experiments/oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+    "unidream/experiments/oracle_mean_shrinkage.py": "fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb",
+    "unidream/experiments/oracle_receipt_support.py": "97a6fee8837fbb741aedd1759d6134eaa6f1b45f11b1b8941ed4637da3dedb2c",
+    "unidream/experiments/oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+    "unidream/experiments/robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+  },
+  "candidate_component_references": 96,
+  "candidate_components": {
+    "perp_delay0_half_utility_risk1": [
+      "economic/perp_delay0_half_utility_risk1/all/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/all/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/all/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/all/stress_2x/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/bull/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/bull/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/bull/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/bull/stress_2x/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/bear/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/bear/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/bear/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/bear/stress_2x/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/sideways/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/sideways/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1/sideways/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1/sideways/stress_2x/negative_maxdd_delta",
+      "predictive/perp_delay0_half/scale_mean/all/mse_reduction",
+      "predictive/perp_delay0_half/scale_mean/bull/mse_reduction",
+      "predictive/perp_delay0_half/scale_mean/bear/mse_reduction",
+      "predictive/perp_delay0_half/scale_mean/sideways/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/all/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/bull/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/bear/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/sideways/mse_reduction"
+    ],
+    "perp_delay0_half_utility_risk1_fallback_bh": [
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/all/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/all/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/all/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/all/stress_2x/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/stress_2x/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/stress_2x/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/base/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/base/negative_maxdd_delta",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/stress_2x/alpha_ex",
+      "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/stress_2x/negative_maxdd_delta",
+      "predictive/perp_delay0_half/scale_mean/all/mse_reduction",
+      "predictive/perp_delay0_half/scale_mean/bull/mse_reduction",
+      "predictive/perp_delay0_half/scale_mean/bear/mse_reduction",
+      "predictive/perp_delay0_half/scale_mean/sideways/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/all/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/bull/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/bear/mse_reduction",
+      "predictive/perp_delay0_half/perp_delay0_scaled/sideways/mse_reduction"
+    ],
+    "technical_half_utility_risk1": [
+      "economic/technical_half_utility_risk1/all/base/alpha_ex",
+      "economic/technical_half_utility_risk1/all/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/all/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1/all/stress_2x/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/bull/base/alpha_ex",
+      "economic/technical_half_utility_risk1/bull/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/bull/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1/bull/stress_2x/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/bear/base/alpha_ex",
+      "economic/technical_half_utility_risk1/bear/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/bear/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1/bear/stress_2x/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/sideways/base/alpha_ex",
+      "economic/technical_half_utility_risk1/sideways/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1/sideways/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1/sideways/stress_2x/negative_maxdd_delta",
+      "predictive/technical_half/scale_mean/all/mse_reduction",
+      "predictive/technical_half/scale_mean/bull/mse_reduction",
+      "predictive/technical_half/scale_mean/bear/mse_reduction",
+      "predictive/technical_half/scale_mean/sideways/mse_reduction",
+      "predictive/technical_half/technical_scaled/all/mse_reduction",
+      "predictive/technical_half/technical_scaled/bull/mse_reduction",
+      "predictive/technical_half/technical_scaled/bear/mse_reduction",
+      "predictive/technical_half/technical_scaled/sideways/mse_reduction"
+    ],
+    "technical_half_utility_risk1_fallback_bh": [
+      "economic/technical_half_utility_risk1_fallback_bh/all/base/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/all/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/all/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/all/stress_2x/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/bull/base/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/bull/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/bull/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/bull/stress_2x/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/bear/base/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/bear/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/bear/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/bear/stress_2x/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/sideways/base/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/sideways/base/negative_maxdd_delta",
+      "economic/technical_half_utility_risk1_fallback_bh/sideways/stress_2x/alpha_ex",
+      "economic/technical_half_utility_risk1_fallback_bh/sideways/stress_2x/negative_maxdd_delta",
+      "predictive/technical_half/scale_mean/all/mse_reduction",
+      "predictive/technical_half/scale_mean/bull/mse_reduction",
+      "predictive/technical_half/scale_mean/bear/mse_reduction",
+      "predictive/technical_half/scale_mean/sideways/mse_reduction",
+      "predictive/technical_half/technical_scaled/all/mse_reduction",
+      "predictive/technical_half/technical_scaled/bull/mse_reduction",
+      "predictive/technical_half/technical_scaled/bear/mse_reduction",
+      "predictive/technical_half/technical_scaled/sideways/mse_reduction"
+    ]
+  },
+  "config_sha256": "037ae07f5bae182eb9f073de79c48bcd523ff624706c4f4d7e9193cb6f1188f1",
+  "economic_endpoints": 64,
+  "endpoints": [
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/all/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/all/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/all/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/all/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/bull/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/bull/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/bull/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/bull/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/bear/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/bear/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/bear/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/bear/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/sideways/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1/sideways/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/sideways/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1/sideways/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/all/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/all/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/all/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/all/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bull/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bull/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bull/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bull/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bear/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bear/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bear/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/bear/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "technical_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/technical_half_utility_risk1_fallback_bh/sideways/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/all/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/all/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/all/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/all/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/bull/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/bull/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/bull/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/bull/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/bear/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/bear/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/bear/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/bear/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/sideways/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1/sideways/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/sideways/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1/sideways/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/all/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/all/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/all/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/all/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "all"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bull/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bull"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/bear/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "bear"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/base/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "base",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/base/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/stress_2x/alpha_ex",
+      "kind": "economic",
+      "metric": "alpha_ex",
+      "stratum": "sideways"
+    },
+    {
+      "candidate_id": "perp_delay0_half_utility_risk1_fallback_bh",
+      "cost": "stress_2x",
+      "id": "economic/perp_delay0_half_utility_risk1_fallback_bh/sideways/stress_2x/negative_maxdd_delta",
+      "kind": "economic",
+      "metric": "negative_maxdd_delta",
+      "stratum": "sideways"
+    },
+    {
+      "id": "predictive/technical_half/scale_mean/all/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "all"
+    },
+    {
+      "id": "predictive/technical_half/scale_mean/bull/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "bull"
+    },
+    {
+      "id": "predictive/technical_half/scale_mean/bear/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "bear"
+    },
+    {
+      "id": "predictive/technical_half/scale_mean/sideways/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "sideways"
+    },
+    {
+      "id": "predictive/technical_half/technical_scaled/all/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "technical_scaled",
+      "stratum": "all"
+    },
+    {
+      "id": "predictive/technical_half/technical_scaled/bull/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "technical_scaled",
+      "stratum": "bull"
+    },
+    {
+      "id": "predictive/technical_half/technical_scaled/bear/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "technical_scaled",
+      "stratum": "bear"
+    },
+    {
+      "id": "predictive/technical_half/technical_scaled/sideways/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "technical_half",
+      "metric": "mse_reduction",
+      "reference": "technical_scaled",
+      "stratum": "sideways"
+    },
+    {
+      "id": "predictive/perp_delay0_half/scale_mean/all/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "all"
+    },
+    {
+      "id": "predictive/perp_delay0_half/scale_mean/bull/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "bull"
+    },
+    {
+      "id": "predictive/perp_delay0_half/scale_mean/bear/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "bear"
+    },
+    {
+      "id": "predictive/perp_delay0_half/scale_mean/sideways/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "scale_mean",
+      "stratum": "sideways"
+    },
+    {
+      "id": "predictive/perp_delay0_half/perp_delay0_scaled/all/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "perp_delay0_scaled",
+      "stratum": "all"
+    },
+    {
+      "id": "predictive/perp_delay0_half/perp_delay0_scaled/bull/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "perp_delay0_scaled",
+      "stratum": "bull"
+    },
+    {
+      "id": "predictive/perp_delay0_half/perp_delay0_scaled/bear/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "perp_delay0_scaled",
+      "stratum": "bear"
+    },
+    {
+      "id": "predictive/perp_delay0_half/perp_delay0_scaled/sideways/mse_reduction",
+      "kind": "predictive",
+      "mean_id": "perp_delay0_half",
+      "metric": "mse_reduction",
+      "reference": "perp_delay0_scaled",
+      "stratum": "sideways"
+    }
+  ],
+  "family_sha256": "245cc711aabe395e2fcc93b45695cafeac03550e435cdc4f2f5b2a6a13f12cd0",
+  "high_probability_generalization_established": false,
+  "nominal_receipt_counts_are_not_observed_coverage": true,
+  "predictive_endpoints": 16,
+  "prospective_collection_started": false,
+  "quarters": [
+    {
+      "evaluation_end": "2027-01-16T13:45:00+00:00",
+      "evaluation_start": "2026-10-16T13:45:00+00:00",
+      "first_decision": "2026-10-16T18:00:00+00:00",
+      "fit_end": "2026-04-16T13:45:00+00:00",
+      "fit_start": "2024-10-16T13:45:00+00:00",
+      "fold": 26,
+      "interval_end": "2026-10-16T13:45:00+00:00",
+      "interval_start": "2026-07-16T13:45:00+00:00",
+      "last_decision": "2027-01-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2187,
+        "inference": 368,
+        "interval": 367,
+        "predict": 1100,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 367
+      },
+      "scale_end": "2026-07-16T13:45:00+00:00",
+      "scale_start": "2026-04-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2027-04-16T13:45:00+00:00",
+      "evaluation_start": "2027-01-16T13:45:00+00:00",
+      "first_decision": "2027-01-16T18:00:00+00:00",
+      "fit_end": "2026-07-16T13:45:00+00:00",
+      "fit_start": "2025-01-16T13:45:00+00:00",
+      "fold": 27,
+      "interval_end": "2027-01-16T13:45:00+00:00",
+      "interval_start": "2026-10-16T13:45:00+00:00",
+      "last_decision": "2027-04-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2183,
+        "inference": 360,
+        "interval": 367,
+        "predict": 1096,
+        "scale": 367,
+        "scheduled": 360,
+        "score": 359
+      },
+      "scale_end": "2026-10-16T13:45:00+00:00",
+      "scale_start": "2026-07-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2027-07-16T13:45:00+00:00",
+      "evaluation_start": "2027-04-16T13:45:00+00:00",
+      "first_decision": "2027-04-16T18:00:00+00:00",
+      "fit_end": "2026-10-16T13:45:00+00:00",
+      "fit_start": "2025-04-16T13:45:00+00:00",
+      "fold": 28,
+      "interval_end": "2027-04-16T13:45:00+00:00",
+      "interval_start": "2027-01-16T13:45:00+00:00",
+      "last_decision": "2027-07-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2191,
+        "inference": 364,
+        "interval": 359,
+        "predict": 1092,
+        "scale": 367,
+        "scheduled": 364,
+        "score": 363
+      },
+      "scale_end": "2027-01-16T13:45:00+00:00",
+      "scale_start": "2026-10-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2027-10-16T13:45:00+00:00",
+      "evaluation_start": "2027-07-16T13:45:00+00:00",
+      "first_decision": "2027-07-16T18:00:00+00:00",
+      "fit_end": "2027-01-16T13:45:00+00:00",
+      "fit_start": "2025-07-16T13:45:00+00:00",
+      "fold": 29,
+      "interval_end": "2027-07-16T13:45:00+00:00",
+      "interval_start": "2027-04-16T13:45:00+00:00",
+      "last_decision": "2027-10-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2195,
+        "inference": 368,
+        "interval": 363,
+        "predict": 1092,
+        "scale": 359,
+        "scheduled": 368,
+        "score": 367
+      },
+      "scale_end": "2027-04-16T13:45:00+00:00",
+      "scale_start": "2027-01-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2028-01-16T13:45:00+00:00",
+      "evaluation_start": "2027-10-16T13:45:00+00:00",
+      "first_decision": "2027-10-16T18:00:00+00:00",
+      "fit_end": "2027-04-16T13:45:00+00:00",
+      "fit_start": "2025-10-16T13:45:00+00:00",
+      "fold": 30,
+      "interval_end": "2027-10-16T13:45:00+00:00",
+      "interval_start": "2027-07-16T13:45:00+00:00",
+      "last_decision": "2028-01-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2187,
+        "inference": 368,
+        "interval": 367,
+        "predict": 1100,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 367
+      },
+      "scale_end": "2027-07-16T13:45:00+00:00",
+      "scale_start": "2027-04-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2028-04-16T13:45:00+00:00",
+      "evaluation_start": "2028-01-16T13:45:00+00:00",
+      "first_decision": "2028-01-16T18:00:00+00:00",
+      "fit_end": "2027-07-16T13:45:00+00:00",
+      "fit_start": "2026-01-16T13:45:00+00:00",
+      "fold": 31,
+      "interval_end": "2028-01-16T13:45:00+00:00",
+      "interval_start": "2027-10-16T13:45:00+00:00",
+      "last_decision": "2028-04-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2183,
+        "inference": 364,
+        "interval": 367,
+        "predict": 1100,
+        "scale": 367,
+        "scheduled": 364,
+        "score": 363
+      },
+      "scale_end": "2027-10-16T13:45:00+00:00",
+      "scale_start": "2027-07-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2028-07-16T13:45:00+00:00",
+      "evaluation_start": "2028-04-16T13:45:00+00:00",
+      "first_decision": "2028-04-16T18:00:00+00:00",
+      "fit_end": "2027-10-16T13:45:00+00:00",
+      "fit_start": "2026-04-16T13:45:00+00:00",
+      "fold": 32,
+      "interval_end": "2028-04-16T13:45:00+00:00",
+      "interval_start": "2028-01-16T13:45:00+00:00",
+      "last_decision": "2028-07-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2191,
+        "inference": 364,
+        "interval": 363,
+        "predict": 1096,
+        "scale": 367,
+        "scheduled": 364,
+        "score": 363
+      },
+      "scale_end": "2028-01-16T13:45:00+00:00",
+      "scale_start": "2027-10-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2028-10-16T13:45:00+00:00",
+      "evaluation_start": "2028-07-16T13:45:00+00:00",
+      "first_decision": "2028-07-16T18:00:00+00:00",
+      "fit_end": "2028-01-16T13:45:00+00:00",
+      "fit_start": "2026-07-16T13:45:00+00:00",
+      "fold": 33,
+      "interval_end": "2028-07-16T13:45:00+00:00",
+      "interval_start": "2028-04-16T13:45:00+00:00",
+      "last_decision": "2028-10-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2195,
+        "inference": 368,
+        "interval": 363,
+        "predict": 1096,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 367
+      },
+      "scale_end": "2028-04-16T13:45:00+00:00",
+      "scale_start": "2028-01-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2029-01-16T13:45:00+00:00",
+      "evaluation_start": "2028-10-16T13:45:00+00:00",
+      "first_decision": "2028-10-16T18:00:00+00:00",
+      "fit_end": "2028-04-16T13:45:00+00:00",
+      "fit_start": "2026-10-16T13:45:00+00:00",
+      "fold": 34,
+      "interval_end": "2028-10-16T13:45:00+00:00",
+      "interval_start": "2028-07-16T13:45:00+00:00",
+      "last_decision": "2029-01-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2191,
+        "inference": 368,
+        "interval": 367,
+        "predict": 1100,
+        "scale": 363,
+        "scheduled": 368,
+        "score": 367
+      },
+      "scale_end": "2028-07-16T13:45:00+00:00",
+      "scale_start": "2028-04-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2029-04-16T13:45:00+00:00",
+      "evaluation_start": "2029-01-16T13:45:00+00:00",
+      "first_decision": "2029-01-16T18:00:00+00:00",
+      "fit_end": "2028-07-16T13:45:00+00:00",
+      "fit_start": "2027-01-16T13:45:00+00:00",
+      "fold": 35,
+      "interval_end": "2029-01-16T13:45:00+00:00",
+      "interval_start": "2028-10-16T13:45:00+00:00",
+      "last_decision": "2029-04-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2187,
+        "inference": 360,
+        "interval": 367,
+        "predict": 1096,
+        "scale": 367,
+        "scheduled": 360,
+        "score": 359
+      },
+      "scale_end": "2028-10-16T13:45:00+00:00",
+      "scale_start": "2028-07-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2029-07-16T13:45:00+00:00",
+      "evaluation_start": "2029-04-16T13:45:00+00:00",
+      "first_decision": "2029-04-16T18:00:00+00:00",
+      "fit_end": "2028-10-16T13:45:00+00:00",
+      "fit_start": "2027-04-16T13:45:00+00:00",
+      "fold": 36,
+      "interval_end": "2029-04-16T13:45:00+00:00",
+      "interval_start": "2029-01-16T13:45:00+00:00",
+      "last_decision": "2029-07-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2195,
+        "inference": 364,
+        "interval": 359,
+        "predict": 1092,
+        "scale": 367,
+        "scheduled": 364,
+        "score": 363
+      },
+      "scale_end": "2029-01-16T13:45:00+00:00",
+      "scale_start": "2028-10-16T13:45:00+00:00"
+    },
+    {
+      "evaluation_end": "2029-10-16T13:45:00+00:00",
+      "evaluation_start": "2029-07-16T13:45:00+00:00",
+      "first_decision": "2029-07-16T18:00:00+00:00",
+      "fit_end": "2029-01-16T13:45:00+00:00",
+      "fit_start": "2027-07-16T13:45:00+00:00",
+      "fold": 37,
+      "interval_end": "2029-07-16T13:45:00+00:00",
+      "interval_start": "2029-04-16T13:45:00+00:00",
+      "last_decision": "2029-10-16T12:00:00+00:00",
+      "nominal_counts_assuming_complete_inputs": {
+        "fit": 2199,
+        "inference": 368,
+        "interval": 363,
+        "predict": 1092,
+        "scale": 359,
+        "scheduled": 368,
+        "score": 367
+      },
+      "scale_end": "2029-04-16T13:45:00+00:00",
+      "scale_start": "2029-01-16T13:45:00+00:00"
+    }
+  ],
+  "ready_for_outcome_scoring": false,
+  "receipt_deadline_seconds": 60,
+  "remaining_requirements": [
+    "receipt-authenticated complete dependency reconstruction",
+    "audited fit/calibration/inference/account adapter and append-only decision log",
+    "separately justified and preregistered marginal inference before confirmatory claims"
+  ],
+  "schema": "oracle-confirmation-contract-v1",
+  "scope": "metadata/calendar only; no market files or outcomes read",
+  "selection_performed": false,
+  "source_sha256": "7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503"
+}

@@ -1,0 +1,73 @@
+schema: oracle-confirmation-contract-v1
+status: design_and_metadata_preflight_only
+evaluation_folds:
+- 26
+- 27
+- 28
+- 29
+- 30
+- 31
+- 32
+- 33
+- 34
+- 35
+- 36
+- 37
+evaluation_split: test
+fit_months: 18
+scale_months: 3
+interval_months: 3
+evaluation_months: 3
+horizon_bars: 24
+minimum_fit_rows: 512
+minimum_scale_rows: 64
+minimum_interval_rows: 64
+minimum_quarters_per_regime: 3
+mean_weight: 0.5
+candidate_ids:
+- technical_half_utility_risk1
+- technical_half_utility_risk1_fallback_bh
+- perp_delay0_half_utility_risk1
+- perp_delay0_half_utility_risk1_fallback_bh
+control_ids:
+- bh
+- common_robust
+- scale_mean_utility_risk1
+- scale_mean_utility_risk1_fallback_bh
+- technical_scaled_utility_risk1
+- technical_scaled_utility_risk1_fallback_bh
+- perp_delay0_scaled_utility_risk1
+- perp_delay0_scaled_utility_risk1_fallback_bh
+inferential_mode: descriptive_only
+marginal_engine_id: null
+family_alpha_target: 0.05
+selection_permitted: false
+performance_early_stopping: false
+support_contract: same_inherited_dependency_set_with_separate_receipt_gate
+decision_deadline_seconds: 60
+fill_delay_bars: 1
+family_path: docs/experiments/oracle_mean_shrinkage_evidence_20260905/candidate_family_freeze.json
+family_sha256: 245cc711aabe395e2fcc93b45695cafeac03550e435cdc4f2f5b2a6a13f12cd0
+bindings:
+  unidream/experiments/oracle_confirmation_contract.py: 7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503
+  unidream/experiments/oracle_receipt_support.py: 97a6fee8837fbb741aedd1759d6134eaa6f1b45f11b1b8941ed4637da3dedb2c
+  unidream/experiments/oracle_derivative_delay.py: 04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9
+  unidream/experiments/oracle_derivative_delay_features.py: bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862
+  unidream/experiments/oracle_derivative_features.py: c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448
+  unidream/experiments/oracle_derivative_ablation.py: fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2
+  unidream/experiments/oracle_derivative_crossed_decisions.py: b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19
+  unidream/experiments/oracle_frontier.py: 21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57
+  unidream/experiments/oracle_frontier_features.py: 762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5
+  unidream/experiments/oracle_conditional_planner.py: 1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051
+  unidream/experiments/oracle_risk_calibration.py: 50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe
+  unidream/experiments/alpha_dd_search.py: fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64
+  unidream/experiments/alpha_dd_features.py: 7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69
+  unidream/experiments/robust_overlay.py: 4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22
+  unidream/experiments/oracle_mean_shrinkage.py: fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb
+  unidream/experiments/oracle_fallback_planner.py: e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348
+  docs/experiments/oracle_mean_shrinkage_evidence_20260905/confirmation_access_audit.md: dffb80fce1d176f0cffac31d3f98a87e5febb3635c3d540bc471600d5692e749
+  docs/experiments/oracle_mean_shrinkage_evidence_20260905/confirmation_design_draft.md: 7c6053af4d6911cb9316148361566ae9590f9840b44488569a678a95f923e78f
+  configs/oracle_derivative_delay_20260905.yaml: 50f438fd6f7ed4532ab1f4da77bff3da8938d1b63514483b26e87561537d404f
+  configs/oracle_frontier_20260905.yaml: 5cb797df9f435dd8215101367ad63eafa51901c0e11427f208345aafa4d86f3d
+  configs/oracle_mean_shrinkage_decisions_20260905.yaml: 97fa36692b5c3ad58b41d77d34e4707e83c9a2bfa18d21a0c2862579ab5e2f70
+output_path: codex_outputs/oracle_confirmation_contract_v1/preflight_v2.json

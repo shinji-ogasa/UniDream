@@ -446,6 +446,71 @@ as research context. Its coefficient-sign/amplitude and error-distribution
 conditions have not been verified for this fixed BTC half mixture; no claim
 of inherited dominance and no new estimator/weight was implemented from it.
 
+## Ninth completed stage: confirmation calendar, receipt and reporting contract
+
+Implemented the next contract components without additional market/outcome
+access, fitting or selection. See [oracle_confirmation_contract_20260906.md](oracle_confirmation_contract_20260906.md)
+and `configs/oracle_confirmation_contract_20260906.yaml`. The earlier Next
+section remains the broader incomplete confirmation objective; these components
+are now done and must not be restarted or represented as a full runner.
+
+- New `oracle_confirmation_contract.py`: test26–37 calendar anchored at actual
+  test_start S, fit[S−24m,S−6m), scale[S−6m,S−3m), interval[S−3m,S), eval[S,S+3m).
+  Exact inherited segment masks at the new start, strict375min fit/cal maturity,
+  inclusive evaluation maturity, full15m grid. Future-label gaps never gate
+  inference. Final preflight has4384 nominal6h decisions, not observed coverage.
+- New `oracle_receipt_support.py`: required bar rows only, fixed rawclose
+  open+15m−1ms, featurebar end<=nominal origin t, receipt<=explicit deadline.
+  Config proposes t+60s before next15m fill. Current unfinished featurebar
+  remains excluded. Late/unknown receipts are not backfilled. Generic helper
+  accepts deadlines in[t,t+15m), eventual adapter must enforce exactly60s.
+  Does NOT prove current-open observation, value validity, complete rolling
+  history or receipt authenticity. Training-time archive snapshots and actual
+  evaluation receipt logs need distinct bindings; do not invent historical
+  origin receipts for old training bars.
+- Fixed4 candidates/8 controls, exactly21 source/metadata bindings plus separate
+  family SHA and its10 development sources. Aliased or duplicate bindings,
+  missing required dependency paths, complex/bool/array/nonfinite metrics are
+  rejected. Stable finite quarter means with post-aggregate guard.
+- Descriptive report adapter requires every12quarter x12policy economic row,
+  five mean loss rows perquarter, paired regimes and scoring denominators.
+  Inventory64 economic +16 predictive primary endpoints,96 candidate-component
+  references. Predictive references are own full mean and scale_mean; same
+  forecasts shared by both rules. Equal-quarter favorable effects, no averaging
+  percentage loss ratios. Missing quarters fail, absent regimes remain null.
+  Observed metric/coverage conditions are separate from provenance/true bar
+  calendar/selection/high-probability flags. P-values staynull, inferencefalse.
+- Primary research: candidate conjunction can use IUT max of valid marginal
+  p-values; across4 candidates Holm is needed for any-candidate discovery.
+  These do not make uncalibrated12quarter/3-per-regime marginal p-values valid.
+  No significance engine enabled. Do not claim95% future success from point
+  conditions, coverage, more bootstrap repetitions or passing unit tests.
+- 27new targeted tests; full564 tests OK56.618s, final handle28741 terminalexit0,
+  `/tmp/oracle-confirmation-contract-full-tests-v2.log`. Initial implementation
+  run58560 terminalexit0; rerun justified by independent numeric/hash findings.
+  No live model, fitting, collection or verification processes remain.
+- Final metadata-only preflight output
+  `codex_outputs/oracle_confirmation_contract_v1/preflight_v2.json`, fileSHA
+  `6ac0ec6dc72fd8458c3bb044168b13e74305893a7c0d858422111a6be450fc53`.
+  Earlier preflight.json is an unregistered implementation draft, not final.
+  Final source contract SHA7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503;
+  receipt SHA97a6fee8837fbb741aedd1759d6134eaa6f1b45f11b1b8941ed4637da3dedb2c.
+  Independent limited review verified malformed inputs and timing synthetically;
+  root preflight verified the remaining metadata bindings. Tracked evidence
+  has exact preflight/review copies, tests+source verification and manifest.
+
+Next concrete implementation: new frozen procedure adapter for fit/calibration,
+prediction, own-state planning and accounting, retaining original dependency
+mask. First replay only existing development8quarters to check parity against
+saved half/full/anchor controls; retain hashes, fit seeds, scale anchors,
+technical variance and all endpoint-score provenance. No new performance-based
+weight, horizon, support or missingness choice. Then separate report-only
+additional-window registration if useful; do not repurpose old test as a
+selector or independent data. For prospective use add authenticated receipt /
+input snapshot / actual submission and fill logging before any outcomes. The
+current preflight explicitly says ready_for_outcome_scoring=false. Do not
+report this contract-only milestone as independent confirmation completed.
+
 ## Original Spot / perpetual design rationale, now executed
 
 Keep model architectures small and fixed. Proposed three matched-support groups:

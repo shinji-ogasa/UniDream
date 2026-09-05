@@ -1,0 +1,26 @@
+{
+  "scope": "Frozen confirmation contract implementation evidence; not performance or inference results",
+  "files": [
+    {
+      "snapshot": "docs/experiments/oracle_confirmation_contract_evidence_20260906/preflight.json",
+      "source": "codex_outputs/oracle_confirmation_contract_v1/preflight_v2.json",
+      "sha256": "6ac0ec6dc72fd8458c3bb044168b13e74305893a7c0d858422111a6be450fc53"
+    },
+    {
+      "snapshot": "docs/experiments/oracle_confirmation_contract_evidence_20260906/independent_review.md",
+      "source": "/tmp/oracle_confirmation_contract_review_20260905.md",
+      "sha256": "013dc7bdf900458e6ed84a569df79827466278291fdfb61ee847b44bed01cbf5"
+    },
+    {
+      "snapshot": "docs/experiments/oracle_confirmation_contract_evidence_20260906/verification.json",
+      "sha256": "d5a76e1c38d594217e13af59151eb760f4149e3c7be56f0553abb4a8f118aa64"
+    }
+  ],
+  "code_and_config_sha256": {
+    "unidream/experiments/oracle_confirmation_contract.py": "7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503",
+    "unidream/experiments/oracle_receipt_support.py": "97a6fee8837fbb741aedd1759d6134eaa6f1b45f11b1b8941ed4637da3dedb2c",
+    "tests/test_oracle_confirmation_contract.py": "fde2f45984474f174cd0f6611b725002c8f8b62992c572bbb9daefa6f64c85ea",
+    "tests/test_oracle_receipt_support.py": "d6bccb8c31373bf5365152c21b9bcab92c4e5ecf7574430e61095f0f6eb35ea3",
+    "configs/oracle_confirmation_contract_20260906.yaml": "037ae07f5bae182eb9f073de79c48bcd523ff624706c4f4d7e9193cb6f1188f1"
+  }
+}
