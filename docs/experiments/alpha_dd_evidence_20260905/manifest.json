@@ -198,9 +198,9 @@
     "sha256": "98da5bd01664363feda817c22c6e15b2cfd02970bd744557543ef1b0511f500a"
   },
   "report": {
-    "bytes": 5860,
+    "bytes": 5931,
     "path": "docs/experiments/alpha_dd_results_20260905.md",
-    "sha256": "d70609ee60f2c04ab5ae5dfcc5d69c160b233294837aaa372187f3537cd22c1a"
+    "sha256": "df9a3dc27a353d4f048fc0cc5b90ca565f55baaf7524ae9d85b89f5facd1988e"
   },
   "repository_worktree": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal",
   "runs": {
@@ -1143,7 +1143,7 @@
   },
   "schema_version": "alpha-dd-evidence-manifest-v1",
   "scope": {
-    "diagnostic_boundary": "BC700/8epoch/AC300 is a separate diagnostic and is not merged into the main Alpha/DD result.",
+    "diagnostic_boundary": "WM700 steps / BC8 epochs / AC300 steps is a separate diagnostic and is not merged into the main Alpha/DD result.",
     "excluded_artifacts": [
       "raw ZIP payloads",
       "raw parquet",
