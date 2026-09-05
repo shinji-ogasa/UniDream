@@ -1,0 +1,21 @@
+{
+  "status": "locked_before_confirmation",
+  "selected_symbol": "BNBUSDT",
+  "selected_candidate": "trend_d90_lo0_hi1.12_p0",
+  "selection_rule": "maximum min(development mean AlphaEx, negative development mean MaxDD delta)",
+  "ETHUSDT": {
+    "selected_candidate": "trend_d30_lo0.5_hi1.12_p0",
+    "selection_score": 0.035155743973017115,
+    "development_file_sha256": "4e1958929caa168a4cf0be2e4ea02c729e638cfe3e30cd85068cc0df2da78a8f",
+    "registration_sha256": "e96b28fb6eb8385f5d9d6796a1477eb7271d9062e637c4a297dc9d2934ad6721"
+  },
+  "BNBUSDT": {
+    "selected_candidate": "trend_d90_lo0_hi1.12_p0",
+    "selection_score": 0.06253537281516972,
+    "development_file_sha256": "3831c742e9a9190a4d9b76a34d14a834ec3338bd0bda4616ca34aea8235724cb",
+    "registration_sha256": "4a21738d0035a006785881aba50b599dfb67ed399f7e2d4147f7d8f99e057b1e"
+  },
+  "ETH_confirmation_allowed": false,
+  "BNB_confirmation_allowed": true,
+  "test_result_cannot_change_asset_selection": true
+}
