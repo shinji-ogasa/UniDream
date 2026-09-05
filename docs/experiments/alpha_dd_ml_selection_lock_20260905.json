@@ -1,0 +1,14 @@
+{
+  "selected_id": "ridge_d7_lo0.5_hi1.12_p2",
+  "development_file_sha256": "74843252b4218a07ccd4e0b82c2eb1cb611c5699f577f7a745b00b6932809ec6",
+  "registration_sha256": "2326728f1df450c6b2289ae2bf43ae45de56fafa13d06e3a4b3a9dac9d6dcc1f",
+  "confirmation_results_observed_at_lock": false,
+  "eligible_candidates": 25,
+  "unavailable_candidates": 0,
+  "model_fits": 78,
+  "minimum_train_rows": 666,
+  "development_alpha_ex_mean": 0.005713699179749654,
+  "development_maxdd_delta_mean": -0.005066308884222155,
+  "development_minimum_target_pass": false,
+  "confirmation_permission": "only this locked candidate and B&H; no retuning"
+}
