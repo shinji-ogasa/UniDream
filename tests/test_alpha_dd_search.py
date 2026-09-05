@@ -1,15 +1,18 @@
 import unittest
 import tempfile
 import json
+import contextlib
+import io
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
 from unidream.experiments.alpha_dd_search import (
     Candidate, FEATURE_NAMES, aggregate, candidate_universe, fit_predictions,
     make_features, metrics, rule_targets,
-    select_development, file_digest, validate_data_artifact,
+    select_development, file_digest, validate_data_artifact, run,
 )
 
 
@@ -150,6 +153,45 @@ class AlphaDDSearchTests(unittest.TestCase):
             sidecar_path.write_text(json.dumps(sidecar))
             with self.assertRaisesRegex(ValueError, "observed mask"):
                 validate_data_artifact(path)
+
+    def test_registered_stage_chain_locks_selection_and_reports_both_means(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            n = 365 * 96
+            data = bars(n, np.exp(np.arange(n) * .00001) * 100).drop(columns="bar_available")
+            path, masks, ledger = root / "spot.parquet", root / "mask.parquet", root / "ledger.jsonl"
+            data.to_parquet(path)
+            pd.DataFrame({"spot_bar_observed": True}, index=data.index).to_parquet(masks)
+            ledger.write_text('{}\n')
+            path.with_suffix(".sha256.json").write_text(json.dumps({
+                "kind": "alpha_dd_spot_15m_artifact_sha256", "status": "complete",
+                "artifact_sha256": file_digest(path), "availability_path": str(masks),
+                "availability_sha256": file_digest(masks), "source_ledger_path": str(ledger),
+                "source_ledger_sha256": file_digest(ledger), "rows": n,
+                "columns": data.columns.tolist(), "availability_column": "spot_bar_observed"}))
+            config = {"data_path": str(path), "output_dir": str(root / "out"),
+                "fold_anchor": "2022-04-01T00:00:00Z", "minimum_bar_coverage": .995,
+                "execution": CONTRACT, "stages": {
+                    "development": {"data_cutoff": "2022-07-01T00:00:00Z", "folds": [0]},
+                    "historical": {"data_cutoff": "2022-10-01T00:00:00Z", "folds": [1]},
+                    "fresh": {"data_cutoff": "2023-01-01T00:00:00Z", "folds": [2]}}}
+            config_path = root / "config.yaml"
+            config_path.write_text(yaml.safe_dump(config))
+            development = run(config_path, "development")
+            historical = run(config_path, "historical")
+            fresh = run(config_path, "fresh")
+            self.assertEqual(development["selected_id"], historical["selected_id"])
+            self.assertEqual(development["selected_id"], fresh["selected_id"])
+            qualification = json.loads((root / "out" / "qualification.json").read_text())
+            self.assertTrue(qualification["complete"])
+            self.assertEqual(qualification["combined"]["folds"], 2)
+            self.assertFalse(qualification["minimum_target_pass"])
+            with self.assertRaisesRegex(ValueError, "immutable"):
+                run(config_path, "historical")
+            config["execution"] = {**CONTRACT, "one_way_cost": 0}
+            config_path.write_text(yaml.safe_dump(config))
+            with self.assertRaisesRegex(ValueError, "registration changed"):
+                run(config_path, "historical")
 
 
 if __name__ == "__main__":

@@ -41,6 +41,10 @@ FEATURE_NAMES = tuple(
 )
 
 
+class CandidateUnavailable(ValueError):
+    """A registered model cannot be fitted/evaluated; never replace it with B&H."""
+
+
 def digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False,
                                      separators=(",", ":")).encode()).hexdigest()
@@ -329,9 +333,11 @@ def fit_predictions(candidate: Candidate, features: pd.DataFrame, bars: pd.DataF
     train &= np.arange(len(bars)) % 16 == 0
     indices = np.flatnonzero(train)
     if len(indices) < 256:
-        raise ValueError(f"insufficient causal fit rows {candidate.id}: {len(indices)}")
+        raise CandidateUnavailable(f"insufficient causal fit rows: {len(indices)} < 256")
     predict = ((bars.index >= fold["val_start"]) & (bars.index < fold["test_end"]))
     predict &= np.isfinite(x).all(axis=1)
+    if not predict.any():
+        raise CandidateUnavailable("no feature-complete inference rows")
     pred = np.full(len(bars), np.nan)
     if candidate.family == "ridge":
         model = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
@@ -344,6 +350,8 @@ def fit_predictions(candidate: Candidate, features: pd.DataFrame, bars: pd.DataF
     elif candidate.family == "logistic":
         model = make_pipeline(StandardScaler(), LogisticRegression(C=0.1, max_iter=500, random_state=7))
         labels = y[train] > 0
+        if len(np.unique(labels)) != 2:
+            raise CandidateUnavailable("training labels have only one class")
     else:
         raise ValueError(candidate.family)
     with threadpool_limits(limits=2):
@@ -408,6 +416,7 @@ def run(config_path: Path, stage: str) -> dict:
     bars = load_bars(path, cutoff=support["data_cutoff"])
     features = make_features(bars)
     rows: dict[str, list[dict]] = {c.id: [] for c in active}
+    unavailable: dict[str, list[dict]] = {}
     provenance = []
     for fold_id in support["folds"]:
         fold = fold_spec(fold_id, config["fold_anchor"])
@@ -424,9 +433,15 @@ def run(config_path: Path, stage: str) -> dict:
             if c.family in ("ridge", "hgb", "logistic"):
                 key = (c.family, c.lookback)
                 if key not in predictions:
-                    pred, proof = fit_predictions(c, features, bars, fold, out)
-                    predictions[key] = pred
-                    provenance.append({"fold": fold_id, "family": c.family, "horizon_days": c.lookback, **proof})
+                    try:
+                        pred, proof = fit_predictions(c, features, bars, fold, out)
+                        predictions[key] = pred
+                        provenance.append({"fold": fold_id, "family": c.family, "horizon_days": c.lookback, **proof})
+                    except CandidateUnavailable as exc:
+                        predictions[key] = str(exc)
+                if isinstance(predictions[key], str):
+                    unavailable.setdefault(c.id, []).append({"fold": fold_id, "reason": predictions[key]})
+                    continue
                 target = forecast_targets(c, predictions[key], features)
             else:
                 target = rule_targets(c, features)
@@ -444,23 +459,48 @@ def run(config_path: Path, stage: str) -> dict:
         print(json.dumps({"event": "fold_complete", "stage": stage, "fold": fold_id,
                           "candidates": len(active)}), flush=True)
         write_json(out / f"{stage}_progress.json", {"registration_sha256": reg_sha, "folds_completed": len(next(iter(rows.values()))), "rows": rows})
-    summary = {key: aggregate(values) for key, values in rows.items()}
+    # No N/A fold is dropped from a model's denominator to make it appear better.
+    summary = {key: aggregate(values) for key, values in rows.items()
+               if len(values) == len(support["folds"]) and key not in unavailable}
     selected_id = select_development(summary) if stage == "development" else locked["selected_id"]
     result = {"stage": stage, "registration_sha256": reg_sha, "data_file_sha256": file_digest(path),
               "data_provenance": data_proof,
               "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "source_sha256": registration["source_sha256"], "selected_id": selected_id,
               "summary": summary, "rows": rows, "model_provenance": provenance,
+              "unavailable_candidates": unavailable,
               "formal_p1_result": False, "orders_submitted": 0,
               "candidate_count_development": len(universe),
               "confirmation_is_report_only": stage != "development"}
     write_json(result_path, result)
+    if stage == "fresh":
+        historical_path = out / "historical.json"
+        historical = json.loads(historical_path.read_text())
+        if historical["selected_id"] != selected_id or historical["registration_sha256"] != reg_sha:
+            raise ValueError("confirmation identities disagree")
+        all_rows = historical["rows"][selected_id] + rows[selected_id]
+        expected_folds = config["stages"]["historical"]["folds"] + support["folds"]
+        complete = [row["fold"] for row in all_rows] == expected_folds
+        qualification = {"selected_id": selected_id, "registration_sha256": reg_sha,
+                         "historical_file_sha256": file_digest(historical_path),
+                         "fresh_file_sha256": file_digest(result_path), "complete": complete,
+                         "minimum_target_pass": False, "preferred_target_pass": False}
+        if complete:
+            combined = aggregate(all_rows)
+            qualification.update({"combined": combined,
+                                  "historical": historical["summary"][selected_id],
+                                  "fresh": summary[selected_id],
+                                  "stress_2x": aggregate([row["stress_2x"] for row in all_rows]),
+                                  "minimum_target_pass": combined["minimum_target_pass"],
+                                  "preferred_target_pass": combined["preferred_target_pass"]})
+        write_json(out / "qualification.json", qualification)
     if stage == "development":
         write_json(out / "selection_lock.json", {"registration_sha256": reg_sha,
                    "development_file_sha256": file_digest(result_path), "selected_id": selected_id,
                    "rule": "maximum min(mean AlphaEx, -mean MaxDDDelta); deterministic ties",
                    "selected_before_historical_or_fresh_results": True})
-    print(json.dumps({"stage": stage, "selected_id": selected_id, "summary": summary[selected_id]}, indent=2), flush=True)
+    print(json.dumps({"stage": stage, "selected_id": selected_id,
+                      "summary": summary.get(selected_id, {"status": "unavailable", "minimum_target_pass": False})}, indent=2), flush=True)
     return result
 
 

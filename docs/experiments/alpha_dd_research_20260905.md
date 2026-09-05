@@ -31,6 +31,9 @@ ML forecasts fit preceding two-year training rows with full future-horizon cover
 and purged target ends before the 3-month validation window. Fixed models are then
 used through the following test quarter. No test labels fit a scaler or model.
 Every fit saves training cutoff, last target timestamp, and serialized model SHA.
+At least 256 complete, purged, 16-bar-subsampled training rows are required. A
+candidate with any unavailable fold is ineligible for selection; unavailable folds
+are not silently removed from its denominator and are not replaced with B&H.
 
 ## Price and execution contract
 
@@ -66,9 +69,13 @@ This mark-to-close DD does not measure unseen intrabar liquidation or outage low
 
 ## Promotion requirements
 
-Require the same locked policy to meet both minimum mean thresholds in historical
-confirmation and the available fresh replication, with explicit cost sensitivity,
-data/provenance checks and output parity. Then export a model fitted using data
+Apply the user's two mean thresholds to all ten registered confirmation quarters
+together (historical folds 15–23 plus fresh fold 24), using the same locked policy.
+Also disclose the historical and fresh subsets separately, including a negative
+fresh quarter if observed. The user requested mean thresholds, not a requirement
+that every individual quarter passes. Require complete coverage of all registered
+quarters, explicit cost sensitivity, data/provenance checks and output parity.
+Then export a model fitted using data
 available at its new fit date, retain training/evaluation provenance, update HF,
 and verify health, fixture parity, real candles inference, and live-source behavior.
 Failure of either economic target leaves the user goal active. Passing code tests
