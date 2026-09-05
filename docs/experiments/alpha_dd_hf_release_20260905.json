@@ -1,0 +1,1108 @@
+{
+  "bundle_digest": "43a8613e7c1cdb1c67fdadd8c9ed9a141cf49cfbdf17fc672a2f0784cf157b9c",
+  "checked_at": "2026-09-05T07:51:33.102189+00:00",
+  "checks": [
+    {
+      "body": {
+        "authentication_mode": "public_read_only",
+        "legacy_btc_endpoint": "/predict",
+        "live_performance": false,
+        "model_id": "bnb-trend90-20260905",
+        "model_kind": "deterministic_trend_rule",
+        "ok": true,
+        "orders_submitted": 0,
+        "research_evidence": {
+          "alpha_ex_mean": 0.01356380511534554,
+          "alpha_ex_mean_pt": 1.356380511534554,
+          "alpha_ex_median_pt": -2.0677619737079267,
+          "alpha_positive_folds": 4,
+          "asset": "BNBUSDT",
+          "candidate_id": "trend_d90_lo0_hi1.12_p0",
+          "data_file_sha256": "8dbddc11313b1e883df159a5493b8a5f29c46b0569a76914f95fd12a403f3f55",
+          "dd_improved_folds": 4,
+          "development_file_sha256": "3831c742e9a9190a4d9b76a34d14a834ec3338bd0bda4616ca34aea8235724cb",
+          "folds": 10,
+          "fresh_alpha_ex_mean_pt": 6.598890321506534,
+          "fresh_file_sha256": "2c4045ce132f1f3a848abdd66a3e77c8ae41a7a81401ab6362af92979459d825",
+          "fresh_maxdd_delta_mean_pt": -12.14685698675776,
+          "historical_alpha_ex_mean_pt": 0.7738794215376673,
+          "historical_file_sha256": "7f36b58409afda229fb35cdb454b14bae33eb6d275b298d0ccb180dec897f880",
+          "historical_maxdd_delta_mean_pt": -5.596713073918209,
+          "maxdd_delta_mean": -0.06251727465202164,
+          "maxdd_delta_mean_pt": -6.251727465202164,
+          "maxdd_delta_median_pt": 1.7152506110552745,
+          "minimum_target_pass": true,
+          "preferred_target_pass": false,
+          "qualification_sha256": "a9372fafef64f3a5e1137fb9b720d25811f34d7f5b7cc00a34628d6d20b7ca62",
+          "registration_sha256": "4a21738d0035a006785881aba50b599dfb67ed399f7e2d4147f7d8f99e057b1e",
+          "research_report": "https://github.com/shinji-ogasa/UniDream/blob/621d5e67d11aa93c7a6e94cf7070d4c6572dc5dd/docs/experiments/alpha_dd_results_20260905.md",
+          "scope": "historical_plus_one_fresh_quarter; descriptive research evidence only; not selection-adjusted proof or live performance",
+          "source_revision": "4b949036ce9206784ae60b4f22fbade43970a773",
+          "stress_2x_alpha_ex_mean_pt": 0.6778649879990472,
+          "stress_2x_maxdd_delta_mean_pt": -6.044218464979727,
+          "stress_2x_minimum_target_pass": false,
+          "uncertainty": "Both descriptive fold-bootstrap intervals include zero. Medians and 2x cost stress do not pass. Confirmation windows were reused across sequential trials, not untouched or selection-adjusted evidence."
+        },
+        "research_only": true,
+        "schema": {
+          "bundle_digest": "43a8613e7c1cdb1c67fdadd8c9ed9a141cf49cfbdf17fc672a2f0784cf157b9c",
+          "bundle_type": "alpha_trend_bnbusdt_15m_v1",
+          "causal_shift_bars": 1,
+          "decision_schedule": "UTC bar-open minute == 00",
+          "device": "cpu",
+          "execution": {
+            "borrow_annual": 0.1,
+            "deadband": 0.01,
+            "filled_position_reported": false,
+            "max_step": 0.08,
+            "next_open_delay_bars": 1,
+            "one_way_cost": 0.00055
+          },
+          "feature_columns": [
+            "momentum_90"
+          ],
+          "feature_contract": "alpha_trend_bnbusdt_15m_v1",
+          "interval": "15m",
+          "lookback_bars": 8640,
+          "lookback_days": 90,
+          "minimum_history_bars": 8641,
+          "minimum_row_aligned_input_bars": 8642,
+          "missing_bar_policy": "reindex elapsed UTC 15m grid; missing close makes endpoint momentum unavailable; no interpolation or zero fill",
+          "optional_raw_columns": [
+            "open",
+            "high",
+            "low",
+            "volume"
+          ],
+          "required_raw_columns": [
+            "timestamp",
+            "close"
+          ],
+          "symbol": "BNBUSDT"
+        }
+      },
+      "elapsed_seconds": 0.5935903750068974,
+      "method": "GET",
+      "path": "/v2/health",
+      "response_sha256": "ec91ab8a4cfe75e34cdc0cb5c093cad46546c5541f0793ebf9c417fa2726ef00",
+      "status": 200
+    },
+    {
+      "body": {
+        "live_health_checked": false,
+        "model_id": "bnb-trend90-20260905",
+        "ok": true,
+        "performance_recomputed": false,
+        "real_research_parity": {
+          "cases": [
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-01-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-04-16T12:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-04-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-07-16T12:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-07-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-10-16T12:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2024-10-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2025-01-16T12:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2025-01-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2025-04-16T12:00:00+00:00",
+              "expected_target": 0.0
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2025-04-16T14:00:00+00:00",
+              "expected_target": 0.0
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2025-07-16T12:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2025-07-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2025-10-16T12:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 1.12,
+              "decision_ts": "2025-10-16T14:00:00+00:00",
+              "expected_target": 1.12
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2026-01-16T12:00:00+00:00",
+              "expected_target": 0.0
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2026-01-16T14:00:00+00:00",
+              "expected_target": 0.0
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2026-04-16T12:00:00+00:00",
+              "expected_target": 0.0
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2026-04-16T14:00:00+00:00",
+              "expected_target": 0.0
+            },
+            {
+              "actual_target": 0.0,
+              "decision_ts": "2026-07-16T12:00:00+00:00",
+              "expected_target": 0.0
+            }
+          ],
+          "live_health_checked": false,
+          "max_signal_abs_diff": 0.0,
+          "max_target_abs_diff": 0.0,
+          "metadata_sha256": "be892442151d0e075db79a0629deb18574c1418dcd7fbe6d043deda2fd75f0bd",
+          "n_cases": 20,
+          "npz_sha256": "f5f5be2981cdd99d40a575cb6ddbae7650d29e5554341396742416d5a7607c82",
+          "performance_recomputed": false,
+          "research_evaluator_sha256": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+          "source_data_sha256": "8dbddc11313b1e883df159a5493b8a5f29c46b0569a76914f95fd12a403f3f55",
+          "strict_ok": true
+        },
+        "strict_ok": true,
+        "synthetic_fixture": {
+          "actual_signal": 0.08639999999999937,
+          "actual_target": 1.12,
+          "decision_timestamp": "2025-04-01T00:15:00+00:00",
+          "expected_signal": 0.0864,
+          "expected_target": 1.12,
+          "fixture": "sample_fixture.json",
+          "fixture_parity": true,
+          "fixture_sha256": "e982a50eb55b9b4c02861e15d680d207035ecea81d914a62bc123074774552ec",
+          "live_health_checked": false,
+          "n_bars": 8641,
+          "ok": true,
+          "performance_checked": false,
+          "schema_digest": "43a8613e7c1cdb1c67fdadd8c9ed9a141cf49cfbdf17fc672a2f0784cf157b9c",
+          "strict_ok": true,
+          "verification_type": "deterministic_rule_fixture"
+        }
+      },
+      "elapsed_seconds": 3.366525208009989,
+      "method": "GET",
+      "path": "/v2/sample/verify",
+      "response_sha256": "fcb7d4925b76e498cb8697df452a97eb45d340f44d8a2fe29fcbec5c93ff2620",
+      "status": 200
+    },
+    {
+      "body": {
+        "account_state_checked": false,
+        "decision_eligible": true,
+        "desired_target": 0.0,
+        "desired_targets": [
+          0.0
+        ],
+        "execution_intent": {
+          "action": "requires_current_position_for_indicative_clamp",
+          "adjusted_target": null,
+          "adjustment": null,
+          "borrow_annual": 0.1,
+          "current_position": null,
+          "deadband": 0.01,
+          "decision_timestamp": "2025-04-16T12:00:00+00:00",
+          "desired_target": 0.0,
+          "feature_observation_timestamp": "2025-04-16T11:45:00+00:00",
+          "fill_timestamp": "2025-04-16T12:15:00+00:00",
+          "filled": false,
+          "filled_position": null,
+          "max_step": 0.08,
+          "next_open_available_in_input": null,
+          "one_way_cost": 0.00055,
+          "position_semantics": "desired_target_and_indicative_adjustment_only; no realized position",
+          "schedule_rule": "decision bar minute == 00 (hourly)",
+          "schedule_timezone": "UTC",
+          "scheduled": true,
+          "status": "target_only_current_position_unknown",
+          "target_bounds": {
+            "ceiling": 1.12,
+            "floor": 0.0
+          }
+        },
+        "execution_note": "Revalue actual inventory at the registered future fill open; this API does not execute orders.",
+        "execution_ready": false,
+        "execution_window_has_passed": true,
+        "interval": "15m",
+        "meta": {
+          "close_coverage": 1.0,
+          "close_observed_bars": 8641,
+          "decision_timestamp": "2025-04-16T12:00:00+00:00",
+          "device": "cpu",
+          "feature_columns": [
+            "momentum_90"
+          ],
+          "feature_contract": "alpha_trend_bnbusdt_15m_v1",
+          "feature_observation_timestamp": "2025-04-16T11:45:00+00:00",
+          "feature_value": -0.2035433464504255,
+          "forecast_next_decision": true,
+          "grid_bars": 8641,
+          "input_candles": 8641,
+          "input_type": "candles",
+          "latest_closed_timestamp": "2025-04-16T11:45:00+00:00",
+          "missing_grid_bars": 0,
+          "n_bars": 1,
+          "next_open_availability": null,
+          "next_open_timestamp": "2025-04-16T12:15:00+00:00",
+          "obs_dim": 1,
+          "position_semantics": "desired_target; no realized position is returned",
+          "schema_digest": "43a8613e7c1cdb1c67fdadd8c9ed9a141cf49cfbdf17fc672a2f0784cf157b9c"
+        },
+        "model_id": "bnb-trend90-20260905",
+        "orders_submitted": 0,
+        "response_semantics": "desired target and conditional execution intent; not a filled position",
+        "served_at": "2026-09-05T07:51:15.568526+00:00",
+        "signal": "underweight",
+        "symbol": "BNBUSDT",
+        "tail": [
+          {
+            "decision_scheduled_utc": true,
+            "desired_target": 0.0,
+            "signal": "underweight",
+            "t": "2025-04-16T12:00:00+00:00"
+          }
+        ],
+        "timestamp": "2025-04-16T12:00:00+00:00"
+      },
+      "elapsed_seconds": 1.3180792909988668,
+      "method": "POST",
+      "path": "/v2/predict",
+      "request_sha256": "12e80dc11fb3a7c5982f8e6de9f9c79b89592107107655ea5ba93474bc4af4ee",
+      "response_sha256": "53a355a0fd9423acb8c0765de58357077968d16ecbcf1e6cebba7a57cf052898",
+      "status": 200
+    },
+    {
+      "body": {
+        "account_state_checked": false,
+        "decision_eligible": true,
+        "desired_target": 1.12,
+        "desired_targets": [
+          1.12
+        ],
+        "execution_intent": {
+          "action": "requires_current_position_for_indicative_clamp",
+          "adjusted_target": null,
+          "adjustment": null,
+          "borrow_annual": 0.1,
+          "current_position": null,
+          "deadband": 0.01,
+          "decision_timestamp": "2024-01-16T14:00:00+00:00",
+          "desired_target": 1.12,
+          "feature_observation_timestamp": "2024-01-16T13:45:00+00:00",
+          "fill_timestamp": "2024-01-16T14:15:00+00:00",
+          "filled": false,
+          "filled_position": null,
+          "max_step": 0.08,
+          "next_open_available_in_input": null,
+          "one_way_cost": 0.00055,
+          "position_semantics": "desired_target_and_indicative_adjustment_only; no realized position",
+          "schedule_rule": "decision bar minute == 00 (hourly)",
+          "schedule_timezone": "UTC",
+          "scheduled": true,
+          "status": "target_only_current_position_unknown",
+          "target_bounds": {
+            "ceiling": 1.12,
+            "floor": 0.0
+          }
+        },
+        "execution_note": "Revalue actual inventory at the registered future fill open; this API does not execute orders.",
+        "execution_ready": false,
+        "execution_window_has_passed": true,
+        "interval": "15m",
+        "meta": {
+          "close_coverage": 1.0,
+          "close_observed_bars": 8641,
+          "decision_timestamp": "2024-01-16T14:00:00+00:00",
+          "device": "cpu",
+          "feature_columns": [
+            "momentum_90"
+          ],
+          "feature_contract": "alpha_trend_bnbusdt_15m_v1",
+          "feature_observation_timestamp": "2024-01-16T13:45:00+00:00",
+          "feature_value": 0.4013648027261931,
+          "forecast_next_decision": true,
+          "grid_bars": 8641,
+          "input_candles": 8641,
+          "input_type": "candles",
+          "latest_closed_timestamp": "2024-01-16T13:45:00+00:00",
+          "missing_grid_bars": 0,
+          "n_bars": 1,
+          "next_open_availability": null,
+          "next_open_timestamp": "2024-01-16T14:15:00+00:00",
+          "obs_dim": 1,
+          "position_semantics": "desired_target; no realized position is returned",
+          "schema_digest": "43a8613e7c1cdb1c67fdadd8c9ed9a141cf49cfbdf17fc672a2f0784cf157b9c"
+        },
+        "model_id": "bnb-trend90-20260905",
+        "orders_submitted": 0,
+        "response_semantics": "desired target and conditional execution intent; not a filled position",
+        "served_at": "2026-09-05T07:51:16.173755+00:00",
+        "signal": "overweight",
+        "symbol": "BNBUSDT",
+        "tail": [
+          {
+            "decision_scheduled_utc": true,
+            "desired_target": 1.12,
+            "signal": "overweight",
+            "t": "2024-01-16T14:00:00+00:00"
+          }
+        ],
+        "timestamp": "2024-01-16T14:00:00+00:00"
+      },
+      "elapsed_seconds": 0.5582222500088392,
+      "method": "POST",
+      "path": "/v2/predict",
+      "request_sha256": "f4ecd93f6c53a17b05a8ac5985c2943fdf5c4ebb850353ddc8a4e7ca68a0c038",
+      "response_sha256": "0e5a3a1d9e8bfbdc14737706ac03f1a4ae45104429578ae693230f9c798b68c5",
+      "status": 200
+    },
+    {
+      "body": {
+        "detail": [
+          {
+            "ctx": {
+              "expected": "'BNBUSDT'"
+            },
+            "input": "BTCUSDT",
+            "loc": [
+              "body",
+              "symbol"
+            ],
+            "msg": "Input should be 'BNBUSDT'",
+            "type": "literal_error"
+          }
+        ]
+      },
+      "elapsed_seconds": 0.2942768749926472,
+      "method": "POST",
+      "path": "/v2/predict",
+      "request_sha256": "73dfb63d65da9feb4d327606f165f209edec3e3c6ac88d59436d85e38e060e48",
+      "response_sha256": "56edf5392107ecbacebb1e98b86c4c2e6ef32f2258abbf625b3667b87e49ada4",
+      "status": 422
+    },
+    {
+      "body": {
+        "detail": "future decision history is not closed yet"
+      },
+      "elapsed_seconds": 0.2255694160121493,
+      "method": "POST",
+      "path": "/v2/predict",
+      "request_sha256": "45ef9073aa6b6c034fb312d2e144a5ba06be826868f491d352bcb2fd4b7ed460",
+      "response_sha256": "20d28c340ddb1bfb050f5eee9481b3122973007c72ca1c5882f1e397f6decf4c",
+      "status": 400
+    },
+    {
+      "body": {
+        "account_state_checked": false,
+        "data_provenance": {
+          "archive_backfill": false,
+          "candles_sha256": "088397a7c21abf68b168dc2edbd4063a78806c32bb29bcfcd5648c84dd3d53ce",
+          "closed_bar_only": true,
+          "collector_observed_ts": "2026-09-05T07:50:54.039713+00:00",
+          "decision_ts": "2026-09-05T07:45:00+00:00",
+          "interval": "15m",
+          "lookback_grid_bars": 8641,
+          "missing_grid_bars": 0,
+          "observed_bars": 8641,
+          "provider": "Binance public Spot market data",
+          "requires_derivatives": false,
+          "response_sha256": [
+            "adf3467183bb7398c7a10d1d6ca421405e9a744863bc8f7353fdec7d47b2842b",
+            "e71ec1f715e7a410b202c0ec53dc52a19368396d445bfa15ff3f57f914fd1989",
+            "463124219935015c91e05051d5dbd70d0121ee5cafe336bc24d4c78758ddc979",
+            "8ebfa3e3fd63ca043e1162059e141d82d10493a8398d3774bbab5c1d3bfb02bb",
+            "18d6983c6e0c276e7cfff1c16af35dc55d6582e823969f014541dc8efad3bba4",
+            "09837f2c9a07517a9032007c5de38e050b66dcb849a2940d171576f7b9ea2026",
+            "ab4b4dc6d7282854fc0eee59ad05523f3a7268649396c0d5ee1270d123f26e6b",
+            "eb21f03a34a29b81b97f9eacb16f23aefd6b1f7855d62603ee675b02c2afe870",
+            "c8c0130770765c74883747d11ef0a0d5c5199092dfb04f733b29a519a06845f7"
+          ],
+          "source_symbol": "BNBUSDT",
+          "source_url": "https://data-api.binance.vision/api/v3/klines"
+        },
+        "decision_eligible": false,
+        "desired_target": 1.12,
+        "desired_targets": [
+          1.12
+        ],
+        "execution_intent": {
+          "action": "none",
+          "adjusted_target": null,
+          "adjustment": null,
+          "borrow_annual": 0.1,
+          "current_position": null,
+          "deadband": 0.01,
+          "decision_timestamp": "2026-09-05T07:45:00+00:00",
+          "desired_target": 1.12,
+          "feature_observation_timestamp": "2026-09-05T07:30:00+00:00",
+          "fill_timestamp": "2026-09-05T08:00:00+00:00",
+          "filled": false,
+          "filled_position": null,
+          "max_step": 0.08,
+          "next_open_available_in_input": null,
+          "one_way_cost": 0.00055,
+          "position_semantics": "desired_target_and_indicative_adjustment_only; no realized position",
+          "schedule_rule": "decision bar minute == 00 (hourly)",
+          "schedule_timezone": "UTC",
+          "scheduled": false,
+          "status": "not_scheduled",
+          "target_bounds": {
+            "ceiling": 1.12,
+            "floor": 0.0
+          }
+        },
+        "execution_note": "Revalue actual inventory at the registered future fill open; this API does not execute orders.",
+        "execution_ready": false,
+        "execution_window_has_passed": false,
+        "interval": "15m",
+        "meta": {
+          "close_coverage": 1.0,
+          "close_observed_bars": 8641,
+          "decision_timestamp": "2026-09-05T07:45:00+00:00",
+          "device": "cpu",
+          "feature_columns": [
+            "momentum_90"
+          ],
+          "feature_contract": "alpha_trend_bnbusdt_15m_v1",
+          "feature_observation_timestamp": "2026-09-05T07:30:00+00:00",
+          "feature_value": 0.22496230122174765,
+          "forecast_next_decision": true,
+          "grid_bars": 8641,
+          "input_candles": 8641,
+          "input_type": "candles",
+          "latest_closed_timestamp": "2026-09-05T07:30:00+00:00",
+          "missing_grid_bars": 0,
+          "n_bars": 1,
+          "next_open_availability": null,
+          "next_open_timestamp": "2026-09-05T08:00:00+00:00",
+          "obs_dim": 1,
+          "position_semantics": "desired_target; no realized position is returned",
+          "schema_digest": "43a8613e7c1cdb1c67fdadd8c9ed9a141cf49cfbdf17fc672a2f0784cf157b9c"
+        },
+        "model_id": "bnb-trend90-20260905",
+        "orders_submitted": 0,
+        "response_semantics": "desired target and conditional execution intent; not a filled position",
+        "served_at": "2026-09-05T07:51:17.107729+00:00",
+        "signal": "overweight",
+        "symbol": "BNBUSDT",
+        "tail": [
+          {
+            "decision_scheduled_utc": false,
+            "desired_target": 1.12,
+            "signal": "overweight",
+            "t": "2026-09-05T07:45:00+00:00"
+          }
+        ],
+        "timestamp": "2026-09-05T07:45:00+00:00"
+      },
+      "elapsed_seconds": 0.38513216700812336,
+      "method": "GET",
+      "path": "/v2/predict/latest",
+      "response_sha256": "8f0a0a9036d14832fd24234a79aa2d281fea9b0c7ac3a1a769c0fb8a2156faf7",
+      "status": 200
+    },
+    {
+      "body": {
+        "bundle": "/app/bundles/current",
+        "device": "cpu",
+        "ok": true,
+        "run": {
+          "ac_filename": "ac.pt",
+          "checkpoint_dir": "checkpoints/plan011_overlay_actor_v31_relative_constraint_ac_s007",
+          "fold": 23,
+          "label": "Plan011v31",
+          "mode": "ac",
+          "no_leak_scope": "Walk-forward bundle uses only the selected fold train/validation data for model fitting and exports the selected fold test split only as a sample verification path.",
+          "seed": 7,
+          "source": "wm_bc_ac_relative_constraint_overlay",
+          "spec": "plan011_v31_relative_constraint_ac_fold23_recent_holdout",
+          "status": "latest_holdout_candidate"
+        },
+        "schema": {
+          "bundle_digest": "c61d58fdd182e574a357d2cab64f40958f0d377fc96271eb5bc58e8b5cf91a56",
+          "config_digest": "27e269db0d0874ac602c4eefaa8986e0340b9e3a421aeb6142194eb2f0e249ec",
+          "data_schema_digest": "2c921fa85134b753abf6fdd2174c104d95ae1ec9949a9ffc43cb8c4fea75f00a",
+          "feature_coverage": {
+            "derived_feature_columns": [
+              "open_ret",
+              "high_ret",
+              "low_ret",
+              "close_ret",
+              "vol_ret",
+              "RSI_14",
+              "macd",
+              "macd_signal",
+              "atr_norm_ret",
+              "atr",
+              "rv_4",
+              "rv_16",
+              "rv_96"
+            ],
+            "external_feature_columns": [
+              "funding_rate",
+              "basis",
+              "basis_mom",
+              "basis_abs"
+            ],
+            "external_feature_sources": {
+              "basis": [
+                "mark_close"
+              ],
+              "basis_abs": [
+                "mark_close"
+              ],
+              "basis_mom": [
+                "mark_close"
+              ],
+              "funding_rate": [
+                "funding_rate"
+              ]
+            },
+            "feature_columns": [
+              "open_ret",
+              "high_ret",
+              "low_ret",
+              "close_ret",
+              "vol_ret",
+              "RSI_14",
+              "macd",
+              "macd_signal",
+              "atr_norm_ret",
+              "atr",
+              "rv_4",
+              "rv_16",
+              "rv_96",
+              "funding_rate",
+              "basis",
+              "basis_mom",
+              "basis_abs"
+            ],
+            "feature_count": 17,
+            "obs_dim": 17,
+            "required_external_raw_columns": [
+              "funding_rate",
+              "mark_close"
+            ],
+            "required_raw_columns": [
+              "timestamp",
+              "open",
+              "high",
+              "low",
+              "close",
+              "volume",
+              "funding_rate",
+              "mark_close"
+            ],
+            "schema_digest": "2c921fa85134b753abf6fdd2174c104d95ae1ec9949a9ffc43cb8c4fea75f00a"
+          },
+          "requirements_digest": "86a488c216b907d0c10edd01ea51dab48a027733b79071796b567f84866d7ec2",
+          "runtime": {
+            "numpy": "2.4.6",
+            "python": "3.11.16",
+            "torch": "2.14.0+cu130",
+            "torch_num_interop_threads": 8,
+            "torch_num_threads": 2
+          }
+        }
+      },
+      "elapsed_seconds": 1.4116179579868913,
+      "method": "GET",
+      "path": "/health",
+      "response_sha256": "817db6b960413cd470522e74b9eb722ff60d3056022f7b5340837037731a2adf",
+      "status": 200
+    },
+    {
+      "body": {
+        "actual_last": 1.0063214302062988,
+        "diagnostic_tolerance": 2e-05,
+        "expected_last": 1.0063214302062988,
+        "feature_coverage": {
+          "complete": true,
+          "duplicate_columns": [],
+          "expected_columns": [
+            "open_ret",
+            "high_ret",
+            "low_ret",
+            "close_ret",
+            "vol_ret",
+            "RSI_14",
+            "macd",
+            "macd_signal",
+            "atr_norm_ret",
+            "atr",
+            "rv_4",
+            "rv_16",
+            "rv_96",
+            "funding_rate",
+            "basis",
+            "basis_mom",
+            "basis_abs"
+          ],
+          "expected_count": 17,
+          "missing_columns": [],
+          "order_ok": true,
+          "present_columns": [
+            "open_ret",
+            "high_ret",
+            "low_ret",
+            "close_ret",
+            "vol_ret",
+            "RSI_14",
+            "macd",
+            "macd_signal",
+            "atr_norm_ret",
+            "atr",
+            "rv_4",
+            "rv_16",
+            "rv_96",
+            "funding_rate",
+            "basis",
+            "basis_mom",
+            "basis_abs"
+          ],
+          "present_count": 17,
+          "source": "manifest_positional"
+        },
+        "injected_fixture_actual_last": 1.0063214302062988,
+        "injected_fixture_expected_last": 1.0063214302062988,
+        "injected_fixture_max_abs_diff": 1.1920928955078125e-07,
+        "injected_fixture_mean_abs_diff": 1.131253535291421e-09,
+        "injected_fixture_n": 8641,
+        "injected_fixture_ok": true,
+        "injected_fixture_strict_ok": true,
+        "live_default_actual_last": 1.0063214302062988,
+        "live_default_advantage_checked": true,
+        "live_default_advantage_max_abs_diff": 1.531839370727539e-05,
+        "live_default_advantage_mean_abs_diff": 9.55808559410798e-07,
+        "live_default_advantage_n": 362922,
+        "live_default_advantage_ok": true,
+        "live_default_advantage_strict_ok": false,
+        "live_default_expected_last": 1.0063214302062988,
+        "live_default_max_abs_diff": 1.1920928955078125e-07,
+        "live_default_mean_abs_diff": 8.705133502928675e-09,
+        "live_default_n": 8641,
+        "live_default_ok": true,
+        "live_default_strict_ok": true,
+        "live_default_tail": [
+          {
+            "position": 1.0064640045166016,
+            "t": "2026-04-16 11:30:00"
+          },
+          {
+            "position": 1.0063868761062622,
+            "t": "2026-04-16 11:45:00"
+          },
+          {
+            "position": 1.0063323974609375,
+            "t": "2026-04-16 12:00:00"
+          },
+          {
+            "position": 1.0063064098358154,
+            "t": "2026-04-16 12:15:00"
+          },
+          {
+            "position": 1.0062960386276245,
+            "t": "2026-04-16 12:30:00"
+          },
+          {
+            "position": 1.0062812566757202,
+            "t": "2026-04-16 12:45:00"
+          },
+          {
+            "position": 1.0062671899795532,
+            "t": "2026-04-16 13:00:00"
+          },
+          {
+            "position": 1.0062769651412964,
+            "t": "2026-04-16 13:15:00"
+          },
+          {
+            "position": 1.0062867403030396,
+            "t": "2026-04-16 13:30:00"
+          },
+          {
+            "position": 1.0063214302062988,
+            "t": "2026-04-16 13:45:00"
+          }
+        ],
+        "max_abs_diff": 1.1920928955078125e-07,
+        "mean_abs_diff": 1.131253535291421e-09,
+        "n": 8641,
+        "ok": true,
+        "position_tolerance": 1e-06,
+        "schema": {
+          "bundle_digest": "c61d58fdd182e574a357d2cab64f40958f0d377fc96271eb5bc58e8b5cf91a56",
+          "config_digest": "27e269db0d0874ac602c4eefaa8986e0340b9e3a421aeb6142194eb2f0e249ec",
+          "data_schema_digest": "2c921fa85134b753abf6fdd2174c104d95ae1ec9949a9ffc43cb8c4fea75f00a",
+          "feature_coverage": {
+            "derived_feature_columns": [
+              "open_ret",
+              "high_ret",
+              "low_ret",
+              "close_ret",
+              "vol_ret",
+              "RSI_14",
+              "macd",
+              "macd_signal",
+              "atr_norm_ret",
+              "atr",
+              "rv_4",
+              "rv_16",
+              "rv_96"
+            ],
+            "external_feature_columns": [
+              "funding_rate",
+              "basis",
+              "basis_mom",
+              "basis_abs"
+            ],
+            "external_feature_sources": {
+              "basis": [
+                "mark_close"
+              ],
+              "basis_abs": [
+                "mark_close"
+              ],
+              "basis_mom": [
+                "mark_close"
+              ],
+              "funding_rate": [
+                "funding_rate"
+              ]
+            },
+            "feature_columns": [
+              "open_ret",
+              "high_ret",
+              "low_ret",
+              "close_ret",
+              "vol_ret",
+              "RSI_14",
+              "macd",
+              "macd_signal",
+              "atr_norm_ret",
+              "atr",
+              "rv_4",
+              "rv_16",
+              "rv_96",
+              "funding_rate",
+              "basis",
+              "basis_mom",
+              "basis_abs"
+            ],
+            "feature_count": 17,
+            "obs_dim": 17,
+            "required_external_raw_columns": [
+              "funding_rate",
+              "mark_close"
+            ],
+            "required_raw_columns": [
+              "timestamp",
+              "open",
+              "high",
+              "low",
+              "close",
+              "volume",
+              "funding_rate",
+              "mark_close"
+            ],
+            "schema_digest": "2c921fa85134b753abf6fdd2174c104d95ae1ec9949a9ffc43cb8c4fea75f00a"
+          },
+          "requirements_digest": "86a488c216b907d0c10edd01ea51dab48a027733b79071796b567f84866d7ec2",
+          "runtime": {
+            "numpy": "2.4.6",
+            "python": "3.11.16",
+            "torch": "2.14.0+cu130",
+            "torch_num_interop_threads": 8,
+            "torch_num_threads": 2
+          }
+        },
+        "strict_ok": true,
+        "tail": [
+          {
+            "position": 1.0064640045166016,
+            "t": "2026-04-16 11:30:00"
+          },
+          {
+            "position": 1.0063868761062622,
+            "t": "2026-04-16 11:45:00"
+          },
+          {
+            "position": 1.0063323974609375,
+            "t": "2026-04-16 12:00:00"
+          },
+          {
+            "position": 1.0063064098358154,
+            "t": "2026-04-16 12:15:00"
+          },
+          {
+            "position": 1.0062960386276245,
+            "t": "2026-04-16 12:30:00"
+          },
+          {
+            "position": 1.0062812566757202,
+            "t": "2026-04-16 12:45:00"
+          },
+          {
+            "position": 1.0062671899795532,
+            "t": "2026-04-16 13:00:00"
+          },
+          {
+            "position": 1.0062769651412964,
+            "t": "2026-04-16 13:15:00"
+          },
+          {
+            "position": 1.0062867403030396,
+            "t": "2026-04-16 13:30:00"
+          },
+          {
+            "position": 1.0063214302062988,
+            "t": "2026-04-16 13:45:00"
+          }
+        ]
+      },
+      "elapsed_seconds": 13.870663333000266,
+      "method": "GET",
+      "path": "/sample/verify",
+      "response_sha256": "4f4b15e62b63efd84f670d03938e8f614d3f9cb89e2c1fcedd0d0ba7c1fabb3e",
+      "status": 200
+    },
+    {
+      "body": {
+        "meta": {
+          "advantage_used": true,
+          "benchmark_position": 1.0,
+          "device": "cpu",
+          "feature_coverage": {
+            "complete": true,
+            "duplicate_columns": [],
+            "expected_columns": [
+              "open_ret",
+              "high_ret",
+              "low_ret",
+              "close_ret",
+              "vol_ret",
+              "RSI_14",
+              "macd",
+              "macd_signal",
+              "atr_norm_ret",
+              "atr",
+              "rv_4",
+              "rv_16",
+              "rv_96",
+              "funding_rate",
+              "basis",
+              "basis_mom",
+              "basis_abs"
+            ],
+            "expected_count": 17,
+            "missing_columns": [],
+            "order_ok": true,
+            "present_columns": [
+              "open_ret",
+              "high_ret",
+              "low_ret",
+              "close_ret",
+              "vol_ret",
+              "RSI_14",
+              "macd",
+              "macd_signal",
+              "atr_norm_ret",
+              "atr",
+              "rv_4",
+              "rv_16",
+              "rv_96",
+              "funding_rate",
+              "basis",
+              "basis_mom",
+              "basis_abs"
+            ],
+            "present_count": 17,
+            "source": "manifest_positional"
+          },
+          "n_bars": 64,
+          "obs_dim": 17,
+          "regime_used": true,
+          "schema_digest": "2c921fa85134b753abf6fdd2174c104d95ae1ec9949a9ffc43cb8c4fea75f00a"
+        },
+        "position": 1.0017424821853638,
+        "positions": [
+          1.000037670135498,
+          1.0000754594802856,
+          1.0001102685928345,
+          1.0001392364501953,
+          1.0001999139785767,
+          1.0002338886260986,
+          1.000256896018982,
+          1.0002878904342651,
+          1.0003323554992676,
+          1.0003587007522583,
+          1.0003750324249268,
+          1.0003933906555176,
+          1.0004035234451294,
+          1.000417947769165,
+          1.0004297494888306,
+          1.0004432201385498,
+          1.0004661083221436,
+          1.0004987716674805,
+          1.0005137920379639,
+          1.0005301237106323,
+          1.0005484819412231,
+          1.000568151473999,
+          1.000577449798584,
+          1.0005923509597778,
+          1.0005971193313599,
+          1.0006163120269775,
+          1.0006438493728638,
+          1.0006715059280396,
+          1.0006932020187378,
+          1.000712275505066,
+          1.0007379055023193,
+          1.000765323638916,
+          1.0007857084274292,
+          1.0008106231689453,
+          1.0008491277694702,
+          1.0008879899978638,
+          1.000914216041565,
+          1.0009526014328003,
+          1.0009928941726685,
+          1.0010263919830322,
+          1.0010732412338257,
+          1.0011074542999268,
+          1.00113844871521,
+          1.001171350479126,
+          1.0012121200561523,
+          1.0012400150299072,
+          1.0012768507003784,
+          1.0013062953948975,
+          1.0013396739959717,
+          1.001363754272461,
+          1.0013993978500366,
+          1.001430630683899,
+          1.0014547109603882,
+          1.0014857053756714,
+          1.0015244483947754,
+          1.001556158065796,
+          1.0015898942947388,
+          1.0016132593154907,
+          1.0016354322433472,
+          1.0016591548919678,
+          1.0016863346099854,
+          1.0017039775848389,
+          1.0017257928848267,
+          1.0017424821853638
+        ],
+        "signal": "benchmark",
+        "tail": [
+          {
+            "position": 1.0017424821853638,
+            "t": null
+          }
+        ]
+      },
+      "elapsed_seconds": 0.24729020899394527,
+      "method": "POST",
+      "path": "/predict",
+      "request_sha256": "e7e3e316887cfb012793de8ee3c964e21412a10c5ab8570df5552c541fda59a6",
+      "response_sha256": "aadd4dfb682b1c98def9598dec49b3d242254472f10cbb7b65fcf7228549767e",
+      "status": 200
+    }
+  ],
+  "complete": true,
+  "deployment_revision": "14e5df6c30db03c5ea115f2e3030ff3ccf8beda3",
+  "independent_live_endpoint_closes": [
+    588.88,
+    737.44
+  ],
+  "independent_live_momentum": 0.22496230122174765,
+  "orders_submitted": 0,
+  "runtime_after": {
+    "devMode": false,
+    "domains": [
+      {
+        "domain": "shinjiaa-unidream-space.hf.space",
+        "stage": "READY"
+      }
+    ],
+    "gcTimeout": 172800,
+    "hardware": {
+      "current": "cpu-basic",
+      "requested": "cpu-basic"
+    },
+    "pySpacesVersion": "0.51.3",
+    "replicas": {
+      "current": 1,
+      "requested": 1
+    },
+    "sha": "14e5df6c30db03c5ea115f2e3030ff3ccf8beda3",
+    "stage": "RUNNING"
+  },
+  "runtime_before": {
+    "devMode": false,
+    "domains": [
+      {
+        "domain": "shinjiaa-unidream-space.hf.space",
+        "stage": "READY"
+      }
+    ],
+    "gcTimeout": 172800,
+    "hardware": {
+      "current": "cpu-basic",
+      "requested": "cpu-basic"
+    },
+    "pySpacesVersion": "0.51.3",
+    "replicas": {
+      "current": 1,
+      "requested": 1
+    },
+    "sha": "14e5df6c30db03c5ea115f2e3030ff3ccf8beda3",
+    "stage": "RUNNING"
+  },
+  "scope": "public inference and parity only; no new economic test or live trading",
+  "space_url": "https://shinjiaa-unidream-space.hf.space"
+}
