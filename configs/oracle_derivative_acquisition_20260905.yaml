@@ -1,0 +1,9 @@
+schema: oracle-derivative-acquisition-v1
+source: um_klines
+symbol: BTCUSDT
+interval: 15m
+start_month: '2019-09'
+end_month: '2023-04'
+feature_decision_cutoff: '2023-04-16T13:45:00Z'
+timeout_seconds: 30
+output_dir: checkpoints/oracle_derivative_data
