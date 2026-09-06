@@ -1,0 +1,79 @@
+{
+  "config": {
+    "data_path": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet",
+    "execution": {
+      "borrow_annual": 0.1,
+      "deadband": 0.01,
+      "max_step": 0.08,
+      "one_way_cost": 0.00055
+    },
+    "fold_anchor": "2020-04-16T13:45:00Z",
+    "minimum_bar_coverage": 0.995,
+    "output_dir": "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/codex_outputs/robust_overlay_v1",
+    "stages": {
+      "development": {
+        "data_cutoff": "2023-07-16T13:45:00Z",
+        "folds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      "fresh": {
+        "data_cutoff": "2026-07-16T13:45:00Z",
+        "folds": [
+          24
+        ]
+      },
+      "historical": {
+        "data_cutoff": "2026-04-16T13:45:00Z",
+        "folds": [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ]
+      }
+    },
+    "symbol": "BTCUSDT"
+  },
+  "data_proof": {
+    "artifact_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "availability_sha256": "22f4d4e2aee7b8b3d87969e14aedf79955a4c6ea677c38faca2d1d90db910f56",
+    "ledger_sha256": "8954b60bf8a68b73c24b614a806a0a603903f50dd34557bdc3dbc7ce3ab5d374",
+    "sidecar_sha256": "a681f5b9dfea12b846938415d72a1666d3ca22ae6ee27a927d136669a613eda8",
+    "status": "complete_with_gaps",
+    "symbol": "BTCUSDT"
+  },
+  "feature_source_sha256": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+  "policy": {
+    "consensus_scale": 0.5,
+    "consensus_threshold": 0.15,
+    "decision_cadence_hours": 6,
+    "horizons_days": [
+      7,
+      30,
+      90
+    ],
+    "lower_exposure": 0.5,
+    "slow_weight": 0.5,
+    "upper_exposure": 1.12
+  },
+  "policy_source_sha256": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22",
+  "schema": "robust-overlay-v1"
+}

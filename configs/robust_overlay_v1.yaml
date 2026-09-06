@@ -1,0 +1,20 @@
+symbol: BTCUSDT
+data_path: /Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet
+output_dir: /Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/codex_outputs/robust_overlay_v1
+fold_anchor: '2020-04-16T13:45:00Z'
+minimum_bar_coverage: 0.995
+execution:
+  one_way_cost: 0.00055
+  borrow_annual: 0.10
+  max_step: 0.08
+  deadband: 0.01
+stages:
+  development:
+    data_cutoff: '2023-07-16T13:45:00Z'
+    folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  historical:
+    data_cutoff: '2026-04-16T13:45:00Z'
+    folds: [15, 16, 17, 18, 19, 20, 21, 22, 23]
+  fresh:
+    data_cutoff: '2026-07-16T13:45:00Z'
+    folds: [24]
