@@ -1,0 +1,55 @@
+{
+  "additional_checks": [
+    "Saved prior q is exactly constant across I/E and both groups.",
+    "Selected saved probability and logits are aligned and finite; no recomputed sigmoid.",
+    "All five predictive and economic references retained for four soft means/eight learned policy names.",
+    "Six constant means/twelve constant policies have no self-comparison promotion gate.",
+    "Probability records unchanged; new probability-improvement false; inherited weighted proper-loss evidence separate.",
+    "No new model, predict call, features or T/I/E scalar estimate; mapper cannot read labels or score support.",
+    "Zero means remain valid on all original inference slots; S stays unmapped; masks never altered by later labels.",
+    "Null weighted losses/rank and 2/4/2 retrospective I regime semantics preserved.",
+    "Same base intents replay at doubled costs; old controls stay whole-row exact."
+  ],
+  "canonical_edits": false,
+  "fixed_findings": {
+    "constant_score_identity": "Every zero and fit_mean constant MSE equals its named numeric baseline exactly; all constant rank IC values must be null. Synthetic adversaries cover both original findings.",
+    "exact_parent_identity": "exact_tree rejects any nonzero floating difference; full old return/classification records are compared exactly; old account metrics and target bytes are verified before retaining the entire inherited row including trace hashes."
+  },
+  "initial_review": {
+    "path": "/tmp/oracle_soft_direction_source_review_20260906.json",
+    "preserved_unchanged": true,
+    "sha256": "7de1f7d94dec00ca69c1c8c4a0e140f01e9ab2737ae6b58b5d0813f5d745b6a8",
+    "two_findings_superseded_by_verified_fixes": true
+  },
+  "no_new_real_computation": true,
+  "passed": true,
+  "pending_material_findings": [],
+  "proposed_inventory": {
+    "ancestors": 3488,
+    "artifacts_per_fold": 121,
+    "artifacts_total": 968,
+    "classification_score_records": 160,
+    "cost_accounts": 1280,
+    "cumulative_adaptive_causal_names": 218,
+    "economic_rows": 640,
+    "learned_mapping_diagnostics": 64,
+    "new_constant_policies": 12,
+    "new_learned_policies": 8,
+    "new_model_fits": 0,
+    "policies": 80,
+    "return_score_means": 24,
+    "return_score_records": 384,
+    "sources": 33,
+    "unchanged_classifiers": 10
+  },
+  "schema": "independent-soft-direction-final-preregistration-review-v1",
+  "scope": "Final read-only source, registration and synthetic-test-code review; tests and real preflight were not rerun by this reviewer. No new real means, statistics, fits, forecasts, scores or orders computed.",
+  "source_sha256": {
+    "docs/experiments/oracle_soft_direction_registration_20260906.md": "15b3c33c28d6332ab597811442d720572d08706a3e27c43b38f7443da4feed82",
+    "docs/experiments/oracle_soft_direction_research_20260906.md": "112567cf8300f9e2394d8b59683b89913b35317e6b8c6d099648634d34102db8",
+    "tests/test_oracle_soft_direction_decisions.py": "079bc5c270efcc2fe9d3c6fc1525a4eeb59408e27e1d160f03521ff4aa08270f",
+    "tests/test_oracle_soft_direction_mapping.py": "0ec65cac0a9c0206931997275fd911796d3490d31f8b9ef74da05526933e176f",
+    "unidream/experiments/oracle_soft_direction_decisions.py": "b25234405206a491dc4183e7968b2f71522c93da8a827735e93bd3c4709fc007",
+    "unidream/experiments/oracle_soft_direction_mapping.py": "bb8ad1cb709b81fbdf2905a94bd17adaaadccdd4b5ccdb4888cd872cc283246d"
+  }
+}

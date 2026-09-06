@@ -1,0 +1,44 @@
+{
+  "checks": {
+    "121_artifacts_per_fold_968_total": true,
+    "E_unscored_inference_preserved": true,
+    "I_mapped_support_after_original_I_start_only": true,
+    "all_constant_rank_IC_null": true,
+    "all_five_references_and_8_learned_gate_names_only": true,
+    "base_intents_replayed_under_double_costs": true,
+    "classification_accuracy_improvement_false_by_identity": true,
+    "frozen_risk_and_own_state_for_all_20_new_policies": true,
+    "identity_guard_preserves_distinct_constants": true,
+    "no_new_q_or_T_statistics_in_prepare": true,
+    "old_224_return_records_and_160_classifier_records_exact": true,
+    "old_480_rows_full_copy_after_exact_account_and_target_SHA": true,
+    "pure_mapper_receives_no_actual_or_score_support": true,
+    "raw_fit_statistical_prior_kept_separately": true,
+    "saved_NPZ_prior_q_constant_I_E_and_exact_across_groups": true,
+    "selected_q_and_logit_finite": true,
+    "source_protocol_consistent": true,
+    "zero_and_fitmean_MSE_named_baseline_exact": true
+  },
+  "data_only_source_audit_path": "/tmp/oracle_soft_direction_source_audit_20260906.json",
+  "data_only_source_audit_sha256": "4965de3c0ba40741fb9bff7d588a2e62ec19fbd6b547d013a032a99bd3c2b96b",
+  "findings": [],
+  "material_limitations": [
+    "Soft mean uses fixed A_T rather than conditional E[abs(Y)|X] and is a controller surrogate, not a calibrated conditional-mean claim.",
+    "Constant NPZ probability/logit fields are retained source evidence, not newly fitted constant-classifier predictions.",
+    "Retrospective common availability, reused development, absent historical receipts, and failing 2/4/2 regime coverage remain."
+  ],
+  "new_real_mapping_statistics_or_outcomes_computed": false,
+  "pending_before_real_execution": [
+    "Root will generate config and input-only preflight; independent 33-source/support comparison remains pending.",
+    "Source/tests/config/protocol/preflight must be committed and pushed, and full registered tests pass before real mapping execution."
+  ],
+  "review_scope": "Read-only review of final Stage19 runner, helper, synthetic test source and preregistration. Syntax parsed only; no tests, estimator, new mapping, real residual, score or order executed by this review.",
+  "reviewed_files_sha256": {
+    "docs/experiments/oracle_soft_direction_registration_20260906.md": "15b3c33c28d6332ab597811442d720572d08706a3e27c43b38f7443da4feed82",
+    "tests/test_oracle_soft_direction_decisions.py": "079bc5c270efcc2fe9d3c6fc1525a4eeb59408e27e1d160f03521ff4aa08270f",
+    "tests/test_oracle_soft_direction_mapping.py": "0ec65cac0a9c0206931997275fd911796d3490d31f8b9ef74da05526933e176f",
+    "unidream/experiments/oracle_soft_direction_decisions.py": "b25234405206a491dc4183e7968b2f71522c93da8a827735e93bd3c4709fc007",
+    "unidream/experiments/oracle_soft_direction_mapping.py": "bb8ad1cb709b81fbdf2905a94bd17adaaadccdd4b5ccdb4888cd872cc283246d"
+  },
+  "status": "pass_source_review"
+}

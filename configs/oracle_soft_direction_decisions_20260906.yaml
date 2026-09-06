@@ -1,0 +1,352 @@
+schema: oracle-soft-direction-decisions-v1
+development_folds:
+- 5
+- 6
+- 7
+- 8
+- 9
+- 10
+- 11
+- 12
+data_cutoff: '2023-04-16T13:45:00Z'
+parent_config: configs/oracle_regularized_direction_decisions_20260906.yaml
+parent_root: codex_outputs/oracle_regularized_direction_decisions_v1
+parent_source_revision: 5a82c270c64a342ab7e9df8105b7d23d1336d876
+parent_publication_revision: 96447c4600979c4ce5c66140fe60ddd27448c2d2
+data_path: /Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet
+output_dir: codex_outputs/oracle_soft_direction_decisions_v1
+groups:
+- technical
+- perp_delay0
+probability_ids:
+- technical_magnitude
+- technical_magnitude_l2unit
+- perp_delay0_magnitude
+- perp_delay0_magnitude_l2unit
+classifiers:
+- technical_ordinary
+- technical_magnitude
+- perp_delay0_ordinary
+- perp_delay0_magnitude
+- prior_ordinary
+- prior_magnitude
+- technical_ordinary_l2unit
+- technical_magnitude_l2unit
+- perp_delay0_ordinary_l2unit
+- perp_delay0_magnitude_l2unit
+new_mean_ids:
+- technical_magnitude_soft
+- technical_magnitude_l2unit_soft
+- perp_delay0_magnitude_soft
+- perp_delay0_magnitude_l2unit_soft
+- technical_soft_mapped_prior
+- technical_soft_fit_mean
+- technical_soft_zero
+- perp_delay0_soft_mapped_prior
+- perp_delay0_soft_fit_mean
+- perp_delay0_soft_zero
+return_score_means:
+- technical_half
+- perp_delay0_half
+- technical_ordinary_direction
+- technical_magnitude_direction
+- perp_delay0_ordinary_direction
+- perp_delay0_magnitude_direction
+- technical_ordinary_prior_direction
+- technical_magnitude_prior_direction
+- perp_delay0_ordinary_prior_direction
+- perp_delay0_magnitude_prior_direction
+- technical_ordinary_l2unit_direction
+- technical_magnitude_l2unit_direction
+- perp_delay0_ordinary_l2unit_direction
+- perp_delay0_magnitude_l2unit_direction
+- technical_magnitude_soft
+- technical_magnitude_l2unit_soft
+- perp_delay0_magnitude_soft
+- perp_delay0_magnitude_l2unit_soft
+- technical_soft_mapped_prior
+- technical_soft_fit_mean
+- technical_soft_zero
+- perp_delay0_soft_mapped_prior
+- perp_delay0_soft_fit_mean
+- perp_delay0_soft_zero
+control_ids:
+- bh
+- common_robust
+- scale_mean_utility_risk1
+- scale_mean_utility_risk1_fallback_bh
+- technical_scaled_utility_risk1
+- technical_scaled_utility_risk1_fallback_bh
+- perp_delay0_scaled_utility_risk1
+- perp_delay0_scaled_utility_risk1_fallback_bh
+- technical_half_utility_risk1
+- technical_half_utility_risk1_fallback_bh
+- perp_delay0_half_utility_risk1
+- perp_delay0_half_utility_risk1_fallback_bh
+- technical_half_oracle_return_utility_risk1
+- technical_half_oracle_return_utility_risk1_fallback_bh
+- technical_half_oracle_realized_risk_utility_risk1
+- technical_half_oracle_realized_risk_utility_risk1_fallback_bh
+- technical_half_oracle_both_utility_risk1
+- technical_half_oracle_both_utility_risk1_fallback_bh
+- perp_delay0_half_oracle_return_utility_risk1
+- perp_delay0_half_oracle_return_utility_risk1_fallback_bh
+- perp_delay0_half_oracle_realized_risk_utility_risk1
+- perp_delay0_half_oracle_realized_risk_utility_risk1_fallback_bh
+- perp_delay0_half_oracle_both_utility_risk1
+- perp_delay0_half_oracle_both_utility_risk1_fallback_bh
+- matched_rl_beam32_hold_risk0
+- matched_rl_beam32_hold_risk1
+- matched_rl_beam32_fallback_bh_risk0
+- matched_rl_beam32_fallback_bh_risk1
+- technical_half_oracle_sign_utility_risk1
+- technical_half_oracle_sign_utility_risk1_fallback_bh
+- technical_half_oracle_magnitude_utility_risk1
+- technical_half_oracle_magnitude_utility_risk1_fallback_bh
+- perp_delay0_half_oracle_sign_utility_risk1
+- perp_delay0_half_oracle_sign_utility_risk1_fallback_bh
+- perp_delay0_half_oracle_magnitude_utility_risk1
+- perp_delay0_half_oracle_magnitude_utility_risk1_fallback_bh
+- technical_ordinary_direction_utility_risk1
+- technical_ordinary_direction_utility_risk1_fallback_bh
+- technical_magnitude_direction_utility_risk1
+- technical_magnitude_direction_utility_risk1_fallback_bh
+- perp_delay0_ordinary_direction_utility_risk1
+- perp_delay0_ordinary_direction_utility_risk1_fallback_bh
+- perp_delay0_magnitude_direction_utility_risk1
+- perp_delay0_magnitude_direction_utility_risk1_fallback_bh
+- technical_ordinary_prior_direction_utility_risk1
+- technical_ordinary_prior_direction_utility_risk1_fallback_bh
+- technical_magnitude_prior_direction_utility_risk1
+- technical_magnitude_prior_direction_utility_risk1_fallback_bh
+- perp_delay0_ordinary_prior_direction_utility_risk1
+- perp_delay0_ordinary_prior_direction_utility_risk1_fallback_bh
+- perp_delay0_magnitude_prior_direction_utility_risk1
+- perp_delay0_magnitude_prior_direction_utility_risk1_fallback_bh
+- technical_ordinary_l2unit_direction_utility_risk1
+- technical_ordinary_l2unit_direction_utility_risk1_fallback_bh
+- technical_magnitude_l2unit_direction_utility_risk1
+- technical_magnitude_l2unit_direction_utility_risk1_fallback_bh
+- perp_delay0_ordinary_l2unit_direction_utility_risk1
+- perp_delay0_ordinary_l2unit_direction_utility_risk1_fallback_bh
+- perp_delay0_magnitude_l2unit_direction_utility_risk1
+- perp_delay0_magnitude_l2unit_direction_utility_risk1_fallback_bh
+new_policy_ids:
+- technical_magnitude_soft_utility_risk1
+- technical_magnitude_soft_utility_risk1_fallback_bh
+- technical_magnitude_l2unit_soft_utility_risk1
+- technical_magnitude_l2unit_soft_utility_risk1_fallback_bh
+- perp_delay0_magnitude_soft_utility_risk1
+- perp_delay0_magnitude_soft_utility_risk1_fallback_bh
+- perp_delay0_magnitude_l2unit_soft_utility_risk1
+- perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh
+- technical_soft_mapped_prior_utility_risk1
+- technical_soft_mapped_prior_utility_risk1_fallback_bh
+- technical_soft_fit_mean_utility_risk1
+- technical_soft_fit_mean_utility_risk1_fallback_bh
+- technical_soft_zero_utility_risk1
+- technical_soft_zero_utility_risk1_fallback_bh
+- perp_delay0_soft_mapped_prior_utility_risk1
+- perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh
+- perp_delay0_soft_fit_mean_utility_risk1
+- perp_delay0_soft_fit_mean_utility_risk1_fallback_bh
+- perp_delay0_soft_zero_utility_risk1
+- perp_delay0_soft_zero_utility_risk1_fallback_bh
+learned_policy_ids:
+- technical_magnitude_soft_utility_risk1
+- technical_magnitude_soft_utility_risk1_fallback_bh
+- technical_magnitude_l2unit_soft_utility_risk1
+- technical_magnitude_l2unit_soft_utility_risk1_fallback_bh
+- perp_delay0_magnitude_soft_utility_risk1
+- perp_delay0_magnitude_soft_utility_risk1_fallback_bh
+- perp_delay0_magnitude_l2unit_soft_utility_risk1
+- perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh
+mapping:
+  technical_magnitude_soft:
+    group: technical
+    kind: soft
+    role: learned_mapping
+    source_classifier: technical_magnitude
+    source_mean: technical_magnitude_direction
+    parent_mean: technical_half
+  technical_magnitude_l2unit_soft:
+    group: technical
+    kind: soft
+    role: learned_mapping
+    source_classifier: technical_magnitude_l2unit
+    source_mean: technical_magnitude_l2unit_direction
+    parent_mean: technical_half
+  perp_delay0_magnitude_soft:
+    group: perp_delay0
+    kind: soft
+    role: learned_mapping
+    source_classifier: perp_delay0_magnitude
+    source_mean: perp_delay0_magnitude_direction
+    parent_mean: perp_delay0_half
+  perp_delay0_magnitude_l2unit_soft:
+    group: perp_delay0
+    kind: soft
+    role: learned_mapping
+    source_classifier: perp_delay0_magnitude_l2unit
+    source_mean: perp_delay0_magnitude_l2unit_direction
+    parent_mean: perp_delay0_half
+  technical_soft_mapped_prior:
+    group: technical
+    kind: mapped_prior
+    role: constant_control
+    source_classifier: technical_magnitude
+    source_mean: technical_magnitude_direction
+    parent_mean: technical_half
+  technical_soft_fit_mean:
+    group: technical
+    kind: fit_mean
+    role: constant_control
+    source_classifier: technical_magnitude
+    source_mean: technical_magnitude_direction
+    parent_mean: technical_half
+  technical_soft_zero:
+    group: technical
+    kind: zero
+    role: constant_control
+    source_classifier: technical_magnitude
+    source_mean: technical_magnitude_direction
+    parent_mean: technical_half
+  perp_delay0_soft_mapped_prior:
+    group: perp_delay0
+    kind: mapped_prior
+    role: constant_control
+    source_classifier: perp_delay0_magnitude
+    source_mean: perp_delay0_magnitude_direction
+    parent_mean: perp_delay0_half
+  perp_delay0_soft_fit_mean:
+    group: perp_delay0
+    kind: fit_mean
+    role: constant_control
+    source_classifier: perp_delay0_magnitude
+    source_mean: perp_delay0_magnitude_direction
+    parent_mean: perp_delay0_half
+  perp_delay0_soft_zero:
+    group: perp_delay0
+    kind: zero
+    role: constant_control
+    source_classifier: perp_delay0_magnitude
+    source_mean: perp_delay0_magnitude_direction
+    parent_mean: perp_delay0_half
+references:
+  technical_magnitude_soft:
+  - technical_magnitude_direction
+  - technical_half
+  - technical_soft_mapped_prior
+  - technical_soft_fit_mean
+  - technical_soft_zero
+  technical_magnitude_l2unit_soft:
+  - technical_magnitude_l2unit_direction
+  - technical_half
+  - technical_soft_mapped_prior
+  - technical_soft_fit_mean
+  - technical_soft_zero
+  perp_delay0_magnitude_soft:
+  - perp_delay0_magnitude_direction
+  - perp_delay0_half
+  - perp_delay0_soft_mapped_prior
+  - perp_delay0_soft_fit_mean
+  - perp_delay0_soft_zero
+  perp_delay0_magnitude_l2unit_soft:
+  - perp_delay0_magnitude_l2unit_direction
+  - perp_delay0_half
+  - perp_delay0_soft_mapped_prior
+  - perp_delay0_soft_fit_mean
+  - perp_delay0_soft_zero
+rules:
+- utility_risk1
+- utility_risk1_fallback_bh
+segments:
+- interval
+- evaluation
+surrogate_mean: saved_fit_abs_return_mean*(2.0*saved_probability-1.0)
+prior_probability_source: bound_Stage17_prior_NPZ_probability_not_raw_fit_prior_or_new_sigmoid
+prior_identity_absolute_tolerance: 1.0e-14
+prior_identity_relative_tolerance: 1.0e-12
+new_model_fits: 0
+new_unique_fit_priors: 0
+new_causal_names: 20
+new_learned_policy_names: 8
+new_constant_policy_names: 12
+adaptive_prior_causal_names: 198
+adaptive_total_causal_names: 218
+score_classification_records: 160
+score_return_records: 384
+mapping_diagnostic_records: 64
+fold_artifacts: 121
+economic_rows: 640
+economic_accounts: 1280
+new_mean_risk_probability_or_weight_calibration_permitted: false
+risk_source: unchanged_saved_technical_scaled
+utility_risk_aversion: 1
+utility_cost_multiplier: 2
+execution:
+  one_way_cost: 0.00055
+  borrow_annual: 0.1
+  max_step: 0.08
+  deadband: 0.01
+inference_rows: 2586
+score_rows: 2574
+interval_inference_rows: 2537
+interval_score_rows: 2523
+fallback_rows: 332
+missing_current_open_rows: 2
+selection_permitted: false
+teacher_use_allowed: false
+additional_test_permitted: false
+numpy_version: 2.2.6
+pandas_version: 2.3.3
+sklearn_version: 1.8.0
+partial_retry_policy: full_replay_verify_existing_no_live_restart
+source_bindings:
+  unidream/experiments/oracle_information_decomposition.py: 4ba69a26d347ee90a62f3e6842d59beb48bb61582f6af87449036d0d071ca3d1
+  unidream/experiments/oracle_information_interventions.py: 2709cfbe916508586108010fdc8322c6c5cb71cf099970859ff6ee774b5baafd
+  unidream/experiments/oracle_matched_hindsight.py: e339698814a66139246f34aa9a02b83f5aa16ad8051338a62444f6a12d1769e8
+  unidream/experiments/oracle_frontier_hindsight.py: 7f85f05cccb45e491fcad32a880b06edeed507d53947937e37673a5d13d85d71
+  unidream/experiments/oracle_frozen_procedure_parity.py: 0a84c0010737518c989c5320c3b6cfcb7b7a61fb08bd5a909ff5a7d0ad00ad83
+  unidream/experiments/oracle_frozen_forecasts.py: 352802b2c26caf43b9fe1e2285385676e6e111d355af0883ed0136ec76c07679
+  unidream/experiments/oracle_confirmation_contract.py: 7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503
+  unidream/experiments/oracle_mean_controls.py: 07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb
+  unidream/experiments/oracle_mean_shrinkage.py: fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb
+  unidream/experiments/oracle_fallback_planner.py: e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348
+  unidream/experiments/oracle_fallback_decisions.py: c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771
+  unidream/experiments/oracle_conditional_planner.py: 1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051
+  unidream/experiments/oracle_derivative_delay.py: 04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9
+  unidream/experiments/oracle_derivative_delay_features.py: bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862
+  unidream/experiments/oracle_derivative_features.py: c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448
+  unidream/experiments/oracle_derivative_ablation.py: fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2
+  unidream/experiments/oracle_derivative_crossed_decisions.py: b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19
+  unidream/experiments/oracle_frontier.py: 21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57
+  unidream/experiments/oracle_frontier_features.py: 762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5
+  unidream/experiments/oracle_risk_calibration.py: 50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe
+  unidream/experiments/alpha_dd_search.py: fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64
+  unidream/experiments/alpha_dd_features.py: 7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69
+  unidream/experiments/robust_overlay.py: 4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22
+  unidream/experiments/oracle_sign_magnitude_interventions.py: 87d5fb77f274230fafa52c422c9e82be9d88dcd43f0689db57ead686379e17d3
+  unidream/experiments/oracle_sign_magnitude_decisions.py: 152153451fe8ce6d73116205aa5b8b5e16565327fdae251421a8a02e5a9c794a
+  unidream/experiments/oracle_short_mean_fit.py: 47b874ae92a3b05380ec144c7c5fc210eb6ad4269ce6c1ff3dd198a9bfad825e
+  unidream/experiments/oracle_direction_fit.py: 194484713988a1119664262a47ec2a907668b65b2b382d1c92873a8526218635
+  unidream/experiments/oracle_direction_scores.py: 14e1099e03d74cf787f28dd7757d7c75cc4821a2a72e6e0f9fa0eb127d6312e2
+  unidream/experiments/oracle_direction_decisions.py: 3ddbd8ae38370600f81d8f0bf0d9a9fc1ca6c7d395bd372d76f89eb4f8a62832
+  unidream/experiments/oracle_regularized_direction_fit.py: 40381e5e26c512e4455fac95d83b3d10c31ee0de3f64467071f2b94bceb96852
+  unidream/experiments/oracle_regularized_direction_decisions.py: 404db3c53004125feca656c0fb5e136be77ddcac374ec2369d54926c79b9f9f9
+  unidream/experiments/oracle_soft_direction_mapping.py: bb8ad1cb709b81fbdf2905a94bd17adaaadccdd4b5ccdb4888cd872cc283246d
+  unidream/experiments/oracle_soft_direction_decisions.py: b25234405206a491dc4183e7968b2f71522c93da8a827735e93bd3c4709fc007
+parent_config_sha256: a4258d8f16f9174d4e7ce5b2eb7368783349b4e4d6eb45493006a89be509b29d
+parent_manifest_bindings:
+  codex_outputs/oracle_regularized_direction_decisions_v1/registration.json: 289968f71450300c65f515dfe3ed2f2eae50c7f4fc5442f8669d1867faf65888
+  codex_outputs/oracle_regularized_direction_decisions_v1/results.json: ab2b62a017a70fd65756614f3940c3194d60b8c0ebdab02aa058c988ccbdb678
+  codex_outputs/oracle_regularized_direction_decisions_v1/preflight.json: 33b2ffc8d74a57b0827e35ea9c08c2e37eefdb421d9f6e726b566f0955e11285
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_5.json: 5016f5bd95e96b5f833714723d9648760441c8aa4793367865fa4d6ac093f67b
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_6.json: bfe86ffb002785462122c0c5f287455baf2063e84d4659ddc9a6784d85a27b55
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_7.json: 494d542bb12bdaab1e1e895f84a8b61fb7852432704069a3bb19e248af81dece
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_8.json: a3addd8311af59c6104bb6edd22c7371ce24565082b7c908c7c7388aa1d70bc6
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_9.json: a7212a6b6b98876dd17823938aa2c0ec6645315c35105196242c1bfe90e1111f
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_10.json: 45f981f730b4df6c402cda6a072f2b7ddf8e42cd37dfe81afc0368e711d1095c
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_11.json: 976917df1477588b0deadf3f33e8e2c22c46cd36426709ad5f556489bae0dbcd
+  codex_outputs/oracle_regularized_direction_decisions_v1/fold_12.json: 8821b6b71be5752d4e7a54081dab7722314cef9b020b75e7d472bfb3103e04e7
+preflight_sha256: be95da2abe1581b516cc8a0fd168ae919ad89527280818b283f46b92c95f2154

@@ -1,0 +1,33 @@
+{
+  "confirmed": [
+    "All five references retained for four learned means and eight learned policy gates.",
+    "Six constant means and twelve constant policy controls have no self-improvement gate.",
+    "map_saved_inputs passes only saved q, original inference mask and frozen training scalars, never outcomes or score support.",
+    "Classifiers and inherited probability score inventory remain unchanged; no new probability-accuracy improvement claimed.",
+    "All-inference q/logit tie diagnostics include unscored origins; new zero means remain valid inference.",
+    "Null rank and weighted score semantics inherited; exact 2/4/2 inventory prevents silently dropped strata.",
+    "Existing base target streams replay at doubled costs; no new stress optimization."
+  ],
+  "findings": [
+    {
+      "id": "exact_parent_identity",
+      "issue": "compare_tree accepts nonzero float differences; exact preservation promises need explicit zero difference acceptance.",
+      "status": "sent_to_root"
+    },
+    {
+      "id": "constant_score_identity",
+      "issue": "summarize should require zero-control MSE equals zero baseline and exact fitmean-control MSE equals fitmean baseline before accepting five-reference gate.",
+      "status": "sent_to_root"
+    }
+  ],
+  "no_new_outcome_computation": true,
+  "repo_edits": false,
+  "schema": "independent-soft-direction-preregistration-source-review-v1",
+  "scope": "Read-only source/concept review. No real probability mapping, new statistics, fits, scores or policy outcomes computed.",
+  "source_sha256": {
+    "unidream/experiments/oracle_frozen_procedure_parity.py": "0a84c0010737518c989c5320c3b6cfcb7b7a61fb08bd5a909ff5a7d0ad00ad83",
+    "unidream/experiments/oracle_regularized_direction_decisions.py": "404db3c53004125feca656c0fb5e136be77ddcac374ec2369d54926c79b9f9f9",
+    "unidream/experiments/oracle_soft_direction_decisions.py": "e6ca8e27525226d02e59c8603cfd5a16ff0dcf3f9dfb27cc8ee994d99ef1db44",
+    "unidream/experiments/oracle_soft_direction_mapping.py": "bb8ad1cb709b81fbdf2905a94bd17adaaadccdd4b5ccdb4888cd872cc283246d"
+  }
+}
