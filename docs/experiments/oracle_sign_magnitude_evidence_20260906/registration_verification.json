@@ -1,0 +1,29 @@
+{
+  "all8_fit_return_hashes_masks_counts_match_independent_audit": true,
+  "config_sha256": "05bedfcac3f0ed9ff247f5042d09f2e83ca750f9743be9dff3b6db5242d4f399",
+  "cost_accounts_expected": 576,
+  "endpoint_paths_expected": 64,
+  "focused_tests": 14,
+  "full_endpoint_traces_expected": 32,
+  "full_tests": {
+    "log_sha256": "25196bed68cea427397f8702b369a8fa865fb96d137ab36b2992b6db37cb6e2e",
+    "passed": 683,
+    "seconds": 57.647
+  },
+  "git_diff_check_passed": true,
+  "inference_and_score_counts_match": true,
+  "new_artifacts_expected": 392,
+  "new_hindsight_paths_expected": 64,
+  "new_models_fitted": 0,
+  "new_quantiles_forecasts_losses_orders_computed": false,
+  "parent_artifact_inventory_exact": 1728,
+  "policy_rows_expected": 288,
+  "preflight_revision_note": "Data-only preflight regenerated once after pre-freeze summary validation hardening; no quantile/forecast/loss/order had run.",
+  "preflight_sha256": "0a0535c5020628ca337b2cacb66a692e8d5bd45b7ebe52855fe1f8285a0a2ffd",
+  "runtime_only_preflight_exists": true,
+  "schema": "oracle-sign-magnitude-registration-verification-v1",
+  "score_rows_expected": 192,
+  "source_audit_sha256": "7e4658010cdd1c201effd851eff7e2457c6ca5ba5e5bd1153054a7ac2f1ba52f",
+  "source_bindings_verified": 25,
+  "source_review": "Three independent reviews; paired numeric/null/partition guards and literal endpoint checks incorporated before freeze; no remaining must-fix issue."
+}
