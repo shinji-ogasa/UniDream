@@ -1,0 +1,57 @@
+{
+  "accounts": 1312,
+  "additional_test_used_for_modeling_or_scoring": false,
+  "ancestor_artifacts": 5344,
+  "audits": {
+    "account_audit": {
+      "result_sha256": "b7f432f74e5a4443b38d66e23d7e7bdd0c8f662f09e025c2c9b11dcfaf163540",
+      "script_sha256": "e5c44b1412aab826408fb0752d1ed89f393769563b59347268494a34ee80c2ba",
+      "status": "pass"
+    },
+    "model_audit": {
+      "result_sha256": "45d5626017d7ddd71ea29d7413810072567eede3c340a92cc65ae5d0819a5e04",
+      "script_sha256": "7fe3444b77b3a3e2916fe2758d991bd5f50d70ec58ce2e8b87eca20d5c003f6b",
+      "status": "pass"
+    },
+    "report_audit": {
+      "result_sha256": "c3b158f9783041c213ee3bc0b32b619af26ca0087456d9406bcfe47e8723e8c7",
+      "script_sha256": "00522582d01abb49b3d1bdd6f8f15950f8cf3fea4b02c71b13ee5b860fa9b89c",
+      "status": "pass"
+    },
+    "score_audit": {
+      "result_sha256": "db05e1aa0d9e8b0dbebe3f8b895975c341d7d685422452e4726ebf83cee84f41",
+      "script_sha256": "a6cf1659a054371b08ad350eaebc39d5b317a78ef3e44d1fbc59f0dd44188e31",
+      "status": "pass"
+    }
+  },
+  "classification_records": 192,
+  "full_tests": {
+    "exit_code": 0,
+    "log_sha256": "d51a2a90320d3d2d54b3adb462d2dc3bb45ada5e0eeddbe84d9d75ad0149ab3d",
+    "seconds": 60.183,
+    "tests": 779
+  },
+  "high_probability_generalization_established": false,
+  "independent_scalar_model_guards_passed": true,
+  "model_retry_or_parameter_change": false,
+  "new_artifacts": 760,
+  "new_model_fits": 16,
+  "registration_sha256": "ea4c54c94c00523eea189ae582bfb84e358b017285b0a779edc0dde83fe5676a",
+  "report_sha256": "2c8e39ad9d5b9a882a932dbad1a71fc8fe9eef950f085bb3b47298958836a68a",
+  "results_sha256": "e7c116ea5aae663ec42276d96c627813aad922b9f8796bdded8c9bb045ff9cd9",
+  "return_records": 400,
+  "rows": 656,
+  "run_count": 1,
+  "run_exit_code": 0,
+  "runtime_warning_counts": {
+    "divide_by_zero": 64,
+    "invalid": 64,
+    "overflow": 64,
+    "total": 192
+  },
+  "source_files": 42,
+  "source_revision": "69d2cd6bae732d9598135c20fe216a4fa9b48fa1",
+  "stage20_candidate_promoted": false,
+  "status": "pass",
+  "warning_cause_established": false
+}

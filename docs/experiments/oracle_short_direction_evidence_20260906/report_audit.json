@@ -1,0 +1,1487 @@
+{
+  "audit_script_sha256": "00522582d01abb49b3d1bdd6f8f15950f8cf3fea4b02c71b13ee5b860fa9b89c",
+  "checks": [
+    {
+      "kind": "performance",
+      "location": "economic_strata/0/quarters",
+      "value": "8"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/0/base/alpha_ex",
+      "value": "0.620736"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/0/base/maxdd_delta",
+      "value": "-0.264463"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/0/stress_2x/alpha_ex",
+      "value": "0.025604"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/0/stress_2x/maxdd_delta",
+      "value": "-0.144629"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/0/joint",
+      "value": "2"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/1/quarters",
+      "value": "8"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/1/base/alpha_ex",
+      "value": "-1.251253"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/1/base/maxdd_delta",
+      "value": "0.687566"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/1/stress_2x/alpha_ex",
+      "value": "-1.812105"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/1/stress_2x/maxdd_delta",
+      "value": "0.801585"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/1/joint",
+      "value": "2"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/2/quarters",
+      "value": "2"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/2/base/alpha_ex",
+      "value": "3.492305"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/2/base/maxdd_delta",
+      "value": "-3.681569"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/2/stress_2x/alpha_ex",
+      "value": "3.194755"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/2/stress_2x/maxdd_delta",
+      "value": "-3.526737"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/2/joint",
+      "value": "1"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/3/quarters",
+      "value": "2"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/3/base/alpha_ex",
+      "value": "-1.430112"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/3/base/maxdd_delta",
+      "value": "0.677770"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/3/stress_2x/alpha_ex",
+      "value": "-1.699430"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/3/stress_2x/maxdd_delta",
+      "value": "0.812473"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/3/joint",
+      "value": "1"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/4/quarters",
+      "value": "4"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/4/base/alpha_ex",
+      "value": "2.744544"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/4/base/maxdd_delta",
+      "value": "-0.339596"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/4/stress_2x/alpha_ex",
+      "value": "2.019257"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/4/stress_2x/maxdd_delta",
+      "value": "-0.246361"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/4/joint",
+      "value": "1"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/5/quarters",
+      "value": "4"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/5/base/alpha_ex",
+      "value": "1.497790"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/5/base/maxdd_delta",
+      "value": "-0.636211"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/5/stress_2x/alpha_ex",
+      "value": "0.820276"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/5/stress_2x/maxdd_delta",
+      "value": "-0.546180"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/5/joint",
+      "value": "1"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/6/quarters",
+      "value": "2"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/6/base/alpha_ex",
+      "value": "-6.498447"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/6/base/maxdd_delta",
+      "value": "3.302909"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/6/stress_2x/alpha_ex",
+      "value": "-7.130856"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/6/stress_2x/maxdd_delta",
+      "value": "3.440942"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/6/joint",
+      "value": "0"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/7/quarters",
+      "value": "2"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/7/base/alpha_ex",
+      "value": "-6.570480"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/7/base/maxdd_delta",
+      "value": "3.344915"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/7/stress_2x/alpha_ex",
+      "value": "-7.189542"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/7/stress_2x/maxdd_delta",
+      "value": "3.486227"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_strata/7/joint",
+      "value": "0"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/0/fold",
+      "value": "5"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/0/trend",
+      "value": "bull"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/0/base/alpha_ex",
+      "value": "12.359076"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/0/base/maxdd_delta",
+      "value": "-10.390394"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/0/stress_2x/alpha_ex",
+      "value": "12.137920"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/0/stress_2x/maxdd_delta",
+      "value": "-10.260624"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/1/fold",
+      "value": "5"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/1/trend",
+      "value": "bull"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/1/base/alpha_ex",
+      "value": "2.459776"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/1/base/maxdd_delta",
+      "value": "-1.625590"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/1/stress_2x/alpha_ex",
+      "value": "2.301680"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/1/stress_2x/maxdd_delta",
+      "value": "-1.541563"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/2/fold",
+      "value": "6"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/2/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/2/base/alpha_ex",
+      "value": "14.508718"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/2/base/maxdd_delta",
+      "value": "-3.695743"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/2/stress_2x/alpha_ex",
+      "value": "13.538297"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/2/stress_2x/maxdd_delta",
+      "value": "-3.604578"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/3/fold",
+      "value": "6"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/3/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/3/base/alpha_ex",
+      "value": "9.521702"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/3/base/maxdd_delta",
+      "value": "-4.882200"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/3/stress_2x/alpha_ex",
+      "value": "8.742371"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/3/stress_2x/maxdd_delta",
+      "value": "-4.803852"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/4/fold",
+      "value": "7"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/4/trend",
+      "value": "bull"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/4/base/alpha_ex",
+      "value": "-5.374467"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/4/base/maxdd_delta",
+      "value": "3.027256"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/4/stress_2x/alpha_ex",
+      "value": "-5.748409"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/4/stress_2x/maxdd_delta",
+      "value": "3.207149"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/5/fold",
+      "value": "7"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/5/trend",
+      "value": "bull"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/5/base/alpha_ex",
+      "value": "-5.320000"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/5/base/maxdd_delta",
+      "value": "2.981130"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/5/stress_2x/alpha_ex",
+      "value": "-5.700539"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/5/stress_2x/maxdd_delta",
+      "value": "3.166508"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/6/fold",
+      "value": "8"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/6/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/6/base/alpha_ex",
+      "value": "-1.642896"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/6/base/maxdd_delta",
+      "value": "0.234847"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/6/stress_2x/alpha_ex",
+      "value": "-2.195608"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/6/stress_2x/maxdd_delta",
+      "value": "0.276641"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/7/fold",
+      "value": "8"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/7/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/7/base/alpha_ex",
+      "value": "-1.642896"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/7/base/maxdd_delta",
+      "value": "0.234847"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/7/stress_2x/alpha_ex",
+      "value": "-2.195608"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/7/stress_2x/maxdd_delta",
+      "value": "0.276641"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/8/fold",
+      "value": "9"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/8/trend",
+      "value": "sideways"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/8/base/alpha_ex",
+      "value": "-4.909424"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/8/base/maxdd_delta",
+      "value": "4.847152"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/8/stress_2x/alpha_ex",
+      "value": "-5.152949"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/8/stress_2x/maxdd_delta",
+      "value": "4.977595"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/9/fold",
+      "value": "9"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/9/trend",
+      "value": "sideways"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/9/base/alpha_ex",
+      "value": "-5.016536"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/9/base/maxdd_delta",
+      "value": "4.931165"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/9/stress_2x/alpha_ex",
+      "value": "-5.268229"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/9/stress_2x/maxdd_delta",
+      "value": "5.068164"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/10/fold",
+      "value": "10"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/10/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/10/base/alpha_ex",
+      "value": "0.000891"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/10/base/maxdd_delta",
+      "value": "2.962664"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/10/stress_2x/alpha_ex",
+      "value": "-0.493977"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/10/stress_2x/maxdd_delta",
+      "value": "3.165021"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/11/fold",
+      "value": "10"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/11/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/11/base/alpha_ex",
+      "value": "0.000891"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/11/base/maxdd_delta",
+      "value": "2.962664"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/11/stress_2x/alpha_ex",
+      "value": "-0.493977"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/11/stress_2x/maxdd_delta",
+      "value": "3.165021"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/12/fold",
+      "value": "11"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/12/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/12/base/alpha_ex",
+      "value": "-1.888537"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/12/base/maxdd_delta",
+      "value": "-0.860153"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/12/stress_2x/alpha_ex",
+      "value": "-2.771683"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/12/stress_2x/maxdd_delta",
+      "value": "-0.822529"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/13/fold",
+      "value": "11"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/13/trend",
+      "value": "bear"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/13/base/alpha_ex",
+      "value": "-1.888537"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/13/base/maxdd_delta",
+      "value": "-0.860153"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/13/stress_2x/alpha_ex",
+      "value": "-2.771683"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/13/stress_2x/maxdd_delta",
+      "value": "-0.822529"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/14/fold",
+      "value": "12"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/14/trend",
+      "value": "sideways"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/14/base/alpha_ex",
+      "value": "-8.087470"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/14/base/maxdd_delta",
+      "value": "1.758665"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/14/stress_2x/alpha_ex",
+      "value": "-9.108762"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/14/stress_2x/maxdd_delta",
+      "value": "1.904290"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/15/fold",
+      "value": "12"
+    },
+    {
+      "kind": "identifier",
+      "location": "economic_folds/15/trend",
+      "value": "sideways"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/15/base/alpha_ex",
+      "value": "-8.124424"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/15/base/maxdd_delta",
+      "value": "1.758665"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/15/stress_2x/alpha_ex",
+      "value": "-9.110854"
+    },
+    {
+      "kind": "performance",
+      "location": "economic_folds/15/stress_2x/maxdd_delta",
+      "value": "1.904290"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/0/0",
+      "value": "0.001269"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/0/1",
+      "value": "0.003736"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/0/2",
+      "value": "0.016875"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/0/3",
+      "value": "0.044116"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/1/0",
+      "value": "0.000612"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/1/1",
+      "value": "0.000460"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/1/2",
+      "value": "0.028916"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/1/3",
+      "value": "0.082343"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/2/0",
+      "value": "0.000303"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/2/1",
+      "value": "0.001869"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/2/2",
+      "value": "0.017300"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/2/3",
+      "value": "0.044108"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/3/0",
+      "value": "-0.001449"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/3/1",
+      "value": "-0.005532"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/3/2",
+      "value": "0.029706"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/3/3",
+      "value": "0.075232"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/4/0",
+      "value": "0.001950"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/4/1",
+      "value": "0.005974"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/4/2",
+      "value": "0.021936"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/4/3",
+      "value": "0.063825"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/5/0",
+      "value": "-0.000945"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/5/1",
+      "value": "-0.003795"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/5/2",
+      "value": "0.045260"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/5/3",
+      "value": "0.153580"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/6/0",
+      "value": "0.002269"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/6/1",
+      "value": "0.008871"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/6/2",
+      "value": "0.039020"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/6/3",
+      "value": "0.107028"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/7/0",
+      "value": "-0.004486"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/7/1",
+      "value": "-0.017969"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/7/2",
+      "value": "0.059143"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/7/3",
+      "value": "0.161204"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/8/0",
+      "value": "0.000484"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/8/1",
+      "value": "0.002062"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/8/2",
+      "value": "0.016867"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/8/3",
+      "value": "0.043088"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/9/0",
+      "value": "-0.002269"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/9/1",
+      "value": "-0.006179"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/9/2",
+      "value": "0.024484"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/9/3",
+      "value": "0.064177"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/10/0",
+      "value": "0.000220"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/10/1",
+      "value": "0.000928"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/10/2",
+      "value": "0.011681"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/10/3",
+      "value": "0.026567"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/11/0",
+      "value": "-0.000628"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/11/1",
+      "value": "-0.002660"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/11/2",
+      "value": "0.017895"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/11/3",
+      "value": "0.040266"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/12/0",
+      "value": "0.002158"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/12/1",
+      "value": "0.004847"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/12/2",
+      "value": "0.011830"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/12/3",
+      "value": "0.026462"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/13/0",
+      "value": "0.007932"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/13/1",
+      "value": "0.017992"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/13/2",
+      "value": "0.021435"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/13/3",
+      "value": "0.047438"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/14/0",
+      "value": "-0.001496"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/14/1",
+      "value": "-0.003248"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/14/2",
+      "value": "0.006818"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/14/3",
+      "value": "0.016272"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/15/0",
+      "value": "-0.000053"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/15/1",
+      "value": "0.001161"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/15/2",
+      "value": "0.023890"
+    },
+    {
+      "kind": "performance",
+      "location": "classification_paired/15/3",
+      "value": "0.059194"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_short_both_magnitude_soft",
+      "value": "379.662229"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_magnitude_soft",
+      "value": "379.360177"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_magnitude_direction",
+      "value": "371.346886"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_half",
+      "value": "371.795061"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_soft_mapped_prior",
+      "value": "368.257564"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_soft_fit_mean",
+      "value": "368.257564"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/0/technical_soft_zero",
+      "value": "367.679703"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_short_both_magnitude_soft",
+      "value": "329.443651"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_magnitude_soft",
+      "value": "329.619158"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_magnitude_direction",
+      "value": "324.296213"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_half",
+      "value": "323.670513"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_soft_mapped_prior",
+      "value": "316.211081"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_soft_fit_mean",
+      "value": "316.211081"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/1/technical_soft_zero",
+      "value": "315.467427"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_short_both_magnitude_soft",
+      "value": "515.350541"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_magnitude_soft",
+      "value": "516.195492"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_magnitude_direction",
+      "value": "508.359045"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_half",
+      "value": "507.228310"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_soft_mapped_prior",
+      "value": "500.684521"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_soft_fit_mean",
+      "value": "500.684521"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/2/technical_soft_zero",
+      "value": "502.237477"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_short_both_magnitude_soft",
+      "value": "440.285355"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_magnitude_soft",
+      "value": "441.615994"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_magnitude_direction",
+      "value": "439.539380"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_half",
+      "value": "439.473290"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_soft_mapped_prior",
+      "value": "417.548103"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_soft_fit_mean",
+      "value": "417.548103"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/3/technical_soft_zero",
+      "value": "415.765663"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_short_both_magnitude_soft",
+      "value": "383.898742"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_magnitude_soft",
+      "value": "384.919429"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_magnitude_direction",
+      "value": "377.509335"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_half",
+      "value": "378.267135"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_soft_mapped_prior",
+      "value": "374.752439"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_soft_fit_mean",
+      "value": "374.752439"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/4/technical_soft_zero",
+      "value": "373.087490"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_short_both_magnitude_soft",
+      "value": "280.217071"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_magnitude_soft",
+      "value": "280.584018"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_magnitude_direction",
+      "value": "276.698071"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_half",
+      "value": "276.069720"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_soft_mapped_prior",
+      "value": "272.264877"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_soft_fit_mean",
+      "value": "272.264877"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/5/technical_soft_zero",
+      "value": "272.706656"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_short_both_magnitude_soft",
+      "value": "235.500890"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_magnitude_soft",
+      "value": "231.406360"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_magnitude_direction",
+      "value": "222.009830"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_half",
+      "value": "223.417664"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_soft_mapped_prior",
+      "value": "222.840857"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_soft_fit_mean",
+      "value": "222.840857"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/6/technical_soft_zero",
+      "value": "222.306357"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_short_both_magnitude_soft",
+      "value": "317.055109"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_magnitude_soft",
+      "value": "315.692602"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_magnitude_direction",
+      "value": "304.249332"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_half",
+      "value": "303.069323"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_soft_mapped_prior",
+      "value": "302.766468"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_soft_fit_mean",
+      "value": "302.766468"
+    },
+    {
+      "kind": "performance",
+      "location": "mapped_mse/7/technical_soft_zero",
+      "value": "300.690733"
+    },
+    {
+      "kind": "performance",
+      "location": "proper_gates/0/interval",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "proper_gates/0/evaluation",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "proper_gates/1/interval",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "proper_gates/1/evaluation",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/0",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/1",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/2",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/3",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/4",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/5",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/0/6",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/0",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/1",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/2",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/3",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/4",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/5",
+      "value": "False"
+    },
+    {
+      "kind": "performance",
+      "location": "policy_gates/1/6",
+      "value": "False"
+    },
+    {
+      "kind": "hash",
+      "location": "hash/config",
+      "value": "3eb2c811e9d96dd5e3e2d51483694e1b4d6dd412cd61dda50fe1d6d74df9520f"
+    },
+    {
+      "kind": "hash",
+      "location": "hash/protocol",
+      "value": "e3ebf7ac72fd6a192701b8ec1cf034393daa11c0ea36cab767a2c76be48216fb"
+    },
+    {
+      "kind": "hash",
+      "location": "hash/research",
+      "value": "b66637ef31fdd9f2c42a4f84202a7086a75556f9a93d6d449ddc8c91eb48e9bc"
+    },
+    {
+      "kind": "hash",
+      "location": "hash/registration",
+      "value": "ea4c54c94c00523eea189ae582bfb84e358b017285b0a779edc0dde83fe5676a"
+    },
+    {
+      "kind": "hash",
+      "location": "hash/preflight",
+      "value": "1a48c5d966c32439b0e3efc837210a88cf60f7cd96b194b2378fad1a5a62c4b6"
+    },
+    {
+      "kind": "hash",
+      "location": "hash/results",
+      "value": "e7c116ea5aae663ec42276d96c627813aad922b9f8796bdded8c9bb045ff9cd9"
+    }
+  ],
+  "hash_cells": 6,
+  "identifier_cells": 32,
+  "limitations": "Report-only audit; no aggregate rerun, fit, score function, predictor or policy/account replay. Independent scalar/Decimal audit is sealed. Source feature parity/own-state execution proofs remain delegated evidence, not newly replayed here.",
+  "material_corrections_required": [],
+  "narrative_claims": {
+    "16_new_fits_zero_uniquepriors_zero_riskfits": true,
+    "2bull4bear2side_and_retrospectiveI": true,
+    "656rows1312accounts400returns192classes32direction16mapping95perfold": true,
+    "all16_nested_policy_flags_false": true,
+    "all_four_proper_and_family_gates_false": true,
+    "both_new_policies_joint_2_of_8": true,
+    "complete_stage19_summary_preserved": true,
+    "freeze_revision": true,
+    "inference_score_supports": true,
+    "ledger220": true,
+    "new_fit_feature37and2tasks": true,
+    "no_generalization_receiptclaim": true,
+    "no_pending_placeholder": true,
+    "old640rows384returns160class_exact": true,
+    "old80policies24means10classifiers_preserved": true,
+    "ordinary_notmapped_additionals_notused_no_selection": true,
+    "overall_fallback_fails_both_costs": true,
+    "overall_hold_joint_signs_both_costs": true,
+    "registered332fallback2missingopens": true,
+    "registered_execution_same_target_coststress": true
+  },
+  "passed": true,
+  "performance_cells": 250,
+  "performance_rows": 52,
+  "report_sha256": "2c8e39ad9d5b9a882a932dbad1a71fc8fe9eef950f085bb3b47298958836a68a",
+  "results_sha256": "e7c116ea5aae663ec42276d96c627813aad922b9f8796bdded8c9bb045ff9cd9",
+  "schema": "independent-short-direction-report-audit-v1",
+  "score_audit_sha256": "db05e1aa0d9e8b0dbebe3f8b895975c341d7d685422452e4726ebf83cee84f41",
+  "table_row_counts": {
+    "classification_paired": 16,
+    "economic_folds": 16,
+    "economic_strata": 8,
+    "hashes": 6,
+    "mapped_mse": 8,
+    "policy_gates": 2,
+    "proper_gates": 2
+  }
+}

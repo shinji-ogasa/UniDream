@@ -1,0 +1,98 @@
+{
+  "ancestor_artifacts_verified": 5344,
+  "config_sha256": "3eb2c811e9d96dd5e3e2d51483694e1b4d6dd412cd61dda50fe1d6d74df9520f",
+  "counts": {
+    "exact_complete_old_control_rows": 640,
+    "exact_old_classification_scores": 160,
+    "exact_old_scores": 384,
+    "hash_binding_checks": 6941,
+    "independent_scalar_accounts": 1312,
+    "new_fallback_decisions": 332,
+    "new_full_trace_replays": 16,
+    "new_mapped_forecast_source_and_support_bindings": 16,
+    "new_own_state_decisions": 5504,
+    "new_own_state_paths": 16,
+    "new_probability_support_bindings": 32,
+    "new_unscored_E_decisions_retained": 24,
+    "saved_selected_fit_predict37_and_old_pack_verified": 8
+  },
+  "distinct_hashed_files": 6227,
+  "inventory": {
+    "calibration": 8,
+    "classification_scores": 192,
+    "direction_diagnostics": 32,
+    "fit_data": 8,
+    "forecasts": 8,
+    "mapping_diagnostics": 16,
+    "models": 16,
+    "probabilities_evaluation": 16,
+    "probabilities_interval": 16,
+    "provenance": 16,
+    "return_scores": 400,
+    "rows": 656,
+    "targets": 656,
+    "traces": 16
+  },
+  "limitations": [
+    "Source input module differs from the independent /tmp bridge only by trailing whitespace; executable body equality is checked.",
+    "Repeatedly reused development and retrospective availability masks are not independent confirmation.",
+    "Filtered scalar price reads are below original cutoff; full file bytes are hashed.",
+    "Archived sources do not establish historical receipt timestamps."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "own_artifacts_verified": 760,
+  "preflight_sha256": "1a48c5d966c32439b0e3efc837210a88cf60f7cd96b194b2378fad1a5a62c4b6",
+  "regime_counts": {
+    "bear": 4,
+    "bull": 2,
+    "sideways": 2
+  },
+  "results_sha256": "e7c116ea5aae663ec42276d96c627813aad922b9f8796bdded8c9bb045ff9cd9",
+  "runtime_warnings": {
+    "counts": {
+      "divide by zero encountered in matmul": 64,
+      "invalid value encountered in matmul": 64,
+      "overflow encountered in matmul": 64
+    },
+    "run_log_sha256": "c9be2c0e97c2f4b614e355d038a49207d96055757a8a270929b110d5d49b1253",
+    "total": 192
+  },
+  "scope": "All 5344 ancestral+760 new immutable artifacts and42 frozen sources. All1312 scalar accounts,16 new own-state paths/full traces,16 mapped E/I arrays,32 probability/support bindings;640 exact old full rows including trace hashes;384/160 exact old return/classifier scores;8 selected37 fit/predict matrices and complete original selected pack equality. No canonical model/planner/simulator/scorer helper imported; no fit performed.",
+  "script_sha256": "e5c44b1412aab826408fb0752d1ed89f393769563b59347268494a34ee80c2ba",
+  "separate_audit_scope": [
+    "Fitted coefficient/objective/gradient/logit numerical accuracy belongs to the independent model auditor.",
+    "New classification/return losses and summary decisions belong to the statistics auditor."
+  ],
+  "source_audit_sha256": "88f6c1f6031029a404310b2ce1bc741d85b5f6fca94cc11e8a09f2b68c8f5c5b",
+  "source_revision": "69d2cd6bae732d9598135c20fe216a4fa9b48fa1",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "interval_inference": 2537,
+    "interval_score": 2523,
+    "missing_current_open": 2,
+    "score": 2574
+  }
+}

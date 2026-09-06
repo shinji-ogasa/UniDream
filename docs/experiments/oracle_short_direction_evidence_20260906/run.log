@@ -1,0 +1,392 @@
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 5, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 6, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 7, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 8, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 9, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 10, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 11, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: divide by zero encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: overflow encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:203: RuntimeWarning: invalid value encountered in matmul
+  raw_prediction = X @ weights + intercept
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: divide by zero encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: overflow encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/linear_model/_linear_loss.py:333: RuntimeWarning: invalid value encountered in matmul
+  grad[:n_features] = X.T @ grad_pointwise + l2_reg_strength * weights
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/utils/extmath.py:227: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+{"event": "fold_complete", "fold": 12, "new_model_fits": 2, "new_unique_priors": 0, "policies": 82, "return_scores": 50, "classification_scores": 24, "artifacts": 95}
