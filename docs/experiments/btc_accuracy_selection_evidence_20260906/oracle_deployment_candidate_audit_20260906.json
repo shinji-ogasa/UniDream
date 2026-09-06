@@ -1,0 +1,1283 @@
+{
+  "eligible_development_witness_count": 18,
+  "learned_rl_joint_sign_and_exportable_artifact_confirmed": false,
+  "minimum_sign_witnesses": [
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.04450248796955247,
+        "maxdd_delta": -0.051432486557127496,
+        "trades": 22.75,
+        "turnover": 1.5676173406855132
+      },
+      "candidate": "perp_delay0_reliability_utility_risk1",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.02894528670841051,
+            "maxdd_delta": -0.039669842477241146,
+            "trades": 19.0,
+            "turnover": 1.2155992459883784
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.02659913987729315,
+            "maxdd_delta": -0.039043106662104504,
+            "trades": 18.75,
+            "turnover": 1.2126477492298156
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.04062991232730351,
+            "maxdd_delta": -0.04749014549506947,
+            "trades": 37.0,
+            "turnover": 2.6816172561873306
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.03776809829676345,
+            "maxdd_delta": -0.04547812571698934,
+            "trades": 37.0,
+            "turnover": 2.681682878302314
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.07948946613408536,
+            "maxdd_delta": -0.07890011577895822,
+            "trades": 16.0,
+            "turnover": 1.1576536145779655
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.07894578603941571,
+            "maxdd_delta": -0.07867239636157902,
+            "trades": 16.0,
+            "turnover": 1.1578447655554425
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_short_feature_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.042478041022691364,
+        "maxdd_delta": -0.05055918385069434,
+        "trades": 22.625,
+        "turnover": 1.5662057855793468
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.04207553781953463,
+        "maxdd_delta": -0.05854364295187796,
+        "trades": 28.25,
+        "turnover": 1.9533322267213509
+      },
+      "candidate": "perp_delay0_reliability_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.009213806222294674,
+            "maxdd_delta": -0.04228697044559804,
+            "trades": 20.75,
+            "turnover": 1.3424594224356952
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.007326005135246033,
+            "maxdd_delta": -0.04170765491171499,
+            "trades": 20.5,
+            "turnover": 1.340153515803122
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.06020865192788899,
+            "maxdd_delta": -0.06681982590864516,
+            "trades": 44.0,
+            "turnover": 3.21110071545232
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.05812628436242734,
+            "maxdd_delta": -0.0654200847123384,
+            "trades": 44.0,
+            "turnover": 3.211227089600096
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.08966588690566019,
+            "maxdd_delta": -0.0827808050076706,
+            "trades": 27.5,
+            "turnover": 1.917309346561693
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.08880131286311943,
+            "maxdd_delta": -0.08232934883964799,
+            "trades": 27.5,
+            "turnover": 1.9174395218336397
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_short_feature_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.04039490187400971,
+        "maxdd_delta": -0.05779118584385409,
+        "trades": 28.125,
+        "turnover": 1.9522434107599949
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.03750066160616439,
+        "maxdd_delta": -0.056950641475439975,
+        "trades": 19.625,
+        "turnover": 1.364134936020995
+      },
+      "candidate": "technical_reliability_utility_risk1",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.02221394415462019,
+            "maxdd_delta": -0.03920687049966459,
+            "trades": 17.75,
+            "turnover": 1.1650138434108297
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.01936234504892756,
+            "maxdd_delta": -0.039095367886753274,
+            "trades": 17.25,
+            "turnover": 1.1581674595970022
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.03773439000092532,
+            "maxdd_delta": -0.05352391664710221,
+            "trades": 27.5,
+            "turnover": 1.9577074401389525
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.035230082787889666,
+            "maxdd_delta": -0.05174816537708321,
+            "trades": 27.5,
+            "turnover": 1.9577500453473133
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.06784036811449184,
+            "maxdd_delta": -0.09586490825532851,
+            "trades": 15.5,
+            "turnover": 1.1688046171233675
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.0672793913127524,
+            "maxdd_delta": -0.09568114837088376,
+            "trades": 15.5,
+            "turnover": 1.1689946280606038
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_short_feature_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.0353085410496243,
+        "maxdd_delta": -0.05640501238036838,
+        "trades": 19.375,
+        "turnover": 1.3607698981504803
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.03704392591743176,
+        "maxdd_delta": -0.06378202188779127,
+        "trades": 24.625,
+        "turnover": 1.7393161724399535
+      },
+      "candidate": "technical_reliability_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.0044675682267227845,
+            "maxdd_delta": -0.042204996687401075,
+            "trades": 19.5,
+            "turnover": 1.288217261077241
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.0026038431546722973,
+            "maxdd_delta": -0.04164258264146706,
+            "trades": 19.0,
+            "turnover": 1.2807530263088207
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.05762932825443007,
+            "maxdd_delta": -0.073103669706652,
+            "trades": 34.5,
+            "turnover": 2.4871336934471167
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.05590343541815512,
+            "maxdd_delta": -0.07193596156816306,
+            "trades": 34.5,
+            "turnover": 2.487237117266809
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.0816112389618514,
+            "maxdd_delta": -0.09761442446971091,
+            "trades": 25.0,
+            "turnover": 1.8936964741582154
+          },
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.080715213672656,
+            "maxdd_delta": -0.09722628902738795,
+            "trades": 25.0,
+            "turnover": 1.8938175266249078
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_short_feature_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.03545658385003893,
+        "maxdd_delta": -0.06311185396962128,
+        "trades": 24.375,
+        "turnover": 1.7356401741273395
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.0361294183962666,
+        "maxdd_delta": -0.053877018106913185,
+        "trades": 29.75,
+        "turnover": 2.0885563646047207
+      },
+      "candidate": "perp_delay0_half_utility_risk1",
+      "joint_quarters_both_costs": 4,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.017240132271934328,
+            "maxdd_delta": -0.029514715346327325,
+            "trades": 26.75,
+            "turnover": 1.8092374549068704
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.01428679774490968,
+            "maxdd_delta": -0.02882011951089511,
+            "trades": 26.25,
+            "turnover": 1.8067379348822348
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.04221752463670636,
+            "maxdd_delta": -0.06472993853308517,
+            "trades": 10.0,
+            "turnover": 0.6011629092761732
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.04038359222626106,
+            "maxdd_delta": -0.0635038489147674,
+            "trades": 10.0,
+            "turnover": 0.60121110860151
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.06781988440449138,
+            "maxdd_delta": -0.09174870320191292,
+            "trades": 55.5,
+            "turnover": 4.134587639328968
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.06500194440187101,
+            "maxdd_delta": -0.09103616929784414,
+            "trades": 55.5,
+            "turnover": 4.134822424975049
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.03348978302948786,
+        "maxdd_delta": -0.05304506430860044,
+        "trades": 29.5,
+        "turnover": 2.0873773508352573
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.03379452602967105,
+        "maxdd_delta": -0.0615980082315406,
+        "trades": 34.375,
+        "turnover": 2.4552967607218474
+      },
+      "candidate": "perp_delay0_half_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 4,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": -0.0006612910190529342,
+            "maxdd_delta": -0.032381187220751756,
+            "trades": 28.5,
+            "turnover": 1.9316454465877897
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": -0.0033006487608913393,
+            "maxdd_delta": -0.03176497756250135,
+            "trades": 28.0,
+            "turnover": 1.9289303164701335
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.06196207152946703,
+            "maxdd_delta": -0.08416345402169756,
+            "trades": 17.0,
+            "turnover": 1.130813176106053
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.060902251453511136,
+            "maxdd_delta": -0.0835385335824474,
+            "trades": 17.0,
+            "turnover": 1.1309222649495667
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.07453861462732303,
+            "maxdd_delta": -0.09746620446296134,
+            "trades": 63.5,
+            "turnover": 4.827082973605757
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.07145330584002052,
+            "maxdd_delta": -0.0965399122564572,
+            "trades": 63.5,
+            "turnover": 4.827305625123519
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.031438564942937244,
+        "maxdd_delta": -0.06090210024097682,
+        "trades": 34.125,
+        "turnover": 2.454022130753338
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.011489579699530697,
+        "maxdd_delta": -0.06031373598421429,
+        "trades": 23.75,
+        "turnover": 1.6224255119658502
+      },
+      "candidate": "technical_half_utility_risk1",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.010340018429993075,
+            "maxdd_delta": -0.032026927465685445,
+            "trades": 24.0,
+            "turnover": 1.6169193217309692
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.007867300980181319,
+            "maxdd_delta": -0.03129745142074519,
+            "trades": 23.75,
+            "turnover": 1.6145796073582397
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.04483452642960162,
+            "maxdd_delta": -0.0670950006315022,
+            "trades": 7.5,
+            "turnover": 0.44559504873534855
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.043072163495765176,
+            "maxdd_delta": -0.06593490116248435,
+            "trades": 7.5,
+            "turnover": 0.44564661718294785
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": -0.01955624449146498,
+            "maxdd_delta": -0.11010608837398406,
+            "trades": 39.5,
+            "turnover": 2.810268355666114
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": -0.021075925268275175,
+            "maxdd_delta": -0.10959573713355525,
+            "trades": 39.5,
+            "turnover": 2.810629697951965
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.00943271004696316,
+        "maxdd_delta": -0.059531385284382496,
+        "trades": 23.625,
+        "turnover": 1.6213588824628482
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.010065179643205635,
+        "maxdd_delta": -0.06782863307081444,
+        "trades": 30.25,
+        "turnover": 2.0925316763676025
+      },
+      "candidate": "technical_half_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": -0.007612287022354808,
+            "maxdd_delta": -0.03496316309871059,
+            "trades": 26.0,
+            "turnover": 1.7399421781398223
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": -0.0097773311578154,
+            "maxdd_delta": -0.03431488611664135,
+            "trades": 25.75,
+            "turnover": 1.737527232730385
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.06420744521784189,
+            "maxdd_delta": -0.08614198729270839,
+            "trades": 14.5,
+            "turnover": 0.9743309984093784
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.06321851132055711,
+            "maxdd_delta": -0.08558237529500917,
+            "trades": 14.5,
+            "turnover": 0.9744431959613894
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": -0.00872215260030973,
+            "maxdd_delta": -0.11524621879312819,
+            "trades": 54.5,
+            "turnover": 3.915911350781388
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": -0.010813227691092664,
+            "maxdd_delta": -0.11452358201772866,
+            "trades": 54.5,
+            "turnover": 3.9162449064956313
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.008212655328458413,
+        "maxdd_delta": -0.06718393238650514,
+        "trades": 30.125,
+        "turnover": 2.091435641979448
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.03335462832315518,
+        "maxdd_delta": -0.031131304546558658,
+        "trades": 87.75,
+        "turnover": 6.723461055187531
+      },
+      "candidate": "perp_delay0_magnitude_direction_utility_risk1",
+      "joint_quarters_both_costs": 5,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.03020859169409243,
+            "maxdd_delta": -0.021339126793031793,
+            "trades": 109.75,
+            "turnover": 8.409986327744361
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.02289970144696074,
+            "maxdd_delta": -0.02049820757313628,
+            "trades": 109.75,
+            "turnover": 8.410429780360209
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.021493736014862153,
+            "maxdd_delta": -0.029655363110138444,
+            "trades": 81.5,
+            "turnover": 6.273370125116685
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.018222387736280488,
+            "maxdd_delta": -0.027891599950411516,
+            "trades": 81.5,
+            "turnover": 6.273700746079543
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.05150759388957371,
+            "maxdd_delta": -0.0521916014900326,
+            "trades": 50.0,
+            "turnover": 3.8005014401447155
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.048452374364416684,
+            "maxdd_delta": -0.05140860184368562,
+            "trades": 50.0,
+            "turnover": 3.799948206858174
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.028118541248654663,
+        "maxdd_delta": -0.030074154235092423,
+        "trades": 87.75,
+        "turnover": 6.723627128414534
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.016876864380274526,
+        "maxdd_delta": -0.025284919611113496,
+        "trades": 89.25,
+        "turnover": 6.803524422442404
+      },
+      "candidate": "perp_delay0_magnitude_direction_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 5,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.014087613531992865,
+            "maxdd_delta": -0.02420559866745628,
+            "trades": 111.5,
+            "turnover": 8.529354221588061
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.007338953255127012,
+            "maxdd_delta": -0.023443065624742465,
+            "trades": 111.5,
+            "turnover": 8.529431142459584
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.008454828048913954,
+            "maxdd_delta": -0.017056285572881413,
+            "trades": 84.0,
+            "turnover": 6.377997709774657
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.005175989675445247,
+            "maxdd_delta": -0.015424879133797809,
+            "trades": 84.0,
+            "turnover": 6.378336067182436
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.030877402408198418,
+            "maxdd_delta": -0.03567219553666001,
+            "trades": 50.0,
+            "turnover": 3.777391536818836
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.02807708160415262,
+            "maxdd_delta": -0.03490674461691712,
+            "trades": 50.0,
+            "turnover": 3.7766565297233927
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.011982744447462973,
+        "maxdd_delta": -0.024304438750049964,
+        "trades": 89.25,
+        "turnover": 6.803463720456249
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.030866587286975528,
+        "maxdd_delta": -0.02788922487450507,
+        "trades": 85.625,
+        "turnover": 6.561554187732598
+      },
+      "candidate": "perp_delay0_ordinary_direction_utility_risk1",
+      "joint_quarters_both_costs": 5,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.03141849247035752,
+            "maxdd_delta": -0.023878178296401847,
+            "trades": 100.25,
+            "turnover": 7.658544103351392
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.02445287677777977,
+            "maxdd_delta": -0.022782041384603463,
+            "trades": 100.0,
+            "turnover": 7.653117226599632
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.011105341941616498,
+            "maxdd_delta": -0.012683553366587108,
+            "trades": 84.0,
+            "turnover": 6.488317115243578
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.007635555429889862,
+            "maxdd_delta": -0.011014895145674275,
+            "trades": 84.0,
+            "turnover": 6.4877550505489845
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.049524022265570566,
+            "maxdd_delta": -0.051116989538629476,
+            "trades": 58.0,
+            "turnover": 4.44081142898403
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.04610175862567889,
+            "maxdd_delta": -0.050316542600817526,
+            "trades": 58.0,
+            "turnover": 4.4400262108650566
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.025660766902782073,
+        "maxdd_delta": -0.026723880128924682,
+        "trades": 85.5,
+        "turnover": 6.558503928653327
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.020808283055789745,
+        "maxdd_delta": -0.027781534491339965,
+        "trades": 87.375,
+        "turnover": 6.632096068133012
+      },
+      "candidate": "perp_delay0_ordinary_direction_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 5,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.015160347201548269,
+            "maxdd_delta": -0.026780070726524025,
+            "trades": 102.0,
+            "turnover": 7.777964603817482
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.008717706618717319,
+            "maxdd_delta": -0.02574141820998771,
+            "trades": 101.75,
+            "turnover": 7.772784242120048
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.007237293634232145,
+            "maxdd_delta": -0.009287455643080422,
+            "trades": 85.0,
+            "turnover": 6.483099103708298
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.0037786670827764657,
+            "maxdd_delta": -0.0076237293717168475,
+            "trades": 85.0,
+            "turnover": 6.4825668090319315
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.045675144185830296,
+            "maxdd_delta": -0.04827854086923139,
+            "trades": 60.5,
+            "turnover": 4.489355961188784
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.04222284004008453,
+            "maxdd_delta": -0.047484461193686545,
+            "trades": 60.5,
+            "turnover": 4.488568126734676
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.01585923009007391,
+        "maxdd_delta": -0.026647756746344703,
+        "trades": 87.25,
+        "turnover": 6.629175855001676
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": true,
+      "base": {
+        "alpha_ex": 0.021308063025668456,
+        "maxdd_delta": -0.03129557705062548,
+        "trades": 57.625,
+        "turnover": 4.231570497214431
+      },
+      "candidate": "perp_delay0_scaled_utility_risk1",
+      "joint_quarters_both_costs": 4,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.00967488633672925,
+            "maxdd_delta": -0.027837124863952983,
+            "trades": 43.0,
+            "turnover": 3.02883905553917
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.005954603635575956,
+            "maxdd_delta": -0.02705710259849392,
+            "trades": 43.0,
+            "turnover": 3.028624891485827
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.04062991232730351,
+            "maxdd_delta": -0.04749014549506947,
+            "trades": 37.0,
+            "turnover": 2.6816172561873306
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.03776809829676345,
+            "maxdd_delta": -0.04547812571698934,
+            "trades": 37.0,
+            "turnover": 2.681682878302314
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.025252567101911816,
+            "maxdd_delta": -0.02201791297952649,
+            "trades": 107.5,
+            "turnover": 8.186986621592053
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.019225643837761763,
+            "maxdd_delta": -0.02042856559070605,
+            "trades": 107.5,
+            "turnover": 8.18650265563656
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.01722573735141928,
+        "maxdd_delta": -0.030005224126170807,
+        "trades": 57.625,
+        "turnover": 4.231358829227632
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.01917732134397003,
+        "maxdd_delta": -0.037766973515893296,
+        "trades": 62.125,
+        "turnover": 4.563049222923922
+      },
+      "candidate": "perp_delay0_scaled_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 4,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": -0.0041701915460906624,
+            "maxdd_delta": -0.03083525105168941,
+            "trades": 44.75,
+            "turnover": 3.13639184917588
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": -0.007532682590213141,
+            "maxdd_delta": -0.03013417470473828,
+            "trades": 44.75,
+            "turnover": 3.135925965830247
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.06020865192788899,
+            "maxdd_delta": -0.06681982590864516,
+            "trades": 44.0,
+            "turnover": 3.21110071545232
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.05812628436242734,
+            "maxdd_delta": -0.0654200847123384,
+            "trades": 44.0,
+            "turnover": 3.211227089600096
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.024841016540172456,
+            "maxdd_delta": -0.022577566051549203,
+            "trades": 115.0,
+            "turnover": 8.768312477891609
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.018781514542743127,
+            "maxdd_delta": -0.020857522385045513,
+            "trades": 115.0,
+            "turnover": 8.76770304095618
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.015460608431186046,
+        "maxdd_delta": -0.03663648912671512,
+        "trades": 62.125,
+        "turnover": 4.562695515554193
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.005950943169812664,
+        "maxdd_delta": -0.04322762857517244,
+        "trades": 44.5,
+        "turnover": 3.186619385653067
+      },
+      "candidate": "technical_scaled_utility_risk1",
+      "joint_quarters_both_costs": 4,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": 0.011860878381252632,
+            "maxdd_delta": -0.027917044694698107,
+            "trades": 38.5,
+            "turnover": 2.6704062952964898
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": 0.008369553132374918,
+            "maxdd_delta": -0.027134383422572766,
+            "trades": 38.5,
+            "turnover": 2.6702885200783077
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.03773439000092532,
+            "maxdd_delta": -0.05352391664710221,
+            "trades": 27.5,
+            "turnover": 1.9577074401389525
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.035230082787889666,
+            "maxdd_delta": -0.05174816537708321,
+            "trades": 27.5,
+            "turnover": 1.9577500453473133
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": -0.03765237408417993,
+            "maxdd_delta": -0.06355250826419134,
+            "trades": 73.5,
+            "turnover": 5.447957511880336
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": -0.040898997065039966,
+            "maxdd_delta": -0.062413620776899936,
+            "trades": 73.5,
+            "turnover": 5.447708156554253
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.0027675479968998842,
+        "maxdd_delta": -0.04210763824978217,
+        "trades": 44.5,
+        "turnover": 3.186508810514545
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.007054206593135173,
+        "maxdd_delta": -0.05079134438917818,
+        "trades": 50.625,
+        "turnover": 3.6435739717902704
+      },
+      "candidate": "technical_scaled_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 4,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": -0.002065320488407879,
+            "maxdd_delta": -0.030822272764943676,
+            "trades": 40.25,
+            "turnover": 2.777894041075216
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 2,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": -0.0052140263734618,
+            "maxdd_delta": -0.030120464297483412,
+            "trades": 40.25,
+            "turnover": 2.777534341101301
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.05762932825443007,
+            "maxdd_delta": -0.073103669706652,
+            "trades": 34.5,
+            "turnover": 2.4871336934471167
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.05590343541815512,
+            "maxdd_delta": -0.07193596156816306,
+            "trades": 34.5,
+            "turnover": 2.487237117266809
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": -0.025281860905073616,
+            "maxdd_delta": -0.06841716232017336,
+            "trades": 87.5,
+            "turnover": 6.531374111563533
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": -0.02908431377124232,
+            "maxdd_delta": -0.06706754959296146,
+            "trades": 87.5,
+            "turnover": 6.531102564020101
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.004097767224997301,
+        "maxdd_delta": -0.04981110993902284,
+        "trades": 50.625,
+        "turnover": 3.6433520908723778
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.03128084011557726,
+        "maxdd_delta": -0.06531401013038628,
+        "trades": 4.0,
+        "turnover": 0.24736322114770523
+      },
+      "candidate": "scale_mean_utility_risk1",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": -0.008729540897573163,
+            "maxdd_delta": -0.031138000776089164,
+            "trades": 3.0,
+            "turnover": 0.18173881918934987
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": -0.009141955198942259,
+            "maxdd_delta": -0.030978009396587486,
+            "trades": 2.75,
+            "turnover": 0.17919943063120788
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.04660871362062935,
+            "maxdd_delta": -0.07064676661221791,
+            "trades": 5.0,
+            "turnover": 0.32149078272637466
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.04490417885980649,
+            "maxdd_delta": -0.06953989244123432,
+            "trades": 5.0,
+            "turnover": 0.3215528256075957
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.09597372863682602,
+            "maxdd_delta": -0.12833327235714886,
+            "trades": 5.0,
+            "turnover": 0.3044844634857465
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.09582711865178406,
+            "maxdd_delta": -0.1282725159546978,
+            "trades": 5.0,
+            "turnover": 0.3046112172565089
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.03061184677842651,
+        "maxdd_delta": -0.06494210679727677,
+        "trades": 3.875,
+        "turnover": 0.2461407260316301
+      }
+    },
+    {
+      "all_start_regime_signs_both_costs": false,
+      "base": {
+        "alpha_ex": 0.03541395936626433,
+        "maxdd_delta": -0.06716185497366445,
+        "trades": 8.25,
+        "turnover": 0.5584979315417193
+      },
+      "candidate": "scale_mean_utility_risk1_fallback_bh",
+      "joint_quarters_both_costs": 3,
+      "regimes": {
+        "bear": {
+          "base": {
+            "alpha_ex": -0.008729540897573163,
+            "maxdd_delta": -0.031138000776089164,
+            "trades": 3.0,
+            "turnover": 0.18173881918934987
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 4,
+          "stress_2x": {
+            "alpha_ex": -0.009141955198942259,
+            "maxdd_delta": -0.030978009396587486,
+            "trades": 2.75,
+            "turnover": 0.17919943063120788
+          }
+        },
+        "bull": {
+          "base": {
+            "alpha_ex": 0.061416048999146544,
+            "maxdd_delta": -0.08359721559363104,
+            "trades": 12.0,
+            "turnover": 0.8162203710896818
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.060503026312294206,
+            "maxdd_delta": -0.08310612202873152,
+            "trades": 12.0,
+            "turnover": 0.8163351581087542
+          }
+        },
+        "sideways": {
+          "base": {
+            "alpha_ex": 0.09769887026105711,
+            "maxdd_delta": -0.12277420274884843,
+            "trades": 15.0,
+            "turnover": 1.054293716698496
+          },
+          "hindsight_only": false,
+          "joint_positive_quarters_both_costs": 1,
+          "quarters": 2,
+          "stress_2x": {
+            "alpha_ex": 0.09723029650243764,
+            "maxdd_delta": -0.12246169731975104,
+            "trades": 15.0,
+            "turnover": 1.0543718299579519
+          }
+        }
+      },
+      "source": "codex_outputs/oracle_soft_direction_decisions_v1/results.json",
+      "stress_2x": {
+        "alpha_ex": 0.03486235310421183,
+        "maxdd_delta": -0.06688095953541438,
+        "trades": 8.125,
+        "turnover": 0.5572764623322805
+      }
+    }
+  ],
+  "report_sha256": "ad9900cd65546a59ffcff9e94da6e311fdb988760213deb67709d59b9129281f",
+  "scope": "existing completed development evidence only; no new fits or policy paths",
+  "script_sha256": "bdf2e04043a98eeb06d0b668bd150fcb18ba38afc26d139025911766b2061998",
+  "source_results": {
+    "codex_outputs/oracle_additional_window_replay_v1/results.json": "8579e40b5be9ed737acf6c633c92d33b383d0fb338c75832f7b3a125bdd474d1",
+    "codex_outputs/oracle_mean_reliability_decisions_v1/results.json": "333f88d4bc06f671d552d8ca70470ee60ecd67074812f6aa248b26f1b94562f1",
+    "codex_outputs/oracle_mean_shrinkage_decisions_v1/results.json": "a06c1ed0d6b85eb4d808c2741dca9cfd19b9d1f79023043ade3fbbb5897d212e",
+    "codex_outputs/oracle_short_feature_decisions_v1/results.json": "2f65382455e1266e035d38007a8dc939efb74d84df676c44da8ed3de9cd77218",
+    "codex_outputs/oracle_soft_direction_decisions_v1/results.json": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5"
+  },
+  "status": "pass"
+}

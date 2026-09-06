@@ -1,0 +1,61 @@
+{
+  "edge": {
+    "slug": "run-unidream-inference",
+    "version": 2,
+    "status": "ACTIVE",
+    "verify_jwt": false,
+    "ezbr_sha256": "fcc0cff651951887d48f6b7595b0ca76fb42dd8d0af124a39229c6c6b83ccff1"
+  },
+  "files": [
+    {
+      "name": "run-unidream-inference/index.ts",
+      "safe_snippets": [
+        {
+          "line": 27,
+          "text": "const TARGET_BARS = 1800;"
+        },
+        {
+          "line": 31,
+          "text": "const FEE_RATE = 0; // PoC: no fees / slippage. Tune later if needed."
+        },
+        {
+          "line": 33,
+          "text": "const ALLOW_SHORT = false;"
+        },
+        {
+          "line": 147,
+          "text": "  if (!ALLOW_SHORT && target < 0) target = 0;"
+        },
+        {
+          "line": 189,
+          "text": "  const fee = tradeNotional * FEE_RATE;"
+        },
+        {
+          "line": 224,
+          "text": "      fetchCandles(TARGET_BARS),"
+        },
+        {
+          "line": 269,
+          "text": "    const price = latest.close;"
+        },
+        {
+          "line": 315,
+          "text": "    const insPred = await supabase.from(\"predictions\").insert(predRow);"
+        },
+        {
+          "line": 318,
+          "text": "    const upsState = await supabase.from(\"strategy_state\").upsert(stateRow);"
+        },
+        {
+          "line": 324,
+          "text": "      .upsert(snapshotRow, { onConflict: \"run_id,timestamp\" });"
+        },
+        {
+          "line": 335,
+          "text": "      const insTrade = await supabase.from(\"trades\").insert(tradeRow);"
+        }
+      ],
+      "source_sha256": "8051629d8066cbf15616c4ab50a4c4e6dd49628cd7a22850130821491c1b19b6"
+    }
+  ]
+}
