@@ -1200,7 +1200,7 @@ class ImagACTrainer:
         ):
             return torch.tensor(0.0, device=self.device)
 
-        cur_trade_logits, cur_target_mean, cur_target_std, cur_band, _ = self.actor.controller_outputs(
+        cur_trade_logits, cur_target_mean, cur_target_std, cur_band, cur_current_inventory = self.actor.controller_outputs(
             z, h, inventory=inventory, regime=regime, advantage=advantage
         )
         with torch.no_grad():
@@ -1226,7 +1226,10 @@ class ImagACTrainer:
             ref_trade_prob = torch.sigmoid(ref_trade_logits)
             cur_target_inventory = cur_target_mean
             ref_target_inventory = ref_target_mean
-            inventory_now = inventory.squeeze(-1) if inventory.ndim > 1 else inventory
+            # Full controller state remains an actor input. Execution needs
+            # only its scalar exposure component, as returned by the actor.
+            inventory_now = (cur_current_inventory if getattr(self, "market_reward_mode", False)
+                             else inventory.squeeze(-1) if inventory.ndim > 1 else inventory)
             cur_next_inventory = self.actor.soft_execute_controller(
                 trade_signal=cur_trade_prob,
                 target_inventory=cur_target_inventory,

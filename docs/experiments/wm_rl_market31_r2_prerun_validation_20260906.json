@@ -1,0 +1,10 @@
+{
+  "unit_tests": 872,
+  "seconds": 61.103,
+  "status": "passed",
+  "diff_check": "passed",
+  "log_path": "/tmp/wm-rl-market31-r2-prerun-tests.log",
+  "log_sha256": "2422efedbca396868dbc7acd7dd73c2e614c1e9de4c712c9c5719cc8b5a0d43c",
+  "change": "market-only scalar inventory in prior-flow; all actual prior coefficients wired",
+  "economic_scores_before_retry": 0
+}

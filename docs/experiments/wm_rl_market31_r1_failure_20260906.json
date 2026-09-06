@@ -1,0 +1,10 @@
+{
+  "phase": "fold6_first_ac_update",
+  "kind": "prior_flow_full_controller_shape_mismatch",
+  "wm_completed": 700,
+  "bc_epochs_completed": 5,
+  "ac_actor_updates_completed": 0,
+  "economic_scores_computed": 0,
+  "log_path": "/tmp/wm-rl-market31-screen-run.log",
+  "log_sha256": "72813ce1f48354e606b3b0b6243e16d90f3ebcca6e8b4d8deb8b8ea181a9c8c1"
+}

@@ -239,7 +239,8 @@ class NativeLossWiringTests(unittest.TestCase):
         cfg = config(); cfg['world_model']['done_scale'] = 0
         cfg['ac'].update(residual_controller=True, abs_min_position=.5, abs_max_position=1.12,
                          residual_min_overlay=-.5, residual_max_overlay=.12, advantage_dim=42,
-                         market_deadband=.01, prior_kl_coef=.001, prior_trade_coef=.001)
+                         market_deadband=.01, prior_kl_coef=.001, prior_trade_coef=.001,
+                         prior_band_coef=.002, prior_flow_coef=.004)
         ensemble = _MarketSpy()
         setup = mod.prepare_bc_setup(ensemble=_Ensemble(), oracle_action_values=np.array([0, .5, 1, 1.25], np.float32),
             oracle_positions=np.array([1, .92, .92, 1], np.float32), oracle_values=None,
@@ -247,6 +248,8 @@ class NativeLossWiringTests(unittest.TestCase):
             reward_cfg=cfg['reward'], oracle_teacher_mode='lowfreq_wm_overlay')
         a = setup['actor']
         z, h, states, aux = torch.zeros(2, 2), torch.zeros(2, 2), torch.zeros(2, 4), torch.zeros(2, 42)
+        states[:, 0] = torch.tensor([-.08, .10])
+        states[:, 1] = torch.tensor([-.02, .03])
         states[:, 2:] = .25
         bc = BCPretrainer(a, 2, 2, sirl_hidden=0)
         loss = bc._bc_loss(z, h, torch.tensor([1., .92]), inventory=states, advantage=aux)
@@ -257,6 +260,15 @@ class NativeLossWiringTests(unittest.TestCase):
         ac = ImagACTrainer(a, Critic(2, 2, hidden_dim=4, n_layers=1, n_bins=5), ensemble, cfg)
         mod.bind_controller_anchor_bank(ac, z=z.numpy(), h=h.numpy(), positions=np.array([1., .92], np.float32),
             states=states.numpy(), auxiliary=aux.numpy(), origins=np.array([100, 500]))
+        with patch.object(ac.actor, 'soft_execute_controller', wraps=ac.actor.soft_execute_controller) as cur_execute, \
+             patch.object(ac.actor_prior, 'soft_execute_controller', wraps=ac.actor_prior.soft_execute_controller) as prior_execute:
+            anchor_loss = ac._prior_anchor_loss(z, h, states, advantage=aux)
+        self.assertTrue(torch.isfinite(anchor_loss))
+        self.assertTrue(cur_execute.called and prior_execute.called)
+        for calls in (cur_execute.call_args_list, prior_execute.call_args_list):
+            for call in calls:
+                self.assertEqual(tuple(call.kwargs['current_inventory'].shape), (2,))
+                torch.testing.assert_close(call.kwargs['current_inventory'], states[:, 0], rtol=0, atol=0)
         with patch.object(ac.actor_optimizer, 'step'), patch.object(ac.critic_optimizer, 'step'):
             result = ac.train_step(z, h, past_zs=torch.zeros(2, 63, 2), past_as=torch.ones(2, 63, 1),
                                    controller_state0=states, advantage0=aux)
