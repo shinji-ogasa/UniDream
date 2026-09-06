@@ -1,0 +1,195 @@
+{
+  "config": {
+    "adaptive_causal_names_unchanged": 174,
+    "additional_test_permitted": false,
+    "cells": {
+      "perp_delay0_half": {
+        "base": "perp_delay0_half",
+        "full": "perp_delay0_half_oracle_return",
+        "magnitude": "perp_delay0_half_oracle_magnitude",
+        "sign": "perp_delay0_half_oracle_sign"
+      },
+      "technical_half": {
+        "base": "technical_half",
+        "full": "technical_half_oracle_return",
+        "magnitude": "technical_half_oracle_magnitude",
+        "sign": "technical_half_oracle_sign"
+      }
+    },
+    "components": [
+      "sign",
+      "magnitude"
+    ],
+    "contrasts": [
+      [
+        "sign",
+        "base"
+      ],
+      [
+        "magnitude",
+        "base"
+      ],
+      [
+        "full",
+        "base"
+      ],
+      [
+        "full",
+        "sign"
+      ],
+      [
+        "full",
+        "magnitude"
+      ]
+    ],
+    "control_ids": [
+      "bh",
+      "common_robust",
+      "scale_mean_utility_risk1",
+      "scale_mean_utility_risk1_fallback_bh",
+      "technical_scaled_utility_risk1",
+      "technical_scaled_utility_risk1_fallback_bh",
+      "perp_delay0_scaled_utility_risk1",
+      "perp_delay0_scaled_utility_risk1_fallback_bh",
+      "technical_half_utility_risk1",
+      "technical_half_utility_risk1_fallback_bh",
+      "perp_delay0_half_utility_risk1",
+      "perp_delay0_half_utility_risk1_fallback_bh",
+      "technical_half_oracle_return_utility_risk1",
+      "technical_half_oracle_return_utility_risk1_fallback_bh",
+      "technical_half_oracle_realized_risk_utility_risk1",
+      "technical_half_oracle_realized_risk_utility_risk1_fallback_bh",
+      "technical_half_oracle_both_utility_risk1",
+      "technical_half_oracle_both_utility_risk1_fallback_bh",
+      "perp_delay0_half_oracle_return_utility_risk1",
+      "perp_delay0_half_oracle_return_utility_risk1_fallback_bh",
+      "perp_delay0_half_oracle_realized_risk_utility_risk1",
+      "perp_delay0_half_oracle_realized_risk_utility_risk1_fallback_bh",
+      "perp_delay0_half_oracle_both_utility_risk1",
+      "perp_delay0_half_oracle_both_utility_risk1_fallback_bh",
+      "matched_rl_beam32_hold_risk0",
+      "matched_rl_beam32_hold_risk1",
+      "matched_rl_beam32_fallback_bh_risk0",
+      "matched_rl_beam32_fallback_bh_risk1"
+    ],
+    "data_cutoff": "2023-04-16T13:45:00Z",
+    "development_folds": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "fallback_rows": 332,
+    "fit_distribution_thresholds": 8,
+    "halves": [
+      "technical_half",
+      "perp_delay0_half"
+    ],
+    "inference_rows": 2586,
+    "interaction": "full-sign-magnitude+base",
+    "missing_current_open_rows": 2,
+    "new_causal_names": 0,
+    "new_diagnostic_ids": [
+      "technical_half_oracle_sign_utility_risk1",
+      "technical_half_oracle_sign_utility_risk1_fallback_bh",
+      "technical_half_oracle_magnitude_utility_risk1",
+      "technical_half_oracle_magnitude_utility_risk1_fallback_bh",
+      "perp_delay0_half_oracle_sign_utility_risk1",
+      "perp_delay0_half_oracle_sign_utility_risk1_fallback_bh",
+      "perp_delay0_half_oracle_magnitude_utility_risk1",
+      "perp_delay0_half_oracle_magnitude_utility_risk1_fallback_bh"
+    ],
+    "new_hindsight_policy_names": 8,
+    "new_model_fits": 0,
+    "numpy_version": "2.2.6",
+    "output_dir": "codex_outputs/oracle_sign_magnitude_decisions_v1",
+    "pandas_version": "2.3.3",
+    "parent_config": "configs/oracle_information_decomposition_20260906.yaml",
+    "parent_config_sha256": "f10c14e65c9be4edd1d56c303dce9262a79f22fe5c5a3686454b66e6202512d4",
+    "parent_manifest_bindings": {
+      "codex_outputs/oracle_information_decomposition_v1/fold_10.json": "9e419fd591ca102862cd1a62cc83a04047efc970935dae732695d1b5f738ca7b",
+      "codex_outputs/oracle_information_decomposition_v1/fold_11.json": "978a6637c06f85a67a81f67ac3129e4df09ed64d265c7f53ec0a0c1797218938",
+      "codex_outputs/oracle_information_decomposition_v1/fold_12.json": "678416b931e80b716ee6df0d5bcb88b956f061f2eee9ae1865d6ec64a9fd5502",
+      "codex_outputs/oracle_information_decomposition_v1/fold_5.json": "ed32bb75a3c2743b6d2ace2cc16c57b52ab2944338f490ff2645db122e488d36",
+      "codex_outputs/oracle_information_decomposition_v1/fold_6.json": "340747c7833934c19bdc9ea643df90f809bb0463f3790638a09ec9a53b33c45a",
+      "codex_outputs/oracle_information_decomposition_v1/fold_7.json": "2bb67c133d2f4598d565257406727e997d344e50e0455d7a035a396c28accf96",
+      "codex_outputs/oracle_information_decomposition_v1/fold_8.json": "e692ea419aea22348b101de88768403f6fd79327cb55efeb22ba384b1343a8ba",
+      "codex_outputs/oracle_information_decomposition_v1/fold_9.json": "ce19c01ee640fbc640d846dce7f7c308d31479dadaf03e953d9378ac8eaa674b",
+      "codex_outputs/oracle_information_decomposition_v1/preflight.json": "ae66338b39253f88e536729948b96b9eb57abe9ba409cbfc074f339be688f4e7",
+      "codex_outputs/oracle_information_decomposition_v1/registration.json": "8e25d7743e49e9df6269cb898808ee1fde691a52d56003c69b52ce9497560fc1",
+      "codex_outputs/oracle_information_decomposition_v1/results.json": "f5597dee653a45ee612766111da578a868969a51211f923493763b4059a18ac7"
+    },
+    "parent_root": "codex_outputs/oracle_information_decomposition_v1",
+    "parent_source_revision": "d3b25734a34915049a327256bd9f99cd9aea8336",
+    "parity_config": "configs/oracle_frozen_procedure_parity_20260906.yaml",
+    "parity_config_sha256": "f90c2499c388abe7d260b4a979ad66e9b0ffb422237defcf96954c50dec2533e",
+    "partial_retry_policy": "full_deterministic_replay_no_live_restart",
+    "preflight_sha256": "0a0535c5020628ca337b2cacb66a692e8d5bd45b7ebe52855fe1f8285a0a2ffd",
+    "replacement_support": "saved_score_only_keep_own_learned_elsewhere",
+    "risk_source": "unchanged_saved_technical_scaled",
+    "rules": [
+      "utility_risk1",
+      "utility_risk1_fallback_bh"
+    ],
+    "schema": "oracle-sign-magnitude-decisions-v1",
+    "score_means": [
+      "technical_half",
+      "technical_half_oracle_sign",
+      "technical_half_oracle_magnitude",
+      "technical_half_oracle_return",
+      "perp_delay0_half",
+      "perp_delay0_half_oracle_sign",
+      "perp_delay0_half_oracle_magnitude",
+      "perp_delay0_half_oracle_return"
+    ],
+    "score_rows": 2574,
+    "score_subsets": [
+      "all",
+      "fit_q90_large",
+      "fit_q90_other"
+    ],
+    "selection_permitted": false,
+    "source_bindings": {
+      "unidream/experiments/alpha_dd_features.py": "7f95da6ea7704d036e4be254fa620f650cd0168639fc29e0e14df68620bc6e69",
+      "unidream/experiments/alpha_dd_search.py": "fea62f401d1249fc10681aabdebac63acecb1d6803d6454a2b68ae23b8e97f64",
+      "unidream/experiments/oracle_conditional_planner.py": "1e7d5bc26d2047f35116725b7eb60483d930f4557ecd1d3d08805883163a5051",
+      "unidream/experiments/oracle_confirmation_contract.py": "7b5ea82703f931579b12459e189c0006024b9ef7f41147f711e2051ee59eb503",
+      "unidream/experiments/oracle_derivative_ablation.py": "fe98b394b1ff5e9fb40b4e3c5e04e6d786fbe86f7060b1192981b3942b1e72c2",
+      "unidream/experiments/oracle_derivative_crossed_decisions.py": "b389c0514c75859d639b3307fcf182323f6d2c0558a2cc849eaa83ec18c1bb19",
+      "unidream/experiments/oracle_derivative_delay.py": "04a16003cfcb44e27a1b772ac59ae0666ac4392c1de6acd5f7c0c605d9a77ca9",
+      "unidream/experiments/oracle_derivative_delay_features.py": "bcc9ead975c6a2e3f772fa15f2b22571896e59980fe26f12e58fbc0fef932862",
+      "unidream/experiments/oracle_derivative_features.py": "c2bc460f476bc2019e0a035fba08f29e9a616f182e767a41273098c5df472448",
+      "unidream/experiments/oracle_fallback_decisions.py": "c9c39633bde4dd4fded28bb6b915c7f271e4bbf3a2804056bf222f3f3b180771",
+      "unidream/experiments/oracle_fallback_planner.py": "e770afb0f61c73bc684b7624b53b3028e83cc6e77b1bf57e5e6248100e522348",
+      "unidream/experiments/oracle_frontier.py": "21a7d4e0c6764b22751ddf023520ac00d6160cb960196339af79742eaa25cf57",
+      "unidream/experiments/oracle_frontier_features.py": "762e7611e8b88883ef5a319dc69484523d4b58805409a261c8bb9df6d90662e5",
+      "unidream/experiments/oracle_frontier_hindsight.py": "7f85f05cccb45e491fcad32a880b06edeed507d53947937e37673a5d13d85d71",
+      "unidream/experiments/oracle_frozen_forecasts.py": "352802b2c26caf43b9fe1e2285385676e6e111d355af0883ed0136ec76c07679",
+      "unidream/experiments/oracle_frozen_procedure_parity.py": "0a84c0010737518c989c5320c3b6cfcb7b7a61fb08bd5a909ff5a7d0ad00ad83",
+      "unidream/experiments/oracle_information_decomposition.py": "4ba69a26d347ee90a62f3e6842d59beb48bb61582f6af87449036d0d071ca3d1",
+      "unidream/experiments/oracle_information_interventions.py": "2709cfbe916508586108010fdc8322c6c5cb71cf099970859ff6ee774b5baafd",
+      "unidream/experiments/oracle_matched_hindsight.py": "e339698814a66139246f34aa9a02b83f5aa16ad8051338a62444f6a12d1769e8",
+      "unidream/experiments/oracle_mean_controls.py": "07a8c21530cd6c0bee701a9f648f8ddbf6c25edc979c919b0fa24ccfcbd817cb",
+      "unidream/experiments/oracle_mean_shrinkage.py": "fd4b8098ecdd5423993c3c32156006129e172b7a278a37bce8e034d1242ed5bb",
+      "unidream/experiments/oracle_risk_calibration.py": "50230065ee2a1e534055884e0b9cbe2c98aaeab787ee2a68be6229c9a53f73fe",
+      "unidream/experiments/oracle_sign_magnitude_decisions.py": "152153451fe8ce6d73116205aa5b8b5e16565327fdae251421a8a02e5a9c794a",
+      "unidream/experiments/oracle_sign_magnitude_interventions.py": "87d5fb77f274230fafa52c422c9e82be9d88dcd43f0689db57ead686379e17d3",
+      "unidream/experiments/robust_overlay.py": "4bec16a69f4c4d3914eb2f7a9c07dee747e7f0382fc1663e0c1196cd6ad28e22"
+    },
+    "tail_fit_only": true,
+    "tail_membership": "abs_actual_return_ge_fit_q90_is_hindsight_diagnostic_only",
+    "tail_quantile": 0.9,
+    "tail_quantile_method": "linear",
+    "teacher_use_allowed": false,
+    "utility_cost_multiplier": 2,
+    "utility_risk_aversion": 1
+  },
+  "config_sha256": "05bedfcac3f0ed9ff247f5042d09f2e83ca750f9743be9dff3b6db5242d4f399",
+  "preflight_sha256": "0a0535c5020628ca337b2cacb66a692e8d5bd45b7ebe52855fe1f8285a0a2ffd",
+  "scope": "36 policies:12 old causal+16 old hindsight+8 new hindsight;8 fit-only descriptive thresholds;0model fits",
+  "source_revision": "b44c211dccc38f719b6f893a95c0d1a2d4cbf638"
+}

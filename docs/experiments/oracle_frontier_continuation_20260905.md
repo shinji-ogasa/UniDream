@@ -926,15 +926,65 @@ in `oracle_mean_reliability_evidence_20260906` before further development.
   canonical registration object digest
   `b363840afa4a6b3b6c263369c316fa8596141669e8fa82bbf84c0df4970275ee`.
 
-Next work should examine the gap between the same-execution future-return
-Oracle and weak causal forecasts before another window/architecture search.
-A bounded preregistered information diagnostic could separate sign, magnitude,
-and large-move contributions; no such diagnostic is yet executed or selected.
-Do not treat Oracle paths as causal teachers or a globally optimal upper bound.
-Keep original reused development only, preserve all supports/costs/missing rules,
-and predeclare controls and failure criteria before outcomes. Additional-test
-15–24 stays report-only; no winner/column selection from Stage15.174 explored
-causal names and all prior family locks remain intact. Reused8quarters,overlapping
-histories,2bull/4bear/2sideways coverage and absent receipt provenance still do
-not establish independent confirmation or high-probability trend robustness.
-The goal stays active without automation, production promotion or live trades.
+## Stage16: sign/magnitude hindsight diagnostic completed
+
+- Source freeze/push `b44c211dccc38f719b6f893a95c0d1a2d4cbf638`;
+  [registration](oracle_sign_magnitude_registration_20260906.md),
+  [primary research](oracle_sign_magnitude_research_20260906.md),
+  [report](oracle_sign_magnitude_results_20260906.md).
+  Sole process91317 completed8folds exit0, no retries.683 tests pass57.647s.
+  Zero model/weight/RL fits;8 fit-only absolute-return q90 thresholds, methodlinear.
+- Use ORIGINAL Stage12 technical_half/perp_delay0_half, not a selected Stage15
+  model. Four cells: base mu; sign(y)*abs(mu); sign(mu)*abs(y); full y. Partial
+  substitutions only on original2574 scored rows;2586 inference and12 own learned
+  remainders unchanged. Common saved technical risk,332fallback/2missingopen.
+  New8 hindsight names;0 new causal names, cumulative174 remains unchanged.
+- 28 old policies +8 partial =36,288 rows/576 accounts,192 score records
+  (8means×3subsets×8),48 direction records,392 new artifacts. All64 base/full
+  endpoint target paths reproduced exactly;32 full decision traces also match.
+  Full is the saved Stage12 return-only Oracle, not a new result or refit.
+- Equal-quarter sign-oracle base Alpha/DD(pt): technicalhold+15.36874/−11.11266,
+  technicalfallback+18.02177/−11.03689,perphold+14.76922/−10.51875,
+  perpfallback+17.36924/−10.63321. All4 start-regime means meet both signs under
+  both costs, but strict quarter joint counts7/7/6/7 of8. These use future signs
+  and cannot establish a causal model, independent robustness or a success probability.
+- Sign minus own base improves Alpha+11.156to+17.015pt and DD−4.254to−5.131pt.
+  Magnitude-only improves technical Alpha+.657/.970pt while worsening DD
+  +1.343/+1.311pt;perp Alpha−.355/−.316pt and DD+.769/+.917pt both worse.
+  Given correct sign, full further improves Alpha+7.829to+8.641pt. Interaction
+  full−sign−magnitude+base is nonzero; do not present additive causal shares.
+- Sign MSE decrease and full MSE0 are mechanical future-label substitutions.
+  Absolute mean |mu| is not E|Y| and sign(mu) need not be modal sign. Revealing
+  realized |y| while retaining wrong mean sign can expand loss to4y²; this is
+  not a test proving magnitude forecasting useless. Original mu zero count0;
+  one shared y=0 event in fold8 changes the (>0) binary agreement under magnitude.
+- Fit-q90 tails are hindsight O-only groups, never action gates.270/2574 rows,
+  thresholds .02121668to.03201581 absolute log return;future tail proportions
+  vary byquarter. Equal-quarter tail share of squared realized returns64.9462%,
+  not a dollar PnL contribution. No empty real subgroup, zero threshold or equality.
+- Independent forecast audit verifies32 substitutes,8 scalar quantiles,192scores,
+  48direction records with maxdifference0, sign-loss identityresidual2.60e−18.
+  Independent scalar own-state audit verifies576accounts,64new+64endpoint paths/
+  44032decisions,224oldcontrols,64new+32fulltraces. Orders/NAV/utility/Alpha/DD/
+  fees/borrowmax0;meanexposure2.22e−16.96unscored learned+1328fallback decisions
+  retained across8newpolicies.1728ancestors/392new artifacts,2641SHA bindings.
+- Independent summary audit verifies192scores,288rows/576accounts,48direction
+  records,8threshold memberships and all contrasts/interactions;2170 distinct
+  file hashes. Maxdifferences:economics3.5e−15,prediction1e−16,paired3.88e−15,
+  interaction1.5e−15,scalar score1e−17.224oldrows/448accounts exactly unchanged.
+- Results FILE SHA `9bba65ce12300fd16a4b617e4723b950453554b58070777c3eadd9ee458f3673`;
+  registration FILE SHA `cebc21ae289f0e203381032227d171190cc9841fc9fab03082aad874734b4dbd`;
+  canonical registration digest
+  `6e60f5602de1fa6974b885630eb4eb6df0febf60d1bc3119967668ce7eb42ee9`.
+
+Next work should preregister a causal directional-information comparison using
+only past available features, before another architecture/window search. A fixed
+comparison of ordinary sign loss and fit-return-magnitude-weighted loss, with
+appropriate constant controls and unchanged economics, is a hypothesis rather
+than a selected model or a promised improvement. No future Oracle teacher,
+E-tail-based action gating, feature winner or post-outcome quantile tuning.
+Keep old additional-test15–24 report-only, original fit/calibration maturity and
+all prior locks.174 adaptive causal names remain unchanged. Reused8quarters,
+overlapping histories,2bull/4bear/2sideways and absent receipt provenance still
+block independent/high-probability claims. No new strongest model or formal P1
+success. The goal stays active without automation or live/production trades.

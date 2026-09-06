@@ -1,0 +1,78 @@
+{
+  "ancestor_artifacts_verified": 1728,
+  "config_sha256": "05bedfcac3f0ed9ff247f5042d09f2e83ca750f9743be9dff3b6db5242d4f399",
+  "counts": {
+    "endpoint_own_state_decisions": 22016,
+    "endpoint_own_state_paths": 64,
+    "exact_old_controls": 224,
+    "hash_binding_checks": 2641,
+    "independent_scalar_accounts": 576,
+    "new_component_forecasts": 32,
+    "new_fallback_decisions": 1328,
+    "new_full_trace_replays": 64,
+    "new_own_state_decisions": 22016,
+    "new_own_state_paths": 64,
+    "new_replaced_decision_entries": 20592,
+    "new_unscored_decisions_retained": 96,
+    "old_full_return_trace_replays": 32
+  },
+  "distinct_hashed_files": 2184,
+  "inventory": {
+    "forecasts": 32,
+    "rows": 288,
+    "scores": 192,
+    "targets": 288,
+    "thresholds": 8,
+    "traces": 64
+  },
+  "limitations": [
+    "All new policies use future information and are nondeployable diagnostics, never causal teachers or global optima.",
+    "Original repeatedly reused development, retrospective masks and absent historical receipt evidence remain.",
+    "Fit threshold groups are descriptive only and do not gate any orders.",
+    "Filtered raw Spot reads remain below the original cutoff; source hashes cover full files."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "own_artifacts_verified": 392,
+  "preflight_sha256": "0a0535c5020628ca337b2cacb66a692e8d5bd45b7ebe52855fe1f8285a0a2ffd",
+  "regime_counts": {
+    "bear": 4,
+    "bull": 2,
+    "sideways": 2
+  },
+  "results_sha256": "9bba65ce12300fd16a4b617e4723b950453554b58070777c3eadd9ee458f3673",
+  "scope": "All immutable sources/artifacts; all32 score-only sign/magnitude substitutions; unchanged risk, masks and off-score values;224 exact source controls;576 scalar accounts;64 new and64 endpoint own-state paths;64 new and32 original full-return decision traces. No canonical helpers imported or model fits performed.",
+  "script_sha256": "74ed12275ca0368eb985de11356318717f52e0928f91a55c6371598c0ed5b358",
+  "separate_audit_scope": [
+    "The 8 q90 values, 192 loss records, direction diagnostics and summary arithmetic are independently audited by the statistics auditor."
+  ],
+  "source_audit_sha256": "7e4658010cdd1c201effd851eff7e2457c6ca5ba5e5bd1153054a7ac2f1ba52f",
+  "source_revision": "b44c211dccc38f719b6f893a95c0d1a2d4cbf638",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "missing_current_open": 2,
+    "score": 2574
+  }
+}
