@@ -1,0 +1,13 @@
+{
+  "ac_decay_dd25.pt": "dbeba5eda7a663fe224120d733e2ccbde17cfc4bae32cb8685480025eccaa464",
+  "ac_decay_dd25_actor_full.pt": "f99f138612224ab0e1990f7d9e52ccd5b3dd4bc6a5e9628f0c08efc3f6d9877c",
+  "auxiliary_normalizer.json": "16bf5932fbae6246a314df18429d83067c193612b2f2fa6cfcca17c2a3cc273f",
+  "bc.pt": "eea09c2d74263afa92396486b3b2bc56382ee53c7caef8fdf4db0741d8aa53f1",
+  "bc_actor_full.pt": "01f665761921f6b50ebf90e6aa6fd82e7d3a7e6ce05d3c0c8ff006ac6e58ed01",
+  "resolved_training_config.json": "dee5e146fc85cc6c0058f13b3bf04bff4ae8a22a0b1fc55d09be6de837469151",
+  "target_gradient_coverage.jsonl": "c88a7db770c58177d640ef4a4455df4118bbf8844fb96d70259b65947bd1840a",
+  "training_logs.json": "2747f7e972bad3e083e630e7083b7d7cfe467263d21619ac09000c1c22fae874",
+  "training_provenance.json": "bf1228e732096e562593dccd8a2b4776cf7dbdff598043e5b0575dc502d670df",
+  "training_support.npz": "c0f38af40627a1d4eba1c2a251c36d6d9f5371e7a813be008b2085cb4f7e047e",
+  "world_model.pt": "63f46240e8c9f6039a358d74973485f388d33463765c348d6645d5166e49a088"
+}
