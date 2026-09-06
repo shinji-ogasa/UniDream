@@ -1,0 +1,38 @@
+{
+  "schema": "wm-rl-paper-selection-v1",
+  "qualified": true,
+  "selected_arm": "ac_decay_dd25",
+  "source_config_sha256": "627c32f716b49af3536894c3e24a5e83570f8bb33082255a514fb377572a1098",
+  "source_git_head": "6cd71403bf1b8a41045c4904365d37e20377784b",
+  "screen_run_manifest_sha256": "29d687fce2ab98763486d85d7018217c097e14d7dafa7be535ee2be61f95548c",
+  "screen_decision_sha256": "fbd5fe6f05c59f4d8614c1de93fa079e16ceea0284008180d413052c0514052d",
+  "validation_metrics_sha256": "5542bd00084cdf765b1cc04c4d8b0dd65ee8f9b9a8afc9ed9932b936dcf0e876",
+  "criteria": "Both base/stress arithmetic mean AlphaEX>0 and MaxDDdelta<0; learned Actor changes decisions versus BC",
+  "base": {
+    "folds": 3,
+    "alpha_ex_mean": 0.0005354918811008765,
+    "maxdd_delta_mean": -0.0006976992669101012,
+    "joint_positive_folds": 1,
+    "worst_alpha_ex": 0.0,
+    "worst_maxdd_delta": 0.0
+  },
+  "stress": {
+    "folds": 3,
+    "alpha_ex_mean": 0.0005329190768422384,
+    "maxdd_delta_mean": -0.0006954449939503929,
+    "joint_positive_folds": 1,
+    "worst_alpha_ex": 0.0,
+    "worst_maxdd_delta": 0.0
+  },
+  "joint_positive_periods_both_costs": 1,
+  "periods": 3,
+  "reused_development": true,
+  "seed": 7,
+  "market_target_scale": 100.0,
+  "high_probability_trend_independence_established": false,
+  "test_scoring": false,
+  "paper_demo_deployment_permitted": true,
+  "production_weights_have_no_historical_performance_claim": true,
+  "production_promotion_permitted": false,
+  "decision": "Bounded practical minimum; no further search in this release. One period improves, two equal B&H."
+}
