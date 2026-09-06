@@ -1,0 +1,61 @@
+{
+  "additional_test_used": false,
+  "ancestor_artifacts_verified": 2120,
+  "audits": {
+    "oracle_direction_audit_20260906": {
+      "result_sha256": "bf7b4556ef80ecbd395cee1d00fbe914f08b30d10fa13d524c34b75806530fb0",
+      "script_sha256": "464b016b2e966cca4c6783b3d16f57808eeea864c0e2c26c980be9c749139241"
+    },
+    "oracle_direction_model_audit_20260906": {
+      "result_sha256": "f23d8f52577369c08f92f845a448a437fc5b57641bddfaf8e61dfdf37f8afad2",
+      "script_sha256": "6d8af6bff51348a76c57a04e27a6becc9517b6f3a416a2fdd9df0eb4006f06a1"
+    },
+    "oracle_direction_report_audit_20260906": {
+      "result_sha256": "514640c18f12c53b3496c723116d48b2336a516adc06f9c9368bac7622971966",
+      "script_sha256": "5f13c9c9b2a97e8ea367f97ba776a1977b78af64c062b9d2a4c8517b3fd4def3"
+    },
+    "oracle_direction_score_audit_20260906": {
+      "result_sha256": "2d3aa83d18e3dc3596d1d52f38267c42997908b0c1faf0eb976f19eae2e8f3ce",
+      "script_sha256": "99cdd56feeeb46ed3b7125c2ae28de42354978b9497b9ad3dcc8f71a6011e670"
+    },
+    "oracle_direction_source_audit_20260906": {
+      "result_sha256": "a64268eecfa8330440792aad5cec40c0a62ef450d9ac738fc0f41729edcfdf32",
+      "script_sha256": "87d3bf94d2b1aeffc6118683746de32f3847c91ca31987e4d657f4ee514e6b45"
+    }
+  },
+  "classification_scores_checked": 96,
+  "config_sha256": "c707ea8385a8f7df1b38a9e57a535358f91d51f0a193c297cc412b1cbf364dd2",
+  "copied_runtime_manifests_exact": true,
+  "economic_accounts_checked": 832,
+  "economic_rows": 416,
+  "formatted_output_hash_cells_checked": 5,
+  "formatted_performance_cells_checked": 464,
+  "formatted_performance_rows_checked": 84,
+  "full_test_count": 714,
+  "full_test_exit_code": 0,
+  "full_test_log_sha256": "2f06298e5bb966f20addf71ffa98bacdb51045829de423bd69a184901a53b8e6",
+  "full_test_seconds": 57.558,
+  "high_probability_generalization_established": false,
+  "model_checks": 32,
+  "new_artifacts_verified": 720,
+  "new_causal_names": 16,
+  "new_decisions_checked": 44032,
+  "new_model_fits": 32,
+  "new_policy_paths_checked": 128,
+  "new_real_model_selected": false,
+  "outcome": "no promotion; all learned policies worsen aggregate AlphaEX and MaxDDdelta versus own frozen parent",
+  "registration_canonical_sha256": "74295fed002836a9b365b0844db541cf0647574f16a7eb11bd6310a0068ac490",
+  "registration_file_sha256": "06ef781a2835b25ccfc01db9c758ecf79c7fabefe23346af37db1ec19cefbdab",
+  "relative_report_links_resolve": true,
+  "report_sha256": "aab0b2a1bab864b84dc73a792fbb7fc6b824681ea74b1a21e4f011089e3c1161",
+  "results_file_sha256": "c659163526547d5aecc75ccd8a9f987a4000eee3152cd6552f78c1428b158657",
+  "return_scores_checked": 160,
+  "run_attempts": 1,
+  "run_exit_code": 0,
+  "run_log_sha256": "29954374c3a82ea950544366da612199a749342d5c225ff13546486353466993",
+  "run_session": 16393,
+  "shared_fit_prior_estimates": 16,
+  "source_revision": "6ae673fcdfeed29280256450c05eb8905af77ee3",
+  "source_unchanged_since_freeze": true,
+  "total_adaptively_explored_causal_names": 190
+}

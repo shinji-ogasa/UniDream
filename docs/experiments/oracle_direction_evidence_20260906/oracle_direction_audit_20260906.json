@@ -1,0 +1,100 @@
+{
+  "ancestor_artifacts_verified": 2120,
+  "auditor_revision_note": "Prepared schema was extended after first audit stop to require the frozen runner additional predict-position/timestamp and selected feature arrays. No research source, output or fit was changed.",
+  "config_sha256": "c707ea8385a8f7df1b38a9e57a535358f91d51f0a193c297cc412b1cbf364dd2",
+  "counts": {
+    "bound_model_verification_records": 32,
+    "bound_saved_feature_matrices": 32,
+    "exact_old_controls": 288,
+    "hash_binding_checks": 3523,
+    "independent_fit_priors": 16,
+    "independent_scalar_accounts": 832,
+    "new_E_direction_forecasts": 64,
+    "new_calibration_direction_arrays": 64,
+    "new_fallback_decisions": 2656,
+    "new_full_trace_replays": 128,
+    "new_own_state_decisions": 44032,
+    "new_own_state_paths": 128,
+    "new_unscored_decisions_retained": 192
+  },
+  "distinct_hashed_files": 2901,
+  "inventory": {
+    "calibration": 64,
+    "classification_scores": 96,
+    "fit_data": 8,
+    "forecasts": 64,
+    "models": 32,
+    "provenance": 8,
+    "return_scores": 160,
+    "rows": 416,
+    "targets": 416,
+    "traces": 128
+  },
+  "limitations": [
+    "Original repeatedly reused development, retrospective masks and absent historical receipt evidence remain.",
+    "Mapped sign times fixed magnitude is a return surrogate, not a calibrated conditional mean. Magnitude-weighted classifier probability targets a tilted distribution.",
+    "Interval parent magnitudes use frozen S calibration only from I onward; no S outcomes are used to score these causal mapped means.",
+    "Filtered raw Spot reads remain below the original cutoff; source hashes cover full files."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "fit absolute mean": 0.0,
+    "fit prior": 0.0,
+    "fit prior logit": 0.0,
+    "saved E probability sigmoid": 1.1102230246251565e-16,
+    "saved cal probability sigmoid": 1.1102230246251565e-16,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "own_artifacts_verified": 720,
+  "preflight_sha256": "a8f20d76fa6ed17592c53c044cdaada7f7a08bd9a2c244fe9fa4a56c3d8eebcd",
+  "regime_counts": {
+    "bear": 4,
+    "bull": 2,
+    "sideways": 2
+  },
+  "results_sha256": "c659163526547d5aecc75ccd8a9f987a4000eee3152cd6552f78c1428b158657",
+  "runtime_warnings": {
+    "counts": {
+      "divide by zero encountered in matmul": 128,
+      "invalid value encountered in matmul": 128,
+      "overflow encountered in matmul": 128
+    },
+    "interpretation": "RuntimeWarning matmul messages occurred during the single canonical run. This audit does not diagnose their cause or claim warning-free numerical execution; stored finite predictions and scalar production verification records are bound, with model numerical replay audited separately.",
+    "run_log_sha256": "29954374c3a82ea950544366da612199a749342d5c225ff13546486353466993",
+    "saved_gradient_infinity_max": 1.4416003547403967e-07,
+    "total": 384
+  },
+  "scope": "All immutable sources/artifacts; fit-return, class label, sample weight and 16 prior identity;64 E and64 I mappings from saved logits and fixed causal parent magnitudes; unchanged risk/support;288 exact source controls;832 scalar accounts;128 new own-state paths and complete decision traces. No canonical helpers imported or fits performed.",
+  "script_sha256": "464b016b2e966cca4c6783b3d16f57808eeea864c0e2c26c980be9c749139241",
+  "separate_audit_scope": [
+    "The 32 model coefficients, scalar gradient/feature reconstruction and predictor numerical verification are independently audited by the technical auditor. This audit binds their saved verification records without re-solving models.",
+    "The 160 return losses,96 classification records and summary arithmetic are independently audited by the statistics auditor."
+  ],
+  "source_audit_sha256": "a64268eecfa8330440792aad5cec40c0a62ef450d9ac738fc0f41729edcfdf32",
+  "source_revision": "6ae673fcdfeed29280256450c05eb8905af77ee3",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "missing_current_open": 2,
+    "score": 2574
+  }
+}

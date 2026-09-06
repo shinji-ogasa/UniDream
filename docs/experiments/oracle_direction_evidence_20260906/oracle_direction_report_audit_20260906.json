@@ -1,0 +1,2906 @@
+{
+  "audit_numerical_claims": {
+    "gradient difference": {
+      "bound_value": 1.0842021724855044e-19,
+      "shown": "1.0842e\u221219"
+    },
+    "mean exposure": {
+      "bound_value": 2.220446049250313e-16,
+      "shown": "2.220446049250313e\u221216"
+    },
+    "minimum Hessian eigenvalue": {
+      "bound_value": 0.0005574136008918624,
+      "shown": "0.0005574136008918624"
+    },
+    "objective difference": {
+      "bound_value": 0.0,
+      "shown": "0"
+    },
+    "runtime gradient": {
+      "bound_value": 1.4416003547403967e-07,
+      "shown": "1.4416003547403967e\u22127"
+    },
+    "saved logits": {
+      "bound_value": 1.3322676295501878e-15,
+      "shown": "1.3323e\u221215"
+    },
+    "saved probability": {
+      "bound_value": 2.220446049250313e-16,
+      "shown": "2.2204e\u221216"
+    },
+    "summary classifier scores": {
+      "bound_value": 1e-16,
+      "shown": "1e\u221216"
+    },
+    "summary economics": {
+      "bound_value": 3.5e-15,
+      "shown": "3.5e\u221215"
+    },
+    "summary paired contrasts": {
+      "bound_value": 1.2775e-15,
+      "shown": "1.2775e\u221215"
+    },
+    "summary return scores": {
+      "bound_value": 4e-18,
+      "shown": "4e\u221218"
+    }
+  },
+  "checks": [
+    {
+      "expected": -0.9744150508263655,
+      "location": "econ/0/alpha_ex/base",
+      "passed": true,
+      "shown": "-0.974415"
+    },
+    {
+      "expected": -1.8787559700281258,
+      "location": "econ/0/maxdd_delta/base",
+      "passed": true,
+      "shown": "-1.878756"
+    },
+    {
+      "expected": -1.4602188539847156,
+      "location": "econ/0/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.460219"
+    },
+    {
+      "expected": -1.763708924162097,
+      "location": "econ/0/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-1.763709"
+    },
+    {
+      "expected": "3/8",
+      "location": "econ/0/joint",
+      "passed": true,
+      "shown": "3/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/0/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -1.2722789230766502,
+      "location": "econ/1/alpha_ex/base",
+      "passed": true,
+      "shown": "-1.272279"
+    },
+    {
+      "expected": -2.3805825705250028,
+      "location": "econ/1/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.380583"
+    },
+    {
+      "expected": -1.7292125375526268,
+      "location": "econ/1/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.729213"
+    },
+    {
+      "expected": -2.2778112792450624,
+      "location": "econ/1/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.277811"
+    },
+    {
+      "expected": "3/8",
+      "location": "econ/1/joint",
+      "passed": true,
+      "shown": "3/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/1/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -1.1595162064761733,
+      "location": "econ/2/alpha_ex/base",
+      "passed": true,
+      "shown": "-1.159516"
+    },
+    {
+      "expected": -2.597528993326867,
+      "location": "econ/2/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.597529"
+    },
+    {
+      "expected": -1.6167356824208419,
+      "location": "econ/2/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.616736"
+    },
+    {
+      "expected": -2.5146704647922653,
+      "location": "econ/2/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.514670"
+    },
+    {
+      "expected": "3/8",
+      "location": "econ/2/joint",
+      "passed": true,
+      "shown": "3/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/2/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -1.953386776493833,
+      "location": "econ/3/alpha_ex/base",
+      "passed": true,
+      "shown": "-1.953387"
+    },
+    {
+      "expected": -2.5281471235658866,
+      "location": "econ/3/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.528147"
+    },
+    {
+      "expected": -2.3933970508149534,
+      "location": "econ/3/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-2.393397"
+    },
+    {
+      "expected": -2.449843214398169,
+      "location": "econ/3/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.449843"
+    },
+    {
+      "expected": "4/8",
+      "location": "econ/3/joint",
+      "passed": true,
+      "shown": "4/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/3/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": 3.086658728697553,
+      "location": "econ/4/alpha_ex/base",
+      "passed": true,
+      "shown": "3.086659"
+    },
+    {
+      "expected": -2.788922487450507,
+      "location": "econ/4/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.788922"
+    },
+    {
+      "expected": 2.5660766902782073,
+      "location": "econ/4/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "2.566077"
+    },
+    {
+      "expected": -2.672388012892468,
+      "location": "econ/4/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.672388"
+    },
+    {
+      "expected": "5/8",
+      "location": "econ/4/joint",
+      "passed": true,
+      "shown": "5/8"
+    },
+    {
+      "expected": "true",
+      "location": "econ/4/allstrata",
+      "passed": true,
+      "shown": "true"
+    },
+    {
+      "expected": 2.0808283055789745,
+      "location": "econ/5/alpha_ex/base",
+      "passed": true,
+      "shown": "2.080828"
+    },
+    {
+      "expected": -2.7781534491339963,
+      "location": "econ/5/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.778153"
+    },
+    {
+      "expected": 1.5859230090073908,
+      "location": "econ/5/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "1.585923"
+    },
+    {
+      "expected": -2.66477567463447,
+      "location": "econ/5/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.664776"
+    },
+    {
+      "expected": "5/8",
+      "location": "econ/5/joint",
+      "passed": true,
+      "shown": "5/8"
+    },
+    {
+      "expected": "true",
+      "location": "econ/5/allstrata",
+      "passed": true,
+      "shown": "true"
+    },
+    {
+      "expected": 3.335462832315518,
+      "location": "econ/6/alpha_ex/base",
+      "passed": true,
+      "shown": "3.335463"
+    },
+    {
+      "expected": -3.113130454655866,
+      "location": "econ/6/maxdd_delta/base",
+      "passed": true,
+      "shown": "-3.113130"
+    },
+    {
+      "expected": 2.8118541248654663,
+      "location": "econ/6/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "2.811854"
+    },
+    {
+      "expected": -3.0074154235092423,
+      "location": "econ/6/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-3.007415"
+    },
+    {
+      "expected": "5/8",
+      "location": "econ/6/joint",
+      "passed": true,
+      "shown": "5/8"
+    },
+    {
+      "expected": "true",
+      "location": "econ/6/allstrata",
+      "passed": true,
+      "shown": "true"
+    },
+    {
+      "expected": 1.6876864380274526,
+      "location": "econ/7/alpha_ex/base",
+      "passed": true,
+      "shown": "1.687686"
+    },
+    {
+      "expected": -2.5284919611113494,
+      "location": "econ/7/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.528492"
+    },
+    {
+      "expected": 1.1982744447462972,
+      "location": "econ/7/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "1.198274"
+    },
+    {
+      "expected": -2.4304438750049964,
+      "location": "econ/7/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.430444"
+    },
+    {
+      "expected": "5/8",
+      "location": "econ/7/joint",
+      "passed": true,
+      "shown": "5/8"
+    },
+    {
+      "expected": "true",
+      "location": "econ/7/allstrata",
+      "passed": true,
+      "shown": "true"
+    },
+    {
+      "expected": -3.514797190707904,
+      "location": "econ/8/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.514797"
+    },
+    {
+      "expected": 2.343784990499821,
+      "location": "econ/8/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.343785"
+    },
+    {
+      "expected": -3.8010405450658724,
+      "location": "econ/8/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.801041"
+    },
+    {
+      "expected": 2.467586086813192,
+      "location": "econ/8/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "2.467586"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/8/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/8/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.668853372732456,
+      "location": "econ/9/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.668853"
+    },
+    {
+      "expected": 1.4695935495720223,
+      "location": "econ/9/maxdd_delta/base",
+      "passed": true,
+      "shown": "1.469594"
+    },
+    {
+      "expected": -3.9049115713489293,
+      "location": "econ/9/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.904912"
+    },
+    {
+      "expected": 1.5544504752199844,
+      "location": "econ/9/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "1.554450"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/9/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/9/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.514797190707904,
+      "location": "econ/10/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.514797"
+    },
+    {
+      "expected": 2.343784990499821,
+      "location": "econ/10/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.343785"
+    },
+    {
+      "expected": -3.8010405450658724,
+      "location": "econ/10/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.801041"
+    },
+    {
+      "expected": 2.467586086813192,
+      "location": "econ/10/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "2.467586"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/10/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/10/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.668853372732456,
+      "location": "econ/11/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.668853"
+    },
+    {
+      "expected": 1.4695935495720223,
+      "location": "econ/11/maxdd_delta/base",
+      "passed": true,
+      "shown": "1.469594"
+    },
+    {
+      "expected": -3.9049115713489293,
+      "location": "econ/11/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.904912"
+    },
+    {
+      "expected": 1.5544504752199844,
+      "location": "econ/11/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "1.554450"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/11/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/11/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.1296684515475515,
+      "location": "econ/12/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.129668"
+    },
+    {
+      "expected": 2.32973272111945,
+      "location": "econ/12/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.329733"
+    },
+    {
+      "expected": -3.4488406003928627,
+      "location": "econ/12/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.448841"
+    },
+    {
+      "expected": 2.4553744411186047,
+      "location": "econ/12/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "2.455374"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/12/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/12/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.2750767595365335,
+      "location": "econ/13/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.275077"
+    },
+    {
+      "expected": 1.452132897434165,
+      "location": "econ/13/maxdd_delta/base",
+      "passed": true,
+      "shown": "1.452133"
+    },
+    {
+      "expected": -3.53751903819642,
+      "location": "econ/13/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.537519"
+    },
+    {
+      "expected": 1.5335146830494335,
+      "location": "econ/13/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "1.533515"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/13/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/13/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.1296684515475515,
+      "location": "econ/14/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.129668"
+    },
+    {
+      "expected": 2.32973272111945,
+      "location": "econ/14/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.329733"
+    },
+    {
+      "expected": -3.4488406003928627,
+      "location": "econ/14/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.448841"
+    },
+    {
+      "expected": 2.4553744411186047,
+      "location": "econ/14/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "2.455374"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/14/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/14/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.2750767595365335,
+      "location": "econ/15/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.275077"
+    },
+    {
+      "expected": 1.452132897434165,
+      "location": "econ/15/maxdd_delta/base",
+      "passed": true,
+      "shown": "1.452133"
+    },
+    {
+      "expected": -3.53751903819642,
+      "location": "econ/15/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.537519"
+    },
+    {
+      "expected": 1.5335146830494335,
+      "location": "econ/15/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "1.533515"
+    },
+    {
+      "expected": "0/8",
+      "location": "econ/15/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": "false",
+      "location": "econ/15/allstrata",
+      "passed": true,
+      "shown": "false"
+    },
+    {
+      "expected": -3.1902984169763644,
+      "location": "regime/0/alpha_ex/base",
+      "passed": true,
+      "shown": "-3.190298"
+    },
+    {
+      "expected": 2.9954819169240032,
+      "location": "regime/0/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.995482"
+    },
+    {
+      "expected": -3.5190964089743373,
+      "location": "regime/0/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.519096"
+    },
+    {
+      "expected": 3.157656379990942,
+      "location": "regime/0/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "3.157656"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/0/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -1.6705396003744877,
+      "location": "regime/1/alpha_ex/base",
+      "passed": true,
+      "shown": "-1.670540"
+    },
+    {
+      "expected": 1.640424587111311,
+      "location": "regime/1/maxdd_delta/base",
+      "passed": true,
+      "shown": "1.640425"
+    },
+    {
+      "expected": -1.9575130056913415,
+      "location": "regime/1/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.957513"
+    },
+    {
+      "expected": 1.7648088668410111,
+      "location": "regime/1/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "1.764809"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/1/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": 3.2425273283401808,
+      "location": "regime/2/alpha_ex/base",
+      "passed": true,
+      "shown": "3.242527"
+    },
+    {
+      "expected": -2.442233025574283,
+      "location": "regime/2/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.442233"
+    },
+    {
+      "expected": 2.559389987110869,
+      "location": "regime/2/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "2.559390"
+    },
+    {
+      "expected": -2.3303878044578177,
+      "location": "regime/2/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.330388"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/2/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": 1.6343841991199342,
+      "location": "regime/3/alpha_ex/base",
+      "passed": true,
+      "shown": "1.634384"
+    },
+    {
+      "expected": -2.740189602771439,
+      "location": "regime/3/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.740190"
+    },
+    {
+      "expected": 1.0025085161699003,
+      "location": "regime/3/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "1.002509"
+    },
+    {
+      "expected": -2.6333681277357996,
+      "location": "regime/3/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.633368"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/3/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": -7.192416443009458,
+      "location": "regime/4/alpha_ex/base",
+      "passed": true,
+      "shown": "-7.192416"
+    },
+    {
+      "expected": -5.626039745887939,
+      "location": "regime/4/maxdd_delta/base",
+      "passed": true,
+      "shown": "-5.626040"
+    },
+    {
+      "expected": -7.440558981186262,
+      "location": "regime/4/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-7.440559"
+    },
+    {
+      "expected": -5.551716467723694,
+      "location": "regime/4/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-5.551716"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/4/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": -6.687344490171982,
+      "location": "regime/5/alpha_ex/base",
+      "passed": true,
+      "shown": "-6.687344"
+    },
+    {
+      "expected": -5.682375663668443,
+      "location": "regime/5/maxdd_delta/base",
+      "passed": true,
+      "shown": "-5.682376"
+    },
+    {
+      "expected": -6.964354176858967,
+      "location": "regime/5/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-6.964354"
+    },
+    {
+      "expected": -5.6093177283496605,
+      "location": "regime/5/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-5.609318"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/5/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": -0.9035057359526755,
+      "location": "regime/6/alpha_ex/base",
+      "passed": true,
+      "shown": "-0.903506"
+    },
+    {
+      "expected": 0.6878617632612494,
+      "location": "regime/6/maxdd_delta/base",
+      "passed": true,
+      "shown": "0.687862"
+    },
+    {
+      "expected": -1.1741148730418314,
+      "location": "regime/6/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.174115"
+    },
+    {
+      "expected": 0.8135325314718223,
+      "location": "regime/6/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "0.813533"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/6/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": -2.103960960685086,
+      "location": "regime/7/alpha_ex/base",
+      "passed": true,
+      "shown": "-2.103961"
+    },
+    {
+      "expected": 1.8118737005144603,
+      "location": "regime/7/maxdd_delta/base",
+      "passed": true,
+      "shown": "1.811874"
+    },
+    {
+      "expected": -2.373137606860154,
+      "location": "regime/7/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-2.373138"
+    },
+    {
+      "expected": 1.9255472191751277,
+      "location": "regime/7/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "1.925547"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/7/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": 2.5778168423614853,
+      "location": "regime/8/alpha_ex/base",
+      "passed": true,
+      "shown": "2.577817"
+    },
+    {
+      "expected": -2.897952060676001,
+      "location": "regime/8/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.897952"
+    },
+    {
+      "expected": 1.8775621649293028,
+      "location": "regime/8/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "1.877562"
+    },
+    {
+      "expected": -2.8260065303421094,
+      "location": "regime/8/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.826007"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/8/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": 1.2173882755040497,
+      "location": "regime/9/alpha_ex/base",
+      "passed": true,
+      "shown": "1.217388"
+    },
+    {
+      "expected": -3.1961973974469595,
+      "location": "regime/9/maxdd_delta/base",
+      "passed": true,
+      "shown": "-3.196197"
+    },
+    {
+      "expected": 0.5682611375584014,
+      "location": "regime/9/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "0.568261"
+    },
+    {
+      "expected": -3.129245467761274,
+      "location": "regime/9/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-3.129245"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/9/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": -8.890192774674988,
+      "location": "regime/10/alpha_ex/base",
+      "passed": true,
+      "shown": "-8.890193"
+    },
+    {
+      "expected": -5.2820736152167145,
+      "location": "regime/10/maxdd_delta/base",
+      "passed": true,
+      "shown": "-5.282074"
+    },
+    {
+      "expected": -9.04795218650014,
+      "location": "regime/10/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-9.047952"
+    },
+    {
+      "expected": -5.220201329956664,
+      "location": "regime/10/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-5.220201"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/10/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -8.144362696298346,
+      "location": "regime/11/alpha_ex/base",
+      "passed": true,
+      "shown": "-8.144363"
+    },
+    {
+      "expected": -5.532067399884088,
+      "location": "regime/11/maxdd_delta/base",
+      "passed": true,
+      "shown": "-5.532067"
+    },
+    {
+      "expected": -8.336972871516462,
+      "location": "regime/11/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-8.336973"
+    },
+    {
+      "expected": -5.466429141245255,
+      "location": "regime/11/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-5.466429"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/11/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": 1.1105341941616498,
+      "location": "regime/12/alpha_ex/base",
+      "passed": true,
+      "shown": "1.110534"
+    },
+    {
+      "expected": -1.2683553366587108,
+      "location": "regime/12/maxdd_delta/base",
+      "passed": true,
+      "shown": "-1.268355"
+    },
+    {
+      "expected": 0.7635555429889862,
+      "location": "regime/12/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "0.763556"
+    },
+    {
+      "expected": -1.1014895145674275,
+      "location": "regime/12/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-1.101490"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/12/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": 0.7237293634232145,
+      "location": "regime/13/alpha_ex/base",
+      "passed": true,
+      "shown": "0.723729"
+    },
+    {
+      "expected": -0.9287455643080422,
+      "location": "regime/13/maxdd_delta/base",
+      "passed": true,
+      "shown": "-0.928746"
+    },
+    {
+      "expected": 0.3778667082776466,
+      "location": "regime/13/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "0.377867"
+    },
+    {
+      "expected": -0.7623729371716848,
+      "location": "regime/13/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-0.762373"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/13/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": 3.1418492470357524,
+      "location": "regime/14/alpha_ex/base",
+      "passed": true,
+      "shown": "3.141849"
+    },
+    {
+      "expected": -2.3878178296401846,
+      "location": "regime/14/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.387818"
+    },
+    {
+      "expected": 2.445287677777977,
+      "location": "regime/14/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "2.445288"
+    },
+    {
+      "expected": -2.2782041384603464,
+      "location": "regime/14/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.278204"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/14/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": 1.5160347201548268,
+      "location": "regime/15/alpha_ex/base",
+      "passed": true,
+      "shown": "1.516035"
+    },
+    {
+      "expected": -2.6780070726524023,
+      "location": "regime/15/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.678007"
+    },
+    {
+      "expected": 0.8717706618717319,
+      "location": "regime/15/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "0.871771"
+    },
+    {
+      "expected": -2.574141820998771,
+      "location": "regime/15/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.574142"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/15/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": 4.952402226557057,
+      "location": "regime/16/alpha_ex/base",
+      "passed": true,
+      "shown": "4.952402"
+    },
+    {
+      "expected": -5.111698953862947,
+      "location": "regime/16/maxdd_delta/base",
+      "passed": true,
+      "shown": "-5.111699"
+    },
+    {
+      "expected": 4.610175862567889,
+      "location": "regime/16/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "4.610176"
+    },
+    {
+      "expected": -5.031654260081753,
+      "location": "regime/16/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-5.031654"
+    },
+    {
+      "expected": "2/2",
+      "location": "regime/16/joint",
+      "passed": true,
+      "shown": "2/2"
+    },
+    {
+      "expected": 4.56751441858303,
+      "location": "regime/17/alpha_ex/base",
+      "passed": true,
+      "shown": "4.567514"
+    },
+    {
+      "expected": -4.827854086923139,
+      "location": "regime/17/maxdd_delta/base",
+      "passed": true,
+      "shown": "-4.827854"
+    },
+    {
+      "expected": 4.222284004008453,
+      "location": "regime/17/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "4.222284"
+    },
+    {
+      "expected": -4.748446119368655,
+      "location": "regime/17/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-4.748446"
+    },
+    {
+      "expected": "2/2",
+      "location": "regime/17/joint",
+      "passed": true,
+      "shown": "2/2"
+    },
+    {
+      "expected": 2.1493736014862153,
+      "location": "regime/18/alpha_ex/base",
+      "passed": true,
+      "shown": "2.149374"
+    },
+    {
+      "expected": -2.965536311013844,
+      "location": "regime/18/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.965536"
+    },
+    {
+      "expected": 1.8222387736280488,
+      "location": "regime/18/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "1.822239"
+    },
+    {
+      "expected": -2.7891599950411514,
+      "location": "regime/18/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.789160"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/18/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": 0.8454828048913954,
+      "location": "regime/19/alpha_ex/base",
+      "passed": true,
+      "shown": "0.845483"
+    },
+    {
+      "expected": -1.7056285572881413,
+      "location": "regime/19/maxdd_delta/base",
+      "passed": true,
+      "shown": "-1.705629"
+    },
+    {
+      "expected": 0.5175989675445247,
+      "location": "regime/19/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "0.517599"
+    },
+    {
+      "expected": -1.5424879133797809,
+      "location": "regime/19/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-1.542488"
+    },
+    {
+      "expected": "1/2",
+      "location": "regime/19/joint",
+      "passed": true,
+      "shown": "1/2"
+    },
+    {
+      "expected": 3.020859169409243,
+      "location": "regime/20/alpha_ex/base",
+      "passed": true,
+      "shown": "3.020859"
+    },
+    {
+      "expected": -2.1339126793031795,
+      "location": "regime/20/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.133913"
+    },
+    {
+      "expected": 2.289970144696074,
+      "location": "regime/20/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "2.289970"
+    },
+    {
+      "expected": -2.049820757313628,
+      "location": "regime/20/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.049821"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/20/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": 1.4087613531992864,
+      "location": "regime/21/alpha_ex/base",
+      "passed": true,
+      "shown": "1.408761"
+    },
+    {
+      "expected": -2.420559866745628,
+      "location": "regime/21/maxdd_delta/base",
+      "passed": true,
+      "shown": "-2.420560"
+    },
+    {
+      "expected": 0.7338953255127012,
+      "location": "regime/21/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "0.733895"
+    },
+    {
+      "expected": -2.3443065624742463,
+      "location": "regime/21/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-2.344307"
+    },
+    {
+      "expected": "2/4",
+      "location": "regime/21/joint",
+      "passed": true,
+      "shown": "2/4"
+    },
+    {
+      "expected": 5.150759388957371,
+      "location": "regime/22/alpha_ex/base",
+      "passed": true,
+      "shown": "5.150759"
+    },
+    {
+      "expected": -5.21916014900326,
+      "location": "regime/22/maxdd_delta/base",
+      "passed": true,
+      "shown": "-5.219160"
+    },
+    {
+      "expected": 4.845237436441669,
+      "location": "regime/22/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "4.845237"
+    },
+    {
+      "expected": -5.140860184368562,
+      "location": "regime/22/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-5.140860"
+    },
+    {
+      "expected": "2/2",
+      "location": "regime/22/joint",
+      "passed": true,
+      "shown": "2/2"
+    },
+    {
+      "expected": 3.0877402408198416,
+      "location": "regime/23/alpha_ex/base",
+      "passed": true,
+      "shown": "3.087740"
+    },
+    {
+      "expected": -3.567219553666001,
+      "location": "regime/23/maxdd_delta/base",
+      "passed": true,
+      "shown": "-3.567220"
+    },
+    {
+      "expected": 2.8077081604152623,
+      "location": "regime/23/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "2.807708"
+    },
+    {
+      "expected": -3.490674461691712,
+      "location": "regime/23/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "-3.490674"
+    },
+    {
+      "expected": "2/2",
+      "location": "regime/23/joint",
+      "passed": true,
+      "shown": "2/2"
+    },
+    {
+      "expected": -2.123373020779435,
+      "location": "paired/0/alpha_ex/base",
+      "passed": true,
+      "shown": "-2.123373"
+    },
+    {
+      "expected": 4.152617628393303,
+      "location": "paired/0/maxdd_delta/base",
+      "passed": true,
+      "shown": "4.152618"
+    },
+    {
+      "expected": -2.4034898586810316,
+      "location": "paired/0/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-2.403490"
+    },
+    {
+      "expected": 4.189429604276153,
+      "location": "paired/0/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "4.189430"
+    },
+    {
+      "expected": -2.2787968873972138,
+      "location": "paired/1/alpha_ex/base",
+      "passed": true,
+      "shown": "-2.278797"
+    },
+    {
+      "expected": 4.402280736556441,
+      "location": "paired/1/maxdd_delta/base",
+      "passed": true,
+      "shown": "4.402281"
+    },
+    {
+      "expected": -2.550478070398468,
+      "location": "paired/1/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-2.550478"
+    },
+    {
+      "expected": 4.440581959405451,
+      "location": "paired/1/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "4.440582"
+    },
+    {
+      "expected": -2.308474176429243,
+      "location": "paired/2/alpha_ex/base",
+      "passed": true,
+      "shown": "-2.308474"
+    },
+    {
+      "expected": 3.4338446050945617,
+      "location": "paired/2/maxdd_delta/base",
+      "passed": true,
+      "shown": "3.433845"
+    },
+    {
+      "expected": -2.560006687117158,
+      "location": "paired/2/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-2.560007"
+    },
+    {
+      "expected": 3.4384680636459843,
+      "location": "paired/2/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "3.438468"
+    },
+    {
+      "expected": -2.959904740814397,
+      "location": "paired/3/alpha_ex/base",
+      "passed": true,
+      "shown": "-2.959905"
+    },
+    {
+      "expected": 4.254716183515557,
+      "location": "paired/3/maxdd_delta/base",
+      "passed": true,
+      "shown": "4.254716"
+    },
+    {
+      "expected": -3.214662583660795,
+      "location": "paired/3/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-3.214663"
+    },
+    {
+      "expected": 4.268550024252344,
+      "location": "paired/3/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "4.268550"
+    },
+    {
+      "expected": -0.5262831109291071,
+      "location": "paired/4/alpha_ex/base",
+      "passed": true,
+      "shown": "-0.526283"
+    },
+    {
+      "expected": 2.5987793232408114,
+      "location": "paired/4/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.598779"
+    },
+    {
+      "expected": -0.7829016126705786,
+      "location": "paired/4/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-0.782902"
+    },
+    {
+      "expected": 2.632118417967576,
+      "location": "paired/4/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "2.632118"
+    },
+    {
+      "expected": -1.2986242973881303,
+      "location": "paired/5/alpha_ex/base",
+      "passed": true,
+      "shown": "-1.298624"
+    },
+    {
+      "expected": 3.381647374020064,
+      "location": "paired/5/maxdd_delta/base",
+      "passed": true,
+      "shown": "3.381647"
+    },
+    {
+      "expected": -1.5579334852863336,
+      "location": "paired/5/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.557933"
+    },
+    {
+      "expected": 3.425434349463212,
+      "location": "paired/5/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "3.425434"
+    },
+    {
+      "expected": -0.2774790073111418,
+      "location": "paired/6/alpha_ex/base",
+      "passed": true,
+      "shown": "-0.277479"
+    },
+    {
+      "expected": 2.2745713560354526,
+      "location": "paired/6/maxdd_delta/base",
+      "passed": true,
+      "shown": "2.274571"
+    },
+    {
+      "expected": -0.5371241780833195,
+      "location": "paired/6/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-0.537124"
+    },
+    {
+      "expected": 2.297091007350802,
+      "location": "paired/6/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "2.297091"
+    },
+    {
+      "expected": -1.6917661649396523,
+      "location": "paired/7/alpha_ex/base",
+      "passed": true,
+      "shown": "-1.691766"
+    },
+    {
+      "expected": 3.6313088620427108,
+      "location": "paired/7/maxdd_delta/base",
+      "passed": true,
+      "shown": "3.631309"
+    },
+    {
+      "expected": -1.9455820495474272,
+      "location": "paired/7/alpha_ex/stress_2x",
+      "passed": true,
+      "shown": "-1.945582"
+    },
+    {
+      "expected": 3.659766149092686,
+      "location": "paired/7/maxdd_delta/stress_2x",
+      "passed": true,
+      "shown": "3.659766"
+    },
+    {
+      "expected": 0.2666186201628471,
+      "location": "classification/0/brier",
+      "passed": true,
+      "shown": "0.266619"
+    },
+    {
+      "expected": 0.7355563297722705,
+      "location": "classification/0/log_loss",
+      "passed": true,
+      "shown": "0.735556"
+    },
+    {
+      "expected": 51.6090226988687,
+      "location": "classification/0/binary_accuracy",
+      "passed": true,
+      "shown": "51.609023"
+    },
+    {
+      "expected": 0.2731480940015155,
+      "location": "classification/0/weighted_brier",
+      "passed": true,
+      "shown": "0.273148"
+    },
+    {
+      "expected": 0.7518765718275444,
+      "location": "classification/0/weighted_log_loss",
+      "passed": true,
+      "shown": "0.751877"
+    },
+    {
+      "expected": 50.74042703243765,
+      "location": "classification/0/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.740427"
+    },
+    {
+      "expected": 0.27354719504487757,
+      "location": "classification/1/brier",
+      "passed": true,
+      "shown": "0.273547"
+    },
+    {
+      "expected": 0.75892620195978,
+      "location": "classification/1/log_loss",
+      "passed": true,
+      "shown": "0.758926"
+    },
+    {
+      "expected": 51.59884857723952,
+      "location": "classification/1/binary_accuracy",
+      "passed": true,
+      "shown": "51.598849"
+    },
+    {
+      "expected": 0.27935085021741857,
+      "location": "classification/1/weighted_brier",
+      "passed": true,
+      "shown": "0.279351"
+    },
+    {
+      "expected": 0.7771293800898366,
+      "location": "classification/1/weighted_log_loss",
+      "passed": true,
+      "shown": "0.777129"
+    },
+    {
+      "expected": 50.83372337045107,
+      "location": "classification/1/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.833723"
+    },
+    {
+      "expected": 0.2635807800907662,
+      "location": "classification/2/brier",
+      "passed": true,
+      "shown": "0.263581"
+    },
+    {
+      "expected": 0.7267152097144937,
+      "location": "classification/2/log_loss",
+      "passed": true,
+      "shown": "0.726715"
+    },
+    {
+      "expected": 52.045225790007564,
+      "location": "classification/2/binary_accuracy",
+      "passed": true,
+      "shown": "52.045226"
+    },
+    {
+      "expected": 0.2698284019964702,
+      "location": "classification/2/weighted_brier",
+      "passed": true,
+      "shown": "0.269828"
+    },
+    {
+      "expected": 0.7423946790791542,
+      "location": "classification/2/weighted_log_loss",
+      "passed": true,
+      "shown": "0.742395"
+    },
+    {
+      "expected": 51.81535266732246,
+      "location": "classification/2/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "51.815353"
+    },
+    {
+      "expected": 0.2690891665505525,
+      "location": "classification/3/brier",
+      "passed": true,
+      "shown": "0.269089"
+    },
+    {
+      "expected": 0.7438746181362873,
+      "location": "classification/3/log_loss",
+      "passed": true,
+      "shown": "0.743875"
+    },
+    {
+      "expected": 51.4745335129908,
+      "location": "classification/3/binary_accuracy",
+      "passed": true,
+      "shown": "51.474534"
+    },
+    {
+      "expected": 0.2744026505501304,
+      "location": "classification/3/weighted_brier",
+      "passed": true,
+      "shown": "0.274403"
+    },
+    {
+      "expected": 0.7606623893516229,
+      "location": "classification/3/weighted_log_loss",
+      "passed": true,
+      "shown": "0.760662"
+    },
+    {
+      "expected": 51.36537897642699,
+      "location": "classification/3/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "51.365379"
+    },
+    {
+      "expected": 0.25101221997881606,
+      "location": "classification/4/brier",
+      "passed": true,
+      "shown": "0.251012"
+    },
+    {
+      "expected": 0.6951767322411355,
+      "location": "classification/4/log_loss",
+      "passed": true,
+      "shown": "0.695177"
+    },
+    {
+      "expected": 49.778420473991225,
+      "location": "classification/4/binary_accuracy",
+      "passed": true,
+      "shown": "49.778420"
+    },
+    {
+      "expected": 0.2515702327518261,
+      "location": "classification/4/weighted_brier",
+      "passed": true,
+      "shown": "0.251570"
+    },
+    {
+      "expected": 0.6962954245686855,
+      "location": "classification/4/weighted_log_loss",
+      "passed": true,
+      "shown": "0.696295"
+    },
+    {
+      "expected": 48.839093098229505,
+      "location": "classification/4/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.839093"
+    },
+    {
+      "expected": 0.2506713411326193,
+      "location": "classification/5/brier",
+      "passed": true,
+      "shown": "0.250671"
+    },
+    {
+      "expected": 0.6944928081827435,
+      "location": "classification/5/log_loss",
+      "passed": true,
+      "shown": "0.694493"
+    },
+    {
+      "expected": 49.778420473991225,
+      "location": "classification/5/binary_accuracy",
+      "passed": true,
+      "shown": "49.778420"
+    },
+    {
+      "expected": 0.25104727040393404,
+      "location": "classification/5/weighted_brier",
+      "passed": true,
+      "shown": "0.251047"
+    },
+    {
+      "expected": 0.6952458000277295,
+      "location": "classification/5/weighted_log_loss",
+      "passed": true,
+      "shown": "0.695246"
+    },
+    {
+      "expected": 48.839093098229505,
+      "location": "classification/5/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.839093"
+    },
+    {
+      "expected": 0.268063195157342,
+      "location": "classification/6/brier",
+      "passed": true,
+      "shown": "0.268063"
+    },
+    {
+      "expected": 0.737524768814618,
+      "location": "classification/6/log_loss",
+      "passed": true,
+      "shown": "0.737525"
+    },
+    {
+      "expected": 50.415831643976105,
+      "location": "classification/6/binary_accuracy",
+      "passed": true,
+      "shown": "50.415832"
+    },
+    {
+      "expected": 0.27295720768480825,
+      "location": "classification/6/weighted_brier",
+      "passed": true,
+      "shown": "0.272957"
+    },
+    {
+      "expected": 0.7483317504095457,
+      "location": "classification/6/weighted_log_loss",
+      "passed": true,
+      "shown": "0.748332"
+    },
+    {
+      "expected": 48.645603373251085,
+      "location": "classification/6/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.645603"
+    },
+    {
+      "expected": 0.2772341539439794,
+      "location": "classification/7/brier",
+      "passed": true,
+      "shown": "0.277234"
+    },
+    {
+      "expected": 0.7638981207511589,
+      "location": "classification/7/log_loss",
+      "passed": true,
+      "shown": "0.763898"
+    },
+    {
+      "expected": 49.8314453403774,
+      "location": "classification/7/binary_accuracy",
+      "passed": true,
+      "shown": "49.831445"
+    },
+    {
+      "expected": 0.28242314361671006,
+      "location": "classification/7/weighted_brier",
+      "passed": true,
+      "shown": "0.282423"
+    },
+    {
+      "expected": 0.7764519614750952,
+      "location": "classification/7/weighted_log_loss",
+      "passed": true,
+      "shown": "0.776452"
+    },
+    {
+      "expected": 48.83686426664785,
+      "location": "classification/7/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.836864"
+    },
+    {
+      "expected": 0.2661979320809654,
+      "location": "classification/8/brier",
+      "passed": true,
+      "shown": "0.266198"
+    },
+    {
+      "expected": 0.7316807586291103,
+      "location": "classification/8/log_loss",
+      "passed": true,
+      "shown": "0.731681"
+    },
+    {
+      "expected": 51.02545711081217,
+      "location": "classification/8/binary_accuracy",
+      "passed": true,
+      "shown": "51.025457"
+    },
+    {
+      "expected": 0.2702050628074822,
+      "location": "classification/8/weighted_brier",
+      "passed": true,
+      "shown": "0.270205"
+    },
+    {
+      "expected": 0.7410029868030473,
+      "location": "classification/8/weighted_log_loss",
+      "passed": true,
+      "shown": "0.741003"
+    },
+    {
+      "expected": 50.68481639134007,
+      "location": "classification/8/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.684816"
+    },
+    {
+      "expected": 0.27573330480725755,
+      "location": "classification/9/brier",
+      "passed": true,
+      "shown": "0.275733"
+    },
+    {
+      "expected": 0.7571556044139309,
+      "location": "classification/9/log_loss",
+      "passed": true,
+      "shown": "0.757156"
+    },
+    {
+      "expected": 50.994723015372045,
+      "location": "classification/9/binary_accuracy",
+      "passed": true,
+      "shown": "50.994723"
+    },
+    {
+      "expected": 0.27908678382484853,
+      "location": "classification/9/weighted_brier",
+      "passed": true,
+      "shown": "0.279087"
+    },
+    {
+      "expected": 0.7666944080030361,
+      "location": "classification/9/weighted_log_loss",
+      "passed": true,
+      "shown": "0.766694"
+    },
+    {
+      "expected": 50.68903848367903,
+      "location": "classification/9/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.689038"
+    },
+    {
+      "expected": 0.2510666067832606,
+      "location": "classification/10/brier",
+      "passed": true,
+      "shown": "0.251067"
+    },
+    {
+      "expected": 0.6952857225065998,
+      "location": "classification/10/log_loss",
+      "passed": true,
+      "shown": "0.695286"
+    },
+    {
+      "expected": 49.683366701671915,
+      "location": "classification/10/binary_accuracy",
+      "passed": true,
+      "shown": "49.683367"
+    },
+    {
+      "expected": 0.2515697001485872,
+      "location": "classification/10/weighted_brier",
+      "passed": true,
+      "shown": "0.251570"
+    },
+    {
+      "expected": 0.6962917555074506,
+      "location": "classification/10/weighted_log_loss",
+      "passed": true,
+      "shown": "0.696292"
+    },
+    {
+      "expected": 48.17242225947562,
+      "location": "classification/10/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.172422"
+    },
+    {
+      "expected": 0.2507832409876446,
+      "location": "classification/11/brier",
+      "passed": true,
+      "shown": "0.250783"
+    },
+    {
+      "expected": 0.6947168774830846,
+      "location": "classification/11/log_loss",
+      "passed": true,
+      "shown": "0.694717"
+    },
+    {
+      "expected": 49.683366701671915,
+      "location": "classification/11/binary_accuracy",
+      "passed": true,
+      "shown": "49.683367"
+    },
+    {
+      "expected": 0.2512689748369605,
+      "location": "classification/11/weighted_brier",
+      "passed": true,
+      "shown": "0.251269"
+    },
+    {
+      "expected": 0.6956874455603693,
+      "location": "classification/11/weighted_log_loss",
+      "passed": true,
+      "shown": "0.695687"
+    },
+    {
+      "expected": 48.17242225947562,
+      "location": "classification/11/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.172422"
+    },
+    {
+      "expected": 369.96243895690344,
+      "location": "mapped_mse/0/0",
+      "passed": true,
+      "shown": "369.962439"
+    },
+    {
+      "expected": 12.993818260556907,
+      "location": "mapped_mse/0/1",
+      "passed": true,
+      "shown": "12.993818"
+    },
+    {
+      "expected": -0.4929118694059764,
+      "location": "mapped_mse/0/2",
+      "passed": true,
+      "shown": "-0.492912"
+    },
+    {
+      "expected": -0.4167233838642814,
+      "location": "mapped_mse/0/3",
+      "passed": true,
+      "shown": "-0.416723"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/0/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/0/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 324.58919831979847,
+      "location": "mapped_mse/1/0",
+      "passed": true,
+      "shown": "324.589198"
+    },
+    {
+      "expected": 12.050156330508184,
+      "location": "mapped_mse/1/1",
+      "passed": true,
+      "shown": "12.050156"
+    },
+    {
+      "expected": 0.2838333581028918,
+      "location": "mapped_mse/1/2",
+      "passed": true,
+      "shown": "0.283833"
+    },
+    {
+      "expected": -0.22951366517099947,
+      "location": "mapped_mse/1/3",
+      "passed": true,
+      "shown": "-0.229514"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/1/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/1/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 371.34688604593384,
+      "location": "mapped_mse/2/0",
+      "passed": true,
+      "shown": "371.346886"
+    },
+    {
+      "expected": 13.016214410499828,
+      "location": "mapped_mse/2/1",
+      "passed": true,
+      "shown": "13.016214"
+    },
+    {
+      "expected": -0.12054353145062313,
+      "location": "mapped_mse/2/2",
+      "passed": true,
+      "shown": "-0.120544"
+    },
+    {
+      "expected": -0.04406993878474097,
+      "location": "mapped_mse/2/3",
+      "passed": true,
+      "shown": "-0.044070"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/2/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/2/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 324.29621346868095,
+      "location": "mapped_mse/3/0",
+      "passed": true,
+      "shown": "324.296213"
+    },
+    {
+      "expected": 12.0519345207263,
+      "location": "mapped_mse/3/1",
+      "passed": true,
+      "shown": "12.051935"
+    },
+    {
+      "expected": 0.1933138825996883,
+      "location": "mapped_mse/3/2",
+      "passed": true,
+      "shown": "0.193314"
+    },
+    {
+      "expected": -0.31956977682241483,
+      "location": "mapped_mse/3/3",
+      "passed": true,
+      "shown": "-0.319570"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/3/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/3/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 368.2450638679134,
+      "location": "mapped_mse/4/0",
+      "passed": true,
+      "shown": "368.245064"
+    },
+    {
+      "expected": 12.974823727463502,
+      "location": "mapped_mse/4/1",
+      "passed": true,
+      "shown": "12.974824"
+    },
+    {
+      "expected": -0.5847623760864118,
+      "location": "mapped_mse/4/2",
+      "passed": true,
+      "shown": "-0.584762"
+    },
+    {
+      "expected": -0.559859671674956,
+      "location": "mapped_mse/4/3",
+      "passed": true,
+      "shown": "-0.559860"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/4/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/4/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 322.153151680092,
+      "location": "mapped_mse/5/0",
+      "passed": true,
+      "shown": "322.153152"
+    },
+    {
+      "expected": 11.98532729096053,
+      "location": "mapped_mse/5/1",
+      "passed": true,
+      "shown": "11.985327"
+    },
+    {
+      "expected": -0.12824561780893085,
+      "location": "mapped_mse/5/2",
+      "passed": true,
+      "shown": "-0.128246"
+    },
+    {
+      "expected": -0.6619496881778875,
+      "location": "mapped_mse/5/3",
+      "passed": true,
+      "shown": "-0.661950"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/5/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/5/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 369.9622327990686,
+      "location": "mapped_mse/6/0",
+      "passed": true,
+      "shown": "369.962233"
+    },
+    {
+      "expected": 13.007008185755094,
+      "location": "mapped_mse/6/1",
+      "passed": true,
+      "shown": "13.007008"
+    },
+    {
+      "expected": -0.12117773074701299,
+      "location": "mapped_mse/6/2",
+      "passed": true,
+      "shown": "-0.121178"
+    },
+    {
+      "expected": -0.09615890217120615,
+      "location": "mapped_mse/6/3",
+      "passed": true,
+      "shown": "-0.096159"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/6/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/6/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 322.1386199214007,
+      "location": "mapped_mse/7/0",
+      "passed": true,
+      "shown": "322.138620"
+    },
+    {
+      "expected": 11.974497132583299,
+      "location": "mapped_mse/7/1",
+      "passed": true,
+      "shown": "11.974497"
+    },
+    {
+      "expected": -0.1327506559474334,
+      "location": "mapped_mse/7/2",
+      "passed": true,
+      "shown": "-0.132751"
+    },
+    {
+      "expected": -0.6664306518700536,
+      "location": "mapped_mse/7/3",
+      "passed": true,
+      "shown": "-0.666431"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/7/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/7/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 800.0,
+      "location": "priors/5/0",
+      "passed": true,
+      "shown": "800"
+    },
+    {
+      "expected": 376.0,
+      "location": "priors/5/1",
+      "passed": true,
+      "shown": "376"
+    },
+    {
+      "expected": 424.0,
+      "location": "priors/5/2",
+      "passed": true,
+      "shown": "424"
+    },
+    {
+      "expected": 0.53,
+      "location": "priors/5/ordinary",
+      "passed": true,
+      "shown": "0.530000000"
+    },
+    {
+      "expected": 0.5203189149662868,
+      "location": "priors/5/magnitude",
+      "passed": true,
+      "shown": "0.520318915"
+    },
+    {
+      "expected": 77.0,
+      "location": "priors/5/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "77"
+    },
+    {
+      "expected": 89.0,
+      "location": "priors/5/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "89"
+    },
+    {
+      "expected": 84.0,
+      "location": "priors/5/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "84"
+    },
+    {
+      "expected": 90.0,
+      "location": "priors/5/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "90"
+    },
+    {
+      "expected": 1034.0,
+      "location": "priors/6/0",
+      "passed": true,
+      "shown": "1034"
+    },
+    {
+      "expected": 468.0,
+      "location": "priors/6/1",
+      "passed": true,
+      "shown": "468"
+    },
+    {
+      "expected": 566.0,
+      "location": "priors/6/2",
+      "passed": true,
+      "shown": "566"
+    },
+    {
+      "expected": 0.5473887814313346,
+      "location": "priors/6/ordinary",
+      "passed": true,
+      "shown": "0.547388781"
+    },
+    {
+      "expected": 0.5457087030667266,
+      "location": "priors/6/magnitude",
+      "passed": true,
+      "shown": "0.545708703"
+    },
+    {
+      "expected": 77.0,
+      "location": "priors/6/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "77"
+    },
+    {
+      "expected": 84.0,
+      "location": "priors/6/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "84"
+    },
+    {
+      "expected": 80.0,
+      "location": "priors/6/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "80"
+    },
+    {
+      "expected": 93.0,
+      "location": "priors/6/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "93"
+    },
+    {
+      "expected": 1313.0,
+      "location": "priors/7/0",
+      "passed": true,
+      "shown": "1313"
+    },
+    {
+      "expected": 608.0,
+      "location": "priors/7/1",
+      "passed": true,
+      "shown": "608"
+    },
+    {
+      "expected": 705.0,
+      "location": "priors/7/2",
+      "passed": true,
+      "shown": "705"
+    },
+    {
+      "expected": 0.536938309215537,
+      "location": "priors/7/ordinary",
+      "passed": true,
+      "shown": "0.536938309"
+    },
+    {
+      "expected": 0.5383808786965478,
+      "location": "priors/7/magnitude",
+      "passed": true,
+      "shown": "0.538380879"
+    },
+    {
+      "expected": 86.0,
+      "location": "priors/7/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "86"
+    },
+    {
+      "expected": 88.0,
+      "location": "priors/7/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "88"
+    },
+    {
+      "expected": 81.0,
+      "location": "priors/7/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "81"
+    },
+    {
+      "expected": 91.0,
+      "location": "priors/7/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "91"
+    },
+    {
+      "expected": 1500.0,
+      "location": "priors/8/0",
+      "passed": true,
+      "shown": "1500"
+    },
+    {
+      "expected": 699.0,
+      "location": "priors/8/1",
+      "passed": true,
+      "shown": "699"
+    },
+    {
+      "expected": 801.0,
+      "location": "priors/8/2",
+      "passed": true,
+      "shown": "801"
+    },
+    {
+      "expected": 0.534,
+      "location": "priors/8/ordinary",
+      "passed": true,
+      "shown": "0.534000000"
+    },
+    {
+      "expected": 0.5227334467801684,
+      "location": "priors/8/magnitude",
+      "passed": true,
+      "shown": "0.522733447"
+    },
+    {
+      "expected": 82.0,
+      "location": "priors/8/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "82"
+    },
+    {
+      "expected": 91.0,
+      "location": "priors/8/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "91"
+    },
+    {
+      "expected": 84.0,
+      "location": "priors/8/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "84"
+    },
+    {
+      "expected": 93.0,
+      "location": "priors/8/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "93"
+    },
+    {
+      "expected": 1503.0,
+      "location": "priors/9/0",
+      "passed": true,
+      "shown": "1503"
+    },
+    {
+      "expected": 698.0,
+      "location": "priors/9/1",
+      "passed": true,
+      "shown": "698"
+    },
+    {
+      "expected": 805.0,
+      "location": "priors/9/2",
+      "passed": true,
+      "shown": "805"
+    },
+    {
+      "expected": 0.5355954757152362,
+      "location": "priors/9/ordinary",
+      "passed": true,
+      "shown": "0.535595476"
+    },
+    {
+      "expected": 0.5273880693011218,
+      "location": "priors/9/magnitude",
+      "passed": true,
+      "shown": "0.527388069"
+    },
+    {
+      "expected": 83.0,
+      "location": "priors/9/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "83"
+    },
+    {
+      "expected": 85.0,
+      "location": "priors/9/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "85"
+    },
+    {
+      "expected": 92.0,
+      "location": "priors/9/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "92"
+    },
+    {
+      "expected": 93.0,
+      "location": "priors/9/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "93"
+    },
+    {
+      "expected": 1634.0,
+      "location": "priors/10/0",
+      "passed": true,
+      "shown": "1634"
+    },
+    {
+      "expected": 772.0,
+      "location": "priors/10/1",
+      "passed": true,
+      "shown": "772"
+    },
+    {
+      "expected": 862.0,
+      "location": "priors/10/2",
+      "passed": true,
+      "shown": "862"
+    },
+    {
+      "expected": 0.5275397796817626,
+      "location": "priors/10/ordinary",
+      "passed": true,
+      "shown": "0.527539780"
+    },
+    {
+      "expected": 0.5169187976600383,
+      "location": "priors/10/magnitude",
+      "passed": true,
+      "shown": "0.516918798"
+    },
+    {
+      "expected": 89.0,
+      "location": "priors/10/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "89"
+    },
+    {
+      "expected": 91.0,
+      "location": "priors/10/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "91"
+    },
+    {
+      "expected": 92.0,
+      "location": "priors/10/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "92"
+    },
+    {
+      "expected": 99.0,
+      "location": "priors/10/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "99"
+    },
+    {
+      "expected": 1672.0,
+      "location": "priors/11/0",
+      "passed": true,
+      "shown": "1672"
+    },
+    {
+      "expected": 808.0,
+      "location": "priors/11/1",
+      "passed": true,
+      "shown": "808"
+    },
+    {
+      "expected": 864.0,
+      "location": "priors/11/2",
+      "passed": true,
+      "shown": "864"
+    },
+    {
+      "expected": 0.5167464114832536,
+      "location": "priors/11/ordinary",
+      "passed": true,
+      "shown": "0.516746411"
+    },
+    {
+      "expected": 0.5132090659531888,
+      "location": "priors/11/magnitude",
+      "passed": true,
+      "shown": "0.513209066"
+    },
+    {
+      "expected": 86.0,
+      "location": "priors/11/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "86"
+    },
+    {
+      "expected": 94.0,
+      "location": "priors/11/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "94"
+    },
+    {
+      "expected": 89.0,
+      "location": "priors/11/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "89"
+    },
+    {
+      "expected": 90.0,
+      "location": "priors/11/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "90"
+    },
+    {
+      "expected": 1794.0,
+      "location": "priors/12/0",
+      "passed": true,
+      "shown": "1794"
+    },
+    {
+      "expected": 902.0,
+      "location": "priors/12/1",
+      "passed": true,
+      "shown": "902"
+    },
+    {
+      "expected": 892.0,
+      "location": "priors/12/2",
+      "passed": true,
+      "shown": "892"
+    },
+    {
+      "expected": 0.4972129319955407,
+      "location": "priors/12/ordinary",
+      "passed": true,
+      "shown": "0.497212932"
+    },
+    {
+      "expected": 0.4858999267805608,
+      "location": "priors/12/magnitude",
+      "passed": true,
+      "shown": "0.485899927"
+    },
+    {
+      "expected": 90.0,
+      "location": "priors/12/iterations/technical_ordinary",
+      "passed": true,
+      "shown": "90"
+    },
+    {
+      "expected": 91.0,
+      "location": "priors/12/iterations/technical_magnitude",
+      "passed": true,
+      "shown": "91"
+    },
+    {
+      "expected": 90.0,
+      "location": "priors/12/iterations/perp_delay0_ordinary",
+      "passed": true,
+      "shown": "90"
+    },
+    {
+      "expected": 99.0,
+      "location": "priors/12/iterations/perp_delay0_magnitude",
+      "passed": true,
+      "shown": "99"
+    },
+    {
+      "expected": 8.7720981187018,
+      "location": "weights/5/maximum",
+      "passed": true,
+      "shown": "8.772098"
+    },
+    {
+      "expected": 0.0,
+      "location": "weights/5/zeros",
+      "passed": true,
+      "shown": "0"
+    },
+    {
+      "expected": 363.82982973459684,
+      "location": "weights/5/concentration",
+      "passed": true,
+      "shown": "363.829830"
+    },
+    {
+      "expected": 8.486897559647385,
+      "location": "weights/6/maximum",
+      "passed": true,
+      "shown": "8.486898"
+    },
+    {
+      "expected": 0.0,
+      "location": "weights/6/zeros",
+      "passed": true,
+      "shown": "0"
+    },
+    {
+      "expected": 485.5953390177011,
+      "location": "weights/6/concentration",
+      "passed": true,
+      "shown": "485.595339"
+    },
+    {
+      "expected": 10.004292927965736,
+      "location": "weights/7/maximum",
+      "passed": true,
+      "shown": "10.004293"
+    },
+    {
+      "expected": 0.0,
+      "location": "weights/7/zeros",
+      "passed": true,
+      "shown": "0"
+    },
+    {
+      "expected": 590.9588892008098,
+      "location": "weights/7/concentration",
+      "passed": true,
+      "shown": "590.958889"
+    },
+    {
+      "expected": 9.295201762662941,
+      "location": "weights/8/maximum",
+      "passed": true,
+      "shown": "9.295202"
+    },
+    {
+      "expected": 0.0,
+      "location": "weights/8/zeros",
+      "passed": true,
+      "shown": "0"
+    },
+    {
+      "expected": 691.8780322020577,
+      "location": "weights/8/concentration",
+      "passed": true,
+      "shown": "691.878032"
+    },
+    {
+      "expected": 9.075080438277956,
+      "location": "weights/9/maximum",
+      "passed": true,
+      "shown": "9.075080"
+    },
+    {
+      "expected": 0.0,
+      "location": "weights/9/zeros",
+      "passed": true,
+      "shown": "0"
+    },
+    {
+      "expected": 693.7923298123129,
+      "location": "weights/9/concentration",
+      "passed": true,
+      "shown": "693.792330"
+    },
+    {
+      "expected": 10.507235185924028,
+      "location": "weights/10/maximum",
+      "passed": true,
+      "shown": "10.507235"
+    },
+    {
+      "expected": 0.0,
+      "location": "weights/10/zeros",
+      "passed": true,
+      "shown": "0"
+    },
+    {
+      "expected": 770.7077686038474,
+      "location": "weights/10/concentration",
+      "passed": true,
+      "shown": "770.707769"
+    },
+    {
+      "expected": 9.90796154866594,
+      "location": "weights/11/maximum",
+      "passed": true,
+      "shown": "9.907962"
+    },
+    {
+      "expected": 1.0,
+      "location": "weights/11/zeros",
+      "passed": true,
+      "shown": "1"
+    },
+    {
+      "expected": 799.8195763969383,
+      "location": "weights/11/concentration",
+      "passed": true,
+      "shown": "799.819576"
+    },
+    {
+      "expected": 9.643598260722635,
+      "location": "weights/12/maximum",
+      "passed": true,
+      "shown": "9.643598"
+    },
+    {
+      "expected": 1.0,
+      "location": "weights/12/zeros",
+      "passed": true,
+      "shown": "1"
+    },
+    {
+      "expected": 850.705361363303,
+      "location": "weights/12/concentration",
+      "passed": true,
+      "shown": "850.705361"
+    },
+    {
+      "expected": "a8f20d76fa6ed17592c53c044cdaada7f7a08bd9a2c244fe9fa4a56c3d8eebcd",
+      "location": "hash/preflight.json",
+      "passed": true,
+      "shown": "a8f20d76fa6ed17592c53c044cdaada7f7a08bd9a2c244fe9fa4a56c3d8eebcd"
+    },
+    {
+      "expected": "06ef781a2835b25ccfc01db9c758ecf79c7fabefe23346af37db1ec19cefbdab",
+      "location": "hash/registration.json",
+      "passed": true,
+      "shown": "06ef781a2835b25ccfc01db9c758ecf79c7fabefe23346af37db1ec19cefbdab"
+    },
+    {
+      "expected": "c659163526547d5aecc75ccd8a9f987a4000eee3152cd6552f78c1428b158657",
+      "location": "hash/results.json",
+      "passed": true,
+      "shown": "c659163526547d5aecc75ccd8a9f987a4000eee3152cd6552f78c1428b158657"
+    },
+    {
+      "expected": "29954374c3a82ea950544366da612199a749342d5c225ff13546486353466993",
+      "location": "hash/run.log",
+      "passed": true,
+      "shown": "29954374c3a82ea950544366da612199a749342d5c225ff13546486353466993"
+    },
+    {
+      "expected": "c707ea8385a8f7df1b38a9e57a535358f91d51f0a193c297cc412b1cbf364dd2",
+      "location": "hash/config YAML",
+      "passed": true,
+      "shown": "c707ea8385a8f7df1b38a9e57a535358f91d51f0a193c297cc412b1cbf364dd2"
+    }
+  ],
+  "earlier_draft_audit_sha256": "4b433fe413a49f120c406583ef6475848d62318e9fa974062d01bf63059f5db0",
+  "earlier_draft_was_not_final": true,
+  "errors": [],
+  "hash_table_cells": 5,
+  "model_audit_sha256": "f23d8f52577369c08f92f845a448a437fc5b57641bddfaf8e61dfdf37f8afad2",
+  "one_zero_return_per_segment_verified": true,
+  "own_account_audit_sha256": "bf7b4556ef80ecbd395cee1d00fbe914f08b30d10fa13d524c34b75806530fb0",
+  "passed": true,
+  "pending_report_markers": [],
+  "performance_table_cells": 464,
+  "quantitative_claims": {
+    "all_classifier_score_denominators_positive": true,
+    "all_eight_learned_economic_policies_worse_own_parents_both_costs": true,
+    "all_four_probability_losses_worse_both_priors_both_segments": true,
+    "all_priors_same_direction_per_fold": true,
+    "all_probability_and_mapped_strict_predictive_gates_fail_both_segments": true,
+    "no_new_policy_tiny_dd": true,
+    "ordinary_probability_losses_lower_than_same_group_magnitude_both_segments": true,
+    "original_score_and_account_identity": true,
+    "perp_four_observed_allstrata_sign_gates_and_five_joint_quarters": true
+  },
+  "report_sha256": "aab0b2a1bab864b84dc73a792fbb7fc6b824681ea74b1a21e4f011089e3c1161",
+  "run_log_checks": {
+    "convergence_warning_records": 0,
+    "fold_complete_records": 8,
+    "runtime_warning_records": 384
+  },
+  "schema": "independent-direction-formatted-report-audit-v1",
+  "scope": "Formatted table cells and enumerated narrative claims only; existing immutable summary audit retained unchanged. No new fits, policies or source edits.",
+  "score_audit_sha256": "2d3aa83d18e3dc3596d1d52f38267c42997908b0c1faf0eb976f19eae2e8f3ce",
+  "script_sha256": "5f13c9c9b2a97e8ea367f97ba776a1977b78af64c062b9d2a4c8517b3fd4def3",
+  "table_rows": {
+    "classification": 12,
+    "economics": 16,
+    "mapped_mse": 8,
+    "paired_economic": 8,
+    "priors": 8,
+    "regime": 24,
+    "weight_concentration": 8
+  },
+  "ten_old_tiny_dd_and_no_new_tiny_dd_verified": true,
+  "zero_logit_and_parent_mean_claims_verified": true
+}
