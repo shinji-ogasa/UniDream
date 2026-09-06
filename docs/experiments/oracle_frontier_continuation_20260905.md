@@ -781,3 +781,96 @@ names, all locks, missing rules and architecture remain unchanged. No causal
 strongest model, independent confirmation, prospective receipt proof or high
 probability of generalization has been established. The goal remains active;
 no live real run remains and no scheduled automation was created.
+
+## Thirteenth completed stage: scale-only return reliability
+
+This stage is **completed**, with no live run. Do not restart
+`codex_outputs/oracle_mean_reliability_decisions_v1`. Read
+`docs/experiments/oracle_mean_reliability_results_20260906.md` and the evidence
+in `oracle_mean_reliability_evidence_20260906` before further development.
+
+- Source/config/protocol/tests/preflight freeze commit
+  `ff9bbb92d588b4615ae8352b353a1301751202a7` was pushed before new coefficients.
+  New modules `oracle_mean_reliability.py` and
+  `oracle_mean_reliability_decisions.py`;25registered source bindings unchanged.
+  Helper SHA `2e7b1e0171f353f93d8a455481846bc03cc814fa68c2a8c8e49ffc7f539d3e5d`.
+  Config SHA `71b0965691099074a690085ac22cbe6808b2b430fea305ec2b75480db1c2f094`;
+  preflight SHA `d1304dc98df0595b68992b6605c78bd3527d3b811209071df12cb6594d294370`.
+- Original development5–12/test4–11 only. Two frozen Ridge mean streams and
+  shared technical risk unchanged. New16scalar weights estimated only on
+  scale[E−6m,E−3m),0base-model fits. No interval/evaluation label updates,
+  new features, architecture, missing rules or additional-test15–24 use.
+  Full Spot file is decoded then sliced; no later semantic outcomes are used.
+- With savedfullp=raw+savedbias and exactanchorscalea, define d=p−a,r=y−a,
+  B=meanS(d²),C=meanS(d*r). w=0ifB==0orC<=0,1ifC>=B,elseC/B; convex sum
+  w*p+(1−w)*a, with exact endpoint copies. It is the fitted least-squares point
+  on the anchor/full segment, not a selected0/.5/1grid or raw-centered OLS.
+  Weight fitting onS cannot count as demonstrated improvement. All inference
+  2586/score2574/fallback332/missingcurrentopen2 supports remain unchanged.
+- New4causal policy names =technical/perpetual reliability×hold/fallback;
+  adaptive causal-name ledger increases158→162. All12prior controls retained;
+  frozen family/locks not rewritten. Nine means scored onS/I/E =216records.
+  S/I strata by later evaluation-start regime are explicitly retrospective,
+  not conditions available at their own forecast times. Evaluation regimes
+  remain known at the first evaluation decision;2bull/4bear/2sideways.
+- Required626testsOK56.696s,10helper+4runner new synthetic tests. Realrun54020
+  terminalexit0;128economic rows,16weights,208artifacts (16evaluationNPZ,
+  16calibrationNPZ,16weightJSON,128targetNPZ,32traceJSON),8fold manifests.
+  Registration byte SHA
+  `d15c59fe44489076fe332f0e0b4ee511723d19b312952dd20b0f684ae638bf97`;
+  results SHA `333f88d4bc06f671d552d8ca70470ee60ecd67074812f6aa248b26f1b94562f1`.
+- Observed weights13interior,2upper (technical/perp fold7),1zero (perpfold12,
+  nonpositive crossmoment), nozero-dispersion. Technical weights folds5–12:
+  .264776,.368151,1,.114233,.255469,.581460,.081524,.093329;
+  perpetual .472445,.271626,1,.061155,.270464,.649504,.078631,0.
+- **All4policies meet observed economic mean signs in all evaluation regimes
+  and both costs, but only3/8individual quarters meet both signs under both
+  costs for each policy.** Equalquarter AlphaEx/DDdelta points:
+  technicalhold+3.750/−5.695base,+3.531/−5.641stress;
+  technicalfallback+3.704/−6.378base,+3.546/−6.311stress;
+  perphold+4.450/−5.143base,+4.248/−5.056stress;
+  perpfallback+4.208/−5.854base,+4.039/−5.779stress.
+  Versus ownhalf, Alpha improves but DDdelta is worse by+.244to+.405pt base.
+  Do not call this joint domination of the parent or trend-robust success.
+- Evaluation MSE improves vs ownfull5.162%technical/3.990%perp and ownhalf
+  1.063%/.304%, but is **worse than scaleanchor .809%/1.236%** and worse than
+  zero. Only1/8quarter beatsanchor in each stream (perp1tie). Interval also
+  loses toanchor .527%/.104% and tohalf .159%/.110%. All4predictive conjunctions
+  fail both I andE; regime-count and high-probability conditions remain false.
+- Exact loss identity retains centered and mean-drift terms. Evaluation
+  (centered,drift,totalexcess) in squaredlogreturn×1e6:
+  technical(−.228515,+2.797574,+2.569058),
+  perp(−.609196,+4.534918,+3.925722). Drift outweighs the favorable centered
+  component. This is algebraic attribution, not proof of a specific causal
+  stale-bias mechanism or of stable technical information. Original fullscaled
+  driftterms17.4861/14.9228e−6; rawfull totalexcess11.4932/9.9928e−6 remains
+  positive. Avoid another static-weight search framed as confirmation.
+- Independent scalar audit passes1328ancestors+208artifacts,16weights,
+  216scores/decompositions,40parentscores,96controls,32ownstatepaths/
+  11008decisions and256base/stressaccounts. Weight/forecast/target/utility/
+  Alpha/DD/turnover/cost differences0; meanexposure2.22e−16. All6observed
+  endpoint policies match existing targets/accounts;48unscored inference
+  decisions and664fallback decisions retained. Identityresidual≤9.32e−20.
+  Audit SHA `8d8f14bfd821ad83dab0eba44d53466ff2c6e900dfcd3debd4ab10ac67d5da7a`.
+  No canonical helpers/planners/simulators/scorers imported. No base fits,
+  extra policy trials, live data or paid compute during the audit.
+
+- Separate Decimal60 summary audit passes128rows/216scores/16weights;
+  maxsummarydifference1.51e−15,scalarrescore4e−18,weightalgebra0. It checks
+  302direct/consumed files (208new,25source,56consumedancestor), not a second
+  rehash of all1328ancestors. All45positive-weight segment ranks unchanged;
+  3perpfold12 zero-weight segments constant. Summary audit SHA
+  `8bd15dbdddca697cc020208db44e1e117b8b3d8f66c53eb6c002a270b7b022d0`.
+
+Next work should predeclare a small **causal mean/forecast-centering adaptation**
+study on original development data, rather than tune another static weight.
+Updates must use only already matured return labels and available past raw
+forecasts; availability cannot depend on future scoring support. Preserve
+constant/rule controls and both missing rules, report forecast and economic
+outcomes separately, and retain every failure. Drift decomposition identifies
+a hypothesis but does not guarantee an update will help or rule out missing
+information/model misspecification. Do not use additional-test15–24 to tune the
+update window, threshold or candidate. Model architecture remains deferred;
+162explored causal names and all prior locks remain fixed. No strongest model,
+independent confirmation, prospective receipt proof or high-probability trend
+robustness has been established. The active goal continues without automation.

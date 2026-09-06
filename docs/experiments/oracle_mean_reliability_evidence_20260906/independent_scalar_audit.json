@@ -1,0 +1,200 @@
+{
+  "ancestor_artifacts_verified": 1328,
+  "audit_script_sha256": "f89ccdfd2567fc16ca9313731b5611ea485587ba1a2a63c783f5501acd9b84d1",
+  "config_sha256": "71b0965691099074a690085ac22cbe6808b2b430fea305ec2b75480db1c2f094",
+  "counts": {
+    "calibration_convex_forecasts": 16,
+    "direct_hash_binding_checks": 407,
+    "endpoint_policy_paths_exact": 6,
+    "evaluation_convex_forecasts": 16,
+    "exact_parent_controls": 96,
+    "exact_parent_evaluation_scores": 40,
+    "fallback_decisions": 664,
+    "independent_drift_decompositions": 216,
+    "independent_return_scores": 216,
+    "independent_scalar_account_paths": 256,
+    "independent_scale_weights": 16,
+    "new_own_state_decisions": 11008,
+    "new_own_state_paths": 32,
+    "scale_constrained_minimum_checks": 16,
+    "unscored_inference_decisions_retained": 48
+  },
+  "direct_distinct_hashed_files": 247,
+  "inherited_distinct_hashed_files": 1372,
+  "inventory": {
+    "calibration": 16,
+    "economic_rows": 128,
+    "forecasts": 16,
+    "return_and_decomposition_records": 216,
+    "targets": 128,
+    "traces": 32,
+    "weights": 16
+  },
+  "limitations": [
+    "Original adaptive reused development only; interval diagnostics are not independent new holdout evidence.",
+    "Fixed-anchor endpoint shrinkage is not exactly raw-centered OLS because inherited mean and bias arithmetic differ by roundoff.",
+    "Weight zero is an exact constant-mean plateau; positive affine shrinkage does not add information or establish predictive ranking improvements.",
+    "Original retrospective common availability, absence of historical receipt proof and 2/4/2 regime coverage persist.",
+    "Audit semantic raw Spot access is filtered before original cutoff; source bytes are fully hashed. The inherited runner decodes full parquet before truncating for feature/model/scoring calculations."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "all_summary_scalars": 0.0,
+    "decomposition_B_minus_2C_identity": 9.317362419797304e-20,
+    "decomposition_anchor_mse": 0.0,
+    "decomposition_candidate_mse": 0.0,
+    "decomposition_centered_component": 0.0,
+    "decomposition_centered_covariance": 0.0,
+    "decomposition_centered_plus_drift": 9.317362419797304e-20,
+    "decomposition_centered_variance_d": 0.0,
+    "decomposition_crossmoment": 0.0,
+    "decomposition_drift_component": 0.0,
+    "decomposition_identityresidual": 0.0,
+    "decomposition_innovation_secondmoment": 0.0,
+    "decomposition_lossdiff": 0.0,
+    "decomposition_matches_MSE": 0.0,
+    "decomposition_mean_d": 0.0,
+    "decomposition_mean_r": 0.0,
+    "decomposition_n": 0.0,
+    "independent_weight_nonscale_invariance": 0.0,
+    "positive_weight_fold_rank_parity": 0.0,
+    "scale_only_weight_record": 0.0,
+    "score_fit_mean_return_mse": 0.0,
+    "score_return_mae": 0.0,
+    "score_return_mse": 0.0,
+    "score_return_rank_ic": 0.0,
+    "score_return_sign_accuracy": 0.0,
+    "score_rows": 0.0,
+    "score_zero_return_mse": 0.0,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "observed_weights": [
+    {
+      "case": "interior",
+      "fold": 5,
+      "group": "technical",
+      "weight": 0.26477593451067083
+    },
+    {
+      "case": "interior",
+      "fold": 5,
+      "group": "perp_delay0",
+      "weight": 0.47244495093530137
+    },
+    {
+      "case": "interior",
+      "fold": 6,
+      "group": "technical",
+      "weight": 0.3681508221995267
+    },
+    {
+      "case": "interior",
+      "fold": 6,
+      "group": "perp_delay0",
+      "weight": 0.2716257188092469
+    },
+    {
+      "case": "upper_endpoint",
+      "fold": 7,
+      "group": "technical",
+      "weight": 1.0
+    },
+    {
+      "case": "upper_endpoint",
+      "fold": 7,
+      "group": "perp_delay0",
+      "weight": 1.0
+    },
+    {
+      "case": "interior",
+      "fold": 8,
+      "group": "technical",
+      "weight": 0.11423291527203955
+    },
+    {
+      "case": "interior",
+      "fold": 8,
+      "group": "perp_delay0",
+      "weight": 0.0611545431489615
+    },
+    {
+      "case": "interior",
+      "fold": 9,
+      "group": "technical",
+      "weight": 0.2554685840874266
+    },
+    {
+      "case": "interior",
+      "fold": 9,
+      "group": "perp_delay0",
+      "weight": 0.27046419427135143
+    },
+    {
+      "case": "interior",
+      "fold": 10,
+      "group": "technical",
+      "weight": 0.5814597962245669
+    },
+    {
+      "case": "interior",
+      "fold": 10,
+      "group": "perp_delay0",
+      "weight": 0.6495039815131862
+    },
+    {
+      "case": "interior",
+      "fold": 11,
+      "group": "technical",
+      "weight": 0.08152398879569889
+    },
+    {
+      "case": "interior",
+      "fold": 11,
+      "group": "perp_delay0",
+      "weight": 0.07863101871124832
+    },
+    {
+      "case": "interior",
+      "fold": 12,
+      "group": "technical",
+      "weight": 0.09332864097215063
+    },
+    {
+      "case": "nonpositive_crossmoment",
+      "fold": 12,
+      "group": "perp_delay0",
+      "weight": 0.0
+    }
+  ],
+  "own_artifacts_verified": 208,
+  "preflight_sha256": "d1304dc98df0595b68992b6605c78bd3527d3b811209071df12cb6594d294370",
+  "results_sha256": "333f88d4bc06f671d552d8ca70470ee60ecd67074812f6aa248b26f1b94562f1",
+  "scope": "All registered existing source artifacts; all new output bindings; 16 weights reconstructed only from selected S labels; 16 evaluation and 16 calibration convex forecasts; 216 independent return scores and drift decompositions; 96 exact parent controls; 32 own-state decision paths and 256 base/stress scalar accounts; observed endpoint parities; all paired and aggregate summaries. No canonical planner, metrics, simulator, reliability, scoring or fitting helper imported.",
+  "source_data_audit_sha256": "44b620cb63181de21533fd86980e23b2f99ca504a5e6400fe69a199381a010f1",
+  "source_revision": "ff9bbb92d588b4615ae8352b353a1301751202a7",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "missing_current_open": 2,
+    "score": 2574
+  }
+}
