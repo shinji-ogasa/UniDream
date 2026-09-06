@@ -1,0 +1,33 @@
+{
+  "additional_period_semantics_used": false,
+  "config_sha256": "71b0965691099074a690085ac22cbe6808b2b430fea305ec2b75480db1c2f094",
+  "expected_calibration_weights": 16,
+  "expected_economic_rows": 128,
+  "expected_new_artifacts": 208,
+  "expected_policies": 16,
+  "expected_score_records": 216,
+  "full_tests": {
+    "command": "uv run python -m unittest discover -s tests -v",
+    "count": 626,
+    "log_sha256": "9dcf5910228cad5fae4a5030dd1bc05046bfd26296ec67c1ebdb5d1df540bb33",
+    "seconds": 56.696,
+    "status": "OK"
+  },
+  "helper_synthetic_tests": 10,
+  "independent_source_audit_sha256": "44b620cb63181de21533fd86980e23b2f99ca504a5e6400fe69a199381a010f1",
+  "new_base_models_fitted": 0,
+  "new_calibration_weights_fitted": 0,
+  "new_forecasts_or_policies_computed": false,
+  "preflight_sha256": "d1304dc98df0595b68992b6605c78bd3527d3b811209071df12cb6594d294370",
+  "runner_synthetic_tests": 4,
+  "schema": "oracle-mean-reliability-pre-outcome-verification-v1",
+  "source_bindings_verified": 25,
+  "source_review_corrections": [
+    "explicit_retrospective_calibration_regime_groupings",
+    "retain_zero_and_fit_mean_losses",
+    "reject_incomplete_or_empty_regime_inventory",
+    "exact_weight_endpoint_target_account_parity",
+    "compare_decomposed_MSE_and_parent_scores"
+  ],
+  "source_review_critical_issues_remaining": 0
+}
