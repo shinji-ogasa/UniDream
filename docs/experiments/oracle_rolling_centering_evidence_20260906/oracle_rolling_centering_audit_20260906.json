@@ -1,0 +1,83 @@
+{
+  "ancestor_artifacts_verified": 1536,
+  "config_sha256": "288e54aa1ad24c91f445e39d857561cbe6d3ba93988fadd974263f2ab5df59f7",
+  "counts": {
+    "direct_hash_binding_checks": 2119,
+    "exact_parent_controls": 128,
+    "exact_parent_prediction_scores": 72,
+    "fallback_decisions": 996,
+    "independent_scalar_account_paths": 352,
+    "new_forecast_support_variance_verified": 24,
+    "new_own_state_decisions": 16512,
+    "new_own_state_paths": 48,
+    "rolling_trace_metadata_rows_verified": 2586,
+    "unscored_inference_decisions_retained": 72,
+    "zero_weight_rolling_anchor_paths_exact": 2
+  },
+  "direct_distinct_hashed_files": 1853,
+  "independent_data_source_audit_sha256": "c590d0511e910bbf1e0ecf26803f439473735ff4553ecb19a3abb172e08b607c",
+  "inventory": {
+    "economic_rows": 176,
+    "new_forecasts": 24,
+    "prediction_score_records": 96,
+    "shared_history_traces": 8,
+    "targets": 176,
+    "utility_traces": 48
+  },
+  "limitations": [
+    "All strategy conclusions remain adaptive reused development diagnostics, with unchanged retrospective availability and 2/4/2 regime coverage.",
+    "Future labels are used only after event-time maturity; this does not establish historical receipt-time availability.",
+    "Audit raw semantic reads are filtered before original cutoff, while source bytes are fully hashed; inherited runner decodes full parquet before truncating research calculations.",
+    "Same base intents are reused for stress costs; no separate stress optimization or model fitting."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "own_artifacts_verified": 256,
+  "preflight_sha256": "8d9da4c4c04952e01b5194336605abe6a2480b72d8b4b68b0cf18c4a942347d1",
+  "results_sha256": "d5adfc39e2822bfb77aaa519202b9949d664f772d704bcd63fa535147da9b620",
+  "scope": "All immutable source and output bindings; 24 new forecast calendars/support/shared variance; 2586 rolling trace metadata records against preflight and independent data-only history bounds/counts; 72 exact old prediction scores; 128 exact parent controls; all48 own-state policy paths and352 base/stress scalar accounts; both observed weight-zero endpoint paths. No canonical metrics, simulator, planner or rolling helper imported.",
+  "script_sha256": "464564c12e60d842370a8f249513438c5c3ce2f126af56a4bc3d76cacfa81de2",
+  "separate_audit_scope": [
+    "Deep rolling history/label/forecast arithmetic is independently audited by the technical agent.",
+    "New prediction-score/decomposition and summary arithmetic is independently audited by the primary statistics agent."
+  ],
+  "source_distinct_hashed_files": 1598,
+  "source_revision": "845a9fd167533599c7189019b38dc9ca2edf0f41",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "missing_current_open": 2,
+    "score": 2574
+  },
+  "zero_weight_endpoint_paths": [
+    {
+      "candidate_id": "perp_delay0_rolling_utility_risk1",
+      "fold": 12
+    },
+    {
+      "candidate_id": "perp_delay0_rolling_utility_risk1_fallback_bh",
+      "fold": 12
+    }
+  ]
+}
