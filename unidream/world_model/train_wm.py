@@ -12,6 +12,7 @@ import json
 import os
 from datetime import datetime
 from typing import Optional
+from numbers import Real
 
 import numpy as np
 import torch
@@ -46,6 +47,19 @@ _ORACLE_CONTEXTS = frozenset({"dataset", "observed", "oracle"})
 
 class TargetGradientCoverageError(RuntimeError):
     """Raised when a promotion-gated WM run lacks target/gradient coverage."""
+
+
+def resolve_market_target_scale(cfg):
+    """Opt-in main market reward units; default1 preserves existing contracts."""
+    wm_cfg = cfg.get("world_model", {})
+    value = wm_cfg.get("market_target_scale", 1.0)
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real) \
+            or not np.isfinite(value) or value <= 0:
+        raise ValueError("market_target_scale must be a positive finite real scalar")
+    mode = wm_cfg.get("reward_mode", cfg.get("reward", {}).get("mode", "absolute"))
+    if value != 1.0 and mode != "market_log_return":
+        raise ValueError("market_target_scale is only supported by market_log_return")
+    return float(value)
 
 
 def world_model_action_context(cfg: Optional[dict] = None) -> str:
@@ -320,6 +334,7 @@ class WorldModelTrainer:
         reward_cfg = cfg.get("reward", {})
         self.reward_mode = wm_cfg.get("reward_mode", reward_cfg.get("mode", "absolute"))
         self.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
+        self.market_target_scale = resolve_market_target_scale(cfg)
         if self.reward_mode == "market_log_return":
             if self.action_context != "actionless":
                 raise ValueError("market_log_return requires action_context: actionless")
@@ -337,6 +352,8 @@ class WorldModelTrainer:
              "context_action": 1.0, "target": "actual_raw_market_log_return"}
             if self.reward_mode == "market_log_return" else None
         )
+        if self.market_reward_contract is not None and self.market_target_scale != 1.0:
+            self.market_reward_contract["market_target_scale"] = self.market_target_scale
 
         # Auxiliary heads（スケール > 0 の場合のみ構築）
         z_dim = ensemble.get_z_dim()
@@ -909,14 +926,17 @@ class WorldModelTrainer:
         Returns:
             net_returns: (B, T) コスト控除後リターン
 
-        Opt-in market_log_return instead returns the finite raw market target
-        unchanged; actions and costs are analytically applied by the actor
+        Opt-in market_log_return returns the finite raw market target in its
+        declared market_target_scale units (default1); actions/costs are applied by the actor
         account during imagination, not embedded in the market-WM target.
         """
         if self.reward_mode == "market_log_return":
             # Exogenous market target: never infer returns from a fixed action,
             # apply costs, or inspect hindsight/unused action values here.
-            return market_log_return_target(raw_returns)
+            raw = market_log_return_target(raw_returns)
+            if self.market_target_scale == 1.0:
+                return raw
+            return market_log_return_target(raw * self.market_target_scale)
         positions = actions.squeeze(-1)                             # (B, T)
 
         # 前ステップポジション（初期 = 0.0 = フラット）

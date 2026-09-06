@@ -1,0 +1,26 @@
+{
+  "status": "R3_bound_production_runner_ready",
+  "files": {
+    "unidream/experiments/wm31_production_release.py": "279c62f1a1f09856d775dc8f687c573d7bb779f4296f44e3597d2da38ba9c868",
+    "tests/test_wm31_production_release.py": "fa0696b608dcd4b2c7d9e153965589914322c770795fecc1c040837c4f3bc2c4",
+    "configs/wm31_production_release_20260906.yaml": "1d35acd53b9f04bacc331cbe3680c8babd26841d28cfc78c5fb30d67faff923d",
+    "configs/wm_rl_market31_screen_r3_scale100_20260906.yaml": "627c32f716b49af3536894c3e24a5e83570f8bb33082255a514fb377572a1098"
+  },
+  "guard_tests_passed": 9,
+  "source_market_target_scale": 100.0,
+  "selected_arm": "ac_decay_dd25",
+  "bound_input_artifacts": 10,
+  "unbound_selection_fit_rejection": "bound artifact changed or hash absent: docs/experiments/wm_rl_market31_selection_20260906.json",
+  "normalizer_fit": false,
+  "model_fit": false,
+  "feature_computation": false,
+  "policy_inference": false,
+  "economic_or_predictive_scores": false,
+  "source_edited_after_handoff": false,
+  "external_selection_required": {
+    "schema": "wm-rl-paper-selection-v1",
+    "qualified": true,
+    "selected_arm": "ac_decay_dd25",
+    "source_config_sha256": "627c32f716b49af3536894c3e24a5e83570f8bb33082255a514fb377572a1098"
+  }
+}

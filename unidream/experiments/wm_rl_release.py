@@ -28,6 +28,7 @@ def write_json(path, value):
 
 
 def validate_config(cfg):
+    from .wm_rl_training import selected_ac_arms
     r = cfg['release']
     if r['schema'] != 'wm-rl-market31-screen-v1' or r['group'] != 'perp_delay0':
         raise ValueError('unregistered experiment or feature group')
@@ -48,6 +49,10 @@ def validate_config(cfg):
         raise ValueError('execution differs from fixed account/cadence contract')
     if [f['fold'] for f in r['folds']] != cfg['run']['folds']:
         raise ValueError('fold registration differs')
+    if r.get('learned_rl_arms_per_model', len(selected_ac_arms(cfg))) != len(selected_ac_arms(cfg)):
+        raise ValueError('declared learned RL arm count differs from fixed subset')
+    if r.get('fit_market_models', len(r['folds'])) != len(r['folds']):
+        raise ValueError('declared WM fit count differs from fixed folds')
     for f in r['folds']:
         dates = [pd.Timestamp(f[k]) for k in ('train_start', 'train_end', 'validation_end')]
         if any(d.tzinfo is None or d.minute % 15 for d in dates) or not dates[0] < dates[1] < dates[2]:

@@ -110,6 +110,8 @@ class ImagACTrainer:
         self.market_reward_mode = (
             wm_cfg.get("reward_mode", reward_cfg.get("mode", "absolute")) == "market_log_return"
         )
+        from unidream.world_model.train_wm import resolve_market_target_scale
+        self.market_target_scale = resolve_market_target_scale(cfg)
         self.market_execution: MarketExecution | None = None
         self.market_ignore_done = False
         self.market_reward_contract = None
@@ -154,6 +156,8 @@ class ImagACTrainer:
                 "ignore_done": self.market_ignore_done,
                 "drawdown": "compound_running_maxdd_initial_nav1",
             }
+            if self.market_target_scale != 1.0:
+                self.market_reward_contract["market_target_scale"] = self.market_target_scale
 
         self.horizon = ac_cfg.get("horizon", 3)
         self.context_len = cfg.get("data", {}).get("seq_len", 64)
@@ -673,6 +677,11 @@ class ImagACTrainer:
                     market_log = market_log + float(getattr(self.ensemble, "disagree_scale", 0)) * disagreement
                 elif getattr(self.ensemble, "disagree_scale", 0) != 0:
                     raise ValueError("market ensemble must expose its subtracted disagreement")
+                # Reward decoder emits the registered training units. Undo
+                # disagreement in those units BEFORE restoring raw log return.
+                if self.market_target_scale != 1.0:
+                    market_log = market_log / self.market_target_scale
+                require_finite(market_log, "unscaled predicted market return")
                 account = market_portfolio_step(
                     cash, asset, target.reshape(batch).detach(), market_log, self.market_execution
                 )

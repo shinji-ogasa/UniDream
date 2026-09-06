@@ -1,0 +1,197 @@
+{
+  "arms": {
+    "ac_anchor_dd25": {
+      "base": {
+        "folds": 3,
+        "alpha_ex_mean": -0.0057944195642056035,
+        "maxdd_delta_mean": -0.005957664722230767,
+        "joint_positive_folds": 2,
+        "worst_alpha_ex": -0.026473764920639464,
+        "worst_maxdd_delta": -0.005191740023001712
+      },
+      "stress": {
+        "folds": 3,
+        "alpha_ex_mean": -0.005813989383641934,
+        "maxdd_delta_mean": -0.005953330296625592,
+        "joint_positive_folds": 2,
+        "worst_alpha_ex": -0.026508567293830332,
+        "worst_maxdd_delta": -0.005191740023001823
+      },
+      "minimum_mean_signs": false,
+      "rl_changes_observed_decisions": true,
+      "causal_regime_means": {
+        "bull": {
+          "folds": 1,
+          "alpha_ex_mean": 0.006122398800770368,
+          "maxdd_delta_mean": -0.0069943133226821885
+        },
+        "bear": {
+          "folds": 1,
+          "alpha_ex_mean": -0.026473764920639464,
+          "maxdd_delta_mean": -0.005191740023001712
+        },
+        "sideways": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0029681074272522867,
+          "maxdd_delta_mean": -0.005686940821008402
+        }
+      }
+    },
+    "ac_anchor_dd50": {
+      "base": {
+        "folds": 3,
+        "alpha_ex_mean": -0.0057944195642056035,
+        "maxdd_delta_mean": -0.005957664722230767,
+        "joint_positive_folds": 2,
+        "worst_alpha_ex": -0.026473764920639464,
+        "worst_maxdd_delta": -0.005191740023001712
+      },
+      "stress": {
+        "folds": 3,
+        "alpha_ex_mean": -0.005813989383641934,
+        "maxdd_delta_mean": -0.005953330296625592,
+        "joint_positive_folds": 2,
+        "worst_alpha_ex": -0.026508567293830332,
+        "worst_maxdd_delta": -0.005191740023001823
+      },
+      "minimum_mean_signs": false,
+      "rl_changes_observed_decisions": true,
+      "causal_regime_means": {
+        "bull": {
+          "folds": 1,
+          "alpha_ex_mean": 0.006122398800770368,
+          "maxdd_delta_mean": -0.0069943133226821885
+        },
+        "bear": {
+          "folds": 1,
+          "alpha_ex_mean": -0.026473764920639464,
+          "maxdd_delta_mean": -0.005191740023001712
+        },
+        "sideways": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0029681074272522867,
+          "maxdd_delta_mean": -0.005686940821008402
+        }
+      }
+    },
+    "ac_decay_dd25": {
+      "base": {
+        "folds": 3,
+        "alpha_ex_mean": -0.0035872523929021405,
+        "maxdd_delta_mean": -0.004120912265328143,
+        "joint_positive_folds": 2,
+        "worst_alpha_ex": -0.016172590409206045,
+        "worst_maxdd_delta": -0.0028310581009716174
+      },
+      "stress": {
+        "folds": 3,
+        "alpha_ex_mean": -0.003600755460626585,
+        "maxdd_delta_mean": -0.004116242138836175,
+        "joint_positive_folds": 2,
+        "worst_alpha_ex": -0.01619612045563823,
+        "worst_maxdd_delta": -0.002821877979754639
+      },
+      "minimum_mean_signs": false,
+      "rl_changes_observed_decisions": true,
+      "causal_regime_means": {
+        "bull": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0021707666341347354,
+          "maxdd_delta_mean": -0.0028310581009716174
+        },
+        "bear": {
+          "folds": 1,
+          "alpha_ex_mean": -0.016172590409206045,
+          "maxdd_delta_mean": -0.0037114605656211053
+        },
+        "sideways": {
+          "folds": 1,
+          "alpha_ex_mean": 0.003240066596364888,
+          "maxdd_delta_mean": -0.005820218129391708
+        }
+      }
+    },
+    "actor_removed_bh": {
+      "base": {
+        "folds": 3,
+        "alpha_ex_mean": 3.700743415417188e-17,
+        "maxdd_delta_mean": 0.0,
+        "joint_positive_folds": 0,
+        "worst_alpha_ex": 0.0,
+        "worst_maxdd_delta": 0.0
+      },
+      "stress": {
+        "folds": 3,
+        "alpha_ex_mean": 3.700743415417188e-17,
+        "maxdd_delta_mean": 0.0,
+        "joint_positive_folds": 0,
+        "worst_alpha_ex": 0.0,
+        "worst_maxdd_delta": 0.0
+      },
+      "minimum_mean_signs": false,
+      "rl_changes_observed_decisions": false,
+      "causal_regime_means": {
+        "bull": {
+          "folds": 1,
+          "alpha_ex_mean": 1.1102230246251565e-16,
+          "maxdd_delta_mean": 0.0
+        },
+        "bear": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0,
+          "maxdd_delta_mean": 0.0
+        },
+        "sideways": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0,
+          "maxdd_delta_mean": 0.0
+        }
+      }
+    },
+    "bc_only": {
+      "base": {
+        "folds": 3,
+        "alpha_ex_mean": 3.700743415417188e-17,
+        "maxdd_delta_mean": 0.0,
+        "joint_positive_folds": 0,
+        "worst_alpha_ex": 0.0,
+        "worst_maxdd_delta": 0.0
+      },
+      "stress": {
+        "folds": 3,
+        "alpha_ex_mean": 3.700743415417188e-17,
+        "maxdd_delta_mean": 0.0,
+        "joint_positive_folds": 0,
+        "worst_alpha_ex": 0.0,
+        "worst_maxdd_delta": 0.0
+      },
+      "minimum_mean_signs": false,
+      "rl_changes_observed_decisions": false,
+      "causal_regime_means": {
+        "bull": {
+          "folds": 1,
+          "alpha_ex_mean": 1.1102230246251565e-16,
+          "maxdd_delta_mean": 0.0
+        },
+        "bear": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0,
+          "maxdd_delta_mean": 0.0
+        },
+        "sideways": {
+          "folds": 1,
+          "alpha_ex_mean": 0.0,
+          "maxdd_delta_mean": 0.0
+        }
+      }
+    }
+  },
+  "eligible_learned_rl": [],
+  "screen_selected": null,
+  "best_diagnostic_rl": "ac_decay_dd25",
+  "selection_rule": "both base/stress mean signs; maximize stressed mean alpha minus mean DDdelta",
+  "evidence_status": "development_validation_screen_only",
+  "high_probability_trend_independence_established": false,
+  "production_promotion_permitted": false,
+  "test_scoring": false
+}

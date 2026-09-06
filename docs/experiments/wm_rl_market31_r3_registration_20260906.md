@@ -1,0 +1,9 @@
+# Final bounded WM + RL unit-scale comparison
+
+R2 is complete and failed the required positive mean AlphaEX: best diagnostic AC decay scored−0.358725pt AlphaEX /−0.412091pt MaxDDdelta (base),−0.360076pt/−0.411624pt (double costs). All historical inputs, masks, normalization, actor architecture, teacher, learning endpoints, dates, costs and action execution remain fixed.
+
+The final contrast changes one learned-market reward unit: train the main market-return head on raw15m logreturns multiplied by100, then decode back to raw returns before portfolio reward/borrowing/DD calculations. Auxiliary target units are unchanged. The two-hot head on scale1 predicted positive mean25bp/15m on128 fixed T-only origins while actual mean was−1.1bp; all R2 imagined DD penalties were zero. This diagnosis motivates the unit correction; it does not prove that scaling will improve out-of-sample returns.
+
+Only the already observed best diagnostic arm ac_decay_dd25 is rerun, from scratch, on the same3 development validation periods. WM700/BC5/AC300 and seed7 are unchanged. No further alpha/DD grid, architecture change, teacher adjustment, test selection or production scoring is included. Select only if base and stress mean AlphaEX>0 and mean MaxDDdelta<0, with learned Actor changes versus BC. High-probability trend-independent performance remains unestablished. This is a reused-development contrast after observed R2 results.
+
+Primary references checked: [DreamerV3](https://arxiv.org/abs/2301.04104), [official implementation](https://github.com/danijar/dreamerv3), and [RL evaluation uncertainty](https://arxiv.org/abs/2108.13264). Domain normalization motivates checking units; the exact100 contrast comes from UniDream's existing auxiliary-return scaling and its measured T-only bias, not a published trading-performance claim.

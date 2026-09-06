@@ -4,7 +4,7 @@ No selector, economic validation, oracle relabel or mainline resume occurs here.
 The WM is fitted on T, so its T predictions are in-sample; causal input windows
 are not a claim of out-of-fold predictions. No predictive checkpoint selection
 occurs in this screen: WM endpoint700 is fixed.
-All three AC endpoints start from the identical frozen BC.
+Each explicitly registered AC endpoint starts from the identical frozen BC.
 """
 from __future__ import annotations
 
@@ -36,6 +36,16 @@ AC_ARMS = {
     "ac_anchor_dd25": {"alpha_final": .35, "relative_dd_coef": 2.5},
     "ac_anchor_dd50": {"alpha_final": .35, "relative_dd_coef": 5.0},
 }
+
+
+def selected_ac_arms(cfg):
+    """Resolve a predeclared subset, never select using fitted outcomes."""
+    names = cfg.get("release", {}).get("ac_arm_names", list(AC_ARMS))
+    if (not isinstance(names, list) or not names
+            or any(not isinstance(name, str) or name not in AC_ARMS for name in names)
+            or len(set(names)) != len(names)):
+        raise ValueError("nonempty unique registered AC arm names required")
+    return {name: copy.deepcopy(AC_ARMS[name]) for name in names}
 
 
 def _digest(value):
@@ -206,7 +216,7 @@ def _validate_cfg(cfg, regime_probs):
 def train_wm_bc_ac(*, features, returns, feature_eligible, target_eligible,
                    train_mask, cfg, output_dir, seed=7, device="cpu",
                    wm_val_mask=None, regime_probs=None):
-    """Train one WM+BC and the three fixed AC endpoints in a new directory.
+    """Train one WM+BC and the registered AC endpoints in a new directory.
 
     ``features`` are already normalized by the caller using T only. The caller
     controls the physical data extent. ``returns`` are separate raw labels.
@@ -214,6 +224,7 @@ def train_wm_bc_ac(*, features, returns, feature_eligible, target_eligible,
     must be None for the registered fixed endpoint700 screen.
     """
     cfg = _validate_cfg(cfg, regime_probs)
+    arms = selected_ac_arms(cfg)
     if isinstance(seed, bool) or seed != 7:
         raise ValueError("registered seed7 required")
     index = _frame(features)
@@ -325,7 +336,7 @@ def train_wm_bc_ac(*, features, returns, feature_eligible, target_eligible,
     if not len(ac_origins):
         raise ValueError("no contiguous fixed64 latent context for AC")
     ac_actors, ac_logs, bank_meta, arm_configs = {}, {}, {}, {}
-    for arm, override in AC_ARMS.items():
+    for arm, override in arms.items():
         _seed(seed)
         arm_cfg = copy.deepcopy(cfg); arm_cfg["ac"].update(override)
         arm_configs[arm] = arm_cfg["ac"]
