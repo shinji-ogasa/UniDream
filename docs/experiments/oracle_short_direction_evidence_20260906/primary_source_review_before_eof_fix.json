@@ -1,0 +1,99 @@
+{
+  "confirmed_contract": {
+    "absolute_economic_inequalities": 32,
+    "accounts": 1312,
+    "all_new_artifacts_expected": 760,
+    "classification_scores": 192,
+    "economic_rows": 656,
+    "feature_family_uses_both_gate_conjunction": true,
+    "fold_artifacts": 95,
+    "high_probability_and_regime_confirmation_remain_false": true,
+    "mapped_MSE_contrasts": 48,
+    "new_fits": 16,
+    "new_mean_streams": 1,
+    "new_policy_names": 2,
+    "new_probability_tasks": 2,
+    "new_unique_priors": 0,
+    "null_weighted_aggregates_fail_strict_gates": true,
+    "old_classification_return_rows_and_summaries_require_exact_identity": true,
+    "ordinary_magnitude_gates_separate": true,
+    "paired_economic_inequalities": 192,
+    "policies": 82,
+    "policy_probability_hurdle_uses_magnitude_only": true,
+    "probability_scalar_contrasts": 64,
+    "return_scores": 400,
+    "six_mean_and_economic_references_exact": true,
+    "source_files": 42
+  },
+  "limits": [
+    "Preflight identity is input evidence, not model/policy performance.",
+    "Full test suite is owned by root and not rerun or claimed complete here.",
+    "No real fitted output exists in this review scope; freeze and postrun independent audits remain necessary.",
+    "Reused2/4/2 development periods cannot establish all-trend generalization."
+  ],
+  "material_findings": [],
+  "passed": true,
+  "prepare_evidence": {
+    "all_5344_artifacts_not_rehashed_by_this_review": true,
+    "historical_receipt_provenance_established": false,
+    "independent_audit_passed": true,
+    "independent_audit_path": "/tmp/oracle_short_direction_source_audit_20260906.json",
+    "independent_audit_sha256": "88f6c1f6031029a404310b2ce1bc741d85b5f6fca94cc11e8a09f2b68c8f5c5b",
+    "official_preflight_matches_bound_config": true,
+    "official_preflight_path": "codex_outputs/oracle_short_direction_decisions_v1/preflight.json",
+    "official_preflight_sha256": "8bccf92de74ffef5c3fe40f19706ca36d461f14d112c8c7ff5b5388dba1aa5a4",
+    "prepare_not_reexecuted_by_this_reviewer": true,
+    "shared_content_exact_to_independent_audit": [
+      "support",
+      "source_artifact_bindings",
+      "spot_data_proof",
+      "um_data_proof",
+      "parent_registration_canonical_sha256",
+      "feature_registration_canonical_sha256",
+      "inventory",
+      "loader_scope",
+      "historical_receipt_provenance_established",
+      "no_new_fits_statistics_predictions_losses_or_orders",
+      "only_new_feature_reconstruction_and_existing_array_identity_checks"
+    ],
+    "source_binding_count_verified": 42,
+    "temporal_implementation_read": "T/S/I origin+375min strictly before split endpoint; E <= evaluation_end; selected Technical29 matrices exactStage17 andTechnical37 selectedmatrix digests exactStage15; all six original masks retained.",
+    "union_artifact_count_from_equal_bound_manifests": 5344
+  },
+  "previous_review": {
+    "path": "/tmp/oracle_short_direction_prerun_source_review_20260906.json",
+    "required_findings_resolved": true,
+    "retained_unchanged": true,
+    "sha256": "0b7e20477a744051c72a26af7ce0274af43d7efc7541cebad7041938e88e3a28",
+    "superseded_by_this_final_review": true
+  },
+  "resolved_findings": [
+    {
+      "evidence": "summarize deep-copies old into inherited_Stage19_summary; run exact_tree compares it to immutable parent summary before saving results.",
+      "finding": "Complete inherited Stage19 summary preservation"
+    },
+    {
+      "evidence": "__all__ names implemented fit_short_direction_family and exports canonical feature identifiers.",
+      "finding": "New helper export name"
+    },
+    {
+      "evidence": "summarize rejects negative turnover/trades, nonfinite values and nonnumeric/bool types.",
+      "finding": "New economic turnover/trade validation"
+    },
+    {
+      "evidence": "fit/inputs/decisions are bound; current source count42 and protocol states three new modules.",
+      "finding": "Three new modules in source union and protocol"
+    }
+  ],
+  "schema": "oracle_short_direction_prerun_source_review_final_v1",
+  "scope": "Read-only final source/protocol/research review; no fit, prediction, probability mapping, score, policy or raw-market recomputation. Prepared input content is supported by separate input audit and exact saved official-preflight comparison.",
+  "source_sha256": {
+    "codex_outputs/oracle_short_direction_decisions_v1/preflight.json": "8bccf92de74ffef5c3fe40f19706ca36d461f14d112c8c7ff5b5388dba1aa5a4",
+    "configs/oracle_short_direction_decisions_20260906.yaml": "994a500e39384f3e21ed053098ad6387936fe17a98d687d848ede9dc944ffb02",
+    "docs/experiments/oracle_short_direction_registration_20260906.md": "e3ebf7ac72fd6a192701b8ec1cf034393daa11c0ea36cab767a2c76be48216fb",
+    "docs/experiments/oracle_short_direction_research_20260906.md": "b66637ef31fdd9f2c42a4f84202a7086a75556f9a93d6d449ddc8c91eb48e9bc",
+    "unidream/experiments/oracle_short_direction_decisions.py": "75d6996a8a7e7e787fce10a936802e2ca4490f4601487e68117be86912a4a3c3",
+    "unidream/experiments/oracle_short_direction_fit.py": "7312fe959f8b955abfa31a370122edbadcc42fc26abe219f714dc06d42817b5b",
+    "unidream/experiments/oracle_short_direction_inputs.py": "5982fe0693a8efe5e8d4916cac027e695f4432a9eeb496d4216c7fa03c88c21a"
+  }
+}
