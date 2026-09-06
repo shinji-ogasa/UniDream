@@ -1,0 +1,22 @@
+{
+  "ancestor_artifact_inventory_exact": 1792,
+  "config_sha256": "010df5d0969f857b899fd1becb38664fbd12140790bdfc977d06d9bac38b551b",
+  "full_tests_log_sha256": "7d1bb9fcb606dad00c485b06383e1a4b1a70ed26c0e0d7e0e441c6c0b0025f54",
+  "full_tests_passed": 669,
+  "full_tests_seconds": 58.11,
+  "independent_all_mask_hashes_and_counts_exact": true,
+  "independent_normal_equation_audit_planned_tolerances": {
+    "coefficient_atol": 1e-12,
+    "coefficient_rtol": 1e-10,
+    "forecast_atol": 1e-12,
+    "saved_pipeline_scalar_forecast_atol": 1e-14,
+    "scaler_atol": 1e-10,
+    "scaler_rtol": 1e-12
+  },
+  "new_real_forecasts_or_policies_computed": false,
+  "new_real_model_fits": 0,
+  "preflight_sha256": "894c4f81c0b7fb102e3c543ea2f91a6f46dd036c4eca532ff3fc9fb53e35ada0",
+  "schema": "oracle-short-feature-registration-verification-v1",
+  "source_audit_sha256": "7cf090b74d13df1e74ba66dbd0d6fc8188d2da917693d53ee1d72ab903ea91ff",
+  "source_review": "Two independent reviews found no must-fix issue; failed scheduled-mask auditor assertion corrected to six registered masks"
+}
