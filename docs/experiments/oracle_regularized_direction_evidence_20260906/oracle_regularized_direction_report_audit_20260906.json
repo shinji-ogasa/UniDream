@@ -1,0 +1,3067 @@
+{
+  "bound_input_sha256": {
+    "/tmp/oracle_regularized_direction_audit_20260906.json": "a2d41ce9c4409883e17d4b85bb6440d6f799759df9ee5a0a0ac9fe7c697db8ec",
+    "/tmp/oracle_regularized_direction_mechanism_summary_20260906.json": "e90d71d02b5dc4c4eb72ad6bd5b29d32a588faca5f4ae62db5364d6e0598b850",
+    "/tmp/oracle_regularized_direction_model_audit_20260906.json": "f8f533d70b2978ce53e1fd0951dc0b17d423589de32777ecc025c9b39f8e5159",
+    "/tmp/oracle_regularized_direction_old_objective_audit_20260906.json": "afc45c88413b29aa4882c7ab25b01ce8961a0a8dfbb5f7454d6088c3c52acd98",
+    "/tmp/oracle_regularized_direction_score_audit_20260906.json": "41d25ec5708b2f72cadd94949a24e86bd65660de53a7d712547d37b9ecb28ada",
+    "/tmp/oracle_regularized_direction_source_audit_20260906.json": "43d255bbc8e361d8ff9e78bbf308b9c1a476e90ee1442584ff0f678084ed69e7",
+    "/tmp/oracle_regularized_direction_warning_audit_20260906.json": "22628e8df5eda4147795b045eecc714c88193e65857eee3bfe41cd2e2cf55157"
+  },
+  "checks": [
+    {
+      "expected": -2.9191091286881377,
+      "location": "economics/0/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.919109"
+    },
+    {
+      "expected": 1.3986508685012444,
+      "location": "economics/0/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.398651"
+    },
+    {
+      "expected": -3.372897366327801,
+      "location": "economics/0/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.372897"
+    },
+    {
+      "expected": 1.4996328227386821,
+      "location": "economics/0/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.499633"
+    },
+    {
+      "expected": "0/8",
+      "location": "economics/0/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": -3.3364794756145635,
+      "location": "economics/1/base/alpha_ex",
+      "passed": true,
+      "shown": "-3.336479"
+    },
+    {
+      "expected": 0.7820586572144614,
+      "location": "economics/1/base/maxdd_delta",
+      "passed": true,
+      "shown": "0.782059"
+    },
+    {
+      "expected": -3.7655283494957543,
+      "location": "economics/1/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.765528"
+    },
+    {
+      "expected": 0.863876500260996,
+      "location": "economics/1/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "0.863877"
+    },
+    {
+      "expected": "0/8",
+      "location": "economics/1/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": -2.86496206011517,
+      "location": "economics/2/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.864962"
+    },
+    {
+      "expected": 1.3805138757978952,
+      "location": "economics/2/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.380514"
+    },
+    {
+      "expected": -3.2331932753061343,
+      "location": "economics/2/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.233193"
+    },
+    {
+      "expected": 1.5003611205948828,
+      "location": "economics/2/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.500361"
+    },
+    {
+      "expected": "1/8",
+      "location": "economics/2/joint",
+      "passed": true,
+      "shown": "1/8"
+    },
+    {
+      "expected": -3.2016602299908556,
+      "location": "economics/3/base/alpha_ex",
+      "passed": true,
+      "shown": "-3.201660"
+    },
+    {
+      "expected": 0.7202130572629293,
+      "location": "economics/3/base/maxdd_delta",
+      "passed": true,
+      "shown": "0.720213"
+    },
+    {
+      "expected": -3.5336481278236147,
+      "location": "economics/3/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.533648"
+    },
+    {
+      "expected": 0.811031457079997,
+      "location": "economics/3/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "0.811031"
+    },
+    {
+      "expected": "1/8",
+      "location": "economics/3/joint",
+      "passed": true,
+      "shown": "1/8"
+    },
+    {
+      "expected": -3.5519521665041265,
+      "location": "economics/4/base/alpha_ex",
+      "passed": true,
+      "shown": "-3.551952"
+    },
+    {
+      "expected": 1.8186481611500493,
+      "location": "economics/4/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.818648"
+    },
+    {
+      "expected": -4.000090179729031,
+      "location": "economics/4/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.000090"
+    },
+    {
+      "expected": 1.9231588439340586,
+      "location": "economics/4/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.923159"
+    },
+    {
+      "expected": "0/8",
+      "location": "economics/4/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": -3.9795012350622168,
+      "location": "economics/5/base/alpha_ex",
+      "passed": true,
+      "shown": "-3.979501"
+    },
+    {
+      "expected": 1.204870175549183,
+      "location": "economics/5/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.204870"
+    },
+    {
+      "expected": -4.394468581300563,
+      "location": "economics/5/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.394469"
+    },
+    {
+      "expected": 1.2847075744576304,
+      "location": "economics/5/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.284708"
+    },
+    {
+      "expected": "0/8",
+      "location": "economics/5/joint",
+      "passed": true,
+      "shown": "0/8"
+    },
+    {
+      "expected": -2.1602816052031972,
+      "location": "economics/6/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.160282"
+    },
+    {
+      "expected": 1.0790108205411846,
+      "location": "economics/6/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.079011"
+    },
+    {
+      "expected": -2.558519872897881,
+      "location": "economics/6/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-2.558520"
+    },
+    {
+      "expected": 1.1857736689551048,
+      "location": "economics/6/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.185774"
+    },
+    {
+      "expected": "1/8",
+      "location": "economics/6/joint",
+      "passed": true,
+      "shown": "1/8"
+    },
+    {
+      "expected": -2.463951899220539,
+      "location": "economics/7/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.463952"
+    },
+    {
+      "expected": 0.38633693441555567,
+      "location": "economics/7/base/maxdd_delta",
+      "passed": true,
+      "shown": "0.386337"
+    },
+    {
+      "expected": -2.824471633774285,
+      "location": "economics/7/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-2.824472"
+    },
+    {
+      "expected": 0.4635929669582707,
+      "location": "economics/7/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "0.463593"
+    },
+    {
+      "expected": "1/8",
+      "location": "economics/7/joint",
+      "passed": true,
+      "shown": "1/8"
+    },
+    {
+      "expected": -3.04391759297322,
+      "location": "regime/0/base/alpha_ex",
+      "passed": true,
+      "shown": "-3.043918"
+    },
+    {
+      "expected": 3.5144705596852344,
+      "location": "regime/0/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.514471"
+    },
+    {
+      "expected": -3.3690784664983155,
+      "location": "regime/0/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.369078"
+    },
+    {
+      "expected": 3.6942489902385303,
+      "location": "regime/0/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.694249"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/0/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -1.3968117729897755,
+      "location": "regime/1/base/alpha_ex",
+      "passed": true,
+      "shown": "-1.396812"
+    },
+    {
+      "expected": 2.0682488210947927,
+      "location": "regime/1/base/maxdd_delta",
+      "passed": true,
+      "shown": "2.068249"
+    },
+    {
+      "expected": -1.682778386392303,
+      "location": "regime/1/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.682778"
+    },
+    {
+      "expected": 2.211185357353468,
+      "location": "regime/1/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "2.211185"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/1/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": 1.2758951394008315,
+      "location": "regime/2/base/alpha_ex",
+      "passed": true,
+      "shown": "1.275895"
+    },
+    {
+      "expected": 2.0254752575014248,
+      "location": "regime/2/base/maxdd_delta",
+      "passed": true,
+      "shown": "2.025475"
+    },
+    {
+      "expected": 0.6588898487436043,
+      "location": "regime/2/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "0.658890"
+    },
+    {
+      "expected": 2.0851784014303236,
+      "location": "regime/2/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "2.085178"
+    },
+    {
+      "expected": "0/4",
+      "location": "regime/2/joint",
+      "passed": true,
+      "shown": "0/4"
+    },
+    {
+      "expected": -0.733373775032628,
+      "location": "regime/3/base/alpha_ex",
+      "passed": true,
+      "shown": "-0.733374"
+    },
+    {
+      "expected": 1.7256626387277763,
+      "location": "regime/3/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.725663"
+    },
+    {
+      "expected": -1.3191715499840997,
+      "location": "regime/3/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.319172"
+    },
+    {
+      "expected": 1.777471190805896,
+      "location": "regime/3/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.777471"
+    },
+    {
+      "expected": "0/4",
+      "location": "regime/3/joint",
+      "passed": true,
+      "shown": "0/4"
+    },
+    {
+      "expected": -11.184309200580994,
+      "location": "regime/4/base/alpha_ex",
+      "passed": true,
+      "shown": "-11.184309"
+    },
+    {
+      "expected": -1.9708176006831062,
+      "location": "regime/4/base/maxdd_delta",
+      "passed": true,
+      "shown": "-1.970818"
+    },
+    {
+      "expected": -11.440290696300098,
+      "location": "regime/4/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-11.440291"
+    },
+    {
+      "expected": -1.8660745021444496,
+      "location": "regime/4/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-1.866075"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/4/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -10.482358579403222,
+      "location": "regime/5/base/alpha_ex",
+      "passed": true,
+      "shown": "-10.482359"
+    },
+    {
+      "expected": -2.3913394696924994,
+      "location": "regime/5/base/maxdd_delta",
+      "passed": true,
+      "shown": "-2.391339"
+    },
+    {
+      "expected": -10.740991911622515,
+      "location": "regime/5/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-10.740992"
+    },
+    {
+      "expected": -2.3106217379212755,
+      "location": "regime/5/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-2.310622"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/5/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -4.671669941471785,
+      "location": "regime/6/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.671670"
+    },
+    {
+      "expected": 5.116458157820858,
+      "location": "regime/6/base/maxdd_delta",
+      "passed": true,
+      "shown": "5.116458"
+    },
+    {
+      "expected": -4.954521593336753,
+      "location": "regime/6/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.954522"
+    },
+    {
+      "expected": 5.30924386500709,
+      "location": "regime/6/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "5.309244"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/6/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -2.928448501439049,
+      "location": "regime/7/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.928449"
+    },
+    {
+      "expected": 3.4830238792954162,
+      "location": "regime/7/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.483024"
+    },
+    {
+      "expected": -3.1311439924024964,
+      "location": "regime/7/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.131144"
+    },
+    {
+      "expected": 3.599959385903606,
+      "location": "regime/7/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.599959"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/7/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": 3.154375761981698,
+      "location": "regime/8/base/alpha_ex",
+      "passed": true,
+      "shown": "3.154376"
+    },
+    {
+      "expected": 1.2023935085657604,
+      "location": "regime/8/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.202394"
+    },
+    {
+      "expected": 2.654426340402488,
+      "location": "regime/8/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "2.654426"
+    },
+    {
+      "expected": 1.2972273306367021,
+      "location": "regime/8/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "1.297227"
+    },
+    {
+      "expected": "1/4",
+      "location": "regime/8/joint",
+      "passed": true,
+      "shown": "1/4"
+    },
+    {
+      "expected": 1.1838748490193785,
+      "location": "regime/9/base/alpha_ex",
+      "passed": true,
+      "shown": "1.183875"
+    },
+    {
+      "expected": 0.9087699452632464,
+      "location": "regime/9/base/maxdd_delta",
+      "passed": true,
+      "shown": "0.908770"
+    },
+    {
+      "expected": 0.7198645044944052,
+      "location": "regime/9/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "0.719865"
+    },
+    {
+      "expected": 0.9954838610470862,
+      "location": "regime/9/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "0.995484"
+    },
+    {
+      "expected": "1/4",
+      "location": "regime/9/joint",
+      "passed": true,
+      "shown": "1/4"
+    },
+    {
+      "expected": -13.09692982295229,
+      "location": "regime/10/base/alpha_ex",
+      "passed": true,
+      "shown": "-13.096930"
+    },
+    {
+      "expected": -1.9991896717607986,
+      "location": "regime/10/base/maxdd_delta",
+      "passed": true,
+      "shown": "-1.999190"
+    },
+    {
+      "expected": -13.28710418869276,
+      "location": "regime/10/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-13.287104"
+    },
+    {
+      "expected": -1.9022540439009639,
+      "location": "regime/10/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-1.902254"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/10/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -12.24594211656313,
+      "location": "regime/11/base/alpha_ex",
+      "passed": true,
+      "shown": "-12.245942"
+    },
+    {
+      "expected": -2.4197115407701917,
+      "location": "regime/11/base/maxdd_delta",
+      "passed": true,
+      "shown": "-2.419712"
+    },
+    {
+      "expected": -12.443177527880772,
+      "location": "regime/11/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-12.443178"
+    },
+    {
+      "expected": -2.3468012796777904,
+      "location": "regime/11/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-2.346801"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/11/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -3.248129338082481,
+      "location": "regime/12/base/alpha_ex",
+      "passed": true,
+      "shown": "-3.248129"
+    },
+    {
+      "expected": 3.426984660157406,
+      "location": "regime/12/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.426985"
+    },
+    {
+      "expected": -3.575116973499959,
+      "location": "regime/12/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-3.575117"
+    },
+    {
+      "expected": 3.6126861403203536,
+      "location": "regime/12/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.612686"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/12/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -1.6168739956751221,
+      "location": "regime/13/base/alpha_ex",
+      "passed": true,
+      "shown": "-1.616874"
+    },
+    {
+      "expected": 1.9932752443983015,
+      "location": "regime/13/base/maxdd_delta",
+      "passed": true,
+      "shown": "1.993275"
+    },
+    {
+      "expected": -1.9042158068386883,
+      "location": "regime/13/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.904216"
+    },
+    {
+      "expected": 2.141811823274542,
+      "location": "regime/13/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "2.141812"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/13/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": 0.6630895587254518,
+      "location": "regime/14/base/alpha_ex",
+      "passed": true,
+      "shown": "0.663090"
+    },
+    {
+      "expected": 2.5011110656531526,
+      "location": "regime/14/base/maxdd_delta",
+      "passed": true,
+      "shown": "2.501111"
+    },
+    {
+      "expected": 0.07803240356868407,
+      "location": "regime/14/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "0.078032"
+    },
+    {
+      "expected": 2.5612105693172986,
+      "location": "regime/14/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "2.561211"
+    },
+    {
+      "expected": "0/4",
+      "location": "regime/14/joint",
+      "passed": true,
+      "shown": "0/4"
+    },
+    {
+      "expected": -1.3153007475656593,
+      "location": "regime/15/base/alpha_ex",
+      "passed": true,
+      "shown": "-1.315301"
+    },
+    {
+      "expected": 2.2144638782107124,
+      "location": "regime/15/base/maxdd_delta",
+      "passed": true,
+      "shown": "2.214464"
+    },
+    {
+      "expected": -1.8711556121753348,
+      "location": "regime/15/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.871156"
+    },
+    {
+      "expected": 2.26672476415668,
+      "location": "regime/15/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "2.266725"
+    },
+    {
+      "expected": "0/4",
+      "location": "regime/15/joint",
+      "passed": true,
+      "shown": "0/4"
+    },
+    {
+      "expected": -12.285858445384928,
+      "location": "regime/16/base/alpha_ex",
+      "passed": true,
+      "shown": "-12.285858"
+    },
+    {
+      "expected": -1.1546141468635145,
+      "location": "regime/16/base/maxdd_delta",
+      "passed": true,
+      "shown": "-1.154614"
+    },
+    {
+      "expected": -12.581308552553534,
+      "location": "regime/16/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-12.581309"
+    },
+    {
+      "expected": -1.042471903218717,
+      "location": "regime/16/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-1.042472"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/16/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -11.670529449442427,
+      "location": "regime/17/base/alpha_ex",
+      "passed": true,
+      "shown": "-11.670529"
+    },
+    {
+      "expected": -1.6027222986229939,
+      "location": "regime/17/base/maxdd_delta",
+      "passed": true,
+      "shown": "-1.602722"
+    },
+    {
+      "expected": -11.931347294012895,
+      "location": "regime/17/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-11.931347"
+    },
+    {
+      "expected": -1.5364310537573809,
+      "location": "regime/17/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-1.536431"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/17/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -4.272325292929747,
+      "location": "regime/18/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.272325"
+    },
+    {
+      "expected": 4.773948671728173,
+      "location": "regime/18/base/maxdd_delta",
+      "passed": true,
+      "shown": "4.773949"
+    },
+    {
+      "expected": -4.540811687714369,
+      "location": "regime/18/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.540812"
+    },
+    {
+      "expected": 4.95054771175652,
+      "location": "regime/18/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "4.950548"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/18/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -2.4309258924226143,
+      "location": "regime/19/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.430926"
+    },
+    {
+      "expected": 3.024655653870023,
+      "location": "regime/19/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.024656"
+    },
+    {
+      "expected": -2.6394950342391366,
+      "location": "regime/19/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-2.639495"
+    },
+    {
+      "expected": 3.1447556646290953,
+      "location": "regime/19/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.144756"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/19/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": 3.487964767952245,
+      "location": "regime/20/base/alpha_ex",
+      "passed": true,
+      "shown": "3.487965"
+    },
+    {
+      "expected": 0.8832755535984643,
+      "location": "regime/20/base/maxdd_delta",
+      "passed": true,
+      "shown": "0.883276"
+    },
+    {
+      "expected": 2.9211513899898707,
+      "location": "regime/20/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "2.921151"
+    },
+    {
+      "expected": 0.9626649630989775,
+      "location": "regime/20/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "0.962665"
+    },
+    {
+      "expected": "1/4",
+      "location": "regime/20/joint",
+      "passed": true,
+      "shown": "1/4"
+    },
+    {
+      "expected": 1.5325593039927976,
+      "location": "regime/21/base/alpha_ex",
+      "passed": true,
+      "shown": "1.532559"
+    },
+    {
+      "expected": 0.5966283661560212,
+      "location": "regime/21/base/maxdd_delta",
+      "passed": true,
+      "shown": "0.596628"
+    },
+    {
+      "expected": 1.002448623507843,
+      "location": "regime/21/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "1.002449"
+    },
+    {
+      "expected": 0.6681791579383534,
+      "location": "regime/21/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "0.668179"
+    },
+    {
+      "expected": "1/4",
+      "location": "regime/21/joint",
+      "passed": true,
+      "shown": "1/4"
+    },
+    {
+      "expected": -11.344730663787534,
+      "location": "regime/22/base/alpha_ex",
+      "passed": true,
+      "shown": "-11.344731"
+    },
+    {
+      "expected": -2.2244564967603635,
+      "location": "regime/22/base/maxdd_delta",
+      "passed": true,
+      "shown": "-2.224456"
+    },
+    {
+      "expected": -11.535570583856897,
+      "location": "regime/22/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-11.535571"
+    },
+    {
+      "expected": -2.1327829621340557,
+      "location": "regime/22/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-2.132783"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/22/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -10.490000312445138,
+      "location": "regime/23/base/alpha_ex",
+      "passed": true,
+      "shown": "-10.490000"
+    },
+    {
+      "expected": -2.6725646485198427,
+      "location": "regime/23/base/maxdd_delta",
+      "passed": true,
+      "shown": "-2.672565"
+    },
+    {
+      "expected": -10.66328874787369,
+      "location": "regime/23/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-10.663289"
+    },
+    {
+      "expected": -2.6267421126727193,
+      "location": "regime/23/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "-2.626742"
+    },
+    {
+      "expected": "0/2",
+      "location": "regime/23/joint",
+      "passed": true,
+      "shown": "0/2"
+    },
+    {
+      "expected": -1.9446940778617723,
+      "location": "paired/0/base/alpha_ex",
+      "passed": true,
+      "shown": "-1.944694"
+    },
+    {
+      "expected": 3.2774068385293704,
+      "location": "paired/0/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.277407"
+    },
+    {
+      "expected": -1.9126785123430856,
+      "location": "paired/0/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.912679"
+    },
+    {
+      "expected": 3.263341746900779,
+      "location": "paired/0/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.263342"
+    },
+    {
+      "expected": -2.0642005525379132,
+      "location": "paired/1/base/alpha_ex",
+      "passed": true,
+      "shown": "-2.064201"
+    },
+    {
+      "expected": 3.162641227739464,
+      "location": "paired/1/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.162641"
+    },
+    {
+      "expected": -2.0363158119431275,
+      "location": "paired/1/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-2.036316"
+    },
+    {
+      "expected": 3.141687779506058,
+      "location": "paired/1/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.141688"
+    },
+    {
+      "expected": -4.068067098641207,
+      "location": "paired/2/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.068067"
+    },
+    {
+      "expected": 7.430024466922673,
+      "location": "paired/2/base/maxdd_delta",
+      "passed": true,
+      "shown": "7.430024"
+    },
+    {
+      "expected": -4.316168371024117,
+      "location": "paired/2/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.316168"
+    },
+    {
+      "expected": 7.452771351176931,
+      "location": "paired/2/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "7.452771"
+    },
+    {
+      "expected": -4.342997439935127,
+      "location": "paired/3/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.342997"
+    },
+    {
+      "expected": 7.564921964295905,
+      "location": "paired/3/base/maxdd_delta",
+      "passed": true,
+      "shown": "7.564922"
+    },
+    {
+      "expected": -4.5867938823415955,
+      "location": "paired/3/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.586794"
+    },
+    {
+      "expected": 7.58226973891151,
+      "location": "paired/3/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "7.582270"
+    },
+    {
+      "expected": -1.7054458536389965,
+      "location": "paired/4/base/alpha_ex",
+      "passed": true,
+      "shown": "-1.705446"
+    },
+    {
+      "expected": 3.9780428691247622,
+      "location": "paired/4/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.978043"
+    },
+    {
+      "expected": -1.6164575928852924,
+      "location": "paired/4/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.616458"
+    },
+    {
+      "expected": 4.015031585387148,
+      "location": "paired/4/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "4.015032"
+    },
+    {
+      "expected": -1.2482734534970223,
+      "location": "paired/5/base/alpha_ex",
+      "passed": true,
+      "shown": "-1.248273"
+    },
+    {
+      "expected": 3.248360180828816,
+      "location": "paired/5/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.248360"
+    },
+    {
+      "expected": -1.140251077008661,
+      "location": "paired/5/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-1.140251"
+    },
+    {
+      "expected": 3.260874671478166,
+      "location": "paired/5/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.260875"
+    },
+    {
+      "expected": -4.013920030068239,
+      "location": "paired/6/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.013920"
+    },
+    {
+      "expected": 7.4118874742193235,
+      "location": "paired/6/base/maxdd_delta",
+      "passed": true,
+      "shown": "7.411887"
+    },
+    {
+      "expected": -4.17646428000245,
+      "location": "paired/6/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.176464"
+    },
+    {
+      "expected": 7.453499649033132,
+      "location": "paired/6/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "7.453500"
+    },
+    {
+      "expected": -4.208178194311419,
+      "location": "paired/7/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.208178"
+    },
+    {
+      "expected": 7.5030763643443725,
+      "location": "paired/7/base/maxdd_delta",
+      "passed": true,
+      "shown": "7.503076"
+    },
+    {
+      "expected": -4.354913660669456,
+      "location": "paired/7/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.354914"
+    },
+    {
+      "expected": 7.52942469573051,
+      "location": "paired/7/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "7.529425"
+    },
+    {
+      "expected": -6.63861089520168,
+      "location": "paired/8/base/alpha_ex",
+      "passed": true,
+      "shown": "-6.638611"
+    },
+    {
+      "expected": 4.607570648600556,
+      "location": "paired/8/base/maxdd_delta",
+      "passed": true,
+      "shown": "4.607571"
+    },
+    {
+      "expected": -6.566166870007238,
+      "location": "paired/8/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-6.566167"
+    },
+    {
+      "expected": 4.595546856826527,
+      "location": "paired/8/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "4.595547"
+    },
+    {
+      "expected": -6.060329540641192,
+      "location": "paired/9/base/alpha_ex",
+      "passed": true,
+      "shown": "-6.060330"
+    },
+    {
+      "expected": 3.9830236246831796,
+      "location": "paired/9/base/maxdd_delta",
+      "passed": true,
+      "shown": "3.983024"
+    },
+    {
+      "expected": -5.9803915903079545,
+      "location": "paired/9/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-5.980392"
+    },
+    {
+      "expected": 3.9494832490921006,
+      "location": "paired/9/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "3.949483"
+    },
+    {
+      "expected": -7.164894006130786,
+      "location": "paired/10/base/alpha_ex",
+      "passed": true,
+      "shown": "-7.164894"
+    },
+    {
+      "expected": 7.206349971841368,
+      "location": "paired/10/base/maxdd_delta",
+      "passed": true,
+      "shown": "7.206350"
+    },
+    {
+      "expected": -7.349068482677818,
+      "location": "paired/10/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-7.349068"
+    },
+    {
+      "expected": 7.227665274794102,
+      "location": "paired/10/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "7.227665"
+    },
+    {
+      "expected": -7.358953838029321,
+      "location": "paired/11/base/alpha_ex",
+      "passed": true,
+      "shown": "-7.358954"
+    },
+    {
+      "expected": 7.364670998703243,
+      "location": "paired/11/base/maxdd_delta",
+      "passed": true,
+      "shown": "7.364671"
+    },
+    {
+      "expected": -7.538325075594288,
+      "location": "paired/11/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-7.538325"
+    },
+    {
+      "expected": 7.374917598555313,
+      "location": "paired/11/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "7.374918"
+    },
+    {
+      "expected": -5.495744437518716,
+      "location": "paired/12/base/alpha_ex",
+      "passed": true,
+      "shown": "-5.495744"
+    },
+    {
+      "expected": 4.19214127519705,
+      "location": "paired/12/base/maxdd_delta",
+      "passed": true,
+      "shown": "4.192141"
+    },
+    {
+      "expected": -5.370373997763347,
+      "location": "paired/12/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-5.370374"
+    },
+    {
+      "expected": 4.193189092464348,
+      "location": "paired/12/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "4.193189"
+    },
+    {
+      "expected": -4.1516383372479915,
+      "location": "paired/13/base/alpha_ex",
+      "passed": true,
+      "shown": "-4.151638"
+    },
+    {
+      "expected": 2.914828895526905,
+      "location": "paired/13/base/maxdd_delta",
+      "passed": true,
+      "shown": "2.914829"
+    },
+    {
+      "expected": -4.022746078520583,
+      "location": "paired/13/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-4.022746"
+    },
+    {
+      "expected": 2.894036841963267,
+      "location": "paired/13/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "2.894037"
+    },
+    {
+      "expected": -5.773223444829857,
+      "location": "paired/14/base/alpha_ex",
+      "passed": true,
+      "shown": "-5.773223"
+    },
+    {
+      "expected": 6.466712631232503,
+      "location": "paired/14/base/maxdd_delta",
+      "passed": true,
+      "shown": "6.466713"
+    },
+    {
+      "expected": -5.907498175846667,
+      "location": "paired/14/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-5.907498"
+    },
+    {
+      "expected": 6.490280099815148,
+      "location": "paired/14/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "6.490280"
+    },
+    {
+      "expected": -5.843404502187644,
+      "location": "paired/15/base/alpha_ex",
+      "passed": true,
+      "shown": "-5.843405"
+    },
+    {
+      "expected": 6.546137757569616,
+      "location": "paired/15/base/maxdd_delta",
+      "passed": true,
+      "shown": "6.546138"
+    },
+    {
+      "expected": -5.968328128068009,
+      "location": "paired/15/stress_2x/alpha_ex",
+      "passed": true,
+      "shown": "-5.968328"
+    },
+    {
+      "expected": 6.553802991055953,
+      "location": "paired/15/stress_2x/maxdd_delta",
+      "passed": true,
+      "shown": "6.553803"
+    },
+    {
+      "expected": 0.2666186201628471,
+      "location": "classification/0/brier",
+      "passed": true,
+      "shown": "0.266619"
+    },
+    {
+      "expected": 0.7355563297722705,
+      "location": "classification/0/log_loss",
+      "passed": true,
+      "shown": "0.735556"
+    },
+    {
+      "expected": 51.6090226988687,
+      "location": "classification/0/binary_accuracy",
+      "passed": true,
+      "shown": "51.609023"
+    },
+    {
+      "expected": 0.2731480940015155,
+      "location": "classification/0/weighted_brier",
+      "passed": true,
+      "shown": "0.273148"
+    },
+    {
+      "expected": 0.7518765718275444,
+      "location": "classification/0/weighted_log_loss",
+      "passed": true,
+      "shown": "0.751877"
+    },
+    {
+      "expected": 50.74042703243765,
+      "location": "classification/0/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.740427"
+    },
+    {
+      "expected": 0.27354719504487757,
+      "location": "classification/1/brier",
+      "passed": true,
+      "shown": "0.273547"
+    },
+    {
+      "expected": 0.75892620195978,
+      "location": "classification/1/log_loss",
+      "passed": true,
+      "shown": "0.758926"
+    },
+    {
+      "expected": 51.59884857723952,
+      "location": "classification/1/binary_accuracy",
+      "passed": true,
+      "shown": "51.598849"
+    },
+    {
+      "expected": 0.27935085021741857,
+      "location": "classification/1/weighted_brier",
+      "passed": true,
+      "shown": "0.279351"
+    },
+    {
+      "expected": 0.7771293800898366,
+      "location": "classification/1/weighted_log_loss",
+      "passed": true,
+      "shown": "0.777129"
+    },
+    {
+      "expected": 50.83372337045107,
+      "location": "classification/1/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.833723"
+    },
+    {
+      "expected": 0.2635807800907662,
+      "location": "classification/2/brier",
+      "passed": true,
+      "shown": "0.263581"
+    },
+    {
+      "expected": 0.7267152097144937,
+      "location": "classification/2/log_loss",
+      "passed": true,
+      "shown": "0.726715"
+    },
+    {
+      "expected": 52.045225790007564,
+      "location": "classification/2/binary_accuracy",
+      "passed": true,
+      "shown": "52.045226"
+    },
+    {
+      "expected": 0.2698284019964702,
+      "location": "classification/2/weighted_brier",
+      "passed": true,
+      "shown": "0.269828"
+    },
+    {
+      "expected": 0.7423946790791542,
+      "location": "classification/2/weighted_log_loss",
+      "passed": true,
+      "shown": "0.742395"
+    },
+    {
+      "expected": 51.81535266732246,
+      "location": "classification/2/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "51.815353"
+    },
+    {
+      "expected": 0.2690891665505525,
+      "location": "classification/3/brier",
+      "passed": true,
+      "shown": "0.269089"
+    },
+    {
+      "expected": 0.7438746181362873,
+      "location": "classification/3/log_loss",
+      "passed": true,
+      "shown": "0.743875"
+    },
+    {
+      "expected": 51.4745335129908,
+      "location": "classification/3/binary_accuracy",
+      "passed": true,
+      "shown": "51.474534"
+    },
+    {
+      "expected": 0.2744026505501304,
+      "location": "classification/3/weighted_brier",
+      "passed": true,
+      "shown": "0.274403"
+    },
+    {
+      "expected": 0.7606623893516229,
+      "location": "classification/3/weighted_log_loss",
+      "passed": true,
+      "shown": "0.760662"
+    },
+    {
+      "expected": 51.36537897642699,
+      "location": "classification/3/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "51.365379"
+    },
+    {
+      "expected": 0.2502030413473604,
+      "location": "classification/4/brier",
+      "passed": true,
+      "shown": "0.250203"
+    },
+    {
+      "expected": 0.6935585770176417,
+      "location": "classification/4/log_loss",
+      "passed": true,
+      "shown": "0.693559"
+    },
+    {
+      "expected": 51.41089566285505,
+      "location": "classification/4/binary_accuracy",
+      "passed": true,
+      "shown": "51.410896"
+    },
+    {
+      "expected": 0.25336110992441957,
+      "location": "classification/4/weighted_brier",
+      "passed": true,
+      "shown": "0.253361"
+    },
+    {
+      "expected": 0.6999214136329998,
+      "location": "classification/4/weighted_log_loss",
+      "passed": true,
+      "shown": "0.699921"
+    },
+    {
+      "expected": 48.33007759883071,
+      "location": "classification/4/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.330078"
+    },
+    {
+      "expected": 0.25067030504405774,
+      "location": "classification/5/brier",
+      "passed": true,
+      "shown": "0.250670"
+    },
+    {
+      "expected": 0.6944918485753149,
+      "location": "classification/5/log_loss",
+      "passed": true,
+      "shown": "0.694492"
+    },
+    {
+      "expected": 50.5939024313131,
+      "location": "classification/5/binary_accuracy",
+      "passed": true,
+      "shown": "50.593902"
+    },
+    {
+      "expected": 0.2525376115561008,
+      "location": "classification/5/weighted_brier",
+      "passed": true,
+      "shown": "0.252538"
+    },
+    {
+      "expected": 0.6982514984217986,
+      "location": "classification/5/weighted_log_loss",
+      "passed": true,
+      "shown": "0.698251"
+    },
+    {
+      "expected": 48.777364733809,
+      "location": "classification/5/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.777365"
+    },
+    {
+      "expected": 0.25018842501455657,
+      "location": "classification/6/brier",
+      "passed": true,
+      "shown": "0.250188"
+    },
+    {
+      "expected": 0.6935280109184795,
+      "location": "classification/6/log_loss",
+      "passed": true,
+      "shown": "0.693528"
+    },
+    {
+      "expected": 50.892700181633074,
+      "location": "classification/6/binary_accuracy",
+      "passed": true,
+      "shown": "50.892700"
+    },
+    {
+      "expected": 0.25323443437100623,
+      "location": "classification/6/weighted_brier",
+      "passed": true,
+      "shown": "0.253234"
+    },
+    {
+      "expected": 0.69966289061175,
+      "location": "classification/6/weighted_log_loss",
+      "passed": true,
+      "shown": "0.699663"
+    },
+    {
+      "expected": 48.04576242535275,
+      "location": "classification/6/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.045762"
+    },
+    {
+      "expected": 0.25074322000784705,
+      "location": "classification/7/brier",
+      "passed": true,
+      "shown": "0.250743"
+    },
+    {
+      "expected": 0.6946389563708425,
+      "location": "classification/7/log_loss",
+      "passed": true,
+      "shown": "0.694639"
+    },
+    {
+      "expected": 50.94456011255129,
+      "location": "classification/7/binary_accuracy",
+      "passed": true,
+      "shown": "50.944560"
+    },
+    {
+      "expected": 0.252295172547021,
+      "location": "classification/7/weighted_brier",
+      "passed": true,
+      "shown": "0.252295"
+    },
+    {
+      "expected": 0.697764838117765,
+      "location": "classification/7/weighted_log_loss",
+      "passed": true,
+      "shown": "0.697765"
+    },
+    {
+      "expected": 49.328113598575925,
+      "location": "classification/7/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "49.328114"
+    },
+    {
+      "expected": 0.25101221997881606,
+      "location": "classification/8/brier",
+      "passed": true,
+      "shown": "0.251012"
+    },
+    {
+      "expected": 0.6951767322411355,
+      "location": "classification/8/log_loss",
+      "passed": true,
+      "shown": "0.695177"
+    },
+    {
+      "expected": 49.778420473991225,
+      "location": "classification/8/binary_accuracy",
+      "passed": true,
+      "shown": "49.778420"
+    },
+    {
+      "expected": 0.2515702327518261,
+      "location": "classification/8/weighted_brier",
+      "passed": true,
+      "shown": "0.251570"
+    },
+    {
+      "expected": 0.6962954245686855,
+      "location": "classification/8/weighted_log_loss",
+      "passed": true,
+      "shown": "0.696295"
+    },
+    {
+      "expected": 48.839093098229505,
+      "location": "classification/8/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.839093"
+    },
+    {
+      "expected": 0.2506713411326193,
+      "location": "classification/9/brier",
+      "passed": true,
+      "shown": "0.250671"
+    },
+    {
+      "expected": 0.6944928081827435,
+      "location": "classification/9/log_loss",
+      "passed": true,
+      "shown": "0.694493"
+    },
+    {
+      "expected": 49.778420473991225,
+      "location": "classification/9/binary_accuracy",
+      "passed": true,
+      "shown": "49.778420"
+    },
+    {
+      "expected": 0.25104727040393404,
+      "location": "classification/9/weighted_brier",
+      "passed": true,
+      "shown": "0.251047"
+    },
+    {
+      "expected": 0.6952458000277295,
+      "location": "classification/9/weighted_log_loss",
+      "passed": true,
+      "shown": "0.695246"
+    },
+    {
+      "expected": 48.839093098229505,
+      "location": "classification/9/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.839093"
+    },
+    {
+      "expected": 0.268063195157342,
+      "location": "classification/10/brier",
+      "passed": true,
+      "shown": "0.268063"
+    },
+    {
+      "expected": 0.737524768814618,
+      "location": "classification/10/log_loss",
+      "passed": true,
+      "shown": "0.737525"
+    },
+    {
+      "expected": 50.415831643976105,
+      "location": "classification/10/binary_accuracy",
+      "passed": true,
+      "shown": "50.415832"
+    },
+    {
+      "expected": 0.27295720768480825,
+      "location": "classification/10/weighted_brier",
+      "passed": true,
+      "shown": "0.272957"
+    },
+    {
+      "expected": 0.7483317504095457,
+      "location": "classification/10/weighted_log_loss",
+      "passed": true,
+      "shown": "0.748332"
+    },
+    {
+      "expected": 48.645603373251085,
+      "location": "classification/10/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.645603"
+    },
+    {
+      "expected": 0.2772341539439794,
+      "location": "classification/11/brier",
+      "passed": true,
+      "shown": "0.277234"
+    },
+    {
+      "expected": 0.7638981207511589,
+      "location": "classification/11/log_loss",
+      "passed": true,
+      "shown": "0.763898"
+    },
+    {
+      "expected": 49.8314453403774,
+      "location": "classification/11/binary_accuracy",
+      "passed": true,
+      "shown": "49.831445"
+    },
+    {
+      "expected": 0.28242314361671006,
+      "location": "classification/11/weighted_brier",
+      "passed": true,
+      "shown": "0.282423"
+    },
+    {
+      "expected": 0.7764519614750952,
+      "location": "classification/11/weighted_log_loss",
+      "passed": true,
+      "shown": "0.776452"
+    },
+    {
+      "expected": 48.83686426664785,
+      "location": "classification/11/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.836864"
+    },
+    {
+      "expected": 0.2661979320809654,
+      "location": "classification/12/brier",
+      "passed": true,
+      "shown": "0.266198"
+    },
+    {
+      "expected": 0.7316807586291103,
+      "location": "classification/12/log_loss",
+      "passed": true,
+      "shown": "0.731681"
+    },
+    {
+      "expected": 51.02545711081217,
+      "location": "classification/12/binary_accuracy",
+      "passed": true,
+      "shown": "51.025457"
+    },
+    {
+      "expected": 0.2702050628074822,
+      "location": "classification/12/weighted_brier",
+      "passed": true,
+      "shown": "0.270205"
+    },
+    {
+      "expected": 0.7410029868030473,
+      "location": "classification/12/weighted_log_loss",
+      "passed": true,
+      "shown": "0.741003"
+    },
+    {
+      "expected": 50.68481639134007,
+      "location": "classification/12/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.684816"
+    },
+    {
+      "expected": 0.27573330480725755,
+      "location": "classification/13/brier",
+      "passed": true,
+      "shown": "0.275733"
+    },
+    {
+      "expected": 0.7571556044139309,
+      "location": "classification/13/log_loss",
+      "passed": true,
+      "shown": "0.757156"
+    },
+    {
+      "expected": 50.994723015372045,
+      "location": "classification/13/binary_accuracy",
+      "passed": true,
+      "shown": "50.994723"
+    },
+    {
+      "expected": 0.27908678382484853,
+      "location": "classification/13/weighted_brier",
+      "passed": true,
+      "shown": "0.279087"
+    },
+    {
+      "expected": 0.7666944080030361,
+      "location": "classification/13/weighted_log_loss",
+      "passed": true,
+      "shown": "0.766694"
+    },
+    {
+      "expected": 50.68903848367903,
+      "location": "classification/13/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "50.689038"
+    },
+    {
+      "expected": 0.2515261216934725,
+      "location": "classification/14/brier",
+      "passed": true,
+      "shown": "0.251526"
+    },
+    {
+      "expected": 0.6962389809780937,
+      "location": "classification/14/log_loss",
+      "passed": true,
+      "shown": "0.696239"
+    },
+    {
+      "expected": 50.65535046081131,
+      "location": "classification/14/binary_accuracy",
+      "passed": true,
+      "shown": "50.655350"
+    },
+    {
+      "expected": 0.2545501293747112,
+      "location": "classification/14/weighted_brier",
+      "passed": true,
+      "shown": "0.254550"
+    },
+    {
+      "expected": 0.7023454590872564,
+      "location": "classification/14/weighted_log_loss",
+      "passed": true,
+      "shown": "0.702345"
+    },
+    {
+      "expected": 48.70752697392595,
+      "location": "classification/14/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.707527"
+    },
+    {
+      "expected": 0.2520635193804553,
+      "location": "classification/15/brier",
+      "passed": true,
+      "shown": "0.252064"
+    },
+    {
+      "expected": 0.6973149361334909,
+      "location": "classification/15/log_loss",
+      "passed": true,
+      "shown": "0.697315"
+    },
+    {
+      "expected": 49.46032473055333,
+      "location": "classification/15/binary_accuracy",
+      "passed": true,
+      "shown": "49.460325"
+    },
+    {
+      "expected": 0.25398902867573436,
+      "location": "classification/15/weighted_brier",
+      "passed": true,
+      "shown": "0.253989"
+    },
+    {
+      "expected": 0.7012025748076836,
+      "location": "classification/15/weighted_log_loss",
+      "passed": true,
+      "shown": "0.701203"
+    },
+    {
+      "expected": 48.1312032810264,
+      "location": "classification/15/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.131203"
+    },
+    {
+      "expected": 0.25153118715794115,
+      "location": "classification/16/brier",
+      "passed": true,
+      "shown": "0.251531"
+    },
+    {
+      "expected": 0.6962478118791678,
+      "location": "classification/16/log_loss",
+      "passed": true,
+      "shown": "0.696248"
+    },
+    {
+      "expected": 50.565905917975584,
+      "location": "classification/16/binary_accuracy",
+      "passed": true,
+      "shown": "50.565906"
+    },
+    {
+      "expected": 0.25438913368270005,
+      "location": "classification/16/weighted_brier",
+      "passed": true,
+      "shown": "0.254389"
+    },
+    {
+      "expected": 0.7020179768049881,
+      "location": "classification/16/weighted_log_loss",
+      "passed": true,
+      "shown": "0.702018"
+    },
+    {
+      "expected": 48.71154957008257,
+      "location": "classification/16/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.711550"
+    },
+    {
+      "expected": 0.25223507207061463,
+      "location": "classification/17/brier",
+      "passed": true,
+      "shown": "0.252235"
+    },
+    {
+      "expected": 0.6976587098349665,
+      "location": "classification/17/log_loss",
+      "passed": true,
+      "shown": "0.697659"
+    },
+    {
+      "expected": 49.1344864533206,
+      "location": "classification/17/binary_accuracy",
+      "passed": true,
+      "shown": "49.134486"
+    },
+    {
+      "expected": 0.253574327328215,
+      "location": "classification/17/weighted_brier",
+      "passed": true,
+      "shown": "0.253574"
+    },
+    {
+      "expected": 0.7003634543500425,
+      "location": "classification/17/weighted_log_loss",
+      "passed": true,
+      "shown": "0.700363"
+    },
+    {
+      "expected": 48.512858690101254,
+      "location": "classification/17/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.512859"
+    },
+    {
+      "expected": 0.2510666067832606,
+      "location": "classification/18/brier",
+      "passed": true,
+      "shown": "0.251067"
+    },
+    {
+      "expected": 0.6952857225065998,
+      "location": "classification/18/log_loss",
+      "passed": true,
+      "shown": "0.695286"
+    },
+    {
+      "expected": 49.683366701671915,
+      "location": "classification/18/binary_accuracy",
+      "passed": true,
+      "shown": "49.683367"
+    },
+    {
+      "expected": 0.2515697001485872,
+      "location": "classification/18/weighted_brier",
+      "passed": true,
+      "shown": "0.251570"
+    },
+    {
+      "expected": 0.6962917555074506,
+      "location": "classification/18/weighted_log_loss",
+      "passed": true,
+      "shown": "0.696292"
+    },
+    {
+      "expected": 48.17242225947562,
+      "location": "classification/18/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.172422"
+    },
+    {
+      "expected": 0.2507832409876446,
+      "location": "classification/19/brier",
+      "passed": true,
+      "shown": "0.250783"
+    },
+    {
+      "expected": 0.6947168774830846,
+      "location": "classification/19/log_loss",
+      "passed": true,
+      "shown": "0.694717"
+    },
+    {
+      "expected": 49.683366701671915,
+      "location": "classification/19/binary_accuracy",
+      "passed": true,
+      "shown": "49.683367"
+    },
+    {
+      "expected": 0.2512689748369605,
+      "location": "classification/19/weighted_brier",
+      "passed": true,
+      "shown": "0.251269"
+    },
+    {
+      "expected": 0.6956874455603693,
+      "location": "classification/19/weighted_log_loss",
+      "passed": true,
+      "shown": "0.695687"
+    },
+    {
+      "expected": 48.17242225947562,
+      "location": "classification/19/weighted_binary_accuracy",
+      "passed": true,
+      "shown": "48.172422"
+    },
+    {
+      "expected": 370.9503274681666,
+      "location": "mapped_mse/0/0",
+      "passed": true,
+      "shown": "370.950327"
+    },
+    {
+      "expected": 0.9878885112632225,
+      "location": "mapped_mse/0/1",
+      "passed": true,
+      "shown": "0.987889"
+    },
+    {
+      "expected": -0.8447334739858325,
+      "location": "mapped_mse/0/2",
+      "passed": true,
+      "shown": "-0.844733"
+    },
+    {
+      "expected": -0.5602830764129987,
+      "location": "mapped_mse/0/3",
+      "passed": true,
+      "shown": "-0.560283"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/0/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/0/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 324.5467644260569,
+      "location": "mapped_mse/1/0",
+      "passed": true,
+      "shown": "324.546764"
+    },
+    {
+      "expected": -0.04243389374158875,
+      "location": "mapped_mse/1/1",
+      "passed": true,
+      "shown": "-0.042434"
+    },
+    {
+      "expected": 0.8762509937223063,
+      "location": "mapped_mse/1/2",
+      "passed": true,
+      "shown": "0.876251"
+    },
+    {
+      "expected": -0.7891242158803025,
+      "location": "mapped_mse/1/3",
+      "passed": true,
+      "shown": "-0.789124"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/1/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/1/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 370.9271850294886,
+      "location": "mapped_mse/2/0",
+      "passed": true,
+      "shown": "370.927185"
+    },
+    {
+      "expected": -0.41970101644520125,
+      "location": "mapped_mse/2/1",
+      "passed": true,
+      "shown": "-0.419701"
+    },
+    {
+      "expected": -0.8678759126638562,
+      "location": "mapped_mse/2/2",
+      "passed": true,
+      "shown": "-0.867876"
+    },
+    {
+      "expected": -0.5834255150910225,
+      "location": "mapped_mse/2/3",
+      "passed": true,
+      "shown": "-0.583426"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/2/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/2/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 325.4119094664221,
+      "location": "mapped_mse/3/0",
+      "passed": true,
+      "shown": "325.411909"
+    },
+    {
+      "expected": 1.115695997741125,
+      "location": "mapped_mse/3/1",
+      "passed": true,
+      "shown": "1.115696"
+    },
+    {
+      "expected": 1.741396034087496,
+      "location": "mapped_mse/3/2",
+      "passed": true,
+      "shown": "1.741396"
+    },
+    {
+      "expected": 0.0760208244848875,
+      "location": "mapped_mse/3/3",
+      "passed": true,
+      "shown": "0.076021"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/3/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/3/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 370.321686546488,
+      "location": "mapped_mse/4/0",
+      "passed": true,
+      "shown": "370.321687"
+    },
+    {
+      "expected": 2.076622678574578,
+      "location": "mapped_mse/4/1",
+      "passed": true,
+      "shown": "2.076623"
+    },
+    {
+      "expected": -0.08940200412150374,
+      "location": "mapped_mse/4/2",
+      "passed": true,
+      "shown": "-0.089402"
+    },
+    {
+      "expected": 0.00335970979451125,
+      "location": "mapped_mse/4/3",
+      "passed": true,
+      "shown": "0.003360"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/4/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/4/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 324.13753053920584,
+      "location": "mapped_mse/5/0",
+      "passed": true,
+      "shown": "324.137531"
+    },
+    {
+      "expected": 1.9843788591138511,
+      "location": "mapped_mse/5/1",
+      "passed": true,
+      "shown": "1.984379"
+    },
+    {
+      "expected": 1.5707010357705087,
+      "location": "mapped_mse/5/2",
+      "passed": true,
+      "shown": "1.570701"
+    },
+    {
+      "expected": -0.1623230102179225,
+      "location": "mapped_mse/5/3",
+      "passed": true,
+      "shown": "-0.162323"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/5/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/5/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 369.47448968044245,
+      "location": "mapped_mse/6/0",
+      "passed": true,
+      "shown": "369.474490"
+    },
+    {
+      "expected": -0.4877431186261513,
+      "location": "mapped_mse/6/1",
+      "passed": true,
+      "shown": "-0.487743"
+    },
+    {
+      "expected": -0.9365988701670626,
+      "location": "mapped_mse/6/2",
+      "passed": true,
+      "shown": "-0.936599"
+    },
+    {
+      "expected": -0.8438371562510475,
+      "location": "mapped_mse/6/3",
+      "passed": true,
+      "shown": "-0.843837"
+    },
+    {
+      "expected": 367.67970337677394,
+      "location": "mapped_mse/6/4",
+      "passed": true,
+      "shown": "367.679703"
+    },
+    {
+      "expected": 368.25756421060646,
+      "location": "mapped_mse/6/5",
+      "passed": true,
+      "shown": "368.257564"
+    },
+    {
+      "expected": 323.7364432783914,
+      "location": "mapped_mse/7/0",
+      "passed": true,
+      "shown": "323.736443"
+    },
+    {
+      "expected": 1.5978233569907023,
+      "location": "mapped_mse/7/1",
+      "passed": true,
+      "shown": "1.597823"
+    },
+    {
+      "expected": 1.169613774956049,
+      "location": "mapped_mse/7/2",
+      "passed": true,
+      "shown": "1.169614"
+    },
+    {
+      "expected": -0.5634102710323825,
+      "location": "mapped_mse/7/3",
+      "passed": true,
+      "shown": "-0.563410"
+    },
+    {
+      "expected": 315.46742688108947,
+      "location": "mapped_mse/7/4",
+      "passed": true,
+      "shown": "315.467427"
+    },
+    {
+      "expected": 316.21108117342675,
+      "location": "mapped_mse/7/5",
+      "passed": true,
+      "shown": "316.211081"
+    },
+    {
+      "expected": 1.1088792478754028,
+      "location": "norms/0/old_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "1.108879"
+    },
+    {
+      "expected": 0.05627529613405487,
+      "location": "norms/0/new_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "0.056275"
+    },
+    {
+      "expected": 3.7108140970704855,
+      "location": "norms/0/norm_ratio_min",
+      "passed": true,
+      "shown": "3.710814"
+    },
+    {
+      "expected": 6.267880700424071,
+      "location": "norms/0/norm_ratio_max",
+      "passed": true,
+      "shown": "6.267881"
+    },
+    {
+      "expected": "8/8",
+      "location": "norms/0/folds",
+      "passed": true,
+      "shown": "8/8"
+    },
+    {
+      "expected": 1.1631813848690256,
+      "location": "norms/1/old_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "1.163181"
+    },
+    {
+      "expected": 0.06039840525207285,
+      "location": "norms/1/new_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "0.060398"
+    },
+    {
+      "expected": 3.918675901586361,
+      "location": "norms/1/norm_ratio_min",
+      "passed": true,
+      "shown": "3.918676"
+    },
+    {
+      "expected": 6.7001223507724434,
+      "location": "norms/1/norm_ratio_max",
+      "passed": true,
+      "shown": "6.700122"
+    },
+    {
+      "expected": "8/8",
+      "location": "norms/1/folds",
+      "passed": true,
+      "shown": "8/8"
+    },
+    {
+      "expected": 1.1634107171280226,
+      "location": "norms/2/old_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "1.163411"
+    },
+    {
+      "expected": 0.06019201101479074,
+      "location": "norms/2/new_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "0.060192"
+    },
+    {
+      "expected": 3.9362283756584375,
+      "location": "norms/2/norm_ratio_min",
+      "passed": true,
+      "shown": "3.936228"
+    },
+    {
+      "expected": 6.561006151117373,
+      "location": "norms/2/norm_ratio_max",
+      "passed": true,
+      "shown": "6.561006"
+    },
+    {
+      "expected": "8/8",
+      "location": "norms/2/folds",
+      "passed": true,
+      "shown": "8/8"
+    },
+    {
+      "expected": 1.255555547291147,
+      "location": "norms/3/old_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "1.255556"
+    },
+    {
+      "expected": 0.07070342263347819,
+      "location": "norms/3/new_norm_equal_fold_mean",
+      "passed": true,
+      "shown": "0.070703"
+    },
+    {
+      "expected": 4.179939925285215,
+      "location": "norms/3/norm_ratio_min",
+      "passed": true,
+      "shown": "4.179940"
+    },
+    {
+      "expected": 7.466935752205943,
+      "location": "norms/3/norm_ratio_max",
+      "passed": true,
+      "shown": "7.466936"
+    },
+    {
+      "expected": "8/8",
+      "location": "norms/3/folds",
+      "passed": true,
+      "shown": "8/8"
+    },
+    {
+      "expected": 2537.0,
+      "location": "mechanism/0/inference_rows",
+      "passed": true,
+      "shown": "2537"
+    },
+    {
+      "expected": 550.0,
+      "location": "mechanism/0/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "550"
+    },
+    {
+      "expected": 21.6791486007095,
+      "location": "mechanism/0/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "21.679149"
+    },
+    {
+      "expected": 1765.0,
+      "location": "mechanism/0/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1765"
+    },
+    {
+      "expected": 69.57035869136776,
+      "location": "mechanism/0/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "69.570359"
+    },
+    {
+      "expected": 2079.0,
+      "location": "mechanism/0/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2079"
+    },
+    {
+      "expected": 81.9471817106819,
+      "location": "mechanism/0/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "81.947182"
+    },
+    {
+      "expected": 2586.0,
+      "location": "mechanism/1/inference_rows",
+      "passed": true,
+      "shown": "2586"
+    },
+    {
+      "expected": 519.0,
+      "location": "mechanism/1/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "519"
+    },
+    {
+      "expected": 20.069605568445475,
+      "location": "mechanism/1/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "20.069606"
+    },
+    {
+      "expected": 1984.0,
+      "location": "mechanism/1/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1984"
+    },
+    {
+      "expected": 76.72080433101314,
+      "location": "mechanism/1/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "76.720804"
+    },
+    {
+      "expected": 2261.0,
+      "location": "mechanism/1/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2261"
+    },
+    {
+      "expected": 87.4323279195669,
+      "location": "mechanism/1/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "87.432328"
+    },
+    {
+      "expected": 2537.0,
+      "location": "mechanism/2/inference_rows",
+      "passed": true,
+      "shown": "2537"
+    },
+    {
+      "expected": 545.0,
+      "location": "mechanism/2/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "545"
+    },
+    {
+      "expected": 21.482065431612142,
+      "location": "mechanism/2/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "21.482065"
+    },
+    {
+      "expected": 1754.0,
+      "location": "mechanism/2/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1754"
+    },
+    {
+      "expected": 69.13677571935357,
+      "location": "mechanism/2/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "69.136776"
+    },
+    {
+      "expected": 2267.0,
+      "location": "mechanism/2/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2267"
+    },
+    {
+      "expected": 89.35750886874261,
+      "location": "mechanism/2/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "89.357509"
+    },
+    {
+      "expected": 2586.0,
+      "location": "mechanism/3/inference_rows",
+      "passed": true,
+      "shown": "2586"
+    },
+    {
+      "expected": 529.0,
+      "location": "mechanism/3/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "529"
+    },
+    {
+      "expected": 20.45630317092034,
+      "location": "mechanism/3/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "20.456303"
+    },
+    {
+      "expected": 1947.0,
+      "location": "mechanism/3/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1947"
+    },
+    {
+      "expected": 75.29002320185614,
+      "location": "mechanism/3/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "75.290023"
+    },
+    {
+      "expected": 2408.0,
+      "location": "mechanism/3/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2408"
+    },
+    {
+      "expected": 93.1167826759474,
+      "location": "mechanism/3/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "93.116783"
+    },
+    {
+      "expected": 2537.0,
+      "location": "mechanism/4/inference_rows",
+      "passed": true,
+      "shown": "2537"
+    },
+    {
+      "expected": 584.0,
+      "location": "mechanism/4/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "584"
+    },
+    {
+      "expected": 23.01931415057154,
+      "location": "mechanism/4/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "23.019314"
+    },
+    {
+      "expected": 1709.0,
+      "location": "mechanism/4/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1709"
+    },
+    {
+      "expected": 67.36302719747734,
+      "location": "mechanism/4/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "67.363027"
+    },
+    {
+      "expected": 2101.0,
+      "location": "mechanism/4/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2101"
+    },
+    {
+      "expected": 82.81434765471029,
+      "location": "mechanism/4/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "82.814348"
+    },
+    {
+      "expected": 2586.0,
+      "location": "mechanism/5/inference_rows",
+      "passed": true,
+      "shown": "2586"
+    },
+    {
+      "expected": 588.0,
+      "location": "mechanism/5/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "588"
+    },
+    {
+      "expected": 22.73781902552204,
+      "location": "mechanism/5/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "22.737819"
+    },
+    {
+      "expected": 1903.0,
+      "location": "mechanism/5/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1903"
+    },
+    {
+      "expected": 73.58855375096674,
+      "location": "mechanism/5/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "73.588554"
+    },
+    {
+      "expected": 2283.0,
+      "location": "mechanism/5/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2283"
+    },
+    {
+      "expected": 88.2830626450116,
+      "location": "mechanism/5/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "88.283063"
+    },
+    {
+      "expected": 2537.0,
+      "location": "mechanism/6/inference_rows",
+      "passed": true,
+      "shown": "2537"
+    },
+    {
+      "expected": 615.0,
+      "location": "mechanism/6/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "615"
+    },
+    {
+      "expected": 24.241229798975166,
+      "location": "mechanism/6/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "24.241230"
+    },
+    {
+      "expected": 1656.0,
+      "location": "mechanism/6/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1656"
+    },
+    {
+      "expected": 65.27394560504533,
+      "location": "mechanism/6/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "65.273946"
+    },
+    {
+      "expected": 2239.0,
+      "location": "mechanism/6/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2239"
+    },
+    {
+      "expected": 88.2538431217974,
+      "location": "mechanism/6/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "88.253843"
+    },
+    {
+      "expected": 2586.0,
+      "location": "mechanism/7/inference_rows",
+      "passed": true,
+      "shown": "2586"
+    },
+    {
+      "expected": 611.0,
+      "location": "mechanism/7/sign_disagreements_vs_C1",
+      "passed": true,
+      "shown": "611"
+    },
+    {
+      "expected": 23.62722351121423,
+      "location": "mechanism/7/sign_disagreement_rate_row_pooled",
+      "passed": true,
+      "shown": "23.627224"
+    },
+    {
+      "expected": 1876.0,
+      "location": "mechanism/7/old_prior_agreement_count",
+      "passed": true,
+      "shown": "1876"
+    },
+    {
+      "expected": 72.54447022428461,
+      "location": "mechanism/7/old_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "72.544470"
+    },
+    {
+      "expected": 2433.0,
+      "location": "mechanism/7/new_prior_agreement_count",
+      "passed": true,
+      "shown": "2433"
+    },
+    {
+      "expected": 94.08352668213456,
+      "location": "mechanism/7/new_prior_agreement_rate_row_pooled",
+      "passed": true,
+      "shown": "94.083527"
+    },
+    {
+      "expected": true,
+      "location": "claim/all_four_new_overall_four_losses_improve_same_loss_C1_in_I_and_E",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_four_new_E_overall_four_losses_worse_both_priors",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/both_ordinary_I_overall_matched_losses_improve_matched_prior",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/both_magnitude_I_overall_matched_losses_worse_matched_prior",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_eight_new_overall_Alpha_negative_DD_positive_both_costs",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_32_overall_paired_cost_comparisons_worsen_Alpha_and_DD",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/new_mapped_E_overall_MSE_worse_half_I_better_half",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_32_norms_smaller",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_E_prior_direction_agreements_increase",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_160_weighted_score_denominators_positive",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/no_old_or_new_zero_logit_on_64_I_E_inference_records",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/no_new_policy_tiny_DD",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/ten_old_tiny_DD",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_old_scores_and_accounts_exact",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": true,
+      "location": "claim/all_64_nested_registered_direction_flags_false",
+      "passed": true,
+      "shown": true
+    },
+    {
+      "expected": "ab2b62a017a70fd65756614f3940c3194d60b8c0ebdab02aa058c988ccbdb678",
+      "location": "hash/Results file",
+      "passed": true,
+      "shown": "ab2b62a017a70fd65756614f3940c3194d60b8c0ebdab02aa058c988ccbdb678"
+    },
+    {
+      "expected": "289968f71450300c65f515dfe3ed2f2eae50c7f4fc5442f8669d1867faf65888",
+      "location": "hash/Registration file",
+      "passed": true,
+      "shown": "289968f71450300c65f515dfe3ed2f2eae50c7f4fc5442f8669d1867faf65888"
+    },
+    {
+      "expected": "33b2ffc8d74a57b0827e35ea9c08c2e37eefdb421d9f6e726b566f0955e11285",
+      "location": "hash/Preflight file",
+      "passed": true,
+      "shown": "33b2ffc8d74a57b0827e35ea9c08c2e37eefdb421d9f6e726b566f0955e11285"
+    },
+    {
+      "expected": "d020d669322c5ca63ef4429d0071bfb9f3690ac9270747207914c89f337e224d",
+      "location": "hash/Runtime log",
+      "passed": true,
+      "shown": "d020d669322c5ca63ef4429d0071bfb9f3690ac9270747207914c89f337e224d"
+    },
+    {
+      "expected": "3e8c7d39946ab7a00d9c9ba66a6f9c0744d27f64fe2474b22535441302ff0fc8",
+      "location": "hash/Full test log",
+      "passed": true,
+      "shown": "3e8c7d39946ab7a00d9c9ba66a6f9c0744d27f64fe2474b22535441302ff0fc8"
+    },
+    {
+      "expected": "e870ef7d8fe96868b68af48159992e208a37275ceddc0785a072582196320412",
+      "location": "hash/registration canonical",
+      "passed": true,
+      "shown": "e870ef7d8fe96868b68af48159992e208a37275ceddc0785a072582196320412"
+    }
+  ],
+  "convergence_warnings": 0,
+  "earlier_draft_was_not_final": true,
+  "errors": [],
+  "full_suite_before_fit": {
+    "seconds": 57.35,
+    "tests": 733
+  },
+  "hash_claims": 6,
+  "local_links": [
+    {
+      "resolved": "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/docs/experiments/oracle_regularized_direction_registration_20260906.md",
+      "sha256": "8287141b5c741dc7679b878dc77fefda6265662de3ef6eb4d11574f3caf6ad88",
+      "target": "oracle_regularized_direction_registration_20260906.md"
+    },
+    {
+      "resolved": "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/docs/experiments/oracle_regularized_direction_research_20260906.md",
+      "sha256": "30769671e3cc80bd81a3248a344063020559b5c9c050594e6e1fdb1f4ebce904",
+      "target": "oracle_regularized_direction_research_20260906.md"
+    },
+    {
+      "resolved": "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/docs/experiments/oracle_regularized_direction_evidence_20260906",
+      "sha256": null,
+      "target": "oracle_regularized_direction_evidence_20260906/"
+    }
+  ],
+  "mechanism_verification": {
+    "direction_summary_rows": 8,
+    "enriched_fold_records": 64,
+    "model_norm_rows": 4,
+    "old_prediction_bindings": 64
+  },
+  "numerical_audit_claims": {
+    "C maximum": {
+      "bound_value": 0.00125,
+      "shown": "0.00125"
+    },
+    "C minimum": {
+      "bound_value": 0.0005574136008918618,
+      "shown": "0.0005574136008918618"
+    },
+    "classification score": {
+      "bound_value": 1e-16,
+      "shown": "1e\u221216"
+    },
+    "economic summary": {
+      "bound_value": 3.5e-15,
+      "shown": "3.5e\u221215"
+    },
+    "mean exposure": {
+      "bound_value": 2.220446049250313e-16,
+      "shown": "2.220446049250313e\u221216"
+    },
+    "new gradient infinity": {
+      "bound_value": 2.9278447350594705e-08,
+      "shown": "2.9278447350594705e\u22128"
+    },
+    "new minimum Hessian eigenvalue": {
+      "bound_value": 0.23027817223723637,
+      "shown": "0.23027817223723637"
+    },
+    "new scalar logit": {
+      "bound_value": 1.1102230246251565e-16,
+      "shown": "1.1102230246251565e\u221216"
+    },
+    "new scalar probability": {
+      "bound_value": 1.6653345369377348e-16,
+      "shown": "1.6653345369377348e\u221216"
+    },
+    "paired summary": {
+      "bound_value": 1.0775e-15,
+      "shown": "1.0775e\u221215"
+    },
+    "return score": {
+      "bound_value": 4e-18,
+      "shown": "4e\u221218"
+    }
+  },
+  "passed": true,
+  "pending_markers": [],
+  "performance_cells": 468,
+  "quantitative_claims": {
+    "all_160_weighted_score_denominators_positive": true,
+    "all_32_norms_smaller": true,
+    "all_32_overall_paired_cost_comparisons_worsen_Alpha_and_DD": true,
+    "all_64_nested_registered_direction_flags_false": true,
+    "all_E_prior_direction_agreements_increase": true,
+    "all_eight_new_overall_Alpha_negative_DD_positive_both_costs": true,
+    "all_four_new_E_overall_four_losses_worse_both_priors": true,
+    "all_four_new_overall_four_losses_improve_same_loss_C1_in_I_and_E": true,
+    "all_old_scores_and_accounts_exact": true,
+    "both_magnitude_I_overall_matched_losses_worse_matched_prior": true,
+    "both_ordinary_I_overall_matched_losses_improve_matched_prior": true,
+    "new_mapped_E_overall_MSE_worse_half_I_better_half": true,
+    "no_new_policy_tiny_DD": true,
+    "no_old_or_new_zero_logit_on_64_I_E_inference_records": true,
+    "ten_old_tiny_DD": true
+  },
+  "registered_false_flags": 64,
+  "report_sha256": "f51c77109172b299ae4c0209dab9e523bf5bc4f83ba899ae046ac786012a3ebc",
+  "reviewed_prior_draft_sha256": "dadbc8cdbc574249803b1fd3a589230cbc05db69745053f0bd73c4f9e4c64669",
+  "runtime_fold_completions": 8,
+  "schema": "independent-regularized-direction-formatted-report-audit-v1",
+  "scope": "All 88 formatted performance rows / 468 cells, six hash claims, mechanism denominators and enumerated narrative/audit claims. No new fits, policy rollouts, source/report edits, model selection or independent-confirmation claim. Prior immutable score audit remains unchanged.",
+  "script_sha256": "882a28b6985bfba2f2b78b65ddea2a9f62a37a4279d6c89c0f2cd0a87fea8596",
+  "table_rows": {
+    "classification": 20,
+    "economics": 8,
+    "mapped_mse": 8,
+    "mechanism": 8,
+    "norms": 4,
+    "paired_economics": 16,
+    "regime": 24
+  },
+  "total_performance_rows": 88,
+  "two_narrative_precision_corrections_verified": true,
+  "warning_counts": {
+    "divide by zero encountered in matmul": 128,
+    "invalid value encountered in matmul": 128,
+    "overflow encountered in matmul": 128
+  }
+}

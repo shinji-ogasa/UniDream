@@ -1,0 +1,12 @@
+{
+  "completed_run_source_revision": "5a82c270c64a342ab7e9df8105b7d23d1336d876",
+  "interpretation": "Warnings are recorded as observed. This separate log inventory does not diagnose their cause; the accounting audit passed, while independent model stationarity/prediction replay is a separate technical audit.",
+  "results_sha256": "ab2b62a017a70fd65756614f3940c3194d60b8c0ebdab02aa058c988ccbdb678",
+  "run_log_sha256": "d020d669322c5ca63ef4429d0071bfb9f3690ac9270747207914c89f337e224d",
+  "runtime_warning_counts": {
+    "divide by zero encountered in matmul": 128,
+    "invalid value encountered in matmul": 128,
+    "overflow encountered in matmul": 128
+  },
+  "runtime_warning_total": 384
+}
