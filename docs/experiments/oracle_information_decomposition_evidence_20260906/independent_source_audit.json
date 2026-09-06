@@ -1,0 +1,264 @@
+{
+  "actual_max_absolute_difference": 0.0,
+  "additional_periods_read": false,
+  "counts": [
+    {
+      "bars": 8736,
+      "fallback_eligible": 140,
+      "fold": 5,
+      "inference": 223,
+      "inference_kept_learned": 2,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 1,
+      "learned_action_eligible": 223,
+      "missing_current_open": 1,
+      "nonreplacement_times": [
+        "2021-04-20T00:00:00+00:00",
+        "2021-07-16T12:00:00+00:00"
+      ],
+      "replacement_score": 221,
+      "scheduled": 364,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8832,
+      "fallback_eligible": 149,
+      "fold": 6,
+      "inference": 218,
+      "inference_kept_learned": 3,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 2,
+      "learned_action_eligible": 218,
+      "missing_current_open": 1,
+      "nonreplacement_times": [
+        "2021-08-13T00:00:00+00:00",
+        "2021-09-29T06:00:00+00:00",
+        "2021-10-16T12:00:00+00:00"
+      ],
+      "replacement_score": 215,
+      "scheduled": 368,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8832,
+      "fallback_eligible": 5,
+      "fold": 7,
+      "inference": 363,
+      "inference_kept_learned": 2,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 1,
+      "learned_action_eligible": 363,
+      "missing_current_open": 0,
+      "nonreplacement_times": [
+        "2021-12-24T00:00:00+00:00",
+        "2022-01-16T12:00:00+00:00"
+      ],
+      "replacement_score": 361,
+      "scheduled": 368,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8640,
+      "fallback_eligible": 0,
+      "fold": 8,
+      "inference": 360,
+      "inference_kept_learned": 1,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 0,
+      "learned_action_eligible": 360,
+      "missing_current_open": 0,
+      "nonreplacement_times": [
+        "2022-04-16T12:00:00+00:00"
+      ],
+      "replacement_score": 359,
+      "scheduled": 360,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8736,
+      "fallback_eligible": 9,
+      "fold": 9,
+      "inference": 355,
+      "inference_kept_learned": 1,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 0,
+      "learned_action_eligible": 355,
+      "missing_current_open": 0,
+      "nonreplacement_times": [
+        "2022-07-16T12:00:00+00:00"
+      ],
+      "replacement_score": 354,
+      "scheduled": 364,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8832,
+      "fallback_eligible": 0,
+      "fold": 10,
+      "inference": 368,
+      "inference_kept_learned": 1,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 0,
+      "learned_action_eligible": 368,
+      "missing_current_open": 0,
+      "nonreplacement_times": [
+        "2022-10-16T12:00:00+00:00"
+      ],
+      "replacement_score": 367,
+      "scheduled": 368,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8832,
+      "fallback_eligible": 0,
+      "fold": 11,
+      "inference": 368,
+      "inference_kept_learned": 1,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 0,
+      "learned_action_eligible": 368,
+      "missing_current_open": 0,
+      "nonreplacement_times": [
+        "2023-01-16T12:00:00+00:00"
+      ],
+      "replacement_score": 367,
+      "scheduled": 368,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    },
+    {
+      "bars": 8640,
+      "fallback_eligible": 29,
+      "fold": 12,
+      "inference": 331,
+      "inference_kept_learned": 1,
+      "inference_nonreplacement_endpoint": 1,
+      "inference_nonreplacement_future_gap": 0,
+      "learned_action_eligible": 331,
+      "missing_current_open": 0,
+      "nonreplacement_times": [
+        "2023-04-16T12:00:00+00:00"
+      ],
+      "replacement_score": 330,
+      "scheduled": 360,
+      "scored_missing_current_open": 0,
+      "scored_zero_realized_variance": 0
+    }
+  ],
+  "fold_manifests": [
+    {
+      "fold": 5,
+      "manifest_sha256": "2f97309ac1b5257c2feef6129d023aad461645acecba83cac8c74151b38ae0cb"
+    },
+    {
+      "fold": 6,
+      "manifest_sha256": "5f150edec8bd199e54e01db205145d913ed7f918ca75cf9cc36b564e27c328ea"
+    },
+    {
+      "fold": 7,
+      "manifest_sha256": "416afd5949b7183d99e37479aa810f312d5dba097ce167f5d15004609a683b13"
+    },
+    {
+      "fold": 8,
+      "manifest_sha256": "9253b9a7bba8a9355c1551b245b45b3cf03b99e22f038672db04cc69f26df5cc"
+    },
+    {
+      "fold": 9,
+      "manifest_sha256": "5c8a2de2cbf7684cc3404d116c0ecf7164893243f3a47b644926bc185135332c"
+    },
+    {
+      "fold": 10,
+      "manifest_sha256": "46155b8ce1735be8a0687b11459033a6750648447863b612d1360107951921da"
+    },
+    {
+      "fold": 11,
+      "manifest_sha256": "678bdb51d6f52dc41fb66cb625599bb0573228424b2720c3b5ce79e233221c90"
+    },
+    {
+      "fold": 12,
+      "manifest_sha256": "4267a6d0e13e7a3ab1fa5a8fd3936493420be3e750e71cbfa505235cc849ae56"
+    }
+  ],
+  "forecast_bindings": {
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold10_perp_delay0_half.npz": "33b6eadec37302c0dc23749ebda0a360e0f9b347f5e000584cf4b43d28035be5",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold10_perp_delay0_scaled.npz": "3f0c41a28daee94641908235e4e0f4dba131b934ad4b069b4cc7fbd0f866a3fe",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold10_scale_mean.npz": "9216a8abb130adc6ef0773a7a10091c152b353b4bd5d551e3d887af45641c901",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold10_technical_half.npz": "2232140f5ab314f0f6855f3d581e1ea114f99cbb20de0d643f4aff369d0e3cba",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold10_technical_scaled.npz": "95cef728704806a77417424bd756464f24e3c09b01a0d66edc00f18ea533d993",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold11_perp_delay0_half.npz": "b5d1e218581caf1ea54e46a3f580f7c94b2c91133e08c70c26f751615a6affcb",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold11_perp_delay0_scaled.npz": "924774db6dce396709903bbd29530cc3ec9f8be18bce5fbc6858a5c923ce5eab",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold11_scale_mean.npz": "39626391d9e1c8166cbb86c0f6c59fe700969037e1fdb9067c505c55e8ed79b0",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold11_technical_half.npz": "4a5f3c87ff6779810d311324b0e244c911f7bb43b6b03bceff238d9f31ccf87a",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold11_technical_scaled.npz": "0407fc18ca737356ba771b96de789dd21407282b85a4123ad5463cc2d2f7547c",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold12_perp_delay0_half.npz": "f9745ce65eb7ebb2a36738c4fcec9442c75fe10e88e793d3541dada7fbbec8bf",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold12_perp_delay0_scaled.npz": "0ead81329cb045617ff93ba7b2c9f135fef60a9d6da17b338e7514839780329f",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold12_scale_mean.npz": "b2b819ad2ac80da7767fd1c9cb513d59d77c53e9786f8c262b56f0ee1ad0682b",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold12_technical_half.npz": "9843e7d14e9fafe4e091ccb270e10ee8d266c49bc423cbae7c2f3892672daeba",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold12_technical_scaled.npz": "641ccf4f552e6cd6627543e45518a76f8bea2ae3955cc0eedf27ae21890d3c4d",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold5_perp_delay0_half.npz": "392289c7fc9da9e22c2c7f32a7e724017081164ed2d7112087695519994cbc0b",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold5_perp_delay0_scaled.npz": "c6a5ccf1d2bb2f297a333b4ea0735e76d68d45af06ee048cd0702b85f2e9a3ef",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold5_scale_mean.npz": "297216eb0d352c1cb26ca4c895567948b7e0481aa1708309ab09fa5ed6882223",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold5_technical_half.npz": "b019ccd91af8e1637c9076c1be5c036833c434f6980b0085df1a7cd58427af07",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold5_technical_scaled.npz": "7c310ff8cea374b061f54859764dfa691cff110f545eac6b0917643c9358e2b1",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold6_perp_delay0_half.npz": "2f83492f64478e16e40d6813f7f9fb163653df597517f59cf6d3e2b76036336f",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold6_perp_delay0_scaled.npz": "f06ade166c615fc366b71b4aa69b0ee499d2cddee761e48c5f3e32667e113a8f",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold6_scale_mean.npz": "8f244a94d7b0d5bc97945909850c7b71874a7630ac5efe2f732c5c78b322cfbf",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold6_technical_half.npz": "f9dd728d3b1d82aadea388e895d07751a1ad861fdf3e0e3e10ae997401a102bd",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold6_technical_scaled.npz": "a57e36ec25f45231818be587f73eb8f22f332a0fad187d57446da9265ae905e2",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold7_perp_delay0_half.npz": "d01ca8c960eb432f62d84132b65bf4370bcc0c7eacfe53ae066dc3c37afb8f3c",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold7_perp_delay0_scaled.npz": "01182ea6c792720c739e7e678b04ba1d7a6ea37392e12353e5e942ad6e3a8906",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold7_scale_mean.npz": "67ce682b47da713768826d7dc0892b4f1466bf78868b2c88bd3a2c0a81aab20b",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold7_technical_half.npz": "874b948ac7df29ff18d1eac38523de11c7f42ac01c19a97961e54320b6e51bcc",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold7_technical_scaled.npz": "4106f473d79cbf07d1e2f69a575ddb3fb84a1fa5db376ed3376e82a285fb08f1",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold8_perp_delay0_half.npz": "11361de71d168cac7eb6f97d0a96efbd56a46c51a15d7b5b0d1f772df93485b5",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold8_perp_delay0_scaled.npz": "2f22d1d9572bde833a0dfe8664065cbd828243e048ab696249ee2fe04554dfe6",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold8_scale_mean.npz": "35f890a370e5fdd17b7aa193acc2b6255532792c397ed79db0762e8032744722",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold8_technical_half.npz": "c413f5f9b149cd1ac612a5afc5144edadfe67cb61eefffdf67742ede1ecc59c1",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold8_technical_scaled.npz": "b5cf2fc67f34d9cb7a953a141a9438e56d903f2ed67152a1bdfc81fac1af71d7",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold9_perp_delay0_half.npz": "9381a8af85c94f02e0573710dcb27f2e81d0548fcf2513cf5f6466804138ec0d",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold9_perp_delay0_scaled.npz": "09df3304f76b6faef8c7f0a944e2e0b9e6dd8d47610715f979479406834129e3",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold9_scale_mean.npz": "9bde6d7235ff0d5366fb67c25c993b2c53a9e7527686c857ca892bb2e0f442c4",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold9_technical_half.npz": "8ca3379d02db0b468a93cf91e01f66d9b4faaa1b39bf58ad96e94f432dabc44a",
+    "codex_outputs/oracle_frozen_procedure_parity_v1/forecasts/fold9_technical_scaled.npz": "016e42986bb15ee242d0eafa1c7d5a1aa186e6a2426bb93214811a8a973245ac"
+  },
+  "loaded_price_cutoff_exclusive": "2023-04-16T13:45:00+00:00",
+  "old_source_y_exact_all40_forecasts": true,
+  "own_artifact_types": {
+    "calibration": 24,
+    "forecasts": 40,
+    "models": 24,
+    "targets": 96,
+    "traces": 80
+  },
+  "preflight_sha256": "4dcf2dacf2ca6a43d23d90ffc0c8cd4d8bdfd3be6015978e3a98baae221a86ae",
+  "raw_spot_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+  "registration_sha256": "886f7a1a4fe494f7c5131ba6eae6384cd9d1ae64d048fecbabd87247c3d667f5",
+  "results_sha256": "c19b772e4f53b5a749839553b82c439ef4684a2ec9efe523464c533e8beed366",
+  "scope": "read-only immutable source and data-only replacement support audit; no new policy/forecast fitting/economic scores",
+  "source_config_sha256": "f90c2499c388abe7d260b4a979ad66e9b0ffb422237defcf96954c50dec2533e",
+  "source_revision": "f28412454deaada9cb81fabdceb0e853e451a876",
+  "source_root": "codex_outputs/oracle_frozen_procedure_parity_v1",
+  "totals": {
+    "bars": 70080,
+    "fallback_eligible": 332,
+    "inference": 2586,
+    "inference_kept_learned": 12,
+    "inference_nonreplacement_endpoint": 8,
+    "inference_nonreplacement_future_gap": 4,
+    "learned_action_eligible": 2586,
+    "missing_current_open": 2,
+    "replacement_score": 2574,
+    "scheduled": 2920,
+    "scored_missing_current_open": 0,
+    "scored_zero_realized_variance": 0
+  },
+  "verified_all_artifacts": 1328,
+  "verified_ancestor_artifacts": 1064,
+  "verified_own_artifacts": 264
+}

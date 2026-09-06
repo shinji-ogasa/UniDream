@@ -1,0 +1,31 @@
+{
+  "config_sha256": "f10c14e65c9be4edd1d56c303dce9262a79f22fe5c5a3686454b66e6202512d4",
+  "full_tests": {
+    "command": "uv run python -m unittest discover -s tests -v",
+    "count": 612,
+    "log_sha256": "b0595f6116eac24736a9ce1f44abecf184baee4a80de920c94794615c156050a",
+    "seconds": 59.254,
+    "status": "OK"
+  },
+  "generated_artifacts_expected": 400,
+  "helper_synthetic_tests": 16,
+  "hindsight_traces_expected": 128,
+  "hybrid_forecast_vectors_expected": 48,
+  "matched_helper_sha256": "e339698814a66139246f34aa9a02b83f5aa16ad8051338a62444f6a12d1769e8",
+  "models_fitted": 0,
+  "new_counterfactual_policy_run": false,
+  "policy_rows_expected": 224,
+  "preflight_sha256": "ae66338b39253f88e536729948b96b9eb57abe9ba409cbfc074f339be688f4e7",
+  "read_only_review": {
+    "critical_issues_remaining": 0,
+    "final_config_bindings_verified_by_root": true,
+    "reviewer": "primary_research",
+    "reviewer_verified_final_config_sha": false,
+    "source_semantics_reviewed": true
+  },
+  "registered_source_bindings_match": true,
+  "root_synthetic_tests": 7,
+  "schema": "oracle-information-decomposition-pre-outcome-verification-v1",
+  "source_audit_sha256": "4f4f6c4380fe86cd6d8f2463aefaa53d93c1d83d3ce7eeeabe0ba8655d350856",
+  "target_vectors_expected": 224
+}
