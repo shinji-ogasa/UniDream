@@ -698,3 +698,86 @@ candidate selection, retain all failures and simple constant/rule controls,
 and do not tune a new weight, fallback rule or regime threshold from test15–24.
 Architecture optimization remains deferred. No independent/prospective or
 high-probability result has been established; the broader goal remains active.
+
+## Twelfth completed stage: matched ML information and RL hindsight decomposition
+
+This stage is **completed and independently audited**. Read
+`docs/experiments/oracle_information_decomposition_results_20260906.md` and the
+self-contained evidence in `oracle_information_decomposition_evidence_20260906`.
+Do not restart `codex_outputs/oracle_information_decomposition_v1`.
+
+- Source/config/preflight registration commit
+  `d3b25734a34915049a327256bd9f99cd9aea8336`, pushed before real execution.
+  Config SHA `f10c14e65c9be4edd1d56c303dce9262a79f22fe5c5a3686454b66e6202512d4`;
+  preflight SHA `ae66338b39253f88e536729948b96b9eb57abe9ba409cbfc074f339be688f4e7`.
+- New immutable modules are `oracle_information_interventions.py`,
+  `oracle_information_decomposition.py`, `oracle_matched_hindsight.py`.
+  Matched helper SHA
+  `e339698814a66139246f34aa9a02b83f5aa16ad8051338a62444f6a12d1769e8`.
+  All23 source bindings remain unchanged. Original development validation5–12
+  (original test4–11), April2021–April2023 only; no additional-test15–24
+  outcomes used, no data acquisition or fit, no causal candidates or selection.
+- 28policies =12frozen causal controls +12hybrid substitutions +4matched RL
+  beams. Real run session27200 terminalexit0,8folds,224economic rows,
+  448cost accounts,48hybrid forecasts,224targets,128traces,400new artifacts.
+  Runtime registration byte SHA
+  `8e25d7743e49e9df6269cb898808ee1fde691a52d56003c69b52ce9497560fc1`;
+  results SHA `f5597dee653a45ee612766111da578a868969a51211f923493763b4059a18ac7`.
+  The embedded registration hash is canonical-content, not that file byte hash.
+- ML hybrids retain2586inference/2574replacement/12learned-remainder rows per
+  mean stream and332fallback opportunities plus2missing-current-open rows.
+  Return replacement is realized h24 log return; risk is realized h24
+  volatility squared, without floor/factor24/annualization/reapplying half.
+  The two realized targets are not conditional expectation/variance. Missing
+  availability never uses future score support. Every controller owns its
+  cash/units state and traces are explicitly hindsight-only, teacher-disabled.
+- Return-only hold has AlphaEx/MaxDDDelta **+23.198/−11.805pt** base and
+  **+21.767/−11.604pt** stress; return-only fallback +26.011/−11.835 and
+  +24.547/−11.599. Relative to each own learned half, all4return substitutions
+  add **+19.585 to +25.004pt AlphaEx** base. Risk-only additions are much
+  smaller: **+0.370 to +0.587pt**. These are intervention effects on reused
+  development data, not learned predictive/economic improvements.
+- Adding realized risk to realized return slightly worsens both aggregate
+  metrics: AlphaEx−0.070 to−0.126pt, DDdelta+0.262 to+0.288pt. Preserve that
+  adverse result; do not claim more Oracle risk information further improves.
+  Technical/perpetual return/both target paths happened to match in32paired
+  folds after running; all registered variants remain separate and audited.
+- RL beam32 uses matched own-open dynamic intents, fixed hold/fallback,
+  next-open fills and base-objective `log NAV − penalty * MaxDD`, penalties0/1.
+  Base AlphaEx/DDdelta: hold0 +36.775/−16.266; hold1 +35.380/−17.220;
+  fallback0 +37.050/−13.502; fallback1 +36.263/−13.936pt. All32 searches prune
+  distinct branches; no incumbent selected. Each output is a feasible lower
+  bound on maximum hindsight objective for its action set, not global optimum
+  or a causal-performance upper bound. Stress reuses exact base intents.
+- Penalty1 has worse objective than penalty0's feasible path when both are
+  scored under penalty1 in4/8quarters for each rule. This explicitly confirms
+  real finite-search suboptimality. No post-result envelope/replacement chosen.
+  RL has a different horizon/objective from local h24 utility, so its gap from
+  ML hybrids cannot identify a decision-only bottleneck.
+- Full612testsOK59.254s before outcomes. Independent scalar audit passed
+  1328ancestor/400new artifacts,2159binding checks/1787distinct files;
+  all448account Alpha/DD/turnover/fees/borrow/trades errors0, mean-exposure
+  error2.22e−16. All96hybrid paths33024decisions and32RL paths11008decisions
+  plus32rule-matched incumbent accounts match;48substitutions/96controls/
+  1440summary scalars exact. Independent h24actual error≤3.96e−15.
+  No canonical planner/simulator/metrics/search imports; finite search
+  expansion itself not independently rerun. Scalar audit SHA
+  `f3de0fa4d69da2e615a839bfb90ffc9d9852a42e5a0a775d4d5b9f1747b6c343`.
+- Separate Decimal60 summary audit all28policies/12swaps, maxdifference
+  3.88e−15 turnover, exact RL objectives,446direct bindings. It does not
+  independently rehash all ancestors. Audit SHA
+  `b1f486c3147e86835ed93bb07817b761ff8333772df673239043330b1a753cf6`.
+
+The matched diagnostic supports studying **causal return information and
+reliability before model architecture**. It does not tell whether existing
+technical indicators can supply that information or whether features, Ridge
+specification or calibration is the cause. Next stage should predeclare a
+small original-development-only return-information study, with matched support,
+strong constant/simple causal baselines and separately assessed predictive and
+economic outcomes. Do not reuse the later test15–24 results for tuning or
+select a common_robust/half/fallback winner from them. All4frozen half candidates
+still fail the additional-window trend-wide conditions. 158explored causal
+names, all locks, missing rules and architecture remain unchanged. No causal
+strongest model, independent confirmation, prospective receipt proof or high
+probability of generalization has been established. The goal remains active;
+no live real run remains and no scheduled automation was created.
