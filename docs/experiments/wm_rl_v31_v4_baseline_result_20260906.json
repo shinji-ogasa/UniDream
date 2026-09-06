@@ -1,0 +1,33 @@
+{
+  "schema": "wm-rl-native-baseline-diagnostic-v1",
+  "source_commit": "66d8e6e",
+  "source_worktree": "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905",
+  "run_id": "076c50b3e73d19b93bbf",
+  "status": "completed_exit0",
+  "seed": 7,
+  "wm_steps": 700,
+  "bc_epochs": 5,
+  "ac_steps": 300,
+  "fold": 8,
+  "train_start": "2020-01-19T17:00:00Z",
+  "validation_start": "2022-01-19T17:00:00Z",
+  "test_start": "2022-04-19T17:00:00Z",
+  "test_end": "2022-07-19T17:00:00Z",
+  "native_test_stdout_rounded": {
+    "alpha_ex_pt": -0.33,
+    "maxdd_delta_pt": 0.36
+  },
+  "minimum_mean_signs_met": false,
+  "test_status": "report-only; not a selector for the new screen",
+  "accounting": "legacy same-index logreturn times exposure; not new delayed-open cash-unit accounting",
+  "target_gradient_coverage": "all horizon64 heads zero valid targets under train_sequence64",
+  "log_sha256": "1be045be12a9c6235e7c0bc2353356cf2cc05fedee8f3ca82a48c5760f8a5087",
+  "artifact_hashes": {
+    "resolved_config.yaml": "f359eca3f4ecd1efd4b1f71dbd57e64a1046bf0270d4e42d3b6afe5cb68bcf24",
+    "run_manifest.json": "ee995cafe596678394b03fd018cf0527ea22f4ea61b3e279ca75f16aff49e5c1",
+    "fold_8/bc_actor.pt": "6474348eecae33490e7613e51cbdae111e60c5edb83f2db278ed6232982ae710",
+    "fold_8/world_model.pt": "3903a8eb4ec97abd869029730071c122ae869807f15f7dd2db4c6614aea6f642",
+    "fold_8/target_gradient_coverage.jsonl": "d402b43a0233c1aac84294f39e37759d3b7a3f3c81d422f6d884b6b6d3cbb3b5",
+    "fold_8/ac.pt": "6d890c1041f60d5fe7ce4f7753714d77b06245f80666797cd6d94fe4a6ffa3eb"
+  }
+}

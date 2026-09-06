@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "unit_tests": 872,
+  "seconds": 60.94,
+  "log_path": "/tmp/wm-rl-market31-prerun-full-tests.log",
+  "log_sha256": "cd91cf1181b71f104b6438799eabf231091a5e887a7945e4821c0a6c083ece48",
+  "diff_check": "passed",
+  "legacy_v31_loader_smoke": "docs/experiments/wm_rl_legacy_loader_smoke_20260906.json",
+  "real_market_model_fits_before_freeze": 0,
+  "baseline_is_separate_legacy_contract": true
+}

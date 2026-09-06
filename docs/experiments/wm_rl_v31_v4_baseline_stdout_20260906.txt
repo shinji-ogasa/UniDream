@@ -1,0 +1,147 @@
+UniDream Training | BTCUSDT 15m | 2018-01-01 → 2024-01-01
+Device: mps | Seed: 7 | Pipeline: WM -> BC -> AC -> Test
+Costs: profile=default | spread=3.00bps fee=3.00bps slip=1.00bps => one-way Δpos=1 cost=5.50bps
+
+[Data] Loading cached features...
+  Cached: (173111, 17) | obs_dim=17 | quality_status=v4_verified
+[Data] WFO splits...
+  14 folds
+  Running configured folds: [8]
+  Run ID: 076c50b3e73d19b93bbf | data sha256=a2d9375e70ef
+
+============================================================
+Fold 8: train 2020-01-19 → 2022-01-19 | test 2022-04-19 → 2022-07-19
+============================================================
+
+[15:27:14] [Step 1] Hindsight Oracle DP...
+  Oracle computed: 52037 steps, mean value=36.7454
+  Oracle objective: excess_bh (benchmark=+1.00)
+  Oracle dist: long=50% short=50% flat=0% mean=-0.377 switches=797 avg_hold=65.3b turnover=995.00
+  Signal teacher: horizons=(4, 16, 64) floor=+0.00 scale=1.20
+  Transition relabel: short=16% bench=71% ow=12% mean_adv=0.001725 recovery_rate=68.6%
+  Oracle aim dist: long=12% short=19% flat=68% mean=-0.033 switches=9702 avg_hold=5.4b turnover=858.61
+[Regime] Feature-stress tri regime built, regime_dim=3
+
+[15:27:15] [Step 2] World Model Training...
+[15:27:58] [WM] Step 75/700 | Loss: 6.4324 | BaseLoss: 0.3919 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.4630 | Vol: 0.0187 | DD: 0.2438 | Crash: 0.9109 | DDEx: 0.1054 | PosU: 0.0000 | OWA: 0.0633 | Rec: 0.0253
+       Val Loss: 6.3175 ★ best
+[15:28:56] [WM] Step 150/700 | Loss: 6.5637 | BaseLoss: 0.3739 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.4684 | Vol: 0.0274 | DD: 0.2920 | Crash: 0.8748 | DDEx: 0.1562 | PosU: 0.0000 | OWA: 0.0717 | Rec: 0.0245
+       Val Loss: 6.2329 ★ best
+[15:29:52] [WM] Step 225/700 | Loss: 6.1774 | BaseLoss: 0.3590 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.4591 | Vol: 0.0212 | DD: 0.2181 | Crash: 0.8911 | DDEx: 0.0882 | PosU: 0.0000 | OWA: 0.0607 | Rec: 0.0238
+       Val Loss: 6.1997 ★ best
+[15:30:47] [WM] Step 300/700 | Loss: 6.8516 | BaseLoss: 0.3570 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.5258 | Vol: 0.0261 | DD: 0.2953 | Crash: 0.9322 | DDEx: 0.1441 | PosU: 0.0000 | OWA: 0.0761 | Rec: 0.0254
+       Val Loss: 6.1968 ★ best
+[15:31:43] [WM] Step 375/700 | Loss: 7.0456 | BaseLoss: 0.3678 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.4853 | Vol: 0.0224 | DD: 0.3084 | Crash: 0.9631 | DDEx: 0.1576 | PosU: 0.0000 | OWA: 0.0722 | Rec: 0.0255
+       Val Loss: 6.1983 (no improve 1/10)
+[15:32:38] [WM] Step 450/700 | Loss: 5.2892 | BaseLoss: 0.3570 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3364 | Vol: 0.0138 | DD: 0.1600 | Crash: 0.7999 | DDEx: 0.0493 | PosU: 0.0000 | OWA: 0.0404 | Rec: 0.0229
+       Val Loss: 6.1861 ★ best
+[15:33:33] [WM] Step 525/700 | Loss: 6.8895 | BaseLoss: 0.3599 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.5094 | Vol: 0.0328 | DD: 0.3428 | Crash: 0.8698 | DDEx: 0.2056 | PosU: 0.0000 | OWA: 0.0858 | Rec: 0.0233
+       Val Loss: 6.1965 (no improve 1/10)
+[15:34:29] [WM] Step 600/700 | Loss: 5.8511 | BaseLoss: 0.3534 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.4292 | Vol: 0.0192 | DD: 0.2411 | Crash: 0.7970 | DDEx: 0.1221 | PosU: 0.0000 | OWA: 0.0623 | Rec: 0.0244
+       Val Loss: 6.1829 ★ best
+[15:35:24] [WM] Step 675/700 | Loss: 5.7137 | BaseLoss: 0.3561 | Disagree: 0.0000 | IDM: 0.0000 | Ret: 0.3896 | Vol: 0.0167 | DD: 0.2008 | Crash: 0.8337 | DDEx: 0.0752 | PosU: 0.0000 | OWA: 0.0523 | Rec: 0.0234
+       Val Loss: 6.1981 (no improve 1/10)
+[WM] Checkpoint saved: checkpoints/wm_rl_v31_v4_baseline_fold8_20260906_s007/fold_8/world_model.pt
+[WM] Restored best model (val loss: 6.1829)
+[WM] Checkpoint saved: checkpoints/wm_rl_v31_v4_baseline_fold8_20260906_s007/fold_8/world_model.pt
+[WM] Target/gradient coverage artifact: checkpoints/wm_rl_v31_v4_baseline_fold8_20260906_s007/fold_8/target_gradient_coverage.jsonl blocked=idm:1(zero_valid_targets),return:64(zero_valid_targets),vol:64(zero_valid_targets),drawdown:64(zero_valid_targets),crash:64(zero_valid_targets),drawdown_excess:64(zero_valid_targets),overweight_advantage:64(zero_valid_targets),recovery:64(zero_valid_targets),position_utility:64(zero_valid_targets),position_utility:64(zero_valid_targets),position_utility:64(zero_valid_targets),position_utility:64(zero_valid_targets),position_utility:64(zero_valid_targets),position_utility:64(zero_valid_targets),position_utility:64(zero_valid_targets)
+[15:36:07] [PredictiveState] enabled: dim=42 heads=return,vol,drawdown,crash,drawdown_excess,position_utility,overweight_advantage,recovery standardize=True scale=1
+
+[15:36:07] [Step 3] BC Pre-training...
+[BC] overlay teacher: mean=+0.0127 p10=+0.0000 p50=+0.0233 p90=+0.0258 active=53.6% active05=0.0% remapped=70.0%
+[BC] Epoch 1/5 | Loss: 0.0491
+[BC] Epoch 2/5 | Loss: 0.0462
+[BC] Epoch 3/5 | Loss: 0.0460
+[BC] Epoch 4/5 | Loss: 0.0460
+[BC] Epoch 5/5 | Loss: 0.0459
+[AC] overlay teacher: mean=+0.0127 p10=+0.0000 p50=+0.0233 p90=+0.0258 active=53.6% active05=0.0% remapped=70.0%
+
+[15:36:13] [Step 4] Imagination AC Fine-tuning...
+[AC] BC-only val score: alpha=-0.11pt sharpeΔ=-0.006 score=-104.017 long=0% short=0% flat=100%
+  BC val dist: long=0% short=0% flat=100% mean=+0.016 switches=15 avg_hold=576.0b turnover=0.74
+  BC val: TotalRet=-0.015  AlphaExcess=-0.11pt  long=-0.0145  short=+0.0000  cost=0.0010
+  Oracle val dist: long=11% short=21% flat=68% mean=-0.043 switches=1532 avg_hold=5.6b turnover=137.25
+[15:38:21] [AC] Step 75/300 | Actor: -0.1917 | AC: 0.1073 | BC: -1.0254 | Critic: 0.4732 | α=0.265 | rb_dd=0.01353 risk=0.000 edge=+0.006 exp=1.004
+[15:39:55] [AC] Step 150/300 | Actor: -0.1273 | AC: 0.0684 | BC: -1.0338 | Critic: 0.5887 | α=0.178 | rb_dd=0.01353 risk=0.000 edge=+0.080 exp=1.006
+[AC] Checkpoint saved: checkpoints/wm_rl_v31_v4_baseline_fold8_20260906_s007/fold_8/ac.pt (step=150)
+[AC] Train dist: long=0% short=0% flat=100% mean=+0.013 switches=23 avg_hold=217.4b turnover=1.17
+[AC] Val Score: alpha=-0.06pt sharpeΔ=-0.003 score=-113.621 long=0% short=0% flat=100%
+[15:42:03] [AC] Step 225/300 | Actor: -0.0630 | AC: 0.0394 | BC: -1.0833 | Critic: 0.6060 | α=0.092 | rb_dd=0.01353 risk=0.000 edge=+0.009 exp=1.003
+[15:43:38] [AC] Step 300/300 | Actor: -0.1816 | AC: -0.0951 | BC: -1.8707 | Critic: 0.5795 | α=0.050 | rb_dd=0.01353 risk=0.000 edge=-0.069 exp=1.002
+[AC] Checkpoint saved: checkpoints/wm_rl_v31_v4_baseline_fold8_20260906_s007/fold_8/ac.pt (step=300)
+[AC] Train dist: long=0% short=0% flat=100% mean=+0.013 switches=6 avg_hold=833.3b turnover=0.30
+[AC] Val Score: alpha=-0.13pt sharpeΔ=-0.007 score=-103.825 long=0% short=0% flat=100% ★ best
+[AC] Restoring best val checkpoint (Sharpe=-103.825)
+  [ValAdj] scale=0.700 adv=0.00 alpha=-0.14pt sharpeΔ=-0.008 maxddΔ=+0.21pt barwin=50.4% periodwin=0.0% score=-524.622 long=0% short=0% flat=100% turnover=0.52 M2=miss reject=win<35%
+  [ValAdj] scale=1.000 adv=0.00 alpha=-0.13pt sharpeΔ=-0.007 maxddΔ=+0.21pt barwin=50.3% periodwin=0.0% score=-525.097 long=0% short=0% flat=100% turnover=0.69 M2=miss reject=win<35%
+  [ValAdj] scale=1.300 adv=0.00 alpha=-0.12pt sharpeΔ=-0.006 maxddΔ=+0.20pt barwin=50.3% periodwin=33.3% score=-518.840 long=0% short=0% flat=100% turnover=0.85 M2=miss reject=win<35%
+  [ValAdj] selected scale=0.700 adv=0.00 (default=scale=1.000 adv=0.00) alpha=-0.14pt sharpeΔ=-0.008 maxddΔ=+0.21pt barwin=50.4% periodwin=0.0% score=-524.622 long=0% short=0% flat=100% turnover=0.52 M2=miss reject=win<35%
+
+[15:45:18] [Step 5] Test Backtest...
+  Sharpe:   -2.886
+  Sortino:  -4.041
+  MaxDD:    -0.590
+  Calmar:   -1.532
+  TotalRet: -0.4417
+  AlphaEx:  -0.33 pt final
+  SharpeΔ:  -0.007
+  MaxDDΔ:   +0.36 pt
+  WinRate:  50.4%
+  PeriodWin:33.3%
+  Capture:  up=1.010 down=1.010 under_streak=13
+  Score:    M2=MISS stretch=miss alpha=-0.33pt sharpeΔ=-0.007 maxddΔ=+0.36pt barwin=50.4% periodwin=33.3% guard=pass
+  PnL attr: long=-0.5820  short=+0.0000  cost=0.0008  net=-0.5828
+  Test dist: long=0% short=0% flat=100% mean=+0.011 switches=10 avg_hold=873.6b turnover=0.50
+
+[Eval] Overfitting Diagnostics (simplified)...
+  PBO (simplified): 0.5000 (< 0.5 is better)
+  Sharpe t-stat (DSR, n_trials=1): -118.6902 (> 0 is better)
+
+[Eval] Regime Analysis...
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/cluster/_kmeans.py:243: RuntimeWarning: divide by zero encountered in matmul
+  current_pot = closest_dist_sq @ sample_weight
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/cluster/_kmeans.py:243: RuntimeWarning: overflow encountered in matmul
+  current_pot = closest_dist_sq @ sample_weight
+/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/.venv/lib/python3.12/site-packages/sklearn/cluster/_kmeans.py:243: RuntimeWarning: invalid value encountered in matmul
+  current_pot = closest_dist_sq @ sample_weight
+Model is not converging.  Current: 37059.62005851475 is not greater than 37059.658356232554. Delta is -0.038297717801469844
+============================================================
+Regime-based Backtest Report
+============================================================
+
+Regime Statistics (returns):
+ regime      mean      std    sharpe
+      0 -0.000331 0.009495 -0.034896
+      1 -0.000044 0.003154 -0.013791
+      2  0.000003 0.003185  0.000929
+
+Backtest Metrics by Regime:
+
+  Regime 0 (13.5% of bars, 1181 bars):
+    Sharpe:    -6.573
+    Sortino:   -9.242
+    MaxDD:     -0.459
+    Calmar:    -2.178
+    TotalRet:  -0.3224
+
+  Regime 1 (43.2% of bars, 3777 bars):
+    Sharpe:    -4.268
+    Sortino:   -5.894
+    MaxDD:     -0.290
+    Calmar:    -3.073
+    TotalRet:  -0.2115
+
+  Regime 2 (43.2% of bars, 3778 bars):
+    Sharpe:    0.767
+    Sortino:   1.071
+    MaxDD:     -0.150
+    Calmar:    3.378
+    TotalRet:  0.0451
+
+============================================================
+Summary
+============================================================
+  Fold 8: Sharpe=-2.886, MaxDD=-0.590, Calmar=-1.532, TotalRet=-0.4417 | M2=MISS stretch=miss alpha=-0.33pt sharpeΔ=-0.007 maxddΔ=+0.36pt barwin=50.4% periodwin=33.3% guard=pass
+  Mean Sharpe: -2.886
+  Aggregate M2: M2=MISS stretch=miss alpha=-0.33pt sharpeΔ=-0.007 maxddΔ=+0.36pt barwin=50.4% periodwin=33.3% guard=pass
+  PBO (simplified): 0.5000 | Sharpe t-stat: -118.6902

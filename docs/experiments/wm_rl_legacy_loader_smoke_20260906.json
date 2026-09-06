@@ -1,0 +1,12 @@
+{
+  "wm_loaded": true,
+  "wm_reward_mode": "excess_bh",
+  "actor_loaded": true,
+  "fixture_rows": 64,
+  "all_positions_finite": true,
+  "position_bounds": [
+    1.000037670135498,
+    1.0017424821853638
+  ],
+  "smoke_only_not_historical_parity": true
+}

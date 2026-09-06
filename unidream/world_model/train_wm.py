@@ -17,6 +17,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from unidream.actor_critic.market_reward import market_log_return_target
 from torch.utils.data import DataLoader
 
 from unidream.data.dataset import SequenceDataset
@@ -318,6 +320,23 @@ class WorldModelTrainer:
         reward_cfg = cfg.get("reward", {})
         self.reward_mode = wm_cfg.get("reward_mode", reward_cfg.get("mode", "absolute"))
         self.benchmark_position = reward_cfg.get("benchmark_position", 1.0)
+        if self.reward_mode == "market_log_return":
+            if self.action_context != "actionless":
+                raise ValueError("market_log_return requires action_context: actionless")
+            if isinstance(self.benchmark_position, bool) or self.benchmark_position != 1.0:
+                raise ValueError("market_log_return requires benchmark_position: 1.0")
+            if isinstance(self.reward_scale, bool) or not isinstance(self.reward_scale, (int, float)) \
+                    or not np.isfinite(self.reward_scale) or self.reward_scale <= 0:
+                raise ValueError("market_log_return requires a positive reward_scale")
+        self.default_context_action = (
+            self.benchmark_position
+            if self.reward_mode in {"excess_bh", "market_log_return"} else 0.0
+        )
+        self.market_reward_contract = (
+            {"mode": "market_log_return", "action_context": "actionless",
+             "context_action": 1.0, "target": "actual_raw_market_log_return"}
+            if self.reward_mode == "market_log_return" else None
+        )
 
         # Auxiliary heads（スケール > 0 の場合のみ構築）
         z_dim = ensemble.get_z_dim()
@@ -889,7 +908,15 @@ class WorldModelTrainer:
 
         Returns:
             net_returns: (B, T) コスト控除後リターン
+
+        Opt-in market_log_return instead returns the finite raw market target
+        unchanged; actions and costs are analytically applied by the actor
+        account during imagination, not embedded in the market-WM target.
         """
+        if self.reward_mode == "market_log_return":
+            # Exogenous market target: never infer returns from a fixed action,
+            # apply costs, or inspect hindsight/unused action values here.
+            return market_log_return_target(raw_returns)
         positions = actions.squeeze(-1)                             # (B, T)
 
         # 前ステップポジション（初期 = 0.0 = フラット）
@@ -1244,7 +1271,7 @@ class WorldModelTrainer:
                 else:
                     actions = torch.full(
                         (*obs.shape[:2], 1),
-                        fill_value=self.benchmark_position if self.reward_mode == "excess_bh" else 0.0,
+                        fill_value=self.default_context_action,
                         dtype=torch.float32,
                         device=self.device,
                     )
@@ -1260,6 +1287,8 @@ class WorldModelTrainer:
                     raw_returns = raw_returns.to(self.device)   # (B, T)
                     rewards = self._compute_net_returns(actions, raw_returns)
                 else:
+                    if self.reward_mode == "market_log_return":
+                        raise ValueError("market_log_return requires actual raw market returns")
                     rewards = torch.zeros(obs.shape[:2], device=self.device)
 
                 # dones はゼロ埋め（継続的トレーディングでは done=False が多い）
@@ -1603,7 +1632,7 @@ class WorldModelTrainer:
                 break
             obs = batch["obs"].to(self.device)
             obs = torch.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)  # training と同一処理
-            default_action = self.benchmark_position if self.reward_mode == "excess_bh" else 0.0
+            default_action = self.default_context_action
             batch_actions = batch.get("actions") if self.use_dataset_actions else None
             actions = (
                 batch_actions
@@ -1620,9 +1649,12 @@ class WorldModelTrainer:
             raw_returns = batch.get("returns")
             if raw_returns is not None:
                 raw_returns = raw_returns.to(self.device)
-                raw_returns = torch.nan_to_num(raw_returns, nan=0.0, posinf=0.0, neginf=0.0)
+                if self.reward_mode != "market_log_return":
+                    raw_returns = torch.nan_to_num(raw_returns, nan=0.0, posinf=0.0, neginf=0.0)
                 rewards = self._compute_net_returns(actions, raw_returns)
             else:
+                if self.reward_mode == "market_log_return":
+                    raise ValueError("market_log_return requires actual raw market returns")
                 rewards = torch.zeros(obs.shape[:2], device=self.device)
 
             dones = torch.zeros_like(rewards)
@@ -1812,7 +1844,7 @@ class WorldModelTrainer:
             else:
                 act_t = torch.full(
                     (1, end - ctx_start, 1),
-                    fill_value=self.benchmark_position if self.reward_mode == "excess_bh" else 0.0,
+                    fill_value=self.default_context_action,
                     dtype=torch.float32,
                     device=self.device,
                 )
@@ -1847,6 +1879,8 @@ class WorldModelTrainer:
             "global_step": self.global_step,
             "checkpoint_metadata": self.checkpoint_metadata,
         }
+        if self.market_reward_contract is not None:
+            ckpt["market_reward_contract"] = self.market_reward_contract
         if self.idm_head is not None:
             ckpt["idm_head"] = self.idm_head.state_dict()
         if self.return_head is not None:
@@ -1893,6 +1927,10 @@ class WorldModelTrainer:
                 "diagnostics."
             )
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
+        if self.reward_mode == "market_log_return" and (
+            ckpt.get("market_reward_contract") != self.market_reward_contract
+        ):
+            raise ValueError("refusing legacy or mismatched WM reward contract in market mode")
         self.ensemble.load_state_dict(ckpt["ensemble"])
         try:
             self.optimizer.load_state_dict(ckpt["optimizer"])

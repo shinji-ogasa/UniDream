@@ -33,6 +33,11 @@ import torch.nn.functional as F
 
 from unidream.actor_critic.actor import Actor
 from unidream.actor_critic.critic import Critic, RewardEMANorm
+from unidream.actor_critic.market_reward import (
+    MarketExecution,
+    compound_drawdown,
+    market_portfolio_step,
+)
 from unidream.device import resolve_device
 from unidream.experiments.checkpointing import atomic_torch_save
 from unidream.eval.policy_stats import action_stats as _action_stats
@@ -101,6 +106,54 @@ class ImagACTrainer:
         cfg = cfg or {}
         ac_cfg = cfg.get("ac", {})
         reward_cfg = cfg.get("reward", {})
+        wm_cfg = cfg.get("world_model", {})
+        self.market_reward_mode = (
+            wm_cfg.get("reward_mode", reward_cfg.get("mode", "absolute")) == "market_log_return"
+        )
+        self.market_execution: MarketExecution | None = None
+        self.market_ignore_done = False
+        self.market_reward_contract = None
+        if self.market_reward_mode:
+            # The old action-dependent WM objective remains untouched.  This
+            # opt-in path has a different, explicit physical reward contract.
+            from unidream.world_model.train_wm import world_model_action_context
+
+            if world_model_action_context(cfg) != "actionless":
+                raise ValueError("market_log_return requires action_context: actionless")
+            benchmark = reward_cfg.get("benchmark_position", 1.0)
+            if isinstance(benchmark, bool) or benchmark != 1.0:
+                raise ValueError("market_log_return requires benchmark_position: 1.0")
+            if str(ac_cfg.get("reward_objective", "legacy")).lower() not in {
+                "benchmark_absolute_constraint", "absolute_bh_constraint", "final_metric"
+            }:
+                raise ValueError("market_log_return requires benchmark_absolute_constraint")
+            if cfg.get("data", {}).get("interval", "15m") != "15m":
+                raise ValueError("market_log_return supports only the 15m execution contract")
+            costs = cfg.get("costs", {})
+            rates = [costs.get("fee_rate", .0003), costs.get("spread_bps", 3.0),
+                     costs.get("slippage_bps", 1.0)]
+            if any(isinstance(x, bool) or not isinstance(x, (int, float))
+                   or not np.isfinite(x) or x < 0 for x in rates):
+                raise ValueError("market execution costs must be finite nonnegative numbers")
+            self.market_execution = MarketExecution(
+                one_way_cost=rates[0] + rates[1] / 20000 + rates[2] / 10000,
+                borrow_annual=costs.get("borrow_annual", .10),
+                max_step=ac_cfg.get("max_position_step", .08),
+                deadband=ac_cfg.get("market_deadband", .01),
+                position_min=ac_cfg.get("abs_min_position", .50),
+                position_max=ac_cfg.get("abs_max_position", 1.12),
+            )
+            done_scale = wm_cfg.get("done_scale", 1.0)
+            if isinstance(done_scale, bool) or not isinstance(done_scale, (int, float)) \
+                    or not np.isfinite(done_scale) or done_scale < 0:
+                raise ValueError("market done_scale must be finite and nonnegative")
+            self.market_ignore_done = done_scale == 0
+            self.market_reward_contract = {
+                "mode": "market_log_return", "context_action": 1.0,
+                "execution": vars(self.market_execution).copy(),
+                "ignore_done": self.market_ignore_done,
+                "drawdown": "compound_running_maxdd_initial_nav1",
+            }
 
         self.horizon = ac_cfg.get("horizon", 3)
         self.context_len = cfg.get("data", {}).get("seq_len", 64)
@@ -465,6 +518,10 @@ class ImagACTrainer:
         Returns:
             rewards: WM の reward head が予測した net_return（原スケール）
         """
+        if getattr(self, "market_reward_mode", False):
+            return self._market_imagination_rollout(
+                z0, h0, past_zs, past_as, inventory0, regime0, advantage0
+            )
         zs, hs, inventories, acts, log_probs_list, entropies_list, rewards_list, dones_list = [], [], [], [], [], [], [], []
 
         z = torch.nan_to_num(z0, nan=0.0, posinf=0.0, neginf=0.0)
@@ -527,6 +584,144 @@ class ImagACTrainer:
             "last_h": h,
         }
 
+    def _market_imagination_rollout(
+        self, z0, h0, past_zs=None, past_as=None, inventory0=None,
+        regime0=None, advantage0=None,
+    ) -> dict[str, torch.Tensor]:
+        """Market-only WM path plus a persistent, self-financing actor account.
+
+        Initial NAV/price are one, with pre-existing exposure 1+inventory0.
+        The actor receives un-clipped actual exposure after passive drift.
+        Its intent is filled now, then borrowing and a 15m market mark occur.
+        No future actual return or auxiliary label enters this path.
+        """
+        def require_finite(value, name):
+            if not isinstance(value, torch.Tensor) or not value.is_floating_point() \
+                    or not bool(torch.isfinite(value).all()):
+                raise ValueError(f"market rollout {name} must be a finite floating tensor")
+
+        for name, value in (("z0", z0), ("h0", h0), ("past_zs", past_zs),
+                            ("regime0", regime0), ("advantage0", advantage0)):
+            if value is not None:
+                require_finite(value, name)
+        batch = z0.shape[0]
+        if isinstance(self.horizon, bool) or not isinstance(self.horizon, int) or self.horizon <= 0:
+            raise ValueError("market horizon must be a positive integer")
+        if inventory0 is None:
+            inventory = torch.zeros(batch, dtype=z0.dtype, device=z0.device)
+        else:
+            require_finite(inventory0, "inventory0")
+            if inventory0.shape not in {(batch,), (batch, 1), (batch, 4)}:
+                raise ValueError("market inventory0 must have B, B x 1 or B x 4 shape")
+            inventory = (inventory0[:, 0] if inventory0.ndim == 2 else inventory0).detach().to(z0)
+        full_controller = int(getattr(self.actor, "inventory_dim", 1)) == 4
+        controller = inventory.unsqueeze(-1)
+        if full_controller:
+            controller = self.actor.make_controller_state(inventory)
+            if inventory0 is not None and inventory0.shape == (batch, 4):
+                controller = inventory0.detach().to(z0).clone()
+        asset = 1 + inventory
+        cash = 1 - asset
+        if bool((asset < 0).any()):
+            raise ValueError("market rollout cannot begin with short assets")
+        z, h, pzs = z0, h0, past_zs
+        # Ignore any actor/hindsight action values attached to a context.  The
+        # trained market context is fixed B&H at every history and future step.
+        pas = None
+        if pzs is not None:
+            if pzs.ndim != 3 or pzs.shape[0] != batch:
+                raise ValueError("market past_zs must have B x T x Z shape")
+            pas = torch.ones((*pzs.shape[:2], 1), dtype=z0.dtype, device=z0.device)
+        fixed_action = torch.ones(batch, 1, dtype=z0.dtype, device=z0.device)
+        values = {name: [] for name in (
+            "zs", "hs", "inventories", "controller_states", "actions", "log_probs", "entropies",
+            "rewards", "dones", "benchmark_rewards", "market_log_returns",
+            "cash", "asset_values", "nav", "fees", "borrow", "trade_values",
+        )}
+        for _ in range(self.horizon):
+            nav = cash + asset
+            inventory = (asset / nav - 1).detach()
+            controller = controller.clone()
+            controller[:, 0] = inventory
+            target, log_prob, entropy = self.actor.get_action(
+                z, h, inventory=controller, regime=regime0, advantage=advantage0
+            )
+            for name, value in (("target", target), ("log_prob", log_prob), ("entropy", entropy)):
+                require_finite(value, name)
+                if value.shape not in {(batch,), (batch, 1)}:
+                    raise ValueError(f"market {name} must have B or B x 1 shape")
+            with torch.no_grad():
+                # Each decision uses the same fixed context as observed
+                # inference; generated steps replace old rows, not extend it.
+                if pzs is not None:
+                    keep = max(int(self.context_len) - 1, 0)
+                    pzs = pzs[:, -keep:] if keep else pzs[:, :0]
+                    pas = torch.ones((*pzs.shape[:2], 1), dtype=z0.dtype, device=z0.device)
+                result = self.ensemble.imagine_step(z, h, fixed_action, pzs, pas)
+                market_log = result["reward"]
+                require_finite(market_log, "predicted market return")
+                if market_log.shape != (batch,):
+                    raise ValueError("predicted market return must have B shape")
+                # Ensemble.imagine_step subtracts an optional uncertainty term.
+                # Restore the actual mean market-head output for physical price
+                # accounting; uncertainty is not a realized price movement.
+                if "disagreement" in result:
+                    disagreement = result["disagreement"]
+                    require_finite(disagreement, "disagreement")
+                    if disagreement.shape != (batch,) or bool((disagreement < 0).any()):
+                        raise ValueError("invalid market disagreement")
+                    market_log = market_log + float(getattr(self.ensemble, "disagree_scale", 0)) * disagreement
+                elif getattr(self.ensemble, "disagree_scale", 0) != 0:
+                    raise ValueError("market ensemble must expose its subtracted disagreement")
+                account = market_portfolio_step(
+                    cash, asset, target.reshape(batch).detach(), market_log, self.market_execution
+                )
+                benchmark_return = torch.expm1(market_log)
+                require_finite(benchmark_return, "benchmark return")
+                if self.market_ignore_done:
+                    done = torch.zeros_like(market_log)
+                else:
+                    done = result["done"]
+                    require_finite(done, "done")
+                    if done.shape != (batch,) or bool(((done < 0) | (done > 1)).any()):
+                        raise ValueError("market done probabilities must lie in [0, 1]")
+            current_values = {
+                "zs": z, "hs": h, "inventories": inventory,
+                "controller_states": controller,
+                "actions": account["executed_position"] - 1,
+                "log_probs": log_prob.reshape(batch), "entropies": entropy.reshape(batch),
+                "rewards": account["simple_return"], "dones": done,
+                "benchmark_rewards": benchmark_return, "market_log_returns": market_log,
+                "cash": account["cash"], "asset_values": account["asset_value"],
+                "nav": account["nav"], "fees": account["fee"], "borrow": account["borrow"],
+                "trade_values": account["trade_value"],
+            }
+            for name, value in current_values.items():
+                values[name].append(value)
+            if full_controller:
+                # Native duration update, using actual filled exposure change;
+                # passive market drift is not a trade. Match live feedback.
+                filled_delta = torch.where(account["trade_value"] != 0,
+                    account["executed_position"] - (inventory + 1), torch.zeros_like(inventory))
+                next_exposure = account["exposure"]
+                proxy = controller.clone()
+                proxy[:, 0] = next_exposure - 1 - filled_delta
+                updated = self.actor.update_controller_state(proxy, next_exposure.unsqueeze(-1))
+                updated[:, 0], updated[:, 1] = next_exposure - 1, filled_delta
+                eps, scale = self.actor._trade_state_eps(), self.actor._state_hold_scale()
+                updated[:, 2] = torch.where(filled_delta.abs() > eps,
+                    torch.zeros_like(inventory), (controller[:, 2] + 1 / scale).clamp(max=1))
+                updated[:, 3] = torch.where(next_exposure - 1 < -eps,
+                    (controller[:, 3] + 1 / scale).clamp(max=1), torch.zeros_like(inventory))
+                controller = updated.detach()
+            cash, asset = account["cash"], account["asset_value"]
+            for name in ("next_z", "next_h", "past_zs"):
+                require_finite(result[name], name)
+            z, h, pzs = result["next_z"].detach(), result["next_h"].detach(), result["past_zs"].detach()
+            pas = torch.ones((*pzs.shape[:2], 1), dtype=z0.dtype, device=z0.device)
+        return {**{name: torch.stack(items, dim=1) for name, items in values.items()},
+                "last_z": z, "last_h": h}
+
     @torch.no_grad()
     def _benchmark_rollout_rewards(
         self,
@@ -536,6 +731,8 @@ class ImagACTrainer:
         past_as: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Roll out fixed B&H exposure from the same initial states."""
+        if getattr(self, "market_reward_mode", False):
+            raise ValueError("market B&H rewards must come from the shared actor market rollout")
         rewards = []
         z = torch.nan_to_num(z0.detach(), nan=0.0, posinf=0.0, neginf=0.0)
         h = torch.nan_to_num(h0.detach(), nan=0.0, posinf=0.0, neginf=0.0)
@@ -745,22 +942,29 @@ class ImagACTrainer:
     ) -> tuple[torch.Tensor, dict[str, float]]:
         """Final-metric aligned reward using absolute WM rewards.
 
-        Requires ``world_model.reward_mode: absolute``. The objective optimizes
-        B&H-relative log wealth while constraining strategy drawdown against a
-        parallel B&H imagination path.
+        Legacy mode uses absolute WM rewards and a parallel imagination path.
+        Opt-in market mode instead receives actual portfolio simple returns
+        from self-financing accounts on one shared generated market path; its
+        drawdown includes initial NAV1 and is compounded, in fractional units.
         """
         reward_scale = max(float(self.reward_ema.scale), 1e-8)
         horizon = max(1, int(strategy_returns.shape[1]))
-        strategy_log = torch.log1p(strategy_returns.clamp(min=-0.95))
-        benchmark_log = torch.log1p(benchmark_returns.clamp(min=-0.95))
+        if getattr(self, "market_reward_mode", False):
+            strategy_dd = compound_drawdown(strategy_returns).cummax(dim=1).values
+            benchmark_dd = compound_drawdown(benchmark_returns).cummax(dim=1).values
+            strategy_log = torch.log1p(strategy_returns)
+            benchmark_log = torch.log1p(benchmark_returns)
+        else:
+            strategy_log = torch.log1p(strategy_returns.clamp(min=-0.95))
+            benchmark_log = torch.log1p(benchmark_returns.clamp(min=-0.95))
+            strategy_dd = self._compute_drawdown(strategy_log)
+            benchmark_dd = self._compute_drawdown(benchmark_log)
         excess_logwealth = strategy_log - benchmark_log
         rewards = self.logwealth_coef * (excess_logwealth / reward_scale)
         if self.logwealth_coef == 0.0:
             rewards = rewards_norm
 
         cum_excess = excess_logwealth.cumsum(dim=1)
-        strategy_dd = self._compute_drawdown(strategy_log)
-        benchmark_dd = self._compute_drawdown(benchmark_log)
         dd_delta = strategy_dd - benchmark_dd
 
         if self.relative_dd_coef > 0.0:
@@ -1106,6 +1310,7 @@ class ImagACTrainer:
         past_as: Optional[torch.Tensor] = None,
         regime0: Optional[torch.Tensor] = None,
         advantage0: Optional[torch.Tensor] = None,
+        controller_state0: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         """1 ステップの Actor-Critic 更新."""
         B = z0.shape[0]
@@ -1115,6 +1320,14 @@ class ImagACTrainer:
                 inventory0 = inventory0.unsqueeze(-1)
         else:
             inventory0 = torch.zeros(B, 1, dtype=z0.dtype, device=z0.device)
+
+        if controller_state0 is not None:
+            if not getattr(self, "market_reward_mode", False):
+                raise ValueError("controller_state0 is only supported by market_log_return")
+            if controller_state0.shape != (B, 4) or not controller_state0.is_floating_point() \
+                    or not bool(torch.isfinite(controller_state0).all()):
+                raise ValueError("controller_state0 must be finite B x 4")
+            inventory0 = controller_state0.detach().to(z0)
 
         # --- Imagination rollout ---
         rollout = self._imagination_rollout(
@@ -1146,12 +1359,15 @@ class ImagACTrainer:
         reward_diag: dict[str, float] = {}
         benchmark_returns = None
         if self.reward_objective in {"benchmark_absolute_constraint", "absolute_bh_constraint", "final_metric"}:
-            benchmark_returns = self._benchmark_rollout_rewards(
-                z0,
-                h0,
-                past_zs,
-                past_as,
-            )
+            if getattr(self, "market_reward_mode", False):
+                benchmark_returns = rollout["benchmark_rewards"]
+            else:
+                benchmark_returns = self._benchmark_rollout_rewards(
+                    z0,
+                    h0,
+                    past_zs,
+                    past_as,
+                )
             reward_basis = net_returns - benchmark_returns
         else:
             reward_basis = net_returns
@@ -1333,6 +1549,8 @@ class ImagACTrainer:
 
             with torch.no_grad():
                 inventory0 = past_as[:, -1]
+                if getattr(self, "market_reward_mode", False):
+                    inventory0 = inventory0 - self.benchmark_position
                 rollout = self._imagination_rollout(
                     z0, h0, past_zs, past_as, inventory0=inventory0
                 )
@@ -1345,10 +1563,30 @@ class ImagACTrainer:
             last_h = rollout["last_h"]
             B = z0.shape[0]
 
-            self.reward_ema.update(net_returns)
-            rewards_norm = net_returns / self.reward_ema.scale
-            drawdown = self._compute_drawdown(net_returns)
-            rewards_for_ac = rewards_norm - self.beta * drawdown
+            if getattr(self, "market_reward_mode", False):
+                benchmark_returns = rollout["benchmark_rewards"]
+                basis = net_returns - benchmark_returns
+                self.reward_ema.update(basis)
+                rewards_norm = basis / self.reward_ema.scale
+                rewards_for_ac, _ = self._benchmark_absolute_constraint_rewards(
+                    strategy_returns=net_returns, benchmark_returns=benchmark_returns,
+                    next_inventory=rollout["actions"], rewards_norm=rewards_norm,
+                    advantage0=None,
+                )
+                delta = (rollout["actions"] - rollout["inventories"]).abs()
+                flow_change = torch.zeros_like(delta)
+                flow_change[:, 1:] = (delta[:, 1:] - delta[:, :-1]).abs()
+                rewards_for_ac = rewards_for_ac - self.turnover_coef * delta - self.flow_change_coef * flow_change
+                rewards_for_ac = rewards_for_ac - self.active_deviation_coef * rollout["actions"].abs()
+                rewards_for_ac = rewards_for_ac - self.underweight_exposure_coef * F.relu(-rollout["actions"] - self.underweight_floor)
+                underweight = F.relu(-rollout["actions"])
+                rewards_for_ac = rewards_for_ac - self.upside_miss_coef * F.relu(rewards_norm) * underweight
+                rewards_for_ac = rewards_for_ac + self.downside_hedge_coef * F.relu(-rewards_norm) * underweight
+            else:
+                self.reward_ema.update(net_returns)
+                rewards_norm = net_returns / self.reward_ema.scale
+                drawdown = self._compute_drawdown(net_returns)
+                rewards_for_ac = rewards_norm - self.beta * drawdown
 
             zs_flat = zs.reshape(B * self.horizon, -1)
             hs_flat = hs.reshape(B * self.horizon, -1)
@@ -1673,10 +1911,16 @@ class ImagACTrainer:
             "actor_runtime_overrides": self.actor_runtime_overrides,
             "actor_runtime_defaults": self.actor_runtime_defaults,
             "checkpoint_metadata": self.checkpoint_metadata,
+            **({"market_reward_contract": self.market_reward_contract}
+               if getattr(self, "market_reward_contract", None) is not None else {}),
         }, path)
 
     def load(self, path: str) -> None:
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
+        if getattr(self, "market_reward_mode", False) and (
+            ckpt.get("market_reward_contract") != self.market_reward_contract
+        ):
+            raise ValueError("refusing legacy or mismatched AC market reward contract")
         incompatible = self.actor.load_state_dict(ckpt["actor"], strict=False)
         optional_missing = {
             "residual_head_a.weight",
