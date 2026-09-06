@@ -1,0 +1,185 @@
+{
+  "fit_provenance": {
+    "chronology_verified": "ordered positional supports only",
+    "evaluation_labels_used": false,
+    "feature_columns": {
+      "perp_delay0": [
+        "momentum_1",
+        "momentum_7",
+        "momentum_30",
+        "momentum_90",
+        "vol_1",
+        "vol_7",
+        "vol_30",
+        "drawdown_7",
+        "drawdown_30",
+        "drawdown_90",
+        "vol_ratio",
+        "flow_1",
+        "flow_7",
+        "return_coverage_7",
+        "price_coverage_90",
+        "flow_coverage_7",
+        "rsi14",
+        "rsi96",
+        "atr14_relative",
+        "atr96_relative",
+        "channel_position96",
+        "channel_position672",
+        "price_zscore96",
+        "price_zscore672",
+        "downside_upside_log_vol_ratio96",
+        "efficiency_ratio96",
+        "efficiency_ratio672",
+        "weighted_flow96",
+        "weighted_flow672",
+        "perp_weighted_flow24",
+        "perp_weighted_flow96"
+      ],
+      "technical": [
+        "momentum_1",
+        "momentum_7",
+        "momentum_30",
+        "momentum_90",
+        "vol_1",
+        "vol_7",
+        "vol_30",
+        "drawdown_7",
+        "drawdown_30",
+        "drawdown_90",
+        "vol_ratio",
+        "flow_1",
+        "flow_7",
+        "return_coverage_7",
+        "price_coverage_90",
+        "flow_coverage_7",
+        "rsi14",
+        "rsi96",
+        "atr14_relative",
+        "atr96_relative",
+        "channel_position96",
+        "channel_position672",
+        "price_zscore96",
+        "price_zscore672",
+        "downside_upside_log_vol_ratio96",
+        "efficiency_ratio96",
+        "efficiency_ratio672",
+        "weighted_flow96",
+        "weighted_flow672"
+      ]
+    },
+    "feature_counts": {
+      "perp_delay0": 31,
+      "technical": 29
+    },
+    "mask_counts": {
+      "fit": 2167,
+      "inference": 0,
+      "interval": 363,
+      "predict": 724,
+      "scale": 359
+    },
+    "mask_position_sha256": {
+      "fit": "dc8cfdabab7c22137ecbbf8eee1001fe618e85011ca3206d630d5c155f93684f",
+      "inference": "6e87df4883f2022cf3500977680896650df2c70e6b7b5c302a48576ffb976706",
+      "interval": "5cf5db9d1a4476d10ad9bffeae467009928f48292fb9cf781084e8cbc06e826d",
+      "predict": "f4c208a750f4ae3c7b32c98e01cd6277a6a75999d7a3c02147fd29f2ec776a95",
+      "scale": "f518be7182abcb8b0f52ed6bb31efe5db05b94afe94bb234710ad32fd8f1f690"
+    },
+    "mask_ranges": {
+      "fit": [
+        229320,
+        281976
+      ],
+      "inference": null,
+      "interval": [
+        290664,
+        299352
+      ],
+      "predict": [
+        282024,
+        299376
+      ],
+      "scale": [
+        282024,
+        290616
+      ]
+    },
+    "model_selection_performed": false,
+    "parameters": {
+      "half_weight": 0.5,
+      "nominal_coverage": 0.9,
+      "return_ridge_alpha": 100.0,
+      "technical_variance": {
+        "early_stopping": false,
+        "l2_regularization": 10.0,
+        "learning_rate": 0.04,
+        "max_iter": 100,
+        "max_leaf_nodes": 7,
+        "min_samples_leaf": 64,
+        "random_state": 20260905
+      },
+      "threadpool_limit": 2,
+      "variance_floor": 1e-12
+    },
+    "raw_log_variance_clip_count": 0,
+    "schema": "oracle-frozen-forecasts-v1",
+    "timestamp_feature_causality_and_label_completion_verified": false
+  },
+  "model_fit_count": 3,
+  "new_policy_path_count": 0,
+  "new_score_count": 0,
+  "preflight_sha256": "775b1085c7c1b8e3ab5f6ac172f2a6bbcaf9c8ffda927dfe12bf56ad9989c1ec",
+  "reliability_weight_count": 1,
+  "scalar_prediction_max_abs_difference": {
+    "perp_delay0": 3.469446951953614e-18,
+    "technical": 3.469446951953614e-18
+  },
+  "selected_inputs_sha256": "3c7faa81058bc007b115b4110b0de2abc7819b3edd33b11ee2087173e17f25eb",
+  "serialized_prediction_max_abs_difference": {
+    "perp_delay0_mean": 0.0,
+    "technical_mean": 0.0,
+    "technical_variance": 0.0
+  },
+  "source_revision": "a8d2ec176b6361ea50fda2ee5d6e2b695262ca88",
+  "support": {
+    "counts": {
+      "fit": 2167,
+      "inference": 0,
+      "interval": 363,
+      "predict": 724,
+      "scale": 359,
+      "scheduled": 0,
+      "score": 0
+    },
+    "feature_sha256": {
+      "fit": {
+        "perp_delay0": "f23a1bbc6a92633a4b677e624fd4ff98eaebe6af48657ca0641747a15484138d",
+        "technical": "61c3eacc81da2df7130b7e49f3021ed1446e2f5c8a4e89592b2ad19f6d654307"
+      },
+      "predict": {
+        "perp_delay0": "5f9311900ffa7384ebc5fb2c5f24c14bc80713e663f11cd4435b3d52d88156a2",
+        "technical": "dd1c1d7c6fa8821a276dbbe4f03bb8448190e1a22d0f8c1f6befc49962634e21"
+      }
+    },
+    "label_sha256": {
+      "fit": "90266ca7208b75c51345d2048b44fd90486d1cb84093fda93d350c6e73d9ed32",
+      "interval": "fc3a723d4ac47da8e884fd284c3bdde1b89d68ff5552af42752fde3e2389eb37",
+      "scale": "727acf3c6338439dfa9dcb65b923730cae27f9e13d4182841f522cf8c3ae8b04"
+    },
+    "last_label_maturity": {
+      "fit": "2026-01-16T12:15:00+00:00",
+      "interval": "2026-07-16T12:15:00+00:00",
+      "scale": "2026-04-16T12:15:00+00:00"
+    },
+    "mask_sha256": {
+      "fit": "752b0da39d6a04ddfe51c2189a6a7af8c0ef2a4792c6e9f1a9a4ba25adeb67f6",
+      "inference": "7b873280659745330c59efa5471aabc996ae41695ffdf47c2ff48f1e88533c0e",
+      "interval": "c13d77aef3fbe4fe057953a03210388c9ac441f7368fc05a45d3e95edcb9e1fa",
+      "predict": "de812aa89472a21e9ddb6ea6ed4929228ec759d47a57fb9ab19784778ceab546",
+      "scale": "1a0a5a3d56c62e7abd4f83dcdacaf76e6370e994e22d7ccfa0717859fa34e812",
+      "scheduled": "7b873280659745330c59efa5471aabc996ae41695ffdf47c2ff48f1e88533c0e",
+      "score": "7b873280659745330c59efa5471aabc996ae41695ffdf47c2ff48f1e88533c0e"
+    }
+  }
+}

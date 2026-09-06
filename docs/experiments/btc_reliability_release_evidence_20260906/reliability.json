@@ -1,0 +1,11 @@
+{
+  "anchor": -0.0006695958978521661,
+  "crossmoment": 6.967703140567023e-07,
+  "identifiable": true,
+  "innovation_secondmoment": 3.1148625799696112e-06,
+  "mean_d": -1.6887719385882613e-20,
+  "mean_r": -4.578610126603519e-20,
+  "n": 359,
+  "weight": 0.22369215211526283,
+  "weight_case": "interior"
+}

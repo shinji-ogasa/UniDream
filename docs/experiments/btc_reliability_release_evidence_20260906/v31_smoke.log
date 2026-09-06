@@ -1,0 +1,6 @@
+[WM] Checkpoint loaded: /Users/sophie/Documents/UniDream/unidream-space/bundles/current/checkpoints/world_model.pt (step=700)
+n=8641 max_abs_diff=0.0000001192 mean_abs_diff=0.0000000011
+expected_last=1.00632143 actual_last=1.00632143
+injected_fixture_strict_ok=True injected_fixture_max_abs_diff=0.0000001192
+live_default_n=8641 live_default_max_abs_diff=0.0000001192 live_default_mean_abs_diff=0.0000000059 live_default_strict_ok=True
+live_default_advantage_checked=True live_default_advantage_max_abs_diff=0.0 live_default_advantage_strict_ok=True live_default_advantage_ok=True diagnostic_tolerance=2e-05

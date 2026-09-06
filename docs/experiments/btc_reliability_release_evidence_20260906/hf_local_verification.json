@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "bundle_id": "btc-perp-reliability-20260906",
+  "bundle_sha256": "c62287a3f21ad2407b61382648d4c6ceda718cb7bf1c1d5bcc99926dc225abe6",
+  "prediction_fixture": {
+    "rows": 724,
+    "max_absolute_differences": {
+      "technical_raw_mu": 0.0,
+      "perp_delay0_raw_mu": 0.0,
+      "log_variance": 0.0,
+      "mu": 0.0,
+      "variance": 0.0
+    },
+    "scope": "saved pre-cutoff feature matrices to frozen calibrated forecast; no refit or outcome scoring"
+  },
+  "accounting": {
+    "ok": true,
+    "bars": 200,
+    "targets_exact": true,
+    "max_account_difference": 0.0,
+    "fills": 6,
+    "borrow_positive": true,
+    "scope": "synthetic timely event replay; missing opens/closes and borrowing; no live performance"
+  },
+  "raw_archived_feature_fixture": {
+    "ok": true,
+    "event_ts": "2026-07-16T12:00:00+00:00",
+    "closed_rows_per_source": 8641,
+    "fixture_sha256": "e6387633e60645de90969fb5212c55dbdbc7953429c6664d6f4c81a0dbf3d375",
+    "feature_max_absolute_differences": {
+      "technical": 5.7985172219332526e-11,
+      "perp_delay0": 5.7985172219332526e-11
+    },
+    "prediction_max_absolute_differences": {
+      "technical_raw_mu": 2.1362902766219882e-14,
+      "perp_delay0_raw_mu": 2.1958997120652413e-14,
+      "log_variance": 0.0,
+      "mu": 4.912032152554202e-15,
+      "variance": 0.0
+    },
+    "scope": "one archived pre-cutoff prefix; raw parser\u2192shared feature support\u2192saved forecast; not live receipt proof",
+    "feature_tolerance": {
+      "atol": 1e-09,
+      "rtol": 1e-12
+    },
+    "prediction_tolerance": {
+      "atol": 1e-12,
+      "rtol": 1e-12
+    }
+  },
+  "raw_live_feature_parity_proven": false,
+  "historical_receipts_proven": false,
+  "future_performance_proven": false
+}

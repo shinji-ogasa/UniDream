@@ -1,0 +1,63 @@
+{
+  "S_only_maturity_and_inputs_verified": true,
+  "audit_script_sha256": "2f9a5120e50663f54e7903b6389ed6b748bc43072d637c335433d0101a4e0cc0",
+  "binding_verification_count": 247,
+  "bundle_payload_files": 6,
+  "bundle_sha256": "c62287a3f21ad2407b61382648d4c6ceda718cb7bf1c1d5bcc99926dc225abe6",
+  "completed_artifact_count": 11,
+  "completed_sha256": "2b0cfc8d7a85b39d7e35c2437632de423db0dd09484d0050b41a4e363db9dcf9",
+  "distinct_checked_paths": 216,
+  "fit_rows": 2167,
+  "fixture_rows": 724,
+  "independent_HGB_tree_prediction_max_abs_difference": 0.0,
+  "independent_reliability_mu_max_abs_difference": 0.0,
+  "independent_variance_max_abs_difference": 0.0,
+  "input_preflight_feature_label_hashes_exact": true,
+  "interval_rows": 363,
+  "limitations": [
+    "No new evaluation performance, ranking or economic paths computed.",
+    "Feature reconstruction is bound to committed input preflight hashes, not independently implemented formulas.",
+    "Official archive hashes do not establish historical receipt timing.",
+    "Warnings retained; finite scalar Ridge and tree-traversal plus serialization checks passed.",
+    "Historical selection metrics describe the procedure, not production weights or live results."
+  ],
+  "masked_calibration_tail_rows": 2,
+  "model_count": 3,
+  "new_evaluation_scores": 0,
+  "new_policy_paths": 0,
+  "production_run_log_sha256": "8ba805df1ea4759996798529b00a1bb1417a810f702942673ad8f4d9e45586f4",
+  "raw_artifact_binding_count": 178,
+  "reliability_moments_exact": true,
+  "reliability_weight_count": 1,
+  "runtime_warning_classes": {
+    "divide by zero": 6,
+    "invalid value": 6,
+    "overflow": 6
+  },
+  "runtime_warning_count": 18,
+  "scalar_Ridge_prediction_max_abs_difference": {
+    "perp_delay0": 3.469446951953614e-18,
+    "technical": 3.469446951953614e-18
+  },
+  "scalar_bias_max_abs_difference": {
+    "perp_delay0": 0.0,
+    "technical": 2.168404344971009e-19
+  },
+  "scalar_scaler_mean_max_abs_difference": {
+    "perp_delay0": 1.1368683772161603e-13,
+    "technical": 1.1368683772161603e-13
+  },
+  "scalar_variance_multiplier_abs_difference": 2.220446049250313e-16,
+  "scale_rows": 359,
+  "schema": "btc-reliability-release-independent-audit-v1",
+  "serialized_prediction_max_abs_difference": {
+    "perp_delay0": 0.0,
+    "technical": 0.0,
+    "technical_variance": 0.0
+  },
+  "source_binding_count": 23,
+  "source_revision": "a8d2ec176b6361ea50fda2ee5d6e2b695262ca88",
+  "status": "passed",
+  "weight": 0.22369215211526283,
+  "weight_case": "interior"
+}

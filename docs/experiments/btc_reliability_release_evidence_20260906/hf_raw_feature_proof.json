@@ -1,0 +1,63 @@
+{
+  "archive_receipt_times_proven": false,
+  "bundle_sha256": "c62287a3f21ad2407b61382648d4c6ceda718cb7bf1c1d5bcc99926dc225abe6",
+  "closed_rows_per_source": 8641,
+  "event_ts": "2026-07-16T12:00:00+00:00",
+  "execution_contract_sha256": "5ddef41673e466f9dc4ecf0edc187e91765ec09f98f9e17bba016940b42b6dc9",
+  "feature_contract_sha256": "16147125dc7b23f9bd34e0f0871bbf3ace62a42d0dbeab751f9f57d97d6165b4",
+  "feature_max_absolute_differences": {
+    "perp_delay0": 5.7985172219332526e-11,
+    "technical": 5.7985172219332526e-11
+  },
+  "feature_tolerance": {
+    "atol": 1e-09,
+    "rtol": 1e-12
+  },
+  "fixture_sha256": "e6387633e60645de90969fb5212c55dbdbc7953429c6664d6f4c81a0dbf3d375",
+  "hf_source_sha256": {
+    "backend/btc_accounting.py": "fabd4cf7f2e452d19ae058fd5e82dd9e127d5f4c92c7a7155b03cb5c97b02dd2",
+    "backend/btc_runtime.py": "68b4ad22f858d17008b0337b65a00f3f9264a8abc0dbf245396c7103080a225a",
+    "backend/btc_vendor/provenance.json": "de3f8401b5bb4876f2327f2e09a5d9629122df0908e3ba4bdf5ad0b93d22bcbc"
+  },
+  "history_start": "2026-04-17T11:45:00+00:00",
+  "ok": true,
+  "prediction_max_absolute_differences": {
+    "log_variance": 0.0,
+    "mu": 4.912032152554202e-15,
+    "perp_delay0_raw_mu": 2.1958997120652413e-14,
+    "technical_raw_mu": 2.1362902766219882e-14,
+    "variance": 0.0
+  },
+  "prediction_tolerance": {
+    "atol": 1e-12,
+    "rtol": 1e-12
+  },
+  "raw_columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "quote_volume",
+    "taker_buy_quote",
+    "n_trades"
+  ],
+  "raw_live_source_health_proven": false,
+  "schema": "btc-reliability-raw-fixture-v1",
+  "scope": "last registered pre-cutoff saved prediction row; raw Spot/UM closed history to canonical features and existing model; no new fit/labels/scores/policy",
+  "script_path": "/tmp/btc_release_raw_feature_audit.py",
+  "script_sha256": "b3268f6216ee20152cb3504a8ded6f8ec8c3f9160408b02c1d9b6ac17f1da99a",
+  "source_bindings": {
+    "/Users/sophie/Documents/UniDream/.worktrees/alpha-dd-goal/checkpoints/alpha_dd_data/spot_15m.parquet": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/checkpoints/oracle_additional_window_data/um_15m.parquet": "02d2f07679db0087904b923606a501c8494afda0f75c6a4c94bf4b38ad49a583"
+  },
+  "source_prediction_fixture_sha256": "ac938a4208c279ec125b49ce8385abec6a26bf29410f5554643fc625b86b7f8d",
+  "support": {
+    "archive_warmup_receipt_proven": false,
+    "available": true,
+    "elapsed_closed_bars": 8641,
+    "failed_dependencies": {},
+    "feature_event_cutoff": "2026-07-16T11:45:00+00:00",
+    "reason": "available"
+  }
+}

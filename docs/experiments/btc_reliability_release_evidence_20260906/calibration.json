@@ -1,0 +1,24 @@
+{
+  "counts": {
+    "fit": 2167,
+    "interval": 363,
+    "scale": 359
+  },
+  "fit_mean": 0.0001930663399788579,
+  "return_bias": {
+    "perp_delay0": -0.0013107569696015398,
+    "technical": -0.0010371418564480493
+  },
+  "scale_mean": -0.0006695958978521661,
+  "technical_quantiles": {
+    "raw": {
+      "return_quantile": 1.767545422448643,
+      "volatility_quantile": 0.6497104512722341
+    },
+    "scaled": {
+      "return_quantile": 1.353786714019184,
+      "volatility_quantile": 0.7930703715447964
+    }
+  },
+  "variance_multiplier": 1.5797594396134207
+}

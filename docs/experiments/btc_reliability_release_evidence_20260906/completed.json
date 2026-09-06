@@ -1,0 +1,23 @@
+{
+  "artifact_sha256": {
+    "codex_outputs/btc_reliability_release_v1/bundle/calibration.json": "c99b7d0b852d69c1fe951b67d00b21ddcabd99993343a7440398f65ad5a0ff82",
+    "codex_outputs/btc_reliability_release_v1/bundle/manifest.json": "c62287a3f21ad2407b61382648d4c6ceda718cb7bf1c1d5bcc99926dc225abe6",
+    "codex_outputs/btc_reliability_release_v1/bundle/models/perp_delay0_mean.joblib": "52ae482f8c6405e87669a83faa93a0bff39f3a49fd704caa8fb4a7fc3818584e",
+    "codex_outputs/btc_reliability_release_v1/bundle/models/technical_mean.joblib": "03a1886525b48b2830b951ef94708be05246bee3d8d9bed3be49002ccc862fd3",
+    "codex_outputs/btc_reliability_release_v1/bundle/models/technical_variance.joblib": "ad8ea35d8856f94bca80320a08a6c59b3a41c2ec703d4426a3bfbfe7f3c3ef31",
+    "codex_outputs/btc_reliability_release_v1/bundle/prediction_fixture.npz": "ac938a4208c279ec125b49ce8385abec6a26bf29410f5554643fc625b86b7f8d",
+    "codex_outputs/btc_reliability_release_v1/bundle/reliability.json": "38fd7e5af4f9809e0231d8de30f4263187d9eaac9a773d7de2fdc5262a397d53",
+    "codex_outputs/btc_reliability_release_v1/fit_provenance.json": "6eb9b95533e019df6a33f0cdb11542436ea6a79f6f7a1f9facb6b65a76ecf943",
+    "codex_outputs/btc_reliability_release_v1/preflight.json": "775b1085c7c1b8e3ab5f6ac172f2a6bbcaf9c8ffda927dfe12bf56ad9989c1ec",
+    "codex_outputs/btc_reliability_release_v1/registration.json": "f52df85956474a7350f94f8c47fb844f094d436837b0c1815f4598a931153e31",
+    "codex_outputs/btc_reliability_release_v1/selected_inputs.npz": "3c7faa81058bc007b115b4110b0de2abc7819b3edd33b11ee2087173e17f25eb"
+  },
+  "bundle_id": "btc-perp-reliability-20260906",
+  "manifest_sha256": "c62287a3f21ad2407b61382648d4c6ceda718cb7bf1c1d5bcc99926dc225abe6",
+  "new_model_fits": 3,
+  "new_policy_paths": 0,
+  "new_reliability_weights": 1,
+  "new_scores": 0,
+  "schema": "btc-reliability-release-completed-v1",
+  "source_revision": "a8d2ec176b6361ea50fda2ee5d6e2b695262ca88"
+}

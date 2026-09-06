@@ -1,0 +1,80 @@
+{
+  "common_components": [
+    "delayed_perp_delay0",
+    "delayed_perp_delay1",
+    "delayed_perp_delay4",
+    "delayed_technical",
+    "derivative_base16",
+    "derivative_derivative",
+    "derivative_perp_flow",
+    "derivative_technical",
+    "original_flow",
+    "trailing_variances"
+  ],
+  "full_test_count": 787,
+  "full_test_elapsed_seconds": 60.378,
+  "git_diff_check_passed": true,
+  "new_file_whitespace_passed": true,
+  "new_real_reliability_weights_computed": false,
+  "new_scores_or_policy_paths_computed": false,
+  "producer_consumer_digest_agreement": "HF agrees to exact producer semantic feature/execution payload; vendor hash separate; runtime end-to-end pending actual bundle",
+  "raw_artifact_bindings_count": 178,
+  "real_production_fit_started": false,
+  "schema": "btc-reliability-release-prefit-review-v1",
+  "source_artifact_sha256": {
+    "/tmp/btc-reliability-release-full-tests.log": "54e1d82440c186331a7a8c6beb954abdb282a64cf2c4b655a21e6fb8f10837fb",
+    "/tmp/btc-reliability-release-preflight-final.log": "9f4b0194a36b3193b744f4cb6dd610950745359d4e29191ee9c54434c916d941",
+    "/tmp/btc-reliability-release-v31-smoke.log": "34030185312038b8d1c28a50eddad10d9fc7fd69abff39da4c60dab49110a007",
+    "codex_outputs/btc_reliability_release_v1/preflight.json": "775b1085c7c1b8e3ab5f6ac172f2a6bbcaf9c8ffda927dfe12bf56ad9989c1ec",
+    "configs/btc_reliability_release_20260906.yaml": "5ecbfd4ed7d70b2b92b018b7e2ff3db101c62e28921f776d8c6b673b32f5eaca",
+    "docs/experiments/btc_accuracy_release_contract_20260906.md": "b900578d612458ea5f431f8901f899eab04cecf535b76f54317db3aabb2b4f72",
+    "docs/experiments/btc_reliability_release_registration_20260906.md": "f9de8d84ee739f39ef04039745978bfc8e651a7ed89879144e5c7090c7c43793",
+    "tests/test_btc_reliability_release.py": "c17ab642b113a4a4c3616546937bcd03e10ff9f1b75966d0f3cdb1a51da136d2",
+    "unidream/experiments/btc_reliability_release.py": "3d5192fd5ac349d818d9ceae38d85ceba31e37829e22e3dc761f8aef6356362f"
+  },
+  "source_bindings_count": 23,
+  "status": "passed",
+  "support": {
+    "counts": {
+      "fit": 2167,
+      "inference": 0,
+      "interval": 363,
+      "predict": 724,
+      "scale": 359,
+      "scheduled": 0,
+      "score": 0
+    },
+    "feature_sha256": {
+      "fit": {
+        "perp_delay0": "f23a1bbc6a92633a4b677e624fd4ff98eaebe6af48657ca0641747a15484138d",
+        "technical": "61c3eacc81da2df7130b7e49f3021ed1446e2f5c8a4e89592b2ad19f6d654307"
+      },
+      "predict": {
+        "perp_delay0": "5f9311900ffa7384ebc5fb2c5f24c14bc80713e663f11cd4435b3d52d88156a2",
+        "technical": "dd1c1d7c6fa8821a276dbbe4f03bb8448190e1a22d0f8c1f6befc49962634e21"
+      }
+    },
+    "label_sha256": {
+      "fit": "90266ca7208b75c51345d2048b44fd90486d1cb84093fda93d350c6e73d9ed32",
+      "interval": "fc3a723d4ac47da8e884fd284c3bdde1b89d68ff5552af42752fde3e2389eb37",
+      "scale": "727acf3c6338439dfa9dcb65b923730cae27f9e13d4182841f522cf8c3ae8b04"
+    },
+    "last_label_maturity": {
+      "fit": "2026-01-16T12:15:00+00:00",
+      "interval": "2026-07-16T12:15:00+00:00",
+      "scale": "2026-04-16T12:15:00+00:00"
+    },
+    "mask_sha256": {
+      "fit": "752b0da39d6a04ddfe51c2189a6a7af8c0ef2a4792c6e9f1a9a4ba25adeb67f6",
+      "inference": "7b873280659745330c59efa5471aabc996ae41695ffdf47c2ff48f1e88533c0e",
+      "interval": "c13d77aef3fbe4fe057953a03210388c9ac441f7368fc05a45d3e95edcb9e1fa",
+      "predict": "de812aa89472a21e9ddb6ea6ed4929228ec759d47a57fb9ab19784778ceab546",
+      "scale": "1a0a5a3d56c62e7abd4f83dcdacaf76e6370e994e22d7ccfa0717859fa34e812",
+      "scheduled": "7b873280659745330c59efa5471aabc996ae41695ffdf47c2ff48f1e88533c0e",
+      "score": "7b873280659745330c59efa5471aabc996ae41695ffdf47c2ff48f1e88533c0e"
+    }
+  },
+  "v31_fixture_rows": 8641,
+  "v31_injected_and_default_position_max_abs_difference": 1.192e-07,
+  "v31_predictive_state_max_abs_difference": 0.0
+}
