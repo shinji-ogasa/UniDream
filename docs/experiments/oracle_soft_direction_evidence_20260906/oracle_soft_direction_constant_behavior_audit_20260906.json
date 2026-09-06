@@ -1,0 +1,16 @@
+{
+  "counts": {
+    "cross_group_constant_account_pairs_exact": 96,
+    "cross_group_constant_target_pairs_exact": 48
+  },
+  "interpretation": "Group-specific constant duplicates remain explicit. Zero mean is a valid forecast, and its own-state risk/cost controller may trade; it is not automatically B&H. All paths were independently recomputed by the main audit.",
+  "main_audit_sha256": "e9305ef2460f8f67e23497bb195b0945b51260e47f88b5d2dacfc453ad512912",
+  "results_sha256": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5",
+  "zero_base_trade_count_range": [
+    0,
+    8
+  ],
+  "zero_paths_with_base_trades": 24,
+  "zero_paths_with_stress_trades": 24,
+  "zero_policy_paths": 32
+}

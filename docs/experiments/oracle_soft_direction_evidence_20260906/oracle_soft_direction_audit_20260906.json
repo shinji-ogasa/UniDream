@@ -1,0 +1,92 @@
+{
+  "ancestor_artifacts_verified": 3488,
+  "config_sha256": "4c0a5a24cf5ece17bc0ded40aa96fefef86b4f5bcc0b6fa282bf5d2c4b2582b2",
+  "counts": {
+    "exact_complete_old_control_rows": 480,
+    "exact_old_classification_scores": 160,
+    "exact_old_scores": 224,
+    "frozen_mapping_provenance_records_bound": 8,
+    "hash_binding_checks": 5439,
+    "independent_scalar_accounts": 1280,
+    "new_E_source_and_support_arrays": 80,
+    "new_calibration_source_and_support_arrays": 80,
+    "new_constant_control_paths": 96,
+    "new_fallback_decisions": 3320,
+    "new_full_trace_replays": 160,
+    "new_learned_paths": 64,
+    "new_own_state_decisions": 55040,
+    "new_own_state_paths": 160,
+    "new_unscored_E_decisions_retained": 240
+  },
+  "distinct_hashed_files": 4538,
+  "inventory": {
+    "calibration": 80,
+    "classification_scores": 160,
+    "forecasts": 80,
+    "mapping_diagnostics": 64,
+    "provenance": 8,
+    "return_scores": 384,
+    "rows": 640,
+    "targets": 640,
+    "traces": 160
+  },
+  "limitations": [
+    "Constant NPZ q/logit fields remain frozen classifier source evidence, not new constant-classifier forecasts.",
+    "New probability accuracy is unchanged by construction; A_T is a constant-amplitude surrogate, not verified conditional E[abs(Y)|X].",
+    "Repeatedly reused development, retrospective masks and absent historical receipt evidence remain.",
+    "Filtered raw Spot reads remain below original cutoff; source hashes cover full files."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "own_artifacts_verified": 968,
+  "preflight_binding_audit_sha256": "36919a9a9bb725ee58006925bc45846c935e1d1514ac5b0170622f49ca3caa25",
+  "preflight_sha256": "be95da2abe1581b516cc8a0fd168ae919ad89527280818b283f46b92c95f2154",
+  "regime_counts": {
+    "bear": 4,
+    "bull": 2,
+    "sideways": 2
+  },
+  "results_sha256": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5",
+  "runtime_warnings": {
+    "counts": {},
+    "run_log_sha256": "e9a42d0cff32a5f7de65aec59fbcbb9764d9730cd50fc15e8ab8c615d5733644",
+    "total": 0
+  },
+  "scope": "All immutable sources/artifacts,80 E+80 I source/support/variance bindings and frozen T/prior provenance;480 exact complete old rows including inherited trace hashes;224/160 exact old score records;1280 scalar accounts;160 new own-state paths and full decision traces, split64 learned/96 constant paths. No canonical helpers imported or estimator calls performed.",
+  "script_sha256": "020c2bd6a923170882be697e91d3d60039cf0ed59b5a11ce8c547aae2ed8bf9b",
+  "separate_audit_scope": [
+    "Numerical soft/mapped-prior arithmetic, constant residuals and64 mapping diagnostics are independently audited by the technical auditor. This audit independently uses saved mapped means for own-state/account recomputation and verifies zero/stored-fitmean constants directly.",
+    "The384 return losses and report summaries are independently audited by the statistics auditor."
+  ],
+  "source_audit_sha256": "4965de3c0ba40741fb9bff7d588a2e62ec19fbd6b547d013a032a99bd3c2b96b",
+  "source_revision": "9b4f6a0e5606831a26a8f2a7c401e05c52d41f6f",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "interval_inference": 2537,
+    "interval_score": 2523,
+    "missing_current_open": 2,
+    "score": 2574
+  }
+}

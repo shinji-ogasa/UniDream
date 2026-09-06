@@ -1,0 +1,2162 @@
+{
+  "audit_script_sha256": "801230e4fc4337759204cf5775f2a8b13b5a2bd00cb9d019061a354860fa6f8e",
+  "initial_final_report_table_audit_sha256": "f922b313df3580c313e9746c5412e9be693b3e58c6cfbdbc3f5b5a811f76a269",
+  "initial_table_audit_superseded_by_extended_narrative_checks": true,
+  "limitations": [
+    "Evidence remains reused development data, not independent confirmation.",
+    "Full source/calendar, mapping arithmetic and economic account audits are separately sealed; not duplicated here.",
+    "Formatting parity verifies reported precision, not extra statistical significance.",
+    "The prior draft was not the final publication audit."
+  ],
+  "mechanism_aggregation_check": {
+    "constant_scalars": 8,
+    "mean_segment_aggregates": 8,
+    "saved_target_pairs": 80,
+    "underlying_audited_mechanism_records": 64
+  },
+  "narrative_claim_checks": {
+    "32_zero_paths_24_trade_both_costs_base_range_0_to_8": true,
+    "48_cross_group_plus_32_mapped_prior_fitmean_pairs": true,
+    "C1_amplitude_larger_L2unit_smaller_overall_both_segments": true,
+    "C1_overall_MSE_worse_all_5_refs_I_E": true,
+    "L2unit_E_MSE_better_hard_all_4_strata_7_of_8_quarters": true,
+    "L2unit_E_sideways_MSE_worse_half_and_all_strata_worse_fit_prior": true,
+    "L2unit_overall_MSE_better_hard_half_I_E": true,
+    "L2unit_overall_MSE_worse_all_3_constants_I_E": true,
+    "Perp_C1_overall_Alpha_positive_DD_positive_both_costs": true,
+    "all_80_policies_640_rows_1280_cost_accounts": true,
+    "all_80_saved_constant_target_and_metric_pairs_exact": true,
+    "all_8_learned_economics_worse_half_overall_both_costs": true,
+    "all_8_learned_policies_fail_all_registered_gates": true,
+    "all_8_mapped_prior_fitmean_residuals_nonzero": true,
+    "all_96_constant_ICs_null": true,
+    "all_constant_overall_Alpha_negative_both_costs": true,
+    "all_q_logit_mu_ties_and_direction_disagreements_zero": true,
+    "all_remaining_learned_overall_joint_signs_fail": true,
+    "independent_scalar_score_384_returns_160_classifications": true,
+    "inference_support_2586_E_2537_I": true,
+    "inherited_source_weighted_gates_false_I_E": true,
+    "mapping_audit_160_NPZ_160_helper_64_learned_8_provenance_48_masks": true,
+    "mapping_audit_20492_learned_rows_10246_each_constant": true,
+    "mapping_bound_33_source_3488_ancestor_968_new": true,
+    "no_fit_or_probability_prediction_call": true,
+    "numerical_own_state_audit_1280_accounts_160_paths_55040_decisions": true,
+    "old_480_rows_and_224_return_records_exact": true,
+    "one_raw_vs_saved_prior_difference_fold": true,
+    "own_all_errors_zero_except_mean_exposure_2_220446049250313e_16": true,
+    "own_paths_64_learned_96_constant_160_traces": true,
+    "prior_residual_max_1_301e_18_savedq_diff_fold12_plus5_551e_17": true,
+    "probability_160_records_unchanged": true,
+    "scalar_errors_and_Decimal_summary_reported_exact": true,
+    "scalar_mapping_max_difference_exact_0": true,
+    "score_support_2574_E_2523_I": true,
+    "selection_generalization_and_regime_gate_false": true,
+    "tiny_DD_66_total_56_new_constant_10_old_none_new_learned": true
+  },
+  "no_pending_report_markers": true,
+  "numeric_and_joint_table_cells": 412,
+  "passed": true,
+  "previous_draft_report_sha256": "4bf7326444140555c59891ee33b366aca95c310161292e67a1f5e9cd53129b4d",
+  "previous_draft_was_not_final_verification": true,
+  "registered_nested_flags_all_false": 72,
+  "report_direct_hash_count": 6,
+  "report_path": "docs/experiments/oracle_soft_direction_results_20260906.md",
+  "report_sha256": "e1f05181c193e555378b7f95d11ea4d592f2e6dd62d3413f38e42ffade12cfde",
+  "schema": "oracle_soft_direction_final_report_audit_v1",
+  "scope": "Sealed independent score/Decimal60 summary and mapping/account evidence to all final report tables and material claims; no model, probability predictor, scorer or policy replay.",
+  "source_sha256": {
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_soft_direction_decisions_v1/preflight.json": "be95da2abe1581b516cc8a0fd168ae919ad89527280818b283f46b92c95f2154",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_soft_direction_decisions_v1/registration.json": "dda43125f1f670fd84ae35809148561863018e8de5ea4c18b99a14fe454e2f22",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_soft_direction_decisions_v1/results.json": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/codex_outputs/oracle_soft_direction_decisions_v1/run.log": "e9a42d0cff32a5f7de65aec59fbcbb9764d9730cd50fc15e8ab8c615d5733644",
+    "/Users/sophie/Documents/UniDream/.worktrees/oracle-feature-frontier-20260905/docs/experiments/oracle_soft_direction_evidence_20260906/full-tests.log": "9301f9e587a0fbcf1b61759c23dd9656dfc31b59d1ba4ebaa1f80c9effde766a",
+    "/tmp/oracle_soft_direction_audit_20260906.json": "e9305ef2460f8f67e23497bb195b0945b51260e47f88b5d2dacfc453ad512912",
+    "/tmp/oracle_soft_direction_constant_behavior_audit_20260906.json": "a30acd2a922dbfda98745cb16561111a02dfcfb790fe93ee66a269ae2454ccbe",
+    "/tmp/oracle_soft_direction_mapping_audit_20260906.json": "d5bc7358bb75f4a8f278b590355bff46955320d0b51a5b3738c37e33bbb40eef",
+    "/tmp/oracle_soft_direction_mechanism_summary_20260906.json": "c55511918bafb9cdc95a9e1595594d101372fcd7811f00e628b640a2367ee3d1",
+    "/tmp/oracle_soft_direction_score_audit_20260906.json": "7988dd7eb6bb6cfe40b9d5cc4fad8a3119737817dc16560ac2d646fb61db16f3",
+    "/tmp/oracle_soft_direction_source_audit_20260906.json": "4965de3c0ba40741fb9bff7d588a2e62ec19fbd6b547d013a032a99bd3c2b96b"
+  },
+  "table_checks": [
+    {
+      "independent_expected": "d5bc7358bb75f4a8f278b590355bff46955320d0b51a5b3738c37e33bbb40eef",
+      "location": "mechanism/source_mapping",
+      "reported": "d5bc7358bb75f4a8f278b590355bff46955320d0b51a5b3738c37e33bbb40eef"
+    },
+    {
+      "independent_expected": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5",
+      "location": "mechanism/source_result",
+      "reported": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5"
+    },
+    {
+      "independent_expected": "-0.029076",
+      "location": "learned_economics/0/base/alpha_ex",
+      "reported": "-0.029076"
+    },
+    {
+      "independent_expected": "-0.006773",
+      "location": "learned_economics/0/base/maxdd_delta",
+      "reported": "-0.006773"
+    },
+    {
+      "independent_expected": "-0.554044",
+      "location": "learned_economics/0/stress_2x/alpha_ex",
+      "reported": "-0.554044"
+    },
+    {
+      "independent_expected": "0.097431",
+      "location": "learned_economics/0/stress_2x/maxdd_delta",
+      "reported": "0.097431"
+    },
+    {
+      "independent_expected": "3/8",
+      "location": "learned_economics/0/joint",
+      "reported": "3/8"
+    },
+    {
+      "independent_expected": "-1.420121",
+      "location": "learned_economics/1/base/alpha_ex",
+      "reported": "-1.420121"
+    },
+    {
+      "independent_expected": "0.555413",
+      "location": "learned_economics/1/base/maxdd_delta",
+      "reported": "0.555413"
+    },
+    {
+      "independent_expected": "-1.915444",
+      "location": "learned_economics/1/stress_2x/alpha_ex",
+      "reported": "-1.915444"
+    },
+    {
+      "independent_expected": "0.654835",
+      "location": "learned_economics/1/stress_2x/maxdd_delta",
+      "reported": "0.654835"
+    },
+    {
+      "independent_expected": "3/8",
+      "location": "learned_economics/1/joint",
+      "reported": "3/8"
+    },
+    {
+      "independent_expected": "-2.579935",
+      "location": "learned_economics/2/base/alpha_ex",
+      "reported": "-2.579935"
+    },
+    {
+      "independent_expected": "1.282657",
+      "location": "learned_economics/2/base/maxdd_delta",
+      "reported": "1.282657"
+    },
+    {
+      "independent_expected": "-2.819191",
+      "location": "learned_economics/2/stress_2x/alpha_ex",
+      "reported": "-2.819191"
+    },
+    {
+      "independent_expected": "1.374963",
+      "location": "learned_economics/2/stress_2x/maxdd_delta",
+      "reported": "1.374963"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "learned_economics/2/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-3.222366",
+      "location": "learned_economics/3/base/alpha_ex",
+      "reported": "-3.222366"
+    },
+    {
+      "independent_expected": "0.728138",
+      "location": "learned_economics/3/base/maxdd_delta",
+      "reported": "0.728138"
+    },
+    {
+      "independent_expected": "-3.420712",
+      "location": "learned_economics/3/stress_2x/alpha_ex",
+      "reported": "-3.420712"
+    },
+    {
+      "independent_expected": "0.799194",
+      "location": "learned_economics/3/stress_2x/maxdd_delta",
+      "reported": "0.799194"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "learned_economics/3/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "1.992860",
+      "location": "learned_economics/4/base/alpha_ex",
+      "reported": "1.992860"
+    },
+    {
+      "independent_expected": "0.142723",
+      "location": "learned_economics/4/base/maxdd_delta",
+      "reported": "0.142723"
+    },
+    {
+      "independent_expected": "1.446507",
+      "location": "learned_economics/4/stress_2x/alpha_ex",
+      "reported": "1.446507"
+    },
+    {
+      "independent_expected": "0.253201",
+      "location": "learned_economics/4/stress_2x/maxdd_delta",
+      "reported": "0.253201"
+    },
+    {
+      "independent_expected": "3/8",
+      "location": "learned_economics/4/joint",
+      "reported": "3/8"
+    },
+    {
+      "independent_expected": "0.865579",
+      "location": "learned_economics/5/base/alpha_ex",
+      "reported": "0.865579"
+    },
+    {
+      "independent_expected": "0.482688",
+      "location": "learned_economics/5/base/maxdd_delta",
+      "reported": "0.482688"
+    },
+    {
+      "independent_expected": "0.345029",
+      "location": "learned_economics/5/stress_2x/alpha_ex",
+      "reported": "0.345029"
+    },
+    {
+      "independent_expected": "0.588150",
+      "location": "learned_economics/5/stress_2x/maxdd_delta",
+      "reported": "0.588150"
+    },
+    {
+      "independent_expected": "3/8",
+      "location": "learned_economics/5/joint",
+      "reported": "3/8"
+    },
+    {
+      "independent_expected": "-1.987078",
+      "location": "learned_economics/6/base/alpha_ex",
+      "reported": "-1.987078"
+    },
+    {
+      "independent_expected": "1.162060",
+      "location": "learned_economics/6/base/maxdd_delta",
+      "reported": "1.162060"
+    },
+    {
+      "independent_expected": "-2.224066",
+      "location": "learned_economics/6/stress_2x/alpha_ex",
+      "reported": "-2.224066"
+    },
+    {
+      "independent_expected": "1.249477",
+      "location": "learned_economics/6/stress_2x/maxdd_delta",
+      "reported": "1.249477"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "learned_economics/6/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-2.864757",
+      "location": "learned_economics/7/base/alpha_ex",
+      "reported": "-2.864757"
+    },
+    {
+      "independent_expected": "0.827745",
+      "location": "learned_economics/7/base/maxdd_delta",
+      "reported": "0.827745"
+    },
+    {
+      "independent_expected": "-3.067252",
+      "location": "learned_economics/7/stress_2x/alpha_ex",
+      "reported": "-3.067252"
+    },
+    {
+      "independent_expected": "0.898938",
+      "location": "learned_economics/7/stress_2x/maxdd_delta",
+      "reported": "0.898938"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "learned_economics/7/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.856907",
+      "location": "constant_economics/0/base/alpha_ex",
+      "reported": "-0.856907"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/0/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.859185",
+      "location": "constant_economics/0/stress_2x/alpha_ex",
+      "reported": "-0.859185"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/0/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/0/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.547781",
+      "location": "constant_economics/1/base/alpha_ex",
+      "reported": "-0.547781"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/1/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.552186",
+      "location": "constant_economics/1/stress_2x/alpha_ex",
+      "reported": "-0.552186"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/1/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/1/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.856907",
+      "location": "constant_economics/2/base/alpha_ex",
+      "reported": "-0.856907"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/2/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.859185",
+      "location": "constant_economics/2/stress_2x/alpha_ex",
+      "reported": "-0.859185"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/2/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/2/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.547781",
+      "location": "constant_economics/3/base/alpha_ex",
+      "reported": "-0.547781"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/3/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.552186",
+      "location": "constant_economics/3/stress_2x/alpha_ex",
+      "reported": "-0.552186"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/3/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/3/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-1.322167",
+      "location": "constant_economics/4/base/alpha_ex",
+      "reported": "-1.322167"
+    },
+    {
+      "independent_expected": "-1.446962",
+      "location": "constant_economics/4/base/maxdd_delta",
+      "reported": "-1.446962"
+    },
+    {
+      "independent_expected": "-1.327465",
+      "location": "constant_economics/4/stress_2x/alpha_ex",
+      "reported": "-1.327465"
+    },
+    {
+      "independent_expected": "-1.444217",
+      "location": "constant_economics/4/stress_2x/maxdd_delta",
+      "reported": "-1.444217"
+    },
+    {
+      "independent_expected": "3/8",
+      "location": "constant_economics/4/joint",
+      "reported": "3/8"
+    },
+    {
+      "independent_expected": "-1.084714",
+      "location": "constant_economics/5/base/alpha_ex",
+      "reported": "-1.084714"
+    },
+    {
+      "independent_expected": "-0.865591",
+      "location": "constant_economics/5/base/maxdd_delta",
+      "reported": "-0.865591"
+    },
+    {
+      "independent_expected": "-1.095641",
+      "location": "constant_economics/5/stress_2x/alpha_ex",
+      "reported": "-1.095641"
+    },
+    {
+      "independent_expected": "-0.861461",
+      "location": "constant_economics/5/stress_2x/maxdd_delta",
+      "reported": "-0.861461"
+    },
+    {
+      "independent_expected": "2/8",
+      "location": "constant_economics/5/joint",
+      "reported": "2/8"
+    },
+    {
+      "independent_expected": "-0.856907",
+      "location": "constant_economics/6/base/alpha_ex",
+      "reported": "-0.856907"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/6/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.859185",
+      "location": "constant_economics/6/stress_2x/alpha_ex",
+      "reported": "-0.859185"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/6/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/6/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.547781",
+      "location": "constant_economics/7/base/alpha_ex",
+      "reported": "-0.547781"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/7/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.552186",
+      "location": "constant_economics/7/stress_2x/alpha_ex",
+      "reported": "-0.552186"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/7/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/7/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.856907",
+      "location": "constant_economics/8/base/alpha_ex",
+      "reported": "-0.856907"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/8/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.859185",
+      "location": "constant_economics/8/stress_2x/alpha_ex",
+      "reported": "-0.859185"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/8/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/8/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-0.547781",
+      "location": "constant_economics/9/base/alpha_ex",
+      "reported": "-0.547781"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/9/base/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "-0.552186",
+      "location": "constant_economics/9/stress_2x/alpha_ex",
+      "reported": "-0.552186"
+    },
+    {
+      "independent_expected": "1.388e-15",
+      "location": "constant_economics/9/stress_2x/maxdd_delta",
+      "reported": "1.388e-15"
+    },
+    {
+      "independent_expected": "0/8",
+      "location": "constant_economics/9/joint",
+      "reported": "0/8"
+    },
+    {
+      "independent_expected": "-1.322167",
+      "location": "constant_economics/10/base/alpha_ex",
+      "reported": "-1.322167"
+    },
+    {
+      "independent_expected": "-1.446962",
+      "location": "constant_economics/10/base/maxdd_delta",
+      "reported": "-1.446962"
+    },
+    {
+      "independent_expected": "-1.327465",
+      "location": "constant_economics/10/stress_2x/alpha_ex",
+      "reported": "-1.327465"
+    },
+    {
+      "independent_expected": "-1.444217",
+      "location": "constant_economics/10/stress_2x/maxdd_delta",
+      "reported": "-1.444217"
+    },
+    {
+      "independent_expected": "3/8",
+      "location": "constant_economics/10/joint",
+      "reported": "3/8"
+    },
+    {
+      "independent_expected": "-1.084714",
+      "location": "constant_economics/11/base/alpha_ex",
+      "reported": "-1.084714"
+    },
+    {
+      "independent_expected": "-0.865591",
+      "location": "constant_economics/11/base/maxdd_delta",
+      "reported": "-0.865591"
+    },
+    {
+      "independent_expected": "-1.095641",
+      "location": "constant_economics/11/stress_2x/alpha_ex",
+      "reported": "-1.095641"
+    },
+    {
+      "independent_expected": "-0.861461",
+      "location": "constant_economics/11/stress_2x/maxdd_delta",
+      "reported": "-0.861461"
+    },
+    {
+      "independent_expected": "2/8",
+      "location": "constant_economics/11/joint",
+      "reported": "2/8"
+    },
+    {
+      "independent_expected": "1.960503",
+      "location": "regime_economics/0/base/alpha_ex",
+      "reported": "1.960503"
+    },
+    {
+      "independent_expected": "-1.146022",
+      "location": "regime_economics/0/base/maxdd_delta",
+      "reported": "-1.146022"
+    },
+    {
+      "independent_expected": "1.722610",
+      "location": "regime_economics/0/stress_2x/alpha_ex",
+      "reported": "1.722610"
+    },
+    {
+      "independent_expected": "-1.023328",
+      "location": "regime_economics/0/stress_2x/maxdd_delta",
+      "reported": "-1.023328"
+    },
+    {
+      "independent_expected": "1/2",
+      "location": "regime_economics/0/joint",
+      "reported": "1/2"
+    },
+    {
+      "independent_expected": "-1.141756",
+      "location": "regime_economics/1/base/alpha_ex",
+      "reported": "-1.141756"
+    },
+    {
+      "independent_expected": "1.680922",
+      "location": "regime_economics/1/base/maxdd_delta",
+      "reported": "1.680922"
+    },
+    {
+      "independent_expected": "-1.367866",
+      "location": "regime_economics/1/stress_2x/alpha_ex",
+      "reported": "-1.367866"
+    },
+    {
+      "independent_expected": "1.782994",
+      "location": "regime_economics/1/stress_2x/maxdd_delta",
+      "reported": "1.782994"
+    },
+    {
+      "independent_expected": "1/2",
+      "location": "regime_economics/1/joint",
+      "reported": "1/2"
+    },
+    {
+      "independent_expected": "2.983927",
+      "location": "regime_economics/2/base/alpha_ex",
+      "reported": "2.983927"
+    },
+    {
+      "independent_expected": "-0.847422",
+      "location": "regime_economics/2/base/maxdd_delta",
+      "reported": "-0.847422"
+    },
+    {
+      "independent_expected": "2.318513",
+      "location": "regime_economics/2/stress_2x/alpha_ex",
+      "reported": "2.318513"
+    },
+    {
+      "independent_expected": "-0.755800",
+      "location": "regime_economics/2/stress_2x/maxdd_delta",
+      "reported": "-0.755800"
+    },
+    {
+      "independent_expected": "2/4",
+      "location": "regime_economics/2/joint",
+      "reported": "2/4"
+    },
+    {
+      "independent_expected": "1.792351",
+      "location": "regime_economics/3/base/alpha_ex",
+      "reported": "1.792351"
+    },
+    {
+      "independent_expected": "-1.152705",
+      "location": "regime_economics/3/base/maxdd_delta",
+      "reported": "-1.152705"
+    },
+    {
+      "independent_expected": "1.179923",
+      "location": "regime_economics/3/stress_2x/alpha_ex",
+      "reported": "1.179923"
+    },
+    {
+      "independent_expected": "-1.066608",
+      "location": "regime_economics/3/stress_2x/maxdd_delta",
+      "reported": "-1.066608"
+    },
+    {
+      "independent_expected": "2/4",
+      "location": "regime_economics/3/joint",
+      "reported": "2/4"
+    },
+    {
+      "independent_expected": "-8.044660",
+      "location": "regime_economics/4/base/alpha_ex",
+      "reported": "-8.044660"
+    },
+    {
+      "independent_expected": "2.813777",
+      "location": "regime_economics/4/base/maxdd_delta",
+      "reported": "2.813777"
+    },
+    {
+      "independent_expected": "-8.575811",
+      "location": "regime_economics/4/stress_2x/alpha_ex",
+      "reported": "-8.575811"
+    },
+    {
+      "independent_expected": "2.924654",
+      "location": "regime_economics/4/stress_2x/maxdd_delta",
+      "reported": "2.924654"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/4/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-8.123430",
+      "location": "regime_economics/5/base/alpha_ex",
+      "reported": "-8.123430"
+    },
+    {
+      "independent_expected": "2.846139",
+      "location": "regime_economics/5/base/maxdd_delta",
+      "reported": "2.846139"
+    },
+    {
+      "independent_expected": "-8.653757",
+      "location": "regime_economics/5/stress_2x/alpha_ex",
+      "reported": "-8.653757"
+    },
+    {
+      "independent_expected": "2.969560",
+      "location": "regime_economics/5/stress_2x/maxdd_delta",
+      "reported": "2.969560"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/5/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-2.905530",
+      "location": "regime_economics/6/base/alpha_ex",
+      "reported": "-2.905530"
+    },
+    {
+      "independent_expected": "3.100154",
+      "location": "regime_economics/6/base/maxdd_delta",
+      "reported": "3.100154"
+    },
+    {
+      "independent_expected": "-3.085349",
+      "location": "regime_economics/6/stress_2x/alpha_ex",
+      "reported": "-3.085349"
+    },
+    {
+      "independent_expected": "3.229622",
+      "location": "regime_economics/6/stress_2x/maxdd_delta",
+      "reported": "3.229622"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/6/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-2.071730",
+      "location": "regime_economics/7/base/alpha_ex",
+      "reported": "-2.071730"
+    },
+    {
+      "independent_expected": "2.280342",
+      "location": "regime_economics/7/base/maxdd_delta",
+      "reported": "2.280342"
+    },
+    {
+      "independent_expected": "-2.218258",
+      "location": "regime_economics/7/stress_2x/alpha_ex",
+      "reported": "-2.218258"
+    },
+    {
+      "independent_expected": "2.377856",
+      "location": "regime_economics/7/stress_2x/maxdd_delta",
+      "reported": "2.377856"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/7/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "3.402301",
+      "location": "regime_economics/8/base/alpha_ex",
+      "reported": "3.402301"
+    },
+    {
+      "independent_expected": "1.967629",
+      "location": "regime_economics/8/base/maxdd_delta",
+      "reported": "1.967629"
+    },
+    {
+      "independent_expected": "3.102309",
+      "location": "regime_economics/8/stress_2x/alpha_ex",
+      "reported": "3.102309"
+    },
+    {
+      "independent_expected": "2.038923",
+      "location": "regime_economics/8/stress_2x/maxdd_delta",
+      "reported": "2.038923"
+    },
+    {
+      "independent_expected": "0/4",
+      "location": "regime_economics/8/joint",
+      "reported": "0/4"
+    },
+    {
+      "independent_expected": "0.988073",
+      "location": "regime_economics/9/base/alpha_ex",
+      "reported": "0.988073"
+    },
+    {
+      "independent_expected": "1.730436",
+      "location": "regime_economics/9/base/maxdd_delta",
+      "reported": "1.730436"
+    },
+    {
+      "independent_expected": "0.740753",
+      "location": "regime_economics/9/stress_2x/alpha_ex",
+      "reported": "0.740753"
+    },
+    {
+      "independent_expected": "1.797680",
+      "location": "regime_economics/9/stress_2x/maxdd_delta",
+      "reported": "1.797680"
+    },
+    {
+      "independent_expected": "0/4",
+      "location": "regime_economics/9/joint",
+      "reported": "0/4"
+    },
+    {
+      "independent_expected": "-14.218812",
+      "location": "regime_economics/10/base/alpha_ex",
+      "reported": "-14.218812"
+    },
+    {
+      "independent_expected": "-1.904783",
+      "location": "regime_economics/10/base/maxdd_delta",
+      "reported": "-1.904783"
+    },
+    {
+      "independent_expected": "-14.396034",
+      "location": "regime_economics/10/stress_2x/alpha_ex",
+      "reported": "-14.396034"
+    },
+    {
+      "independent_expected": "-1.807617",
+      "location": "regime_economics/10/stress_2x/maxdd_delta",
+      "reported": "-1.807617"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/10/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-12.793879",
+      "location": "regime_economics/11/base/alpha_ex",
+      "reported": "-12.793879"
+    },
+    {
+      "independent_expected": "-2.828665",
+      "location": "regime_economics/11/base/maxdd_delta",
+      "reported": "-2.828665"
+    },
+    {
+      "independent_expected": "-12.946097",
+      "location": "regime_economics/11/stress_2x/alpha_ex",
+      "reported": "-12.946097"
+    },
+    {
+      "independent_expected": "-2.776441",
+      "location": "regime_economics/11/stress_2x/maxdd_delta",
+      "reported": "-2.776441"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/11/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "1.638520",
+      "location": "regime_economics/12/base/alpha_ex",
+      "reported": "1.638520"
+    },
+    {
+      "independent_expected": "-2.383428",
+      "location": "regime_economics/12/base/maxdd_delta",
+      "reported": "-2.383428"
+    },
+    {
+      "independent_expected": "1.374286",
+      "location": "regime_economics/12/stress_2x/alpha_ex",
+      "reported": "1.374286"
+    },
+    {
+      "independent_expected": "-2.237400",
+      "location": "regime_economics/12/stress_2x/maxdd_delta",
+      "reported": "-2.237400"
+    },
+    {
+      "independent_expected": "1/2",
+      "location": "regime_economics/12/joint",
+      "reported": "1/2"
+    },
+    {
+      "independent_expected": "-0.589512",
+      "location": "regime_economics/13/base/alpha_ex",
+      "reported": "-0.589512"
+    },
+    {
+      "independent_expected": "-0.333950",
+      "location": "regime_economics/13/base/maxdd_delta",
+      "reported": "-0.333950"
+    },
+    {
+      "independent_expected": "-0.849520",
+      "location": "regime_economics/13/stress_2x/alpha_ex",
+      "reported": "-0.849520"
+    },
+    {
+      "independent_expected": "-0.202915",
+      "location": "regime_economics/13/stress_2x/maxdd_delta",
+      "reported": "-0.202915"
+    },
+    {
+      "independent_expected": "1/2",
+      "location": "regime_economics/13/joint",
+      "reported": "1/2"
+    },
+    {
+      "independent_expected": "3.721068",
+      "location": "regime_economics/14/base/alpha_ex",
+      "reported": "3.721068"
+    },
+    {
+      "independent_expected": "-0.416500",
+      "location": "regime_economics/14/base/maxdd_delta",
+      "reported": "-0.416500"
+    },
+    {
+      "independent_expected": "3.048982",
+      "location": "regime_economics/14/stress_2x/alpha_ex",
+      "reported": "3.048982"
+    },
+    {
+      "independent_expected": "-0.322296",
+      "location": "regime_economics/14/stress_2x/maxdd_delta",
+      "reported": "-0.322296"
+    },
+    {
+      "independent_expected": "2/4",
+      "location": "regime_economics/14/joint",
+      "reported": "2/4"
+    },
+    {
+      "independent_expected": "2.585669",
+      "location": "regime_economics/15/base/alpha_ex",
+      "reported": "2.585669"
+    },
+    {
+      "independent_expected": "-0.714295",
+      "location": "regime_economics/15/base/maxdd_delta",
+      "reported": "-0.714295"
+    },
+    {
+      "independent_expected": "1.959878",
+      "location": "regime_economics/15/stress_2x/alpha_ex",
+      "reported": "1.959878"
+    },
+    {
+      "independent_expected": "-0.623626",
+      "location": "regime_economics/15/stress_2x/maxdd_delta",
+      "reported": "-0.623626"
+    },
+    {
+      "independent_expected": "2/4",
+      "location": "regime_economics/15/joint",
+      "reported": "2/4"
+    },
+    {
+      "independent_expected": "-1.109217",
+      "location": "regime_economics/16/base/alpha_ex",
+      "reported": "-1.109217"
+    },
+    {
+      "independent_expected": "3.787320",
+      "location": "regime_economics/16/base/maxdd_delta",
+      "reported": "3.787320"
+    },
+    {
+      "independent_expected": "-1.686224",
+      "location": "regime_economics/16/stress_2x/alpha_ex",
+      "reported": "-1.686224"
+    },
+    {
+      "independent_expected": "3.894795",
+      "location": "regime_economics/16/stress_2x/maxdd_delta",
+      "reported": "3.894795"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/16/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-1.119512",
+      "location": "regime_economics/17/base/alpha_ex",
+      "reported": "-1.119512"
+    },
+    {
+      "independent_expected": "3.693291",
+      "location": "regime_economics/17/base/maxdd_delta",
+      "reported": "3.693291"
+    },
+    {
+      "independent_expected": "-1.690121",
+      "location": "regime_economics/17/stress_2x/alpha_ex",
+      "reported": "-1.690121"
+    },
+    {
+      "independent_expected": "3.802766",
+      "location": "regime_economics/17/stress_2x/maxdd_delta",
+      "reported": "3.802766"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/17/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-1.712085",
+      "location": "regime_economics/18/base/alpha_ex",
+      "reported": "-1.712085"
+    },
+    {
+      "independent_expected": "2.086928",
+      "location": "regime_economics/18/base/maxdd_delta",
+      "reported": "2.086928"
+    },
+    {
+      "independent_expected": "-1.854684",
+      "location": "regime_economics/18/stress_2x/alpha_ex",
+      "reported": "-1.854684"
+    },
+    {
+      "independent_expected": "2.185870",
+      "location": "regime_economics/18/stress_2x/maxdd_delta",
+      "reported": "2.185870"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/18/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-1.495012",
+      "location": "regime_economics/19/base/alpha_ex",
+      "reported": "-1.495012"
+    },
+    {
+      "independent_expected": "1.855677",
+      "location": "regime_economics/19/base/maxdd_delta",
+      "reported": "1.855677"
+    },
+    {
+      "independent_expected": "-1.622970",
+      "location": "regime_economics/19/stress_2x/alpha_ex",
+      "reported": "-1.622970"
+    },
+    {
+      "independent_expected": "1.939383",
+      "location": "regime_economics/19/stress_2x/maxdd_delta",
+      "reported": "1.939383"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/19/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "3.040686",
+      "location": "regime_economics/20/base/alpha_ex",
+      "reported": "3.040686"
+    },
+    {
+      "independent_expected": "2.272936",
+      "location": "regime_economics/20/base/maxdd_delta",
+      "reported": "2.272936"
+    },
+    {
+      "independent_expected": "2.725413",
+      "location": "regime_economics/20/stress_2x/alpha_ex",
+      "reported": "2.725413"
+    },
+    {
+      "independent_expected": "2.350031",
+      "location": "regime_economics/20/stress_2x/maxdd_delta",
+      "reported": "2.350031"
+    },
+    {
+      "independent_expected": "0/4",
+      "location": "regime_economics/20/joint",
+      "reported": "0/4"
+    },
+    {
+      "independent_expected": "0.662263",
+      "location": "regime_economics/21/base/alpha_ex",
+      "reported": "0.662263"
+    },
+    {
+      "independent_expected": "2.035743",
+      "location": "regime_economics/21/base/maxdd_delta",
+      "reported": "2.035743"
+    },
+    {
+      "independent_expected": "0.399535",
+      "location": "regime_economics/21/stress_2x/alpha_ex",
+      "reported": "0.399535"
+    },
+    {
+      "independent_expected": "2.108788",
+      "location": "regime_economics/21/stress_2x/maxdd_delta",
+      "reported": "2.108788"
+    },
+    {
+      "independent_expected": "0/4",
+      "location": "regime_economics/21/joint",
+      "reported": "0/4"
+    },
+    {
+      "independent_expected": "-12.317598",
+      "location": "regime_economics/22/base/alpha_ex",
+      "reported": "-12.317598"
+    },
+    {
+      "independent_expected": "-1.984560",
+      "location": "regime_economics/22/base/maxdd_delta",
+      "reported": "-1.984560"
+    },
+    {
+      "independent_expected": "-12.492407",
+      "location": "regime_economics/22/stress_2x/alpha_ex",
+      "reported": "-12.492407"
+    },
+    {
+      "independent_expected": "-1.888023",
+      "location": "regime_economics/22/stress_2x/maxdd_delta",
+      "reported": "-1.888023"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/22/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "-11.288542",
+      "location": "regime_economics/23/base/alpha_ex",
+      "reported": "-11.288542"
+    },
+    {
+      "independent_expected": "-2.616184",
+      "location": "regime_economics/23/base/maxdd_delta",
+      "reported": "-2.616184"
+    },
+    {
+      "independent_expected": "-11.445111",
+      "location": "regime_economics/23/stress_2x/alpha_ex",
+      "reported": "-11.445111"
+    },
+    {
+      "independent_expected": "-2.561208",
+      "location": "regime_economics/23/stress_2x/maxdd_delta",
+      "reported": "-2.561208"
+    },
+    {
+      "independent_expected": "0/2",
+      "location": "regime_economics/23/joint",
+      "reported": "0/2"
+    },
+    {
+      "independent_expected": "1.130440",
+      "location": "paired_economics/0/base/alpha_ex",
+      "reported": "1.130440"
+    },
+    {
+      "independent_expected": "2.590756",
+      "location": "paired_economics/0/base/maxdd_delta",
+      "reported": "2.590756"
+    },
+    {
+      "independent_expected": "1.062692",
+      "location": "paired_economics/0/stress_2x/alpha_ex",
+      "reported": "1.062692"
+    },
+    {
+      "independent_expected": "2.612102",
+      "location": "paired_economics/0/stress_2x/maxdd_delta",
+      "reported": "2.612102"
+    },
+    {
+      "independent_expected": "0.533266",
+      "location": "paired_economics/1/base/alpha_ex",
+      "reported": "0.533266"
+    },
+    {
+      "independent_expected": "3.083560",
+      "location": "paired_economics/1/base/maxdd_delta",
+      "reported": "3.083560"
+    },
+    {
+      "independent_expected": "0.477953",
+      "location": "paired_economics/1/stress_2x/alpha_ex",
+      "reported": "0.477953"
+    },
+    {
+      "independent_expected": "3.104678",
+      "location": "paired_economics/1/stress_2x/maxdd_delta",
+      "reported": "3.104678"
+    },
+    {
+      "independent_expected": "-1.178034",
+      "location": "paired_economics/2/base/alpha_ex",
+      "reported": "-1.178034"
+    },
+    {
+      "independent_expected": "6.024601",
+      "location": "paired_economics/2/base/maxdd_delta",
+      "reported": "6.024601"
+    },
+    {
+      "independent_expected": "-1.497315",
+      "location": "paired_economics/2/stress_2x/alpha_ex",
+      "reported": "-1.497315"
+    },
+    {
+      "independent_expected": "6.050570",
+      "location": "paired_economics/2/stress_2x/maxdd_delta",
+      "reported": "6.050570"
+    },
+    {
+      "independent_expected": "-2.426639",
+      "location": "paired_economics/3/base/alpha_ex",
+      "reported": "-2.426639"
+    },
+    {
+      "independent_expected": "7.338276",
+      "location": "paired_economics/3/base/maxdd_delta",
+      "reported": "7.338276"
+    },
+    {
+      "independent_expected": "-2.736710",
+      "location": "paired_economics/3/stress_2x/alpha_ex",
+      "reported": "-2.736710"
+    },
+    {
+      "independent_expected": "7.373228",
+      "location": "paired_economics/3/stress_2x/maxdd_delta",
+      "reported": "7.373228"
+    },
+    {
+      "independent_expected": "0.285027",
+      "location": "paired_economics/4/base/alpha_ex",
+      "reported": "0.285027"
+    },
+    {
+      "independent_expected": "-0.097857",
+      "location": "paired_economics/4/base/maxdd_delta",
+      "reported": "-0.097857"
+    },
+    {
+      "independent_expected": "0.414002",
+      "location": "paired_economics/4/stress_2x/alpha_ex",
+      "reported": "0.414002"
+    },
+    {
+      "independent_expected": "-0.125399",
+      "location": "paired_economics/4/stress_2x/maxdd_delta",
+      "reported": "-0.125399"
+    },
+    {
+      "independent_expected": "-0.020705",
+      "location": "paired_economics/5/base/alpha_ex",
+      "reported": "-0.020705"
+    },
+    {
+      "independent_expected": "0.007924",
+      "location": "paired_economics/5/base/maxdd_delta",
+      "reported": "0.007924"
+    },
+    {
+      "independent_expected": "0.112936",
+      "location": "paired_economics/5/stress_2x/alpha_ex",
+      "reported": "0.112936"
+    },
+    {
+      "independent_expected": "-0.011838",
+      "location": "paired_economics/5/stress_2x/maxdd_delta",
+      "reported": "-0.011838"
+    },
+    {
+      "independent_expected": "-3.728893",
+      "location": "paired_economics/6/base/alpha_ex",
+      "reported": "-3.728893"
+    },
+    {
+      "independent_expected": "7.314031",
+      "location": "paired_economics/6/base/maxdd_delta",
+      "reported": "7.314031"
+    },
+    {
+      "independent_expected": "-3.762462",
+      "location": "paired_economics/6/stress_2x/alpha_ex",
+      "reported": "-3.762462"
+    },
+    {
+      "independent_expected": "7.328101",
+      "location": "paired_economics/6/stress_2x/maxdd_delta",
+      "reported": "7.328101"
+    },
+    {
+      "independent_expected": "-4.228884",
+      "location": "paired_economics/7/base/alpha_ex",
+      "reported": "-4.228884"
+    },
+    {
+      "independent_expected": "7.511001",
+      "location": "paired_economics/7/base/maxdd_delta",
+      "reported": "7.511001"
+    },
+    {
+      "independent_expected": "-4.241978",
+      "location": "paired_economics/7/stress_2x/alpha_ex",
+      "reported": "-4.241978"
+    },
+    {
+      "independent_expected": "7.517587",
+      "location": "paired_economics/7/stress_2x/maxdd_delta",
+      "reported": "7.517587"
+    },
+    {
+      "independent_expected": "-1.342603",
+      "location": "paired_economics/8/base/alpha_ex",
+      "reported": "-1.342603"
+    },
+    {
+      "independent_expected": "3.255853",
+      "location": "paired_economics/8/base/maxdd_delta",
+      "reported": "3.255853"
+    },
+    {
+      "independent_expected": "-1.365347",
+      "location": "paired_economics/8/stress_2x/alpha_ex",
+      "reported": "-1.365347"
+    },
+    {
+      "independent_expected": "3.260616",
+      "location": "paired_economics/8/stress_2x/maxdd_delta",
+      "reported": "3.260616"
+    },
+    {
+      "independent_expected": "-0.822108",
+      "location": "paired_economics/9/base/alpha_ex",
+      "reported": "-0.822108"
+    },
+    {
+      "independent_expected": "3.011180",
+      "location": "paired_economics/9/base/maxdd_delta",
+      "reported": "3.011180"
+    },
+    {
+      "independent_expected": "-0.853246",
+      "location": "paired_economics/9/stress_2x/alpha_ex",
+      "reported": "-0.853246"
+    },
+    {
+      "independent_expected": "3.018594",
+      "location": "paired_economics/9/stress_2x/maxdd_delta",
+      "reported": "3.018594"
+    },
+    {
+      "independent_expected": "-1.620082",
+      "location": "paired_economics/10/base/alpha_ex",
+      "reported": "-1.620082"
+    },
+    {
+      "independent_expected": "5.530425",
+      "location": "paired_economics/10/base/maxdd_delta",
+      "reported": "5.530425"
+    },
+    {
+      "independent_expected": "-1.902472",
+      "location": "paired_economics/10/stress_2x/alpha_ex",
+      "reported": "-1.902472"
+    },
+    {
+      "independent_expected": "5.557707",
+      "location": "paired_economics/10/stress_2x/maxdd_delta",
+      "reported": "5.557707"
+    },
+    {
+      "independent_expected": "-2.513874",
+      "location": "paired_economics/11/base/alpha_ex",
+      "reported": "-2.513874"
+    },
+    {
+      "independent_expected": "6.642489",
+      "location": "paired_economics/11/base/maxdd_delta",
+      "reported": "6.642489"
+    },
+    {
+      "independent_expected": "-2.798828",
+      "location": "paired_economics/11/stress_2x/alpha_ex",
+      "reported": "-2.798828"
+    },
+    {
+      "independent_expected": "6.678360",
+      "location": "paired_economics/11/stress_2x/maxdd_delta",
+      "reported": "6.678360"
+    },
+    {
+      "independent_expected": "0.173204",
+      "location": "paired_economics/12/base/alpha_ex",
+      "reported": "0.173204"
+    },
+    {
+      "independent_expected": "0.083049",
+      "location": "paired_economics/12/base/maxdd_delta",
+      "reported": "0.083049"
+    },
+    {
+      "independent_expected": "0.334454",
+      "location": "paired_economics/12/stress_2x/alpha_ex",
+      "reported": "0.334454"
+    },
+    {
+      "independent_expected": "0.063703",
+      "location": "paired_economics/12/stress_2x/maxdd_delta",
+      "reported": "0.063703"
+    },
+    {
+      "independent_expected": "-0.400805",
+      "location": "paired_economics/13/base/alpha_ex",
+      "reported": "-0.400805"
+    },
+    {
+      "independent_expected": "0.441408",
+      "location": "paired_economics/13/base/maxdd_delta",
+      "reported": "0.441408"
+    },
+    {
+      "independent_expected": "-0.242781",
+      "location": "paired_economics/13/stress_2x/alpha_ex",
+      "reported": "-0.242781"
+    },
+    {
+      "independent_expected": "0.435345",
+      "location": "paired_economics/13/stress_2x/maxdd_delta",
+      "reported": "0.435345"
+    },
+    {
+      "independent_expected": "-5.600020",
+      "location": "paired_economics/14/base/alpha_ex",
+      "reported": "-5.600020"
+    },
+    {
+      "independent_expected": "6.549762",
+      "location": "paired_economics/14/base/maxdd_delta",
+      "reported": "6.549762"
+    },
+    {
+      "independent_expected": "-5.573045",
+      "location": "paired_economics/14/stress_2x/alpha_ex",
+      "reported": "-5.573045"
+    },
+    {
+      "independent_expected": "6.553984",
+      "location": "paired_economics/14/stress_2x/maxdd_delta",
+      "reported": "6.553984"
+    },
+    {
+      "independent_expected": "-6.244210",
+      "location": "paired_economics/15/base/alpha_ex",
+      "reported": "-6.244210"
+    },
+    {
+      "independent_expected": "6.987546",
+      "location": "paired_economics/15/base/maxdd_delta",
+      "reported": "6.987546"
+    },
+    {
+      "independent_expected": "-6.211109",
+      "location": "paired_economics/15/stress_2x/alpha_ex",
+      "reported": "-6.211109"
+    },
+    {
+      "independent_expected": "6.989148",
+      "location": "paired_economics/15/stress_2x/maxdd_delta",
+      "reported": "6.989148"
+    },
+    {
+      "independent_expected": "379.360177",
+      "location": "mapped_mse/0/0",
+      "reported": "379.360177"
+    },
+    {
+      "independent_expected": "8.013291",
+      "location": "mapped_mse/0/1",
+      "reported": "8.013291"
+    },
+    {
+      "independent_expected": "7.565116",
+      "location": "mapped_mse/0/2",
+      "reported": "7.565116"
+    },
+    {
+      "independent_expected": "11.102613",
+      "location": "mapped_mse/0/3",
+      "reported": "11.102613"
+    },
+    {
+      "independent_expected": "11.102613",
+      "location": "mapped_mse/0/4",
+      "reported": "11.102613"
+    },
+    {
+      "independent_expected": "11.680474",
+      "location": "mapped_mse/0/5",
+      "reported": "11.680474"
+    },
+    {
+      "independent_expected": "329.619158",
+      "location": "mapped_mse/1/0",
+      "reported": "329.619158"
+    },
+    {
+      "independent_expected": "5.322944",
+      "location": "mapped_mse/1/1",
+      "reported": "5.322944"
+    },
+    {
+      "independent_expected": "5.948644",
+      "location": "mapped_mse/1/2",
+      "reported": "5.948644"
+    },
+    {
+      "independent_expected": "13.408077",
+      "location": "mapped_mse/1/3",
+      "reported": "13.408077"
+    },
+    {
+      "independent_expected": "13.408077",
+      "location": "mapped_mse/1/4",
+      "reported": "13.408077"
+    },
+    {
+      "independent_expected": "14.151731",
+      "location": "mapped_mse/1/5",
+      "reported": "14.151731"
+    },
+    {
+      "independent_expected": "368.806429",
+      "location": "mapped_mse/2/0",
+      "reported": "368.806429"
+    },
+    {
+      "independent_expected": "-2.120756",
+      "location": "mapped_mse/2/1",
+      "reported": "-2.120756"
+    },
+    {
+      "independent_expected": "-2.988631",
+      "location": "mapped_mse/2/2",
+      "reported": "-2.988631"
+    },
+    {
+      "independent_expected": "0.548865",
+      "location": "mapped_mse/2/3",
+      "reported": "0.548865"
+    },
+    {
+      "independent_expected": "0.548865",
+      "location": "mapped_mse/2/4",
+      "reported": "0.548865"
+    },
+    {
+      "independent_expected": "1.126726",
+      "location": "mapped_mse/2/5",
+      "reported": "1.126726"
+    },
+    {
+      "independent_expected": "317.375825",
+      "location": "mapped_mse/3/0",
+      "reported": "317.375825"
+    },
+    {
+      "independent_expected": "-8.036085",
+      "location": "mapped_mse/3/1",
+      "reported": "-8.036085"
+    },
+    {
+      "independent_expected": "-6.294689",
+      "location": "mapped_mse/3/2",
+      "reported": "-6.294689"
+    },
+    {
+      "independent_expected": "1.164743",
+      "location": "mapped_mse/3/3",
+      "reported": "1.164743"
+    },
+    {
+      "independent_expected": "1.164743",
+      "location": "mapped_mse/3/4",
+      "reported": "1.164743"
+    },
+    {
+      "independent_expected": "1.908398",
+      "location": "mapped_mse/3/5",
+      "reported": "1.908398"
+    },
+    {
+      "independent_expected": "377.385913",
+      "location": "mapped_mse/4/0",
+      "reported": "377.385913"
+    },
+    {
+      "independent_expected": "7.423680",
+      "location": "mapped_mse/4/1",
+      "reported": "7.423680"
+    },
+    {
+      "independent_expected": "6.974824",
+      "location": "mapped_mse/4/2",
+      "reported": "6.974824"
+    },
+    {
+      "independent_expected": "9.128348",
+      "location": "mapped_mse/4/3",
+      "reported": "9.128348"
+    },
+    {
+      "independent_expected": "9.128348",
+      "location": "mapped_mse/4/4",
+      "reported": "9.128348"
+    },
+    {
+      "independent_expected": "9.706209",
+      "location": "mapped_mse/4/5",
+      "reported": "9.706209"
+    },
+    {
+      "independent_expected": "328.720476",
+      "location": "mapped_mse/5/0",
+      "reported": "328.720476"
+    },
+    {
+      "independent_expected": "6.581857",
+      "location": "mapped_mse/5/1",
+      "reported": "6.581857"
+    },
+    {
+      "independent_expected": "6.153647",
+      "location": "mapped_mse/5/2",
+      "reported": "6.153647"
+    },
+    {
+      "independent_expected": "12.509395",
+      "location": "mapped_mse/5/3",
+      "reported": "12.509395"
+    },
+    {
+      "independent_expected": "12.509395",
+      "location": "mapped_mse/5/4",
+      "reported": "12.509395"
+    },
+    {
+      "independent_expected": "13.253050",
+      "location": "mapped_mse/5/5",
+      "reported": "13.253050"
+    },
+    {
+      "independent_expected": "368.656365",
+      "location": "mapped_mse/6/0",
+      "reported": "368.656365"
+    },
+    {
+      "independent_expected": "-0.818125",
+      "location": "mapped_mse/6/1",
+      "reported": "-0.818125"
+    },
+    {
+      "independent_expected": "-1.754723",
+      "location": "mapped_mse/6/2",
+      "reported": "-1.754723"
+    },
+    {
+      "independent_expected": "0.398801",
+      "location": "mapped_mse/6/3",
+      "reported": "0.398801"
+    },
+    {
+      "independent_expected": "0.398801",
+      "location": "mapped_mse/6/4",
+      "reported": "0.398801"
+    },
+    {
+      "independent_expected": "0.976662",
+      "location": "mapped_mse/6/5",
+      "reported": "0.976662"
+    },
+    {
+      "independent_expected": "317.187083",
+      "location": "mapped_mse/7/0",
+      "reported": "317.187083"
+    },
+    {
+      "independent_expected": "-6.549360",
+      "location": "mapped_mse/7/1",
+      "reported": "-6.549360"
+    },
+    {
+      "independent_expected": "-5.379746",
+      "location": "mapped_mse/7/2",
+      "reported": "-5.379746"
+    },
+    {
+      "independent_expected": "0.976002",
+      "location": "mapped_mse/7/3",
+      "reported": "0.976002"
+    },
+    {
+      "independent_expected": "0.976002",
+      "location": "mapped_mse/7/4",
+      "reported": "0.976002"
+    },
+    {
+      "independent_expected": "1.719656",
+      "location": "mapped_mse/7/5",
+      "reported": "1.719656"
+    },
+    {
+      "independent_expected": "2537",
+      "location": "mechanism/0/n",
+      "reported": "2537"
+    },
+    {
+      "independent_expected": "3.070834",
+      "location": "mechanism/0/mean_abs_new_mu_equal_quarter",
+      "reported": "3.070834"
+    },
+    {
+      "independent_expected": "1.843056",
+      "location": "mechanism/0/mean_abs_hard_mu_equal_quarter",
+      "reported": "1.843056"
+    },
+    {
+      "independent_expected": "1.843056",
+      "location": "mechanism/0/mean_abs_parent_mu_equal_quarter",
+      "reported": "1.843056"
+    },
+    {
+      "independent_expected": "1635",
+      "location": "mechanism/0/greater",
+      "reported": "1635"
+    },
+    {
+      "independent_expected": "2586",
+      "location": "mechanism/1/n",
+      "reported": "2586"
+    },
+    {
+      "independent_expected": "3.182341",
+      "location": "mechanism/1/mean_abs_new_mu_equal_quarter",
+      "reported": "3.182341"
+    },
+    {
+      "independent_expected": "2.321402",
+      "location": "mechanism/1/mean_abs_hard_mu_equal_quarter",
+      "reported": "2.321402"
+    },
+    {
+      "independent_expected": "2.321402",
+      "location": "mechanism/1/mean_abs_parent_mu_equal_quarter",
+      "reported": "2.321402"
+    },
+    {
+      "independent_expected": "1578",
+      "location": "mechanism/1/greater",
+      "reported": "1578"
+    },
+    {
+      "independent_expected": "2537",
+      "location": "mechanism/2/n",
+      "reported": "2537"
+    },
+    {
+      "independent_expected": "0.911539",
+      "location": "mechanism/2/mean_abs_new_mu_equal_quarter",
+      "reported": "0.911539"
+    },
+    {
+      "independent_expected": "1.843056",
+      "location": "mechanism/2/mean_abs_hard_mu_equal_quarter",
+      "reported": "1.843056"
+    },
+    {
+      "independent_expected": "1.843056",
+      "location": "mechanism/2/mean_abs_parent_mu_equal_quarter",
+      "reported": "1.843056"
+    },
+    {
+      "independent_expected": "766",
+      "location": "mechanism/2/greater",
+      "reported": "766"
+    },
+    {
+      "independent_expected": "2586",
+      "location": "mechanism/3/n",
+      "reported": "2586"
+    },
+    {
+      "independent_expected": "1.010649",
+      "location": "mechanism/3/mean_abs_new_mu_equal_quarter",
+      "reported": "1.010649"
+    },
+    {
+      "independent_expected": "2.321402",
+      "location": "mechanism/3/mean_abs_hard_mu_equal_quarter",
+      "reported": "2.321402"
+    },
+    {
+      "independent_expected": "2.321402",
+      "location": "mechanism/3/mean_abs_parent_mu_equal_quarter",
+      "reported": "2.321402"
+    },
+    {
+      "independent_expected": "844",
+      "location": "mechanism/3/greater",
+      "reported": "844"
+    },
+    {
+      "independent_expected": "2537",
+      "location": "mechanism/4/n",
+      "reported": "2537"
+    },
+    {
+      "independent_expected": "2.963320",
+      "location": "mechanism/4/mean_abs_new_mu_equal_quarter",
+      "reported": "2.963320"
+    },
+    {
+      "independent_expected": "1.679950",
+      "location": "mechanism/4/mean_abs_hard_mu_equal_quarter",
+      "reported": "1.679950"
+    },
+    {
+      "independent_expected": "1.679950",
+      "location": "mechanism/4/mean_abs_parent_mu_equal_quarter",
+      "reported": "1.679950"
+    },
+    {
+      "independent_expected": "1660",
+      "location": "mechanism/4/greater",
+      "reported": "1660"
+    },
+    {
+      "independent_expected": "2586",
+      "location": "mechanism/5/n",
+      "reported": "2586"
+    },
+    {
+      "independent_expected": "3.217433",
+      "location": "mechanism/5/mean_abs_new_mu_equal_quarter",
+      "reported": "3.217433"
+    },
+    {
+      "independent_expected": "2.212683",
+      "location": "mechanism/5/mean_abs_hard_mu_equal_quarter",
+      "reported": "2.212683"
+    },
+    {
+      "independent_expected": "2.212683",
+      "location": "mechanism/5/mean_abs_parent_mu_equal_quarter",
+      "reported": "2.212683"
+    },
+    {
+      "independent_expected": "1608",
+      "location": "mechanism/5/greater",
+      "reported": "1608"
+    },
+    {
+      "independent_expected": "2537",
+      "location": "mechanism/6/n",
+      "reported": "2537"
+    },
+    {
+      "independent_expected": "0.926104",
+      "location": "mechanism/6/mean_abs_new_mu_equal_quarter",
+      "reported": "0.926104"
+    },
+    {
+      "independent_expected": "1.679950",
+      "location": "mechanism/6/mean_abs_hard_mu_equal_quarter",
+      "reported": "1.679950"
+    },
+    {
+      "independent_expected": "1.679950",
+      "location": "mechanism/6/mean_abs_parent_mu_equal_quarter",
+      "reported": "1.679950"
+    },
+    {
+      "independent_expected": "813",
+      "location": "mechanism/6/greater",
+      "reported": "813"
+    },
+    {
+      "independent_expected": "2586",
+      "location": "mechanism/7/n",
+      "reported": "2586"
+    },
+    {
+      "independent_expected": "1.031693",
+      "location": "mechanism/7/mean_abs_new_mu_equal_quarter",
+      "reported": "1.031693"
+    },
+    {
+      "independent_expected": "2.212683",
+      "location": "mechanism/7/mean_abs_hard_mu_equal_quarter",
+      "reported": "2.212683"
+    },
+    {
+      "independent_expected": "2.212683",
+      "location": "mechanism/7/mean_abs_parent_mu_equal_quarter",
+      "reported": "2.212683"
+    },
+    {
+      "independent_expected": "878",
+      "location": "mechanism/7/greater",
+      "reported": "878"
+    },
+    {
+      "independent_expected": "5",
+      "location": "T_scalars/0/fold",
+      "reported": "5"
+    },
+    {
+      "independent_expected": "9.577183",
+      "location": "T_scalars/0/fit_abs_return_mean",
+      "reported": "9.577183"
+    },
+    {
+      "independent_expected": "0.389196",
+      "location": "T_scalars/0/fit_return_mean",
+      "reported": "0.389196"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/0/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "-7.047e-19",
+      "location": "T_scalars/0/mapped_prior_minus_fit_mean",
+      "reported": "-7.047e-19"
+    },
+    {
+      "independent_expected": "6",
+      "location": "T_scalars/1/fold",
+      "reported": "6"
+    },
+    {
+      "independent_expected": "9.899023",
+      "location": "T_scalars/1/fit_abs_return_mean",
+      "reported": "9.899023"
+    },
+    {
+      "independent_expected": "0.904943",
+      "location": "T_scalars/1/fit_return_mean",
+      "reported": "0.904943"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/1/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "-1.084e-18",
+      "location": "T_scalars/1/mapped_prior_minus_fit_mean",
+      "reported": "-1.084e-18"
+    },
+    {
+      "independent_expected": "7",
+      "location": "T_scalars/2/fold",
+      "reported": "7"
+    },
+    {
+      "independent_expected": "11.475838",
+      "location": "T_scalars/2/fit_abs_return_mean",
+      "reported": "11.475838"
+    },
+    {
+      "independent_expected": "0.880905",
+      "location": "T_scalars/2/fit_return_mean",
+      "reported": "0.880905"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/2/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "-3.253e-19",
+      "location": "T_scalars/2/mapped_prior_minus_fit_mean",
+      "reported": "-3.253e-19"
+    },
+    {
+      "independent_expected": "8",
+      "location": "T_scalars/3/fold",
+      "reported": "8"
+    },
+    {
+      "independent_expected": "12.351280",
+      "location": "T_scalars/3/fit_abs_return_mean",
+      "reported": "12.351280"
+    },
+    {
+      "independent_expected": "0.561574",
+      "location": "T_scalars/3/fit_return_mean",
+      "reported": "0.561574"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/3/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "-4.337e-19",
+      "location": "T_scalars/3/mapped_prior_minus_fit_mean",
+      "reported": "-4.337e-19"
+    },
+    {
+      "independent_expected": "9",
+      "location": "T_scalars/4/fold",
+      "reported": "9"
+    },
+    {
+      "independent_expected": "12.650868",
+      "location": "T_scalars/4/fit_abs_return_mean",
+      "reported": "12.650868"
+    },
+    {
+      "independent_expected": "0.692966",
+      "location": "T_scalars/4/fit_return_mean",
+      "reported": "0.692966"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/4/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "5.421e-19",
+      "location": "T_scalars/4/mapped_prior_minus_fit_mean",
+      "reported": "5.421e-19"
+    },
+    {
+      "independent_expected": "10",
+      "location": "T_scalars/5/fold",
+      "reported": "10"
+    },
+    {
+      "independent_expected": "12.860043",
+      "location": "T_scalars/5/fit_abs_return_mean",
+      "reported": "12.860043"
+    },
+    {
+      "independent_expected": "0.435153",
+      "location": "T_scalars/5/fit_return_mean",
+      "reported": "0.435153"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/5/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "-4.337e-19",
+      "location": "T_scalars/5/mapped_prior_minus_fit_mean",
+      "reported": "-4.337e-19"
+    },
+    {
+      "independent_expected": "11",
+      "location": "T_scalars/6/fold",
+      "reported": "11"
+    },
+    {
+      "independent_expected": "13.637871",
+      "location": "T_scalars/6/fit_abs_return_mean",
+      "reported": "13.637871"
+    },
+    {
+      "independent_expected": "0.360287",
+      "location": "T_scalars/6/fit_return_mean",
+      "reported": "0.360287"
+    },
+    {
+      "independent_expected": "0.000e+00",
+      "location": "T_scalars/6/saved_prior_minus_statistical_prior",
+      "reported": "0.000e+00"
+    },
+    {
+      "independent_expected": "9.216e-19",
+      "location": "T_scalars/6/mapped_prior_minus_fit_mean",
+      "reported": "9.216e-19"
+    },
+    {
+      "independent_expected": "12",
+      "location": "T_scalars/7/fold",
+      "reported": "12"
+    },
+    {
+      "independent_expected": "14.011730",
+      "location": "T_scalars/7/fit_abs_return_mean",
+      "reported": "14.011730"
+    },
+    {
+      "independent_expected": "-0.395133",
+      "location": "T_scalars/7/fit_return_mean",
+      "reported": "-0.395133"
+    },
+    {
+      "independent_expected": "5.551e-17",
+      "location": "T_scalars/7/saved_prior_minus_statistical_prior",
+      "reported": "5.551e-17"
+    },
+    {
+      "independent_expected": "1.301e-18",
+      "location": "T_scalars/7/mapped_prior_minus_fit_mean",
+      "reported": "1.301e-18"
+    }
+  ],
+  "table_rows": {
+    "T_scalars": 8,
+    "constant_economics": 12,
+    "learned_economics": 8,
+    "mapped_mse": 8,
+    "mechanism": 8,
+    "paired_economics": 16,
+    "regime_economics": 24
+  },
+  "total_table_rows": 84
+}

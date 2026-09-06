@@ -1,0 +1,1759 @@
+{
+  "constant_identity_by_fold": [
+    {
+      "T_rows": 800,
+      "fit_abs_return_mean": 0.009577183197216692,
+      "fit_return_mean": 0.00038919594200159403,
+      "fit_statistical_magnitude_prior": 0.5203189149662868,
+      "fold": 5,
+      "identity_tolerance": 1.0389195942001594e-14,
+      "mapped_prior": 0.0003891959420015933,
+      "mapped_prior_minus_fit_mean": -7.047314121155779e-19,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold5_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "fc7af23a81fe7cd44fff6fdea6efe9c9e73831d3f83a1c20515601f890299a1b"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold5_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "76d99563371b379142121a5035903c0a2621600a2938281b291802e70f06200f"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold5_technical_magnitude_prior_direction.npz",
+          "sha256": "56f332a433d46cc74d7ed7c90bc08b8df4108470f5ca792fb7287941b8da9257"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold5_technical_magnitude_prior_direction.npz",
+          "sha256": "7ae6d0919e9451ae319509afdfcc5fa2254e2eca6abc2247a28fb9e16d224d9d"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5203189149662868
+    },
+    {
+      "T_rows": 1034,
+      "fit_abs_return_mean": 0.009899022595278925,
+      "fit_return_mean": 0.0009049429689168443,
+      "fit_statistical_magnitude_prior": 0.5457087030667266,
+      "fold": 6,
+      "identity_tolerance": 1.0904942968916845e-14,
+      "mapped_prior": 0.0009049429689168432,
+      "mapped_prior_minus_fit_mean": -1.0842021724855044e-18,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold6_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "97f425b59fd67429e7a3543b6c5e66ac6882be96a23e49d97846406bb2a59ab0"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold6_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "c8feff3a7c387f64b316c6a1de4f941f59174a142ce8ad6a225f08a5ab2d157f"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold6_technical_magnitude_prior_direction.npz",
+          "sha256": "828b6392e3f24827152e6f32d9995451f59d214a356581e2d44195fd33ab8ec4"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold6_technical_magnitude_prior_direction.npz",
+          "sha256": "9644a8cd655072a2f9a29d893ccfa4610f746308ae3fc32734c2561cb04f0a8a"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5457087030667266
+    },
+    {
+      "T_rows": 1313,
+      "fit_abs_return_mean": 0.011475837907774894,
+      "fit_return_mean": 0.0008809054853591071,
+      "fit_statistical_magnitude_prior": 0.5383808786965478,
+      "fold": 7,
+      "identity_tolerance": 1.0880905485359107e-14,
+      "mapped_prior": 0.0008809054853591068,
+      "mapped_prior_minus_fit_mean": -3.2526065174565133e-19,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold7_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "dcf47ac852c77959b7d74b35c8112378043d2a45a0a65b898189832fb56fd646"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold7_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "affdb040a9d8dda67aff89876cec0d0dbf8088985c11c1937d09f983dc606c9e"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold7_technical_magnitude_prior_direction.npz",
+          "sha256": "8694d07ab456db69251af02a5c8db761e0a92c179af1014ff82a8f0f2199aa0a"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold7_technical_magnitude_prior_direction.npz",
+          "sha256": "a456e4607a64aeb18ffea1d6fa94fb721742bbe7845fd9042c0fd6b08b742be7"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5383808786965478
+    },
+    {
+      "T_rows": 1500,
+      "fit_abs_return_mean": 0.012351280472941852,
+      "fit_return_mean": 0.0005615743545971145,
+      "fit_statistical_magnitude_prior": 0.5227334467801684,
+      "fold": 8,
+      "identity_tolerance": 1.0561574354597114e-14,
+      "mapped_prior": 0.0005615743545971141,
+      "mapped_prior_minus_fit_mean": -4.336808689942018e-19,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold8_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "aa16778d12c4975c7f55a26179f32b6b0fb416512e727bcd7f7333f8a55a9d9e"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold8_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "7ee757c9296f406f9c03e1b855a889537723c8d079c4e08d3aab64272f1d7def"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold8_technical_magnitude_prior_direction.npz",
+          "sha256": "469a591acb35478c0b583689d14413dffa48cc9be549162062cf8eddec909401"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold8_technical_magnitude_prior_direction.npz",
+          "sha256": "8e8ab00ec4be207004fe74500c3465b5e28e6f7d578b1445bf9ef9c6f24dc8fb"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5227334467801684
+    },
+    {
+      "T_rows": 1503,
+      "fit_abs_return_mean": 0.012650867923879122,
+      "fit_return_mean": 0.0006929656948370803,
+      "fit_statistical_magnitude_prior": 0.5273880693011218,
+      "fold": 9,
+      "identity_tolerance": 1.069296569483708e-14,
+      "mapped_prior": 0.0006929656948370808,
+      "mapped_prior_minus_fit_mean": 5.421010862427522e-19,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold9_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "6ca71f9fbb2d00f79d535e3926b20937f166ea67a9f5227d8cd64cf3cc9e23df"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold9_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "a966b1826707efe669fb2763bcf78122e2e554e356ab792d3944b5a6b35e07cd"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold9_technical_magnitude_prior_direction.npz",
+          "sha256": "c4893672f8618f1aa1d7f19d3186f459cfdfc1a7141adc4fa2e493d38613db12"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold9_technical_magnitude_prior_direction.npz",
+          "sha256": "1bfc6a2c1d5bf76fbba57af37531e2ea389fe00f56f5da797ded33871d8e6004"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5273880693011218
+    },
+    {
+      "T_rows": 1634,
+      "fit_abs_return_mean": 0.012860043152674605,
+      "fit_return_mean": 0.00043515293599892687,
+      "fit_statistical_magnitude_prior": 0.5169187976600383,
+      "fold": 10,
+      "identity_tolerance": 1.0435152935998927e-14,
+      "mapped_prior": 0.00043515293599892643,
+      "mapped_prior_minus_fit_mean": -4.336808689942018e-19,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold10_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "8885d61f0c8d3e085582c806c031b7222a2341259d7f7b2c180cff47a965b0fc"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold10_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "f05fcf8db739e65daaa42b46bdc467f5c29ab1a57eec73bc50ddf5d442a621b9"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold10_technical_magnitude_prior_direction.npz",
+          "sha256": "ba7915e266b2d42fe049feac60676ee06aba1f1972e0f641a47c693247cf05bb"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold10_technical_magnitude_prior_direction.npz",
+          "sha256": "67c7f494a19ba0efab5712b399c1a675a057ccbaf7125dced48b70649f138073"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5169187976600383
+    },
+    {
+      "T_rows": 1672,
+      "fit_abs_return_mean": 0.013637870639947904,
+      "fit_return_mean": 0.00036028706548825776,
+      "fit_statistical_magnitude_prior": 0.5132090659531888,
+      "fold": 11,
+      "identity_tolerance": 1.0360287065488258e-14,
+      "mapped_prior": 0.0003602870654882587,
+      "mapped_prior_minus_fit_mean": 9.215718466126788e-19,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold11_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "4a7222c4b3c2054c4249ecf3d849a250bc54d46a2c55fb611e8ed41ffb856070"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold11_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "863d9ceae1a1421d68da7e116ae1dcb8a1cf1e123a2fd78250bdf503add64d4d"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold11_technical_magnitude_prior_direction.npz",
+          "sha256": "60be983fc88e516cbaeddc0b782e1c530535afc3bc9543d5b38df7c1e0b3bac5"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold11_technical_magnitude_prior_direction.npz",
+          "sha256": "a1f5ee48d9f08570d5e5f08179a94e0a28e20951ed6d3c816b3d6ef1d2e805c3"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 0.0,
+      "saved_prior_probability": 0.5132090659531888
+    },
+    {
+      "T_rows": 1794,
+      "fit_abs_return_mean": 0.014011730295384432,
+      "fit_return_mean": -0.00039513284619190905,
+      "fit_statistical_magnitude_prior": 0.4858999267805608,
+      "fold": 12,
+      "identity_tolerance": 1.0395132846191909e-14,
+      "mapped_prior": -0.00039513284619190775,
+      "mapped_prior_minus_fit_mean": 1.3010426069826053e-18,
+      "prior_bindings": {
+        "perp_delay0/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold12_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "e7b58c2efd0d5f3f19948603643744bfc575d12ef2a03d88c32a2a6be8deb61e"
+        },
+        "perp_delay0/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold12_perp_delay0_magnitude_prior_direction.npz",
+          "sha256": "73c1b04e87a025de312df1565bc5da4fc76bedc822cb7206c01af9aa36c57f13"
+        },
+        "technical/evaluation": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/forecasts/fold12_technical_magnitude_prior_direction.npz",
+          "sha256": "3e1d894ae9c081180c69a0f2ef0c05bd603d77308685cf9d4b70acfbbeb7f4c8"
+        },
+        "technical/interval": {
+          "path": "codex_outputs/oracle_direction_decisions_v1/calibration/fold12_technical_magnitude_prior_direction.npz",
+          "sha256": "6ff5995f8a6783b07c9123ff22334fab11a458438b82c65feb031b2b5aa0bf45"
+        }
+      },
+      "saved_prior_minus_statistical_prior": 5.551115123125783e-17,
+      "saved_prior_probability": 0.4858999267805609
+    }
+  ],
+  "fixed_constant_saved_metrics_comparisons_exact": 80,
+  "fixed_constant_target_comparisons": [
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 5,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 6,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 7,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 8,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 9,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 10,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 11,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_fit_mean_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_zero_utility_risk1",
+      "right": "perp_delay0_soft_zero_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_mapped_prior_utility_risk1",
+      "right": "technical_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1",
+      "rule": "utility_risk1",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_mapped_prior",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_fit_mean",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "cross_group_zero",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_zero_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_zero_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "technical_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "technical_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    },
+    {
+      "comparison": "perp_delay0_mapped_prior_vs_fit_mean",
+      "different_target_rows": 0,
+      "fold": 12,
+      "left": "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+      "right": "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+      "rule": "utility_risk1_fallback_bh",
+      "same_base_stress_metrics": true,
+      "targets_exact": true
+    }
+  ],
+  "fixed_constant_target_comparisons_exact": 80,
+  "limitations": [
+    "Duplicate target paths do not make floating mean arrays identical.",
+    "Probabilities/logits retained inside constant mean NPZs are source evidence, not forecasts of those constant controls.",
+    "Same saved metrics are checked for identity here; independent economic recomputation belongs to the separate accounting audit.",
+    "Mechanism counts use all inference rows, not future-score support; equal-quarter and pooled-row means are distinct."
+  ],
+  "max_abs_mapped_prior_fit_mean_residual": 1.3010426069826053e-18,
+  "max_abs_saved_vs_statistical_prior_difference": 5.551115123125783e-17,
+  "mechanism_aggregate_counts": {
+    "mapped_direction_vs_logit_disagreements": 0,
+    "mapped_zero_mean_rows": 0,
+    "new_abs_mu_equal_to_hard_rows": 0,
+    "new_abs_mu_greater_than_hard_rows": 9782,
+    "probability_direction_vs_logit_disagreements": 0,
+    "probability_half_rows": 0,
+    "probability_one_rows": 0,
+    "probability_zero_rows": 0,
+    "source_zero_logit_rows": 0
+  },
+  "mechanism_summary": {
+    "perp_delay0_magnitude_l2unit_soft": {
+      "evaluation": {
+        "inference_rows": 2586,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.002212682838940794,
+        "mean_abs_hard_mu_row_pooled": 0.002051098415572008,
+        "mean_abs_new_mu_equal_quarter": 0.0010316928292038894,
+        "mean_abs_new_mu_row_pooled": 0.001010805842815436,
+        "mean_abs_parent_mu_equal_quarter": 0.002212682838940794,
+        "mean_abs_parent_mu_row_pooled": 0.002051098415572008,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.3395204949729312,
+        "new_abs_mu_greater_than_hard_rows": 878,
+        "new_abs_mu_less_than_hard_rows": 1708,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 12
+      },
+      "interval": {
+        "inference_rows": 2537,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.0016799500401314255,
+        "mean_abs_hard_mu_row_pooled": 0.0016324059065760395,
+        "mean_abs_new_mu_equal_quarter": 0.0009261040252008216,
+        "mean_abs_new_mu_row_pooled": 0.0009020945032677696,
+        "mean_abs_parent_mu_equal_quarter": 0.0016799500401314255,
+        "mean_abs_parent_mu_row_pooled": 0.0016324059065760395,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.3204572329523059,
+        "new_abs_mu_greater_than_hard_rows": 813,
+        "new_abs_mu_less_than_hard_rows": 1724,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 14
+      }
+    },
+    "perp_delay0_magnitude_soft": {
+      "evaluation": {
+        "inference_rows": 2586,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.002212682838940794,
+        "mean_abs_hard_mu_row_pooled": 0.002051098415572008,
+        "mean_abs_new_mu_equal_quarter": 0.003217433412812344,
+        "mean_abs_new_mu_row_pooled": 0.0031346578322924276,
+        "mean_abs_parent_mu_equal_quarter": 0.002212682838940794,
+        "mean_abs_parent_mu_row_pooled": 0.002051098415572008,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.6218097447795824,
+        "new_abs_mu_greater_than_hard_rows": 1608,
+        "new_abs_mu_less_than_hard_rows": 978,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 12
+      },
+      "interval": {
+        "inference_rows": 2537,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.0016799500401314255,
+        "mean_abs_hard_mu_row_pooled": 0.0016324059065760395,
+        "mean_abs_new_mu_equal_quarter": 0.002963319805615939,
+        "mean_abs_new_mu_row_pooled": 0.0029116608624267975,
+        "mean_abs_parent_mu_equal_quarter": 0.0016799500401314255,
+        "mean_abs_parent_mu_row_pooled": 0.0016324059065760395,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.6543161214032321,
+        "new_abs_mu_greater_than_hard_rows": 1660,
+        "new_abs_mu_less_than_hard_rows": 877,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 14
+      }
+    },
+    "technical_magnitude_l2unit_soft": {
+      "evaluation": {
+        "inference_rows": 2586,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.0023214017756749356,
+        "mean_abs_hard_mu_row_pooled": 0.002137189731365407,
+        "mean_abs_new_mu_equal_quarter": 0.0010106486482368876,
+        "mean_abs_new_mu_row_pooled": 0.000982901686158569,
+        "mean_abs_parent_mu_equal_quarter": 0.0023214017756749356,
+        "mean_abs_parent_mu_row_pooled": 0.002137189731365407,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.32637277648878577,
+        "new_abs_mu_greater_than_hard_rows": 844,
+        "new_abs_mu_less_than_hard_rows": 1742,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 12
+      },
+      "interval": {
+        "inference_rows": 2537,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.0018430563528295555,
+        "mean_abs_hard_mu_row_pooled": 0.001760869129345421,
+        "mean_abs_new_mu_equal_quarter": 0.0009115394791406301,
+        "mean_abs_new_mu_row_pooled": 0.0008821451731938647,
+        "mean_abs_parent_mu_equal_quarter": 0.0018430563528295555,
+        "mean_abs_parent_mu_row_pooled": 0.001760869129345421,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.3019314150571541,
+        "new_abs_mu_greater_than_hard_rows": 766,
+        "new_abs_mu_less_than_hard_rows": 1771,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 14
+      }
+    },
+    "technical_magnitude_soft": {
+      "evaluation": {
+        "inference_rows": 2586,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.0023214017756749356,
+        "mean_abs_hard_mu_row_pooled": 0.002137189731365407,
+        "mean_abs_new_mu_equal_quarter": 0.0031823405825615794,
+        "mean_abs_new_mu_row_pooled": 0.0030432391910865933,
+        "mean_abs_parent_mu_equal_quarter": 0.0023214017756749356,
+        "mean_abs_parent_mu_row_pooled": 0.002137189731365407,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.6102088167053364,
+        "new_abs_mu_greater_than_hard_rows": 1578,
+        "new_abs_mu_less_than_hard_rows": 1008,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 12
+      },
+      "interval": {
+        "inference_rows": 2537,
+        "mapped_direction_vs_logit_disagreements": 0,
+        "mapped_zero_mean_rows": 0,
+        "mean_abs_hard_mu_equal_quarter": 0.0018430563528295555,
+        "mean_abs_hard_mu_row_pooled": 0.001760869129345421,
+        "mean_abs_new_mu_equal_quarter": 0.0030708343123841556,
+        "mean_abs_new_mu_row_pooled": 0.002934278209899867,
+        "mean_abs_parent_mu_equal_quarter": 0.0018430563528295555,
+        "mean_abs_parent_mu_row_pooled": 0.001760869129345421,
+        "new_abs_mu_equal_to_hard_rows": 0,
+        "new_abs_mu_greater_than_hard_fraction_row_pooled": 0.6444619629483642,
+        "new_abs_mu_greater_than_hard_rows": 1635,
+        "new_abs_mu_less_than_hard_rows": 902,
+        "probability_direction_vs_logit_disagreements": 0,
+        "probability_half_rows": 0,
+        "probability_one_rows": 0,
+        "probability_zero_rows": 0,
+        "quarters": 8,
+        "source_zero_logit_rows": 0,
+        "unscored_inference_rows": 14
+      }
+    }
+  },
+  "new_policy_duplicate_target_clusters": [
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1",
+        "technical_soft_zero_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1"
+      ],
+      "fold": 5,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 5,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1"
+      ],
+      "fold": 6,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 6,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1"
+      ],
+      "fold": 6,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 6,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1"
+      ],
+      "fold": 7,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 7,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1"
+      ],
+      "fold": 7,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 7,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_magnitude_soft_utility_risk1",
+        "technical_magnitude_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 8,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_magnitude_l2unit_soft_utility_risk1",
+        "technical_magnitude_l2unit_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 8,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "perp_delay0_magnitude_soft_utility_risk1",
+        "perp_delay0_magnitude_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 8,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "perp_delay0_magnitude_l2unit_soft_utility_risk1",
+        "perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 8,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 8,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 8,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1"
+      ],
+      "fold": 9,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 9,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1"
+      ],
+      "fold": 9,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 9,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_magnitude_soft_utility_risk1",
+        "technical_magnitude_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 10,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_magnitude_l2unit_soft_utility_risk1",
+        "technical_magnitude_l2unit_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 10,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "perp_delay0_magnitude_soft_utility_risk1",
+        "perp_delay0_magnitude_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 10,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "perp_delay0_magnitude_l2unit_soft_utility_risk1",
+        "perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 10,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 10,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 10,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_magnitude_soft_utility_risk1",
+        "technical_magnitude_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 11,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_magnitude_l2unit_soft_utility_risk1",
+        "technical_magnitude_l2unit_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 11,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "perp_delay0_magnitude_soft_utility_risk1",
+        "perp_delay0_magnitude_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 11,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "perp_delay0_magnitude_l2unit_soft_utility_risk1",
+        "perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh"
+      ],
+      "fold": 11,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 11,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 11,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1",
+        "technical_soft_fit_mean_utility_risk1",
+        "perp_delay0_soft_mapped_prior_utility_risk1",
+        "perp_delay0_soft_fit_mean_utility_risk1"
+      ],
+      "fold": 12,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_mapped_prior_utility_risk1_fallback_bh",
+        "technical_soft_fit_mean_utility_risk1_fallback_bh",
+        "perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh",
+        "perp_delay0_soft_fit_mean_utility_risk1_fallback_bh"
+      ],
+      "fold": 12,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1",
+        "perp_delay0_soft_zero_utility_risk1"
+      ],
+      "fold": 12,
+      "same_base_stress_metrics": true
+    },
+    {
+      "candidate_ids": [
+        "technical_soft_zero_utility_risk1_fallback_bh",
+        "perp_delay0_soft_zero_utility_risk1_fallback_bh"
+      ],
+      "fold": 12,
+      "same_base_stress_metrics": true
+    }
+  ],
+  "nonzero_mapped_prior_fit_mean_residual_folds": 8,
+  "nonzero_saved_vs_statistical_prior_difference_folds": 1,
+  "scope": "Descriptive aggregation of audited mapping quantities plus exact saved-target/saved-metric identity; no fit, scoring or policy replay",
+  "script_sha256": "87cb7c38f8b1894ef58a8c2924f485c7c76ed0a37d5c2d0d9f880aa871b1d568",
+  "source_mapping_audit_sha256": "d5bc7358bb75f4a8f278b590355bff46955320d0b51a5b3738c37e33bbb40eef",
+  "source_results_sha256": "d85e14e1a8249601a1f28c0d4fa29b1fbb23a3571232dcedc5edee0644b82cc5",
+  "source_target_sha256": {
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "a6e5389df1a7c53c42465ae474055a8ec6ca67257f2b064d0e5045d585e12ea2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "a6e5389df1a7c53c42465ae474055a8ec6ca67257f2b064d0e5045d585e12ea2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_magnitude_soft_utility_risk1.npz": "582dd44373de54be796f1a12b8649b037dfadb2558dc9aeb987d0ab0659a3f9a",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "582dd44373de54be796f1a12b8649b037dfadb2558dc9aeb987d0ab0659a3f9a",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_soft_fit_mean_utility_risk1.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_soft_mapped_prior_utility_risk1.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_soft_zero_utility_risk1.npz": "a16874ff651d2f3e0ba292267d9ceaa3dfde2015617cd91407ee6c2dc478846c",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "a16874ff651d2f3e0ba292267d9ceaa3dfde2015617cd91407ee6c2dc478846c",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_magnitude_l2unit_soft_utility_risk1.npz": "48d3bd15ee87a575a21c658aa320f411d258f8c7f49a05ec03eef6703d834420",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "48d3bd15ee87a575a21c658aa320f411d258f8c7f49a05ec03eef6703d834420",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_magnitude_soft_utility_risk1.npz": "e656d39442688b96614fc76c9b71e73ea27a60772593e5a3b8d31ea37cfdf2c7",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "e656d39442688b96614fc76c9b71e73ea27a60772593e5a3b8d31ea37cfdf2c7",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_soft_fit_mean_utility_risk1.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_soft_mapped_prior_utility_risk1.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "46342687704c345d0f53dd74f7905b9661f020126408f71cdd84d23b96b4da71",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_soft_zero_utility_risk1.npz": "a16874ff651d2f3e0ba292267d9ceaa3dfde2015617cd91407ee6c2dc478846c",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold10_technical_soft_zero_utility_risk1_fallback_bh.npz": "a16874ff651d2f3e0ba292267d9ceaa3dfde2015617cd91407ee6c2dc478846c",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "01b0447af6de0624155861ac0e8e2cb1f2f7d868d5c27ec2a22eaab40b04283a",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "01b0447af6de0624155861ac0e8e2cb1f2f7d868d5c27ec2a22eaab40b04283a",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_magnitude_soft_utility_risk1.npz": "713b34125602eb0ab2ad426ba083569a5de6b60c1d77c3bdf05df4244cb72a02",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "713b34125602eb0ab2ad426ba083569a5de6b60c1d77c3bdf05df4244cb72a02",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_soft_fit_mean_utility_risk1.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_soft_mapped_prior_utility_risk1.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_soft_zero_utility_risk1.npz": "aaa8f938ee694430024efd8e02302b205f93da1c010ac00c22fb5d0ace5d7043",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "aaa8f938ee694430024efd8e02302b205f93da1c010ac00c22fb5d0ace5d7043",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_magnitude_l2unit_soft_utility_risk1.npz": "640133666c24b74695b2e953c506f62124fd03c0395892bdfb43949fc41c05b3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "640133666c24b74695b2e953c506f62124fd03c0395892bdfb43949fc41c05b3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_magnitude_soft_utility_risk1.npz": "3c6ffe138edc696927cd2cd450ef00e5ea3611b8478f22f6547947cb076f5b81",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "3c6ffe138edc696927cd2cd450ef00e5ea3611b8478f22f6547947cb076f5b81",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_soft_fit_mean_utility_risk1.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_soft_mapped_prior_utility_risk1.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "904ce8251c9f667466fa89913577be37e9e9f883a47d5193b84cc72898530623",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_soft_zero_utility_risk1.npz": "aaa8f938ee694430024efd8e02302b205f93da1c010ac00c22fb5d0ace5d7043",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold11_technical_soft_zero_utility_risk1_fallback_bh.npz": "aaa8f938ee694430024efd8e02302b205f93da1c010ac00c22fb5d0ace5d7043",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "522d28a697c2c6b602262ef6be5bcd63dc2c49c6fc8f93876d15175d04bd9268",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "b23717968e1d2b47f4a1edb96bbc9485ceab541a2f657d2a6f5762ff65d16693",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_magnitude_soft_utility_risk1.npz": "12cde49aa1d2ce8d31dda492d80cb86f44398ea8b4777e46042c0343ca2a03fd",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "27035b2709cb59913f3cf06ba942c7146944921b1218e44f115e9f0fac7158d6",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_soft_fit_mean_utility_risk1.npz": "68fd9cfaf4a85a24fc1a77be72cdf3a5e863aabb138303fef505435abafe01b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "81ae455c325117e56673154a40e728fa97f8df1782edb76077ca708fd94399b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_soft_mapped_prior_utility_risk1.npz": "68fd9cfaf4a85a24fc1a77be72cdf3a5e863aabb138303fef505435abafe01b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "81ae455c325117e56673154a40e728fa97f8df1782edb76077ca708fd94399b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_soft_zero_utility_risk1.npz": "3eb6382cde1f0bac036acda7c477bf2c29faa46d8f1a5ed6a9aa08cc71e43cfb",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "8f5a130aa8eb00a9a546afe1f445754e7d76da2bb08c7690de1c1783ab21742b",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_magnitude_l2unit_soft_utility_risk1.npz": "25406f5d1b43d4ed07e30445f75f9c15e52d855e190a63078e0f32e7dc20ea74",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "a3ab2942a6b580f33f949ddfbe0fd425355292d8bfce28c5157709d11601a2ed",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_magnitude_soft_utility_risk1.npz": "556633bb35d11e99c1af28f4c91930bd377e89d14e7eb95b426200023adb3514",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "d7e08278da3d6c3be2db5b5d1729d632f96c2f55fa62a86c6565bda56d75e7d2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_soft_fit_mean_utility_risk1.npz": "68fd9cfaf4a85a24fc1a77be72cdf3a5e863aabb138303fef505435abafe01b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "81ae455c325117e56673154a40e728fa97f8df1782edb76077ca708fd94399b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_soft_mapped_prior_utility_risk1.npz": "68fd9cfaf4a85a24fc1a77be72cdf3a5e863aabb138303fef505435abafe01b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "81ae455c325117e56673154a40e728fa97f8df1782edb76077ca708fd94399b2",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_soft_zero_utility_risk1.npz": "3eb6382cde1f0bac036acda7c477bf2c29faa46d8f1a5ed6a9aa08cc71e43cfb",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold12_technical_soft_zero_utility_risk1_fallback_bh.npz": "8f5a130aa8eb00a9a546afe1f445754e7d76da2bb08c7690de1c1783ab21742b",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "ca0e74b62f560ce8a32af9f285600a12e18d1ddf8bbf3f95f564c26ef3bb07dc",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "c48214c03662cc206d56bd8d9fe1a736a7c82cb232075a78d2b48ddc50571957",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_magnitude_soft_utility_risk1.npz": "7a8738bec43545940834bb087de0588889e22ece88f3328ceab79601eac581e1",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "796b4cbf5bf0ed500999c07f035ba4308537405b48a3d805b65f48c1f4ae42f5",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_soft_fit_mean_utility_risk1.npz": "244f48c0d033c940caefb284d715d3248502791681ecbb745100bc18ea5aaca3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "bf3de4a1382faae2820c6bde8e679176e98700e82a1e0d7fc720ca4a5ec4ed43",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_soft_mapped_prior_utility_risk1.npz": "244f48c0d033c940caefb284d715d3248502791681ecbb745100bc18ea5aaca3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "bf3de4a1382faae2820c6bde8e679176e98700e82a1e0d7fc720ca4a5ec4ed43",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_soft_zero_utility_risk1.npz": "244f48c0d033c940caefb284d715d3248502791681ecbb745100bc18ea5aaca3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "bf3de4a1382faae2820c6bde8e679176e98700e82a1e0d7fc720ca4a5ec4ed43",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_magnitude_l2unit_soft_utility_risk1.npz": "d807692cfa255b7257b36d036005523f7c8aa6e83375deabeee346a796705a67",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "56f35753cd084eb0daebc3112d7cd7c731f263f5b8936a24250804e6f166f526",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_magnitude_soft_utility_risk1.npz": "6e26beb0179a1b3b242ea2824e4040afaf9ac85765f040457b7ccc4200eb63da",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "a5a74f3549b391fa825cde679ab7c5340efc8de4174cf183129051965cfe3d2c",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_soft_fit_mean_utility_risk1.npz": "244f48c0d033c940caefb284d715d3248502791681ecbb745100bc18ea5aaca3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "bf3de4a1382faae2820c6bde8e679176e98700e82a1e0d7fc720ca4a5ec4ed43",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_soft_mapped_prior_utility_risk1.npz": "244f48c0d033c940caefb284d715d3248502791681ecbb745100bc18ea5aaca3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "bf3de4a1382faae2820c6bde8e679176e98700e82a1e0d7fc720ca4a5ec4ed43",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_soft_zero_utility_risk1.npz": "244f48c0d033c940caefb284d715d3248502791681ecbb745100bc18ea5aaca3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold5_technical_soft_zero_utility_risk1_fallback_bh.npz": "bf3de4a1382faae2820c6bde8e679176e98700e82a1e0d7fc720ca4a5ec4ed43",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "1952583732d65bd1b8c0fe201a1d69fd8a5bad3df9e08615d8c08fb4fbdef262",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "961572ff05c3af7980bf74b3c4bb966df45328aa16b92ae4f805691d3be319c1",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_magnitude_soft_utility_risk1.npz": "1f3e6c2c509ff9200d15d245d613fb009818879d898b6456ee47ab9f5c58d8e4",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "43a3bead5931152fa1c649e9d07722c00a5c8e05bd74e9c9f5f3175332724fbe",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_soft_fit_mean_utility_risk1.npz": "69f9ce37e3f0c20b26e1b56e1f2359de1ef34247562080544661477595770120",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "62c57b75b0d38179cb3346feea6860cd6ff1ce16fb35c99243bbe21775e7db31",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_soft_mapped_prior_utility_risk1.npz": "69f9ce37e3f0c20b26e1b56e1f2359de1ef34247562080544661477595770120",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "62c57b75b0d38179cb3346feea6860cd6ff1ce16fb35c99243bbe21775e7db31",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_soft_zero_utility_risk1.npz": "27a3d92241808c86efdfbd046ebc4c534a07cfe2cf37513c790b78b8d797c0ad",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "c143f009bb6c6d95ae79987eb688680bd75208d1dab634fc0f1c6c3e2384af39",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_magnitude_l2unit_soft_utility_risk1.npz": "de036b701f9c52debe0066ccca3ccdde1e882dfe95020aaafaff71834d547886",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "0da89eb24ae4791821dfdbe23500dc7198091e7c6c1b4aae64c310b1e91e09f5",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_magnitude_soft_utility_risk1.npz": "c65aaef69ae5f78c4a891139ad2ffe63abab19b27afec8a019a53c82bc8de565",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "e4560e2dfb4db3333de435fb784ee86c238df1b335cad40a34811892c725aa05",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_soft_fit_mean_utility_risk1.npz": "69f9ce37e3f0c20b26e1b56e1f2359de1ef34247562080544661477595770120",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "62c57b75b0d38179cb3346feea6860cd6ff1ce16fb35c99243bbe21775e7db31",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_soft_mapped_prior_utility_risk1.npz": "69f9ce37e3f0c20b26e1b56e1f2359de1ef34247562080544661477595770120",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "62c57b75b0d38179cb3346feea6860cd6ff1ce16fb35c99243bbe21775e7db31",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_soft_zero_utility_risk1.npz": "27a3d92241808c86efdfbd046ebc4c534a07cfe2cf37513c790b78b8d797c0ad",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold6_technical_soft_zero_utility_risk1_fallback_bh.npz": "c143f009bb6c6d95ae79987eb688680bd75208d1dab634fc0f1c6c3e2384af39",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "d86908777bf1925fa99647ad7358758931713eed68b8aa26425d9c8434d9e2af",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "a0a61e6c7cca933d58d55abf2b4b3d009751a91770b2fc75fa92683965f6294c",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_magnitude_soft_utility_risk1.npz": "4b69045770d48415040317ab9033486548e7738147ba00a6c3a4e8b0fc608fa4",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "81db81eba9e5f39814e53a781de7382e751e9487a584ef54266794e80c77b17f",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_soft_fit_mean_utility_risk1.npz": "02400062942e8e1333cdd94618156fd630859597dfc007ba7a58eaf4168d3552",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "e287b090e65ab8b69e83c43adb3d3d35b21a6827facd7dffbc51f2ebd789a82e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_soft_mapped_prior_utility_risk1.npz": "02400062942e8e1333cdd94618156fd630859597dfc007ba7a58eaf4168d3552",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "e287b090e65ab8b69e83c43adb3d3d35b21a6827facd7dffbc51f2ebd789a82e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_soft_zero_utility_risk1.npz": "35fa34b0dd2a8b6db56433f3287c241851fd6036ab9fd35417ba45fbef181c6e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "b23df570e9282bea36e1b8a45031a6e3d016cea33dbd86a1346fe77a97068ae9",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_magnitude_l2unit_soft_utility_risk1.npz": "ef6dded626b5b174843fc806a547747bab742733970f1a718ac5b2b85a469685",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "a18c99cc30cd49125fa2869b6a5cc5879850502b568388a78f9e5d9794ca2086",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_magnitude_soft_utility_risk1.npz": "be3ddd1ebf63be7218211bc29319024358cb26f2bb25e0571066463c0670cdd3",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "3cca69c70c80cbc7db187bf27d220d5d62dff20a8b0665fa59b04b83eb38605a",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_soft_fit_mean_utility_risk1.npz": "02400062942e8e1333cdd94618156fd630859597dfc007ba7a58eaf4168d3552",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "e287b090e65ab8b69e83c43adb3d3d35b21a6827facd7dffbc51f2ebd789a82e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_soft_mapped_prior_utility_risk1.npz": "02400062942e8e1333cdd94618156fd630859597dfc007ba7a58eaf4168d3552",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "e287b090e65ab8b69e83c43adb3d3d35b21a6827facd7dffbc51f2ebd789a82e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_soft_zero_utility_risk1.npz": "35fa34b0dd2a8b6db56433f3287c241851fd6036ab9fd35417ba45fbef181c6e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold7_technical_soft_zero_utility_risk1_fallback_bh.npz": "b23df570e9282bea36e1b8a45031a6e3d016cea33dbd86a1346fe77a97068ae9",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "c1a10c6e3618a12516fee20e6ba11b82d410ab4b264bd581a6a832a8b85c3e09",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "c1a10c6e3618a12516fee20e6ba11b82d410ab4b264bd581a6a832a8b85c3e09",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_magnitude_soft_utility_risk1.npz": "26049cecd04136012fa3e1d883ab39c5669ad088c341203a259cea6b39a02348",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "26049cecd04136012fa3e1d883ab39c5669ad088c341203a259cea6b39a02348",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_soft_fit_mean_utility_risk1.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_soft_mapped_prior_utility_risk1.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_soft_zero_utility_risk1.npz": "49004063b6dc7202110247d357368ab7597c47cf6fbab01cdf4c8a5d946bab67",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "49004063b6dc7202110247d357368ab7597c47cf6fbab01cdf4c8a5d946bab67",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_magnitude_l2unit_soft_utility_risk1.npz": "b788a36129d1671b34b37a641b65d76a1299d18020a27d051f0093fa734879a1",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "b788a36129d1671b34b37a641b65d76a1299d18020a27d051f0093fa734879a1",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_magnitude_soft_utility_risk1.npz": "f259356b7393968f457df948a68cb43fad9cd1fdfe6b030142b1489939fd4d2e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "f259356b7393968f457df948a68cb43fad9cd1fdfe6b030142b1489939fd4d2e",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_soft_fit_mean_utility_risk1.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_soft_mapped_prior_utility_risk1.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "bdfa1a0dfdf634b399993ccbad6f146893c6f851aff4784436f6e537b0756038",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_soft_zero_utility_risk1.npz": "49004063b6dc7202110247d357368ab7597c47cf6fbab01cdf4c8a5d946bab67",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold8_technical_soft_zero_utility_risk1_fallback_bh.npz": "49004063b6dc7202110247d357368ab7597c47cf6fbab01cdf4c8a5d946bab67",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_magnitude_l2unit_soft_utility_risk1.npz": "779292d9e433089b186cfc5a169c183f76190f737f638522d3ba638f00bdae3b",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "ebc0b980b39471129b3ad5ff5ea6e5e0a8f9541047c26cdfb70b274c45b2ad91",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_magnitude_soft_utility_risk1.npz": "ae1af8218624a31f43f583ece531eec7f5f709b54d8dedad23997c884d24b8ce",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_magnitude_soft_utility_risk1_fallback_bh.npz": "cb7119207ff3f3eccf72914fc1beca0aff1d2718a8681db7d5fcf62b5a9b5aa6",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_soft_fit_mean_utility_risk1.npz": "fcab2ef74df3f4857d96ddbe503a07605f541d21afed2a2c23bc54ba3fe1447d",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_soft_fit_mean_utility_risk1_fallback_bh.npz": "52e01d3cba250a9347365e4da0e6f7bb2dfe256fe7cbe58eea34a1b735d3ec94",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_soft_mapped_prior_utility_risk1.npz": "fcab2ef74df3f4857d96ddbe503a07605f541d21afed2a2c23bc54ba3fe1447d",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_soft_mapped_prior_utility_risk1_fallback_bh.npz": "52e01d3cba250a9347365e4da0e6f7bb2dfe256fe7cbe58eea34a1b735d3ec94",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_soft_zero_utility_risk1.npz": "afff31ba6aebd80e48d860dd0248ebddf963b2f88866d91bc6e113661b6a6277",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_perp_delay0_soft_zero_utility_risk1_fallback_bh.npz": "ac3e24936c62c791a16eea856f177fff23ab2c12b751abe767f3a0618bb8c3c6",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_magnitude_l2unit_soft_utility_risk1.npz": "fff44e5f192e198f61105c3c0bf62a48e9a2730e408ad9e67427a86d75beed24",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_magnitude_l2unit_soft_utility_risk1_fallback_bh.npz": "346acc44bd9920aae6061cbecc1d8e4e5a1a170ac6b9edc65aa7a2889ece5bf1",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_magnitude_soft_utility_risk1.npz": "a7de5c3e631141b4ad5950fe7962c04d9ecfe5f363327f7bb180ecf642f6b6ca",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_magnitude_soft_utility_risk1_fallback_bh.npz": "89fb2d3c4a822eb4a2b5d591f0a1ca42108d527ed9f49712b83a3efc841f21ee",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_soft_fit_mean_utility_risk1.npz": "fcab2ef74df3f4857d96ddbe503a07605f541d21afed2a2c23bc54ba3fe1447d",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_soft_fit_mean_utility_risk1_fallback_bh.npz": "52e01d3cba250a9347365e4da0e6f7bb2dfe256fe7cbe58eea34a1b735d3ec94",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_soft_mapped_prior_utility_risk1.npz": "fcab2ef74df3f4857d96ddbe503a07605f541d21afed2a2c23bc54ba3fe1447d",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_soft_mapped_prior_utility_risk1_fallback_bh.npz": "52e01d3cba250a9347365e4da0e6f7bb2dfe256fe7cbe58eea34a1b735d3ec94",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_soft_zero_utility_risk1.npz": "afff31ba6aebd80e48d860dd0248ebddf963b2f88866d91bc6e113661b6a6277",
+    "codex_outputs/oracle_soft_direction_decisions_v1/targets/fold9_technical_soft_zero_utility_risk1_fallback_bh.npz": "ac3e24936c62c791a16eea856f177fff23ab2c12b751abe767f3a0618bb8c3c6"
+  }
+}
