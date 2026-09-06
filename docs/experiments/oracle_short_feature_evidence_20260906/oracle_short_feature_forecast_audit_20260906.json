@@ -1,0 +1,217 @@
+{
+  "audit_script_sha256": "ec095e1b9421f1df2a793362dba6d0d3dd02f721e829d968e386cdbdfbe21fa2",
+  "config_sha256": "010df5d0969f857b899fd1becb38664fbd12140790bdfc977d06d9bac38b551b",
+  "counts": {
+    "baseline_model_state_parities": 8,
+    "calibration_forecasts": 32,
+    "evaluation_forecasts": 32,
+    "masks": 48,
+    "models": 32,
+    "normal_equation_models": 32,
+    "runtime_artifact_hashes": 424,
+    "scalar_calibration_rows": 19768,
+    "scalar_evaluation_rows": 10344
+  },
+  "decoded_data_cutoff_exclusive": "2023-04-16T13:45:00+00:00",
+  "folds": [
+    {
+      "counts": {
+        "fit": 800,
+        "inference": 223,
+        "interval": 279,
+        "predict": 741,
+        "scale": 233,
+        "scheduled": 364,
+        "score": 221
+      },
+      "fit_only_labels_sha256": "5105d5c8591b1110e333de219d8ca4eb5d5497ef997a1bf1ebd87a0a203eeb3f",
+      "fit_rows": 800,
+      "fold": 5,
+      "normal_equation_residual_maxabs": 8.187894806610529e-16
+    },
+    {
+      "counts": {
+        "fit": 1034,
+        "inference": 218,
+        "interval": 221,
+        "predict": 723,
+        "scale": 279,
+        "scheduled": 368,
+        "score": 215
+      },
+      "fit_only_labels_sha256": "3a5c78062af32a267ab12b668d9f69e1d1f2cd3e1302898caaf2d8f7ce98f11e",
+      "fit_rows": 1034,
+      "fold": 6,
+      "normal_equation_residual_maxabs": 1.1657341758564144e-15
+    },
+    {
+      "counts": {
+        "fit": 1313,
+        "inference": 363,
+        "interval": 215,
+        "predict": 804,
+        "scale": 221,
+        "scheduled": 368,
+        "score": 361
+      },
+      "fit_only_labels_sha256": "15abac0b15e5a96050a28d861204ba742a86ddf95761eddd5c98ac3328a59e65",
+      "fit_rows": 1313,
+      "fold": 7,
+      "normal_equation_residual_maxabs": 1.0547118733938987e-15
+    },
+    {
+      "counts": {
+        "fit": 1500,
+        "inference": 360,
+        "interval": 361,
+        "predict": 941,
+        "scale": 215,
+        "scheduled": 360,
+        "score": 359
+      },
+      "fit_only_labels_sha256": "a3cc2bf003a15b9579c9d5f97f12887bd100e2c1742a220a1e311ca5d1b8de10",
+      "fit_rows": 1500,
+      "fold": 8,
+      "normal_equation_residual_maxabs": 1.7763568394002505e-15
+    },
+    {
+      "counts": {
+        "fit": 1503,
+        "inference": 355,
+        "interval": 359,
+        "predict": 1078,
+        "scale": 361,
+        "scheduled": 364,
+        "score": 354
+      },
+      "fit_only_labels_sha256": "810c3bb7d41d9bffbf559f33903907c711a801c2332474efc2f9beffecfbf7c8",
+      "fit_rows": 1503,
+      "fold": 9,
+      "normal_equation_residual_maxabs": 1.7763568394002505e-15
+    },
+    {
+      "counts": {
+        "fit": 1634,
+        "inference": 368,
+        "interval": 354,
+        "predict": 1083,
+        "scale": 359,
+        "scheduled": 368,
+        "score": 367
+      },
+      "fit_only_labels_sha256": "6563bd6a64c3edac09653a65ecf24ce84f67bfc6d1bbc0fa48fa4edeb9c6b25d",
+      "fit_rows": 1634,
+      "fold": 10,
+      "normal_equation_residual_maxabs": 1.7486012637846216e-15
+    },
+    {
+      "counts": {
+        "fit": 1672,
+        "inference": 368,
+        "interval": 367,
+        "predict": 1091,
+        "scale": 354,
+        "scheduled": 368,
+        "score": 367
+      },
+      "fit_only_labels_sha256": "652215175e21473aa6c5b93f4d757b9f8f825bd2bc916a469e21cba6426b8d43",
+      "fit_rows": 1672,
+      "fold": 11,
+      "normal_equation_residual_maxabs": 1.4988010832439613e-15
+    },
+    {
+      "counts": {
+        "fit": 1794,
+        "inference": 331,
+        "interval": 367,
+        "predict": 1067,
+        "scale": 367,
+        "scheduled": 360,
+        "score": 330
+      },
+      "fit_only_labels_sha256": "be121fc01e5b581e5204a241b2e1095f2cfc7405b04a831d62753a9e7f503704",
+      "fit_rows": 1794,
+      "fold": 12,
+      "normal_equation_residual_maxabs": 2.1371793224034263e-15
+    }
+  ],
+  "independent_feature_scope": "All eight new columns; exact fit/predict matrix hashes. Frozen old helpers reused for technical29/common mask.",
+  "maximum_absolute_difference": {
+    "baseline_calibration_raw": 0.0,
+    "baseline_evaluation_raw": 0.0,
+    "baseline_state_coef_": 0.0,
+    "baseline_state_intercept_": 0.0,
+    "baseline_state_mean_": 0.0,
+    "baseline_state_n_features_in_": 0.0,
+    "baseline_state_n_samples_seen_": 0.0,
+    "baseline_state_scale_": 0.0,
+    "baseline_state_var_": 0.0,
+    "normal_coefficient": 2.482822974991805e-17,
+    "normal_intercept": 1.555082018017684e-14,
+    "normal_prediction_calibration": 6.635317295611287e-17,
+    "normal_prediction_evaluation": 5.334274688628682e-17,
+    "normal_scaler_mean": 9.947598300641403e-14,
+    "normal_scaler_scale": 2.1316282072803006e-14,
+    "normal_scaler_variance": 6.252776074688882e-13,
+    "saved_scalar_calibration": 6.938893903907228e-18,
+    "saved_scalar_evaluation": 4.336808689942018e-18
+  },
+  "model_bindings": {
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold10_technical.joblib": "563a467751b1ed1f72059cf077a8e220fe076936ea2267faf35430a6d2aeb180",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold10_technical_short_both.joblib": "093923ddd4992feb259fbf77eeb4f7e473234879016d4131723f9c6a1d9edf0b",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold10_technical_short_flow.joblib": "40becdf6b0bab14831612a551746c9376f7f19b7576925c5500225be9db83598",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold10_technical_short_price.joblib": "c470d2dc26314fce6ff5f0e7237168fd6a187289df3257e40abc8b5e2e0e7b1d",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold11_technical.joblib": "fea8696d333d79639b4ce4d150dc2cf460d3743788e88abbfa9f76c26029c26d",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold11_technical_short_both.joblib": "b720816b091b4f508c77d2c395305ca26b20ba6840c519b426a42ac58f9e53c2",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold11_technical_short_flow.joblib": "ec137c09ff1364c93a4d2bc1093e9a6987a675b5efc10b72375af40dbc9ed551",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold11_technical_short_price.joblib": "3f2b428e70e50ee6d94a4a03e20795f3a08a1d7c8023aab899f89abd2a10ac1a",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold12_technical.joblib": "41a3b10bae217d0eafb73e9cc0118c11998b885498ba3b8e132d506747d17396",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold12_technical_short_both.joblib": "54aa07fdbcb30038b443de0e5a66b2f955afe9d80ccfaf1fc515b31edce7674e",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold12_technical_short_flow.joblib": "25a648334fce70a2d03c6c5922feea1524314534b3dabd99ea0855331ff39273",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold12_technical_short_price.joblib": "cb7412578896ddd32fbf347d4ddb01b2d8ab159000f9177d77aca45d541915df",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold5_technical.joblib": "4344cc03d70fce57fc8e4d31ce225c8b904d77dd63c38a55595d4076f59301ff",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold5_technical_short_both.joblib": "71cc3d55981304342c79f206742918d74d5cdbe043bd858cdc88d4048fd073ee",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold5_technical_short_flow.joblib": "13949def7892cc2d1479429729e882f13ae2900f08ea2e1d90a32e1428dce521",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold5_technical_short_price.joblib": "21d5d652668a3c095ed45427839a09af39c7c8b5a2b22d8c59d4d63a83f25d9d",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold6_technical.joblib": "40b93ed030739567c412d22dab743ad3daba161d566a6bb09665fbf319cfea13",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold6_technical_short_both.joblib": "8bb910e3a58f05e0245f48874e95b2bc4cffa59851188f32f052c817795343bc",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold6_technical_short_flow.joblib": "4d3c73ffa205c7a88f8d7e97b8567e8dac72382ef0c96e347b659c06f22bca47",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold6_technical_short_price.joblib": "90fd4d4cde938664c49d2ac05de79cdd2eb1a5fb266dc7f0c62ff44b1594fafa",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold7_technical.joblib": "d54ae99080d53f0ffecf6b92331ad7bbc915121f686c3efad242bc2a84e7baa1",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold7_technical_short_both.joblib": "329be0955cd93ebeb181b158ff22766a4f9b9a1b5ca111d3edb5dc7a91511af9",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold7_technical_short_flow.joblib": "daac23bbb2b5dcc358b2466f39a94b0397979929820765ad5902685affc6494a",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold7_technical_short_price.joblib": "9ea2b1daaf6d1e8bd09ae526faeff1f0214c39e28ec1e21e15184ffe80463ba9",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold8_technical.joblib": "986981b89fdff4cb0f458e08cf9941516028bc05f917429790f9f2048c1d4a93",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold8_technical_short_both.joblib": "3ba97144d17be952b5beaa432921ea794aed86d92a0cd48aade08fe0d400ba5c",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold8_technical_short_flow.joblib": "97f6a68b73b46532356a56951874fbe4f3dc7c914e6dc8bf73a77580d7972b1c",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold8_technical_short_price.joblib": "2500c49e82e16c61ddce24b30a54582298ac8e754b10859633ea9617286d3fa6",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold9_technical.joblib": "b28c77dc0570f91baffd6cfe6ced55ff5ca7764192a58029de0b2da3f7756134",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold9_technical_short_both.joblib": "772221a46d34e18b0b5268400008695e8105e3ef98dd58872d48a452a3cb1a84",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold9_technical_short_flow.joblib": "3bca6623d62d6cfb61a55bd7d67bfa443900caac76ed80737a1b2103a44efc24",
+    "codex_outputs/oracle_short_feature_decisions_v1/models/fold9_technical_short_price.joblib": "80e18df4b46dc1204a32a7217b3fecf028169ece86c82c15c54cc83a05d37bd3"
+  },
+  "no_new_loss_or_economic_comparisons": true,
+  "no_weight_risk_or_policy_fit": true,
+  "normal_equation_scope": "Per-fold T returns only; no S/I/E label enters scaler moments, coefficients or predictions.",
+  "preflight_sha256": "894c4f81c0b7fb102e3c543ea2f91a6f46dd036c4eca532ff3fc9fb53e35ada0",
+  "registration_sha256": "43ca3c37e272168a73a26b370c04b98ef394fada8f91d819d8765f453d629682",
+  "results_sha256": "2f65382455e1266e035d38007a8dc939efb74d84df676c44da8ed3de9cd77218",
+  "schema": "independent-short-feature-forecast-audit-v1",
+  "source_bindings_digest": "06dea60eb73794d70f07fbdaff5c41e1e01eef66f805a8a5abb96579bd72920f",
+  "source_bindings_verified": 1837,
+  "source_revision": "d11cfee15b77f773e353c7ecb1ba4729c0b4abe7",
+  "spot_sha256": "5e20e81e86f76b95d1301be7a8a366aa9ad78134f954ec8c9dbf83c0db1acf69",
+  "status": "passed",
+  "tolerances": {
+    "coefficient_atol": 1e-12,
+    "coefficient_rtol": 1e-10,
+    "normal_equation_prediction_atol": 1e-12,
+    "registered_baseline_parity_atol": 1e-14,
+    "registered_baseline_parity_rtol": 1e-12,
+    "saved_scalar_prediction_atol": 1e-14,
+    "scaler_atol": 1e-10,
+    "scaler_rtol": 1e-12
+  },
+  "um_sha256": "c365cbb6cd6d46dafea19b7fd3a62cb1b91ae3169f7a27532e40486ecfebfcdd",
+  "warning_scope": "Numerical agreement does not establish the cause of prior matmul warnings or out-of-sample generalization."
+}

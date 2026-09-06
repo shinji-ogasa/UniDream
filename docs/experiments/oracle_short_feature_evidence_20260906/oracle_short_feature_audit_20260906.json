@@ -1,0 +1,77 @@
+{
+  "ancestor_artifacts_verified": 1792,
+  "config_sha256": "010df5d0969f857b899fd1becb38664fbd12140790bdfc977d06d9bac38b551b",
+  "counts": {
+    "baseline_own_state_decisions": 5504,
+    "baseline_own_state_paths": 16,
+    "calibration_support_and_actual": 32,
+    "exact_old_controls": 224,
+    "exact_old_evaluation_scores": 96,
+    "forecast_support_and_shared_variance": 32,
+    "hash_binding_checks": 2637,
+    "independent_scalar_accounts": 544,
+    "new_fallback_decisions": 996,
+    "new_own_state_decisions": 16512,
+    "new_own_state_paths": 48,
+    "new_unscored_inference_decisions_retained": 72
+  },
+  "data_source_audit_sha256": "7cf090b74d13df1e74ba66dbd0d6fc8188d2da917693d53ee1d72ab903ea91ff",
+  "distinct_hashed_files": 2276,
+  "inventory": {
+    "calibration_arrays": 32,
+    "economic_rows": 272,
+    "forecasts": 32,
+    "models": 32,
+    "provenance": 8,
+    "score_records": 184,
+    "targets": 272,
+    "utility_traces": 48
+  },
+  "limitations": [
+    "Repeated development folds and retrospective common masks; regime gate remains unmet at 2/4/2.",
+    "Historical event times do not establish historical receipts.",
+    "Spot semantic reads filtered below cutoff; full source files are hashed.",
+    "Base-selected intentions are replayed unchanged under stress costs."
+  ],
+  "max_absolute_differences": {
+    "account_alpha_ex": 0.0,
+    "account_bar_coverage": 0.0,
+    "account_bh_maxdd": 0.0,
+    "account_bh_total_return": 0.0,
+    "account_borrow_initial_equity_units": 0.0,
+    "account_close_coverage": 0.0,
+    "account_fees_initial_equity_units": 0.0,
+    "account_intent_coverage": 0.0,
+    "account_maxdd": 0.0,
+    "account_maxdd_delta": 0.0,
+    "account_mean_exposure": 2.220446049250313e-16,
+    "account_rows": 0.0,
+    "account_total_return": 0.0,
+    "account_trades": 0.0,
+    "account_turnover": 0.0,
+    "baseline_raw_calibration": 0.0,
+    "baseline_raw_evaluation": 0.0,
+    "trace_estimated_trade_turnover": 0.0,
+    "trace_estimated_utility_gain_over_hold": 0.0,
+    "trace_known_open_exposure": 0.0,
+    "trace_known_open_nav": 0.0,
+    "trace_targets": 0.0
+  },
+  "own_artifacts_verified": 424,
+  "preflight_sha256": "894c4f81c0b7fb102e3c543ea2f91a6f46dd036c4eca532ff3fc9fb53e35ada0",
+  "results_sha256": "2f65382455e1266e035d38007a8dc939efb74d84df676c44da8ed3de9cd77218",
+  "scope": "All source and own artifact bindings; shared forecast/calibration masks, raw technical prediction parity; 96 exact old E scores; 224 exact controls; all544 independent scalar accounts; all48 new and16 baseline own-state paths. No canonical simulator/planner/metrics/fitter/features helper imported.",
+  "script_sha256": "7020e9e01cb360bf52746b53714da2dee0eaef8c63fcb20b301671dad5391d81",
+  "separate_audits": [
+    "Independent raw model fitting/coefficients/prediction formula verification is the technical audit scope.",
+    "New forecast loss and summary arithmetic is the statistical audit scope."
+  ],
+  "source_revision": "d11cfee15b77f773e353c7ecb1ba4729c0b4abe7",
+  "status": "pass",
+  "support": {
+    "fallback": 332,
+    "inference": 2586,
+    "missing_current_open": 2,
+    "score": 2574
+  }
+}

@@ -862,15 +862,79 @@ in `oracle_mean_reliability_evidence_20260906` before further development.
   3perpfold12 zero-weight segments constant. Summary audit SHA
   `8bd15dbdddca697cc020208db44e1e117b8b3d8f66c53eb6c002a270b7b022d0`.
 
-Next work should predeclare a small **causal mean/forecast-centering adaptation**
-study on original development data, rather than tune another static weight.
-Updates must use only already matured return labels and available past raw
-forecasts; availability cannot depend on future scoring support. Preserve
-constant/rule controls and both missing rules, report forecast and economic
-outcomes separately, and retain every failure. Drift decomposition identifies
-a hypothesis but does not guarantee an update will help or rule out missing
-information/model misspecification. Do not use additional-test15–24 to tune the
-update window, threshold or candidate. Model architecture remains deferred;
-162explored causal names and all prior locks remain fixed. No strongest model,
-independent confirmation, prospective receipt proof or high-probability trend
-robustness has been established. The active goal continues without automation.
+## Stage14: causal rolling centering completed and rejected
+
+- Source freeze `845a9fd167533599c7189019b38dc9ca2edf0f41`, report commit
+  `2253b2c`; see [full report](oracle_rolling_centering_results_20260906.md).
+  One completed process91776, zero base/weight fits, 645 tests pass.
+  Exact causal3-calendar-month histories use only matured labels and samefold
+  saved raw predictions. No window search or additional-test15–24 tuning.
+- Three means ×2 missing rules added6names, inventory162→168. All6 economic
+  and predictive all-strata flags fail. Technical/perp MSE improves vs own
+  reliability0.96026%/1.38890%, but loses dynamic anchor0.27025%/0.25924%
+  and zero0.53454%/0.52350%. All6 base Alpha means negative:−4.26887to−1.52046pt.
+  Negative mean DD does not repair the failed Alpha objective. Both learned
+  signals lose dynamic anchor in every regime; bull/bear Alpha is negative.
+- 256 new artifacts,176 rows/352 accounts,96 E scores independently checked.
+  48 new own-state paths,16 immutable weights,all2586 histories exact.
+  Anchor/perp fold12 DD=−1.11e−16 ratio is machine equality, not substantive
+  improvement; strict stored counts remain unchanged and are footnoted.
+  Results SHA `d5adfc39e2822bfb77aaa519202b9949d664f772d704bcd63fa535147da9b620`.
+
+## Stage15: short-price/flow representation completed and rejected
+
+- Source freeze/push `d11cfee15b77f773e353c7ecb1ba4729c0b4abe7`;
+  [registration](oracle_short_feature_registration_20260906.md),
+  [primary research](oracle_intraday_feature_information_research_20260906.md),
+  [full report](oracle_short_feature_results_20260906.md).
+  One completed process85763, no retries;32 Ridge fits comprise8 baseline
+  reproductions+24 new means. Zero risk/weight fits.669 tests pass58.110s.
+- Fixed2×2 groups29/34/32/37 use original technical29 plus price5,flow3,both8.
+  Price is return4/16/48,body sign(log C/O),candle close location;flow is
+  Spot/UM weighted takerflow4 and Spot quote activity mean24/672. Exact rawgrid
+  and1bar shift. The new37 is distinct from old derivative37. Adding correlated
+  coordinates also changes Ridge regularization; individual effects unidentified.
+- All original6 masks unchanged:800/1034/1313/1500/1503/1634/1672/1794 fit rows,
+  2586 E inference/2574 E scored/332 fallback/2missingcurrentopen. Shared old
+  technical_scaled variance. I diagnostic only;I grouped by E-start regime is
+  retrospective and not independent replication. No S mean calibration.
+- Three means×2 rules add6 names, inventory168→174;28 old controls→34 policies,
+  272 rows/544 accounts,184 scores (I48/E136),424 artifacts. Old technical
+  model/scaler state and S/I/E raw predictions reproduce exactly, maxdifference0.
+- All3 new E MSE worsen vs technical_raw:price0.18463%,flow0.08352%,both0.10830%;
+  each improves only3/8quarters. All3 lose zero/fitmean overall and every E
+  regime. All6 economic all-strata flags and all I/E predictive conjunctions
+  fail. New strict joint economic counts2/8 each, no tinyDD among new policies.
+- Equal-quarter base Alpha/DD(pt): pricehold−1.78615/+0.03824,
+  pricefallback−3.69021/+1.05136,flowhold−0.41204/−0.82278,
+  flowfallback−2.65188/+0.47320,bothhold−0.05881/−0.82345,
+  bothfallback−2.14277/+0.32178. All6 sideways means have negative Alpha and
+  positive DD under both costs. Flow/both improve own technical_raw economic
+  means, but absolute Alpha stays negative and mean predictive losses worsen.
+- Independent32-model normal-equation and scalar forecasts pass;maxforecast
+  difference6.64e−17, saved-model scalar difference6.94e−18. Runtime emitted
+  divide/overflow/invalid matmul warnings; cause remains unestablished, counts
+  unavailable. Exact baseline parity and all finite supports retained.
+  Separate184-score/summary audit passes (2273 distinct files),224 old control
+  rows and96 old E scores exactly unchanged. New32 fits were not rerun for audit.
+  Independent scalar own-state audit passes544accounts,48new+16baseline paths/
+  22016decisions. Targets/NAV/utility/Alpha/DD/fees/borrow maxdifference0;
+  meanexposure2.22e−16.72unscored new decisions+996fallback decisions preserved.
+  2637SHA bindings checked, no canonical planner or simulator imports.
+  Results FILE SHA `2f65382455e1266e035d38007a8dc939efb74d84df676c44da8ed3de9cd77218`;
+  registration FILE SHA `43ca3c37e272168a73a26b370c04b98ef394fada8f91d819d8765f453d629682`;
+  canonical registration object digest
+  `b363840afa4a6b3b6c263369c316fa8596141669e8fa82bbf84c0df4970275ee`.
+
+Next work should examine the gap between the same-execution future-return
+Oracle and weak causal forecasts before another window/architecture search.
+A bounded preregistered information diagnostic could separate sign, magnitude,
+and large-move contributions; no such diagnostic is yet executed or selected.
+Do not treat Oracle paths as causal teachers or a globally optimal upper bound.
+Keep original reused development only, preserve all supports/costs/missing rules,
+and predeclare controls and failure criteria before outcomes. Additional-test
+15–24 stays report-only; no winner/column selection from Stage15.174 explored
+causal names and all prior family locks remain intact. Reused8quarters,overlapping
+histories,2bull/4bear/2sideways coverage and absent receipt provenance still do
+not establish independent confirmation or high-probability trend robustness.
+The goal stays active without automation, production promotion or live trades.

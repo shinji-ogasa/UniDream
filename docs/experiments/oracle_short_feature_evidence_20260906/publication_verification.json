@@ -1,0 +1,124 @@
+{
+  "authoritative_run": {
+    "attempts": 1,
+    "baseline_fits": 8,
+    "completed_folds": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "exit_code": 0,
+    "new_mean_fits": 24,
+    "retry_performed": false,
+    "return_fits": 32,
+    "risk_fits": 0,
+    "session_id": 85763,
+    "weight_fits": 0
+  },
+  "config_sha256": "010df5d0969f857b899fd1becb38664fbd12140790bdfc977d06d9bac38b551b",
+  "continuation_sha256": "ca378563452f51b760ac0066732c428610c4f4b17fdec07a654c7ec9df19a39a",
+  "cost_accounts": 544,
+  "direction_flags": {
+    "technical_short_both_raw_utility_risk1": {
+      "economic_means_all_strata_both_costs": false,
+      "high_probability_generalization_established": false,
+      "predictive_mse_vs_zero_fitmean_and_all_references_all_strata": {
+        "evaluation": false,
+        "interval": false
+      },
+      "regime_count_gate_pass": false
+    },
+    "technical_short_both_raw_utility_risk1_fallback_bh": {
+      "economic_means_all_strata_both_costs": false,
+      "high_probability_generalization_established": false,
+      "predictive_mse_vs_zero_fitmean_and_all_references_all_strata": {
+        "evaluation": false,
+        "interval": false
+      },
+      "regime_count_gate_pass": false
+    },
+    "technical_short_flow_raw_utility_risk1": {
+      "economic_means_all_strata_both_costs": false,
+      "high_probability_generalization_established": false,
+      "predictive_mse_vs_zero_fitmean_and_all_references_all_strata": {
+        "evaluation": false,
+        "interval": false
+      },
+      "regime_count_gate_pass": false
+    },
+    "technical_short_flow_raw_utility_risk1_fallback_bh": {
+      "economic_means_all_strata_both_costs": false,
+      "high_probability_generalization_established": false,
+      "predictive_mse_vs_zero_fitmean_and_all_references_all_strata": {
+        "evaluation": false,
+        "interval": false
+      },
+      "regime_count_gate_pass": false
+    },
+    "technical_short_price_raw_utility_risk1": {
+      "economic_means_all_strata_both_costs": false,
+      "high_probability_generalization_established": false,
+      "predictive_mse_vs_zero_fitmean_and_all_references_all_strata": {
+        "evaluation": false,
+        "interval": false
+      },
+      "regime_count_gate_pass": false
+    },
+    "technical_short_price_raw_utility_risk1_fallback_bh": {
+      "economic_means_all_strata_both_costs": false,
+      "high_probability_generalization_established": false,
+      "predictive_mse_vs_zero_fitmean_and_all_references_all_strata": {
+        "evaluation": false,
+        "interval": false
+      },
+      "regime_count_gate_pass": false
+    }
+  },
+  "economic_rows": 272,
+  "evidence_file_sha256": {
+    "fold_10.json": "800fe352b7cabaa5783e9fc02844fc791a5ed859eb1ed4da03359decf1216e91",
+    "fold_11.json": "4f086598a98b4a885f1506b108a6091d18d62c6527c7418642ec35f50f7863f9",
+    "fold_12.json": "687e0dadeb9f25ecfb661b4dfcae1ae8c3b32f6d58d260b47d6037530bee2c0d",
+    "fold_5.json": "535f9b2637a6eed661a24bbba110ca5d58e20a0085378b41b953b44eea5b68ff",
+    "fold_6.json": "06d28dc095b26447a115092587c2dee1ab5bd09718630741c9edec41f48bb2aa",
+    "fold_7.json": "48eb47de8da705b16d7bac14e041cb45b06215bb9ff2db63199ac1668c81c3a2",
+    "fold_8.json": "edb2f21e5204c27ae67f3be8532c5b20de3b200d153c7c8904741757486bb4a9",
+    "fold_9.json": "d6e6cfb3a6f52c07b038052ac82d5eef7792a08ad10bc169c76e34806eab2294",
+    "oracle_short_feature_audit_20260906.json": "0340016317410b69e355d004a55f4b547f2eaac68202aec791f91499fd46d688",
+    "oracle_short_feature_audit_20260906.py": "7020e9e01cb360bf52746b53714da2dee0eaef8c63fcb20b301671dad5391d81",
+    "oracle_short_feature_forecast_audit_20260906.json": "2c0dfcb68147cb87e504da24b64b2b065cc9faa5eee0e275dec5788b93dde21c",
+    "oracle_short_feature_forecast_audit_20260906.py": "ec095e1b9421f1df2a793362dba6d0d3dd02f721e829d968e386cdbdfbe21fa2",
+    "oracle_short_feature_source_audit_20260906.json": "7cf090b74d13df1e74ba66dbd0d6fc8188d2da917693d53ee1d72ab903ea91ff",
+    "oracle_short_feature_source_audit_20260906.py": "d59a62b6a46e37fd2b3f78bf12aa6fabe8d21796386d2cab16a869414b9877a4",
+    "oracle_short_feature_summary_audit_20260906.json": "fe4160c9665ef3acc4f880b8b3a1a3e59d7b82a381e9d6c3db84bf1a633976b0",
+    "oracle_short_feature_summary_audit_20260906.py": "915625983d702685c057a2fda6b70aeadf4fd4174d32c4786ec9883d7c58092d",
+    "preflight.json": "894c4f81c0b7fb102e3c543ea2f91a6f46dd036c4eca532ff3fc9fb53e35ada0",
+    "registration.json": "43ca3c37e272168a73a26b370c04b98ef394fada8f91d819d8765f453d629682",
+    "registration_verification.json": "4600409336f3b0fa7b39d789391ffcd853120688204865a0ef2505283960def6",
+    "results.json": "2f65382455e1266e035d38007a8dc939efb74d84df676c44da8ed3de9cd77218"
+  },
+  "full_tests": {
+    "log_sha256": "7d1bb9fcb606dad00c485b06383e1a4b1a70ed26c0e0d7e0e441c6c0b0025f54",
+    "passed": 669,
+    "scope": "preregistered source; no source/config changes after execution",
+    "seconds": 58.11
+  },
+  "git_diff_check_passed": true,
+  "new_artifacts_verified": 424,
+  "no_selection_or_additional_test_scoring": true,
+  "registration_canonical_object_sha256": "b363840afa4a6b3b6c263369c316fa8596141669e8fa82bbf84c0df4970275ee",
+  "registration_file_sha256": "43ca3c37e272168a73a26b370c04b98ef394fada8f91d819d8765f453d629682",
+  "report_sha256": "e142ab2f8e98c8aaa8d8bf4e696e05ebf2a7dd2663b5f64f63e77a5e1b835c17",
+  "results_sha256": "2f65382455e1266e035d38007a8dc939efb74d84df676c44da8ed3de9cd77218",
+  "schema": "oracle-short-feature-publication-verification-v1",
+  "scores": 184,
+  "source_bindings_verified": 30,
+  "source_revision": "d11cfee15b77f773e353c7ecb1ba4729c0b4abe7",
+  "status": "pass",
+  "warning_scope": "Root PTY observed sklearn matmul divide/overflow/invalid; no complete separate run log or warning count. Independent predeclared normal equations and scalar forecasts pass; cause unestablished."
+}
