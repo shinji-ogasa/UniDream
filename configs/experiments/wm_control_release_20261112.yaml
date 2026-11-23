@@ -1,0 +1,121 @@
+experiment_id: wm_control_release_20261112
+output_dir: codex_outputs/wm_control_release_20261112
+source_study_config: configs/experiments/wm_seed_robustness_20261112.yaml
+seeds: [7, 19, 42, 3, 11, 23, 31, 53, 67, 89]
+reused_seeds: [7, 19, 42]
+new_seeds: [3, 11, 23, 31, 53, 67, 89]
+folds: [0, 1, 2, 3, 4, 5]
+arms: [A, C]
+conditions: [control, cap15, cap20, speed, free]
+test_selection_allowed: false
+historical_seen_test: true
+independently_unused_holdout: false
+evaluation_scope: continuous_calendar_fixed_APR_cash_units_exploratory
+encoder_scope: frozen_source_floor_gradual_market_encoder
+condition_definitions:
+  control: {position_max: 1.12, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+  cap15: {position_max: 1.50, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+  cap20: {position_max: 2.00, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+  speed: {position_max: 2.00, max_position_step: 0.24, bc_prior_coefficient: 0.01}
+  free: {position_max: 2.00, max_position_step: 0.24, bc_prior_coefficient: 0.00}
+schedules:
+  control:
+    - {through_update: 200, position_max: 1.12, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+  cap15:
+    - {through_update: 50, position_max: 1.12, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+    - {through_update: 200, position_max: 1.50, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+  cap20:
+    - {through_update: 50, position_max: 1.12, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+    - {through_update: 100, position_max: 1.50, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+    - {through_update: 200, position_max: 2.00, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+  speed:
+    - {through_update: 50, position_max: 1.12, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+    - {through_update: 100, position_max: 1.50, max_position_step: 0.16, bc_prior_coefficient: 0.01}
+    - {through_update: 200, position_max: 2.00, max_position_step: 0.24, bc_prior_coefficient: 0.01}
+  free:
+    - {through_update: 50, position_max: 1.12, max_position_step: 0.08, bc_prior_coefficient: 0.01}
+    - {through_update: 100, position_max: 1.50, max_position_step: 0.16, bc_prior_coefficient: 0.003}
+    - {through_update: 200, position_max: 2.00, max_position_step: 0.24, bc_prior_coefficient: 0.00}
+training:
+  max_updates: 200
+  selection_updates: [125, 150, 175, 200]
+  validation_scope: full_three_month_calendar
+  early_stopping: false
+  rollout_batch_size: 16
+  rollout_horizon: 64
+  minibatch_size: 128
+  ppo_epochs: 2
+  learning_rate: 0.0001
+  critic_learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_ratio: 0.2
+  value_coefficient: 0.5
+  entropy_coefficient: 0.001
+  reward_scale: 100.0
+  gradient_clip: 10.0
+  context_batch_size: 512
+  initialization: same_fold_seed_arm_selected_floor_gradual_weights
+  optimizer: fresh_AdamW_all_conditions_no_stage_reset
+  trainable: [policy_head, critic_head, log_std]
+accounting:
+  position_min: 0.0
+  position_max: 1.12
+  max_position_step: 0.08
+  initial_position: 1.0
+  cost_rate: 0.00055
+  borrow_apr: 0.10
+  drawdown_penalty: 0.25
+  annual_bars: 35040
+  execution_delay_bars: 1
+  initial_entry_cost: false
+  terminal_liquidation: false
+  reset_positions_at_segment_boundary: false
+  deadband: 0.0
+accounting_contract:
+  model: cash_asset_units_fixed_APR_borrowing
+  initial_price: close_immediately_before_first_bar
+  target_cap: order_target_only_actual_leverage_can_drift
+  max_step: requested_target_change_not_filled_notional
+  bankruptcy: nonpositive_open_low_or_close_NAV_absorbing_zero
+  bankruptcy_performance: minus_100_percent_no_path_exclusion
+  bankrupt_contrast_inference: unavailable_retained_p1_in_fixed_family
+  exchange_liquidation_model: false
+  decision_missing: no_new_order_carry_units_cash_debt_and_pending
+  input_availability: immutable_saved_causal_context_support
+baselines:
+  constant_exposure: 0.08
+  ma_window_bars: 1920
+  volatility_window_bars: 672
+  volatility_target_annual: 0.10
+  matched_controls: [constant_cap, ma20d, voltarget10]
+  decision_calendar: same_saved_context_availability
+data:
+  raw_market_path: codex_outputs/wm_technical_ablation_20261109/data/base/raw_market.parquet
+  raw_ohlc_path: codex_outputs/wm_control_release_20261112/prepared/raw_ohlc.npy
+  raw_index_ns_path: codex_outputs/wm_control_release_20261112/prepared/raw_index_ns.npy
+  decision_available_path: codex_outputs/wm_control_release_20261112/prepared/decision_available.npy
+  test_start: '2025-04-01T00:00:00+00:00'
+  test_end_exclusive: '2026-10-01T00:00:00+00:00'
+statistics:
+  expected_market_rows: 52608
+  expected_available_decisions: 50038
+  primary_metric: annualized_net_log_growth
+  primary_family_size: 13
+  secondary_family_size: 40
+  combined_family_size: 53
+  bootstrap_replicates: 10000
+  methods: [circular]
+  block_days: [7, 14, 30]
+  primary_block_days: 7
+  primary_estimand: market_fixed_seeds
+  seed_population_sensitivity: hierarchical_seeds
+  hac_lags: [6, 13, 29]
+  seed: 20261112
+runtime:
+  encoder_workers: 4
+  encoder_device: mps
+  fit_workers: 16
+  evaluation_workers: 16
+  cpu_threads: 1
+  status_seconds: 20

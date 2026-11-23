@@ -1,0 +1,34 @@
+experiment_id: wm_lstm_significance_20261112
+output_dir: codex_outputs/wm_lstm_significance_20261112
+significance_config: configs/experiments/wm_significance_20261112.yaml
+lstm_config: configs/experiments/wm_lstm_grid_20261112.yaml
+groups: [A, B, C, D]
+models: [lstm]
+tasks: [return, variance, downside, crash, dd_excess, advantage, recovery]
+formulations: [regression, classification, joint]
+folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+seeds: [7]
+horizons: [16]
+test_selection_allowed: false
+historical_seen_test: true
+independently_unused_holdout: false
+baseline: reuse_original_registered_causal_cache_no_refit
+statistics:
+  bootstrap_replicates: 100000
+  sensitivity_replicates: 10000
+  ic_replicates: 10000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  seed: 20261112
+  new_primary_family_size: 112
+  new_global_family_size: 264
+  combined_primary_family_size: 560
+  combined_global_family_size: 1320
+  new_family_counts: {primary: 112, ba_chance: 84, variance_BA: 36, variance_QLIKE: 16, crash_Brier: 16}
+  multiplicity: new_artifacts_only_Holm560_and_Holm1320
+  unavailable_p_for_multiplicity: 1.0
+  original_outputs_modified: false
+runtime:
+  workers: 12
+  cpu_threads: 1
+  poll_seconds: 20

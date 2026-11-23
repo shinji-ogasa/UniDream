@@ -1,0 +1,72 @@
+experiment_id: wm_seed_robustness_20261112
+output_dir: codex_outputs/wm_seed_robustness_20261112
+source_config: configs/experiments/wm_policy_ablation_20261112.yaml
+release_config: configs/experiments/wm_rl_release_20261112.yaml
+seeds: [7, 19, 42, 3, 11, 23, 31, 53, 67, 89]
+reused_seeds: [7, 19, 42]
+new_seeds: [3, 11, 23, 31, 53, 67, 89]
+folds: [0, 1, 2, 3, 4, 5]
+conditions: [C_floor_gradual, A_floor_gradual, C_control]
+condition_definitions:
+  C_floor_gradual: {arm: C, condition: floor_gradual}
+  A_floor_gradual: {arm: A, condition: floor_gradual}
+  C_control: {arm: C, condition: control}
+device: mps
+test_selection_allowed: false
+historical_seen_test: true
+independently_unused_holdout: false
+evaluation_scope: conditional_saved_cohort_seed_robustness_exploratory
+seed_scope: fresh_WM_BC_initial_RL_and_continuation_for_each_new_seed
+continuation:
+  max_updates: 200
+  selection_updates: [125, 150, 175, 200]
+  selection_rows: 1536
+  early_stopping: false
+  initialization: fold_seed_Val_selected_RL_weights
+  optimizer: fresh_AdamW_all_conditions_no_stage_reset
+  bc_reference: immutable_fold_seed_selected_BC
+  paired_random_streams: same_fold_seed_arm_across_conditions
+  wm_update_during_policy_training: false
+  rl_rollout_source: actual_historical_Train_segments
+schedules:
+  control:
+    - {through_update: 200, position_min: 0.50, bc_prior_coefficient: 0.01}
+  floor_gradual:
+    - {through_update: 50, position_min: 0.50, bc_prior_coefficient: 0.01}
+    - {through_update: 100, position_min: 0.25, bc_prior_coefficient: 0.01}
+    - {through_update: 200, position_min: 0.0, bc_prior_coefficient: 0.01}
+accounting:
+  position_min: 0.0
+  position_max: 1.12
+  max_position_step: 0.08
+  initial_position: 1.0
+  cost_rate: 0.00055
+  borrow_apr: 0.10
+  drawdown_penalty: 0.25
+  annual_bars: 35040
+  execution_delay_bars: 1
+  initial_entry_cost: false
+  terminal_liquidation: false
+baselines:
+  constant_exposure: 0.08
+  ma_window_bars: 1920
+  volatility_window_bars: 672
+  volatility_target_annual: 0.10
+statistics:
+  expected_market_rows: 50038
+  primary_metric: annualized_net_log_growth
+  primary_family_size: 12
+  policy_family_size: 2
+  combined_family_size: 14
+  bootstrap_replicates: 10000
+  methods: [circular]
+  block_days: [7, 14, 30]
+  primary_block_days: 7
+  primary_estimand: market_fixed_seeds
+  seed_population_sensitivity: hierarchical_seeds
+  hac_lags: [6, 13, 29]
+  seed: 20261112
+runtime:
+  workers: 8
+  cpu_threads: 1
+  status_seconds: 20

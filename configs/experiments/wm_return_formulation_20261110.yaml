@@ -1,0 +1,23 @@
+experiment_id: wm_return_formulation_20261110
+output_dir: codex_outputs/wm_return_formulation_20261110
+parent_config: configs/experiments/wm_seven_task_benchmark_20261110.yaml
+groups: [D]
+folds: [0, 7, 14, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13]
+seeds: [7]
+device: mps
+horizons: [16]
+test_selection_allowed: false
+validation_partition: calendar_months_earlystop_calibration_selection
+threshold_train_rms_multiplier: 0.5
+training:
+  workers: 2
+  cpu_threads: 1
+classical:
+  workers: 1
+  cpu_threads: 1
+statistics:
+  bootstrap_replicates: 2000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  seed: 20261110
+  primary_comparison: calibrated_classification_minus_calibrated_regression

@@ -1,0 +1,226 @@
+experiment_id: wm_tail_transfer_20261112
+research_revision: 3
+output_dir: codex_outputs/wm_tail_transfer_20261112
+device: mps
+historical_seen_test: true
+independently_unused_holdout: false
+test_selection_allowed: false
+mainline_unchanged: true
+data:
+  raw_market_path: codex_outputs/wm_technical_ablation_20261109/data/base/raw_market.parquet
+  legacy_data_root: codex_outputs/wm_technical_ablation_20261109/data
+  start: '2023-01-01T00:00:00+00:00'
+  end_exclusive: '2026-11-01T00:00:00+00:00'
+  context: 128
+  historical_context_start: '2022-12-01T00:00:00+00:00'
+  source_lag_bars: 1
+  acquisition_workers: 16
+  acquisition_retries: 3
+  liquidation_scope: free_first_calendar_day_per_month_observed_snapshots_only
+  depth_scope: cumulative_percentage_bands_not_full_LOB_or_OFI
+  stale_detection: causal_trailing_window_only
+targets:
+  include_perpetual: true
+  horizons: [1, 4, 16, 48, 96]
+  primary_horizon: 16
+  fixed_thresholds: [0.01, 0.02, 0.03, 0.05]
+  dynamic_multipliers: [1.0, 2.0, 3.0]
+  return_class_fixed_threshold: 0.005
+  return_class_dynamic_multiplier: 0.5
+  barrier_ratios: [[1.0, 1.0], [2.0, 1.0], [1.0, 2.0]]
+  barrier_fixed_base: 0.01
+  return_quantiles: [0.01, 0.05, 0.50, 0.95, 0.99]
+  positive_quantiles: [0.50, 0.90, 0.95, 0.99]
+  es_alphas: [0.01, 0.05]
+  passive_leverages: [0.5, 1.0, 1.5, 2.0, 3.0, 5.0]
+  passive_loss_thresholds: [0.05, 0.10, 0.20]
+  hazard_thresholds: [0.01, 0.02, 0.03, 0.05]
+  ewma_decay: 0.97
+  crash_threshold: 0.012
+  ambiguity: mask_order_unresolved_report_bounds
+  label_basis: known_predecision_close_except_execution_aware_passive_labels
+splits:
+  first_train_start: '2023-01-01T00:00:00+00:00'
+  train_months: 24
+  validation_months: 3
+  test_months: 3
+  step_months: 3
+  folds: [0, 1, 2, 3, 4, 5, 6]
+  last_test_end_exclusive: '2026-11-01T00:00:00+00:00'
+  validation_partition: chronological_month1_earlystop_month2_calibration_month3_selection
+  purge: actual_label_end_including_execution_delay
+  producer_train_months: 10
+  producer_validation_months: 2
+  producer_validation_partition: first_month_earlystop_second_month_calibration
+  policy_train_months: 12
+seeds: [7, 19, 42, 3, 11, 23, 31, 53, 67, 89]
+screen:
+  folds: [0, 3, 5]
+  seeds: [7, 19, 42]
+  input_groups: [D00, D01, D02, D03, D04, D05, D06, D07]
+  supplementary_input_groups: [D07_dense]
+  sparse_control_groups: [D03, D07_dense]
+  liquidation_only_control_groups: [D03]
+  models: [linear, lightgbm, lstm, transformer, wm]
+  selection_scope: validation_only
+  common_liquidation_cohort: true
+confirmation:
+  always_input_groups: [D02, D03]
+  select_additional_input_groups: 1
+  models: [linear, lightgbm, lstm, transformer, wm]
+  selection: per_fold_equal_task_validation_rank_using_only_screen_validation_ending_before_current_Test
+model:
+  context: 128
+  d_model: 96
+  n_heads: 4
+  n_layers: 2
+  d_ff: 288
+  encoder_hidden: 96
+  lstm_hidden: 96
+  lstm_layers: 2
+  n_categoricals: 16
+  n_classes: 16
+  dropout: 0.1
+training:
+  max_steps: 1200
+  min_steps: 400
+  patience_steps: 400
+  validation_every: 100
+  relative_improvement: 0.0005
+  batch_size: 32
+  evaluation_batch_size: 256
+  selection_rows: 2048
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+  train_sample_schedule: paired_by_fold_seed
+  loss_reduction: mean_within_task_then_equal_mean_over_tasks
+classical:
+  feature_recipe: window_last_mean_std_min_max_trailing4_16_64_means
+  max_train_rows: 16384
+  lightgbm_leaves: 15
+  lightgbm_rounds: 200
+  lightgbm_patience: 30
+  lightgbm_learning_rate: 0.05
+  lightgbm_min_data_leaf: 128
+  lightgbm_l2: 10.0
+  linear_alpha: 100.0
+  logistic_l2: 1.0
+  threads: 1
+ablation:
+  input_group: D03
+  cohort: dense_common
+  folds: [0, 3, 5]
+  seeds: [7, 19, 42]
+  items: [L01, L02, L03, L04, L05, L06, L07, L08, W01, W02, W03, W04, W05, W06, W07]
+  classification_losses: [bce, weighted_bce, focal]
+  variance_losses: [qlike, log_mse]
+  calibration: [none, parametric, isotonic]
+  ensemble_members: [7, 19, 42]
+policy:
+  variants: [R00, R01, R02, R03, R04, R05, R06, R07]
+  reference_variant: R04
+  source_input_group: D03
+  source_selection: producer_validation_only
+  producer_calibration: parametric
+  bc_steps: 400
+  bc_batch_size: 64
+  bc_learning_rate: 0.0003
+  bc_teacher: execution_aware_passive_candidate_utility
+  context: 128
+  hidden_size: 64
+  projection_dim: 64
+  head_hidden: 128
+  ppo_updates: 200
+  cvar_rollout_batch_size: 64
+  cvar_ppo_updates: 50
+  cvar_selection_updates: [25, 32, 38, 44, 50]
+  equal_consumed_training_transitions: 204800
+  equal_optimizer_minibatch_updates: 3200
+  selection_updates: [100, 125, 150, 175, 200]
+  rollout_batch_size: 16
+  rollout_horizon: 64
+  minibatch_size: 128
+  ppo_epochs: 2
+  actor_learning_rate: 0.0001
+  critic_learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_ratio: 0.2
+  value_coefficient: 0.5
+  entropy_coefficient: 0.001
+  reward_scale: 100.0
+  gradient_clip: 10.0
+  ppo_trainable: [policy_head, critic_head, log_std]
+  market_encoder_updated_in_ppo: false
+  selection_scope: full_outer_validation_calendar
+  oracle_scope: diagnostic_separate_from_deployable_performance
+accounting:
+  mode: cash_borrow
+  position_min: 0.0
+  position_max: 2.0
+  max_position_step: 0.08
+  initial_position: 1.0
+  cost_rate: 0.00055
+  borrow_apr: 0.10
+  drawdown_penalty: 0.25
+  annual_bars: 35040
+  execution_delay_bars: 1
+  reset_positions_at_segment_boundary: false
+  initial_entry_cost: false
+  terminal_liquidation: false
+  deadband: 0.0
+policy_comparisons:
+  main_caps: [1.12, 1.5, 2.0]
+  controller: [direct, ml_rule, hierarchical]
+  speed: [0.08, 0.24]
+  bc_prior: [0.01, 0.0]
+  objectives: [net_log_dd, net_log, episodic_cvar_5pct]
+  risk_gate: [false, true]
+perpetual:
+  scope: fixed_parameter_research_USDT_linear_long_only_not_historical_exchange_reconstruction
+  margin_mode: isolated
+  caps: [3.0, 5.0]
+  maintenance_margin_rates: [0.004, 0.005, 0.01]
+  primary_maintenance_margin_rate: 0.005
+  fee_rate: 0.00055
+  liquidation_fee_rate: 0.005
+  slippage_rates: [0.0, 0.0005, 0.001]
+  primary_slippage_rate: 0.0005
+  funding: actual_event_once_mark_notional
+  liquidation: conservative_mark_low_crossing
+  reset_at_fold_boundary: false
+statistics:
+  bootstrap_replicates: 10000
+  primary_block_days: 7
+  sensitivity_block_days: [14, 30]
+  hac_lags: [6, 13, 29]
+  seed: 20261112
+  metric_primary_forecast: equal_task_validation_defined_skill
+  metric_primary_policy: annualized_mean_net_log_growth_difference
+  multiple_comparison: prespecified_family_Holm_and_global_sensitivity
+  seed_is_independent_market: false
+statistical_baselines:
+  monte_carlo_paths: 2048
+  monte_carlo_chunk: 64
+  evaluation_stride_bars: 16
+  comparison_scope: same_fixed_4hour_calendar_for_ML_and_statistical_model
+rollout_diagnostics:
+  decision_rows: 32
+  n_samples: 128
+  horizon: 96
+  batch_size: 2
+  seed: 20261112
+  observation_basis: close_path_distinct_from_intraminute_high_low_outcome_labels
+runtime:
+  forecast_cpu_fractions:
+    lstm: 0.8
+    transformer: 0.5
+    wm: 0.5
+  forecast_device_assignment: sha256_fold_seed_first_uint64_fraction_model_specific_threshold
+  neural_workers: 12
+  classical_workers: 12
+  policy_workers: 16
+  cpu_threads: 1
+  ram_soft_limit_gib: 104
+  progress_seconds: 30

@@ -1,0 +1,35 @@
+experiment_id: wm_classification_ensemble_20261110
+classification_dir: codex_outputs/wm_volatility_classification_20261110
+aligned_predictions: codex_outputs/wm_classification_complementarity_20261110/aligned_predictions.parquet
+ablation_dir: codex_outputs/wm_technical_ablation_20261109
+output_dir: codex_outputs/wm_classification_ensemble_20261110
+condition: fixed
+models: [logistic, lightgbm, direct, wm]
+seeds: [7, 17, 27]
+base_folds: 15
+fresh_base_fold: 14
+fresh_start: '2026-11-01'
+fresh_end_exclusive: '2026-11-10'
+previously_evaluated_end_exclusive: '2026-11-01'
+purge_hours: 16
+methods: [mean, weighted, stacking]
+weight_grid_step: 0.1
+stacking:
+  num_leaves: [3, 7]
+  min_data_in_leaf: [128, 512]
+  learning_rate: 0.03
+  lambda_l2: 10.0
+  max_rounds: 400
+  patience: 40
+  inner_train_months: 2
+parallel_workers: 2
+cpu_threads: 2
+device: mps
+statistics:
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  bootstrap_replicates: 2000
+  random_seed: 20261110
+  holm_family: three_WM_addition_comparisons
+test_selection_allowed: false
+base_model_training: false

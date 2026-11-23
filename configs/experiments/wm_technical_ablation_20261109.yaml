@@ -1,0 +1,63 @@
+experiment_id: wm_technical_ablation_20261109
+output_dir: codex_outputs/wm_technical_ablation_20261109
+raw_data: codex_outputs/wm_technical_ablation_20261109/data/base/raw_market.parquet
+availability: codex_outputs/wm_technical_ablation_20261109/data/base/availability.parquet
+analysis_start: '2020-09-01'
+analysis_end_exclusive: '2026-11-01'
+first_test: '2023-01-01'
+last_test: '2026-07-01'
+groups: [A, B, C, D]
+seeds: [7, 17, 27]
+device: mps
+parallel_workers: 2
+cpu_threads_per_worker: 4
+model:
+  context: 256
+  d_model: 192
+  n_heads: 4
+  n_layers: 2
+  d_ff: 768
+  encoder_hidden: 192
+  n_categoricals: 32
+  n_classes: 32
+  dropout: 0.1
+training:
+  max_steps: 700
+  batch_size: 16
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+  validation_every: 100
+  validation_rows_for_selection: 384
+  evaluation_batch_size: 128
+  normalization_windows: 1024
+  normalization_seed: 20261109
+  deterministic_algorithms: true
+evaluation:
+  horizons: [4, 16, 64]
+  primary_horizon: 16
+  crash_fraction: 0.012
+  variance_floor: 0.000000000001
+  bootstrap_replicates: 2000
+  bootstrap_block_days: [1, 7, 28]
+  primary_block_days: 7
+  bootstrap_seed: 20261109
+  primary_comparisons: [[A, B], [C, D]]
+  extra_month_report_only: true
+  test_selection_allowed: false
+loss_weights:
+  normalized_return_mse: 1.0
+  variance_qlike: 0.2
+  normalized_downside_mse: 0.2
+  crash_bce: 0.1
+  common_base_reconstruction: 0.3
+  dynamics_kl: 0.2
+  representation_kl: 0.05
+  next_market_return_twohot: 0.3
+baselines:
+  ridge_alpha: 1.0
+  max_fit_rows: 8192
+  feature_batch_size: 64
+  cpu_threads: 2
+  seed: 20261109
+  feature_recipe: flattened_base5_context_and_last_enabled_market_and_ta

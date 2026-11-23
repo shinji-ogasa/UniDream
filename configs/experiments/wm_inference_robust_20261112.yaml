@@ -1,0 +1,78 @@
+experiment_id: wm_inference_robust_20261112
+output_dir: codex_outputs/wm_inference_robust_20261112
+source_config: configs/experiments/wm_policy_ablation_20261112.yaml
+previous_inference_config: configs/experiments/wm_policy_bh_inference_20261112.yaml
+post_hoc: true
+source_test_results_previously_seen: true
+independently_unused_holdout: false
+test_selection_allowed: false
+arms: [A, B, C, D]
+stages: [bc, rl]
+seeds: [7, 19, 42]
+folds: [0, 1, 2, 3, 4, 5]
+benchmarks: [bh, fixed50]
+accounting:
+  annual_bars: 35040
+  fixed50_target: 0.5
+  cost_settings: unchanged_from_original_policy_study
+statistics:
+  expected_market_rows: 50038
+  bootstrap_replicates: 10000
+  seed: 20261112
+  methods: [legacy_non_circular, circular, stationary]
+  block_days: [1, 7, 14, 28, 30]
+  primary_method: circular
+  primary_block_days: 7
+  primary_estimand: market_fixed_seeds
+  seed_population_sensitivity: hierarchical_seeds
+  primary_benchmark: bh
+  primary_family_size: 8
+  recompute_original_ablation_contrasts: true
+  ablation_family_size: 12
+  combined_BH_and_ablation_family_size: 20
+  secondary_fixed50_family_size: 8
+  joint_primary_controls_family_size: 16
+  primary_p: two_sided_actual_H0_centered_residuals
+  primary_ci: basic_inversion_of_actual_H0_centered_roots
+  finite_bootstrap_mean_recentered_p: diagnostic_only
+  short_segments: retained_fixed_and_fraction_reported
+  family_search: White_least_favorable_max_mean_8_only_one_sided
+  hac_lags: [0, 6, 13, 27, 29]
+  primary_hac_lag: 6
+  hac_seed_variance_addition: approximate_sensitivity_only
+  automatic_block_length: segmentwise_arch_diagnostic_only_not_selection
+power:
+  annual_log_effects: [0.02, 0.05, 0.10]
+  eligible_years: [1, 2, 3, 5, 10]
+  include_current_eligible_years: true
+  alpha: [0.05, 0.00625]
+  target_power: [0.8, 0.9]
+  include_observed_effect_scenario: true
+  observed_effect_caveat: same_data_selected_scenario_not_evidence_for_H0_or_future_effect
+  assumptions: constant_long_run_variance_and_same_distribution_not_calendar_forecast
+calibration:
+  outer_replicates: 300
+  inner_replicates: 999
+  days: 540
+  segment_layouts: [single, six_equal]
+  block_days: 7
+  seed: 20261112
+  burnin: 1000
+  ar_phi: 0.3
+  garch_alpha: 0.05
+  garch_beta: 0.90
+  inclusion_example_days: 10
+  inclusion_example_block: 7
+references:
+  - title: Newey and West — HAC covariance matrix
+    url: https://www.nber.org/system/files/working_papers/t0055/t0055.pdf
+  - title: Politis and Romano — The Stationary Bootstrap
+    url: https://doi.org/10.1080/01621459.1994.10476870
+  - title: Politis — The impact of bootstrap methods on time series
+    url: https://mathweb.ucsd.edu/~politis/impactBOOT.pdf
+  - title: White — A Reality Check for Data Snooping
+    url: https://doi.org/10.1111/1468-0262.00152
+  - title: Hoenig and Heisey — The Abuse of Power
+    url: https://doi.org/10.1198/000313001300339897
+  - title: arch — Corrected automatic block-length diagnostic
+    url: https://bashtage.github.io/arch/bootstrap/generated/arch.bootstrap.optimal_block_length.html

@@ -14,6 +14,10 @@ UniDream は、Hindsight Oracle で生成した教師ポジションを Behavior
 
 リポジトリ間の責務境界と現行の入口は [docs/project_map.md](docs/project_map.md) にまとめている。
 
+コード・設定・テストと照合した全体仕様は [SPEC.md](SPEC.md)、全モジュール・設定・テストの一覧と仕様調査の検証結果は [仕様調査台帳](docs/specification_inventory.md) を参照する。
+
+11月の研究用拡張（LightGBM・Transformer・LSTM予測比較、予測値とWM状態のpolicy入力比較、保有率制約の解除、10 seed検証）と保存済み集計は [2026年11月の研究スナップショット](docs/experiments/wm_research_status_20261123.md) を参照する。主系統v31とは別の探索的研究であり、WMの収益追加効果は未確認。
+
 次期研究は、実現未来の Hindsight action を教師にする順序から、point-in-time data の outcome 予測力を先に検証し、chronological OOF 予測分布から実行可能な conditional Oracle を作る順序へ再設計した。段階ゲート、データ取得優先度、Luna max Agent 分担は [docs/predictable_data_conditional_oracle_roadmap_2026.md](docs/predictable_data_conditional_oracle_roadmap_2026.md) を正とする。これは新しい精度結果ではなく、次の実験契約である。
 
 AlphaEx は strategy の最終total return minus B&Hの最終total return。年率換算ではない。Plan011 v31 の fold0-12 開発WFOでは平均 `AlphaEx +0.41pt`、中央値 `+0.16pt`、best `+3.46pt`、worst `-0.40pt`、`MaxDDDelta +0.20pt`。完全未使用の 2024-2026 holdout fold15-23 では平均 `AlphaEx +0.11pt`、中央値 `-0.04pt`、`MaxDDDelta +0.20pt`。DD改善AIではなく、現状は低回転の B&H-relative neural overlay の研究証跡として扱う。

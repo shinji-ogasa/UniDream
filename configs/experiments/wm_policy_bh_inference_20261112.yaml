@@ -1,0 +1,30 @@
+experiment_id: wm_policy_bh_inference_20261112
+output_dir: codex_outputs/wm_policy_bh_inference_20261112
+source_config: configs/experiments/wm_policy_ablation_20261112.yaml
+arms: [A, B, C, D]
+stages: [bc, rl]
+seeds: [7, 19, 42]
+folds: [0, 1, 2, 3, 4, 5]
+post_hoc: true
+source_test_results_previously_seen: true
+independently_unused_holdout: false
+test_selection_allowed: false
+accounting:
+  annual_bars: 35040
+statistics:
+  metric: annualized_net_log_growth_difference
+  bootstrap_replicates: 10000
+  expected_market_rows: 50038
+  primary_block_days: 7
+  block_days: [1, 7, 28]
+  seed: 20261112
+  paired_seed_resampling: true
+  all_seeds_share_sampled_market_days: true
+  primary_family_size: 8
+  primary_multiplicity: Holm8
+  extended_family_size: 20
+  extended_multiplicity: original12_plus_BH8_Holm20_sensitivity
+  confidence_level: 0.95
+  alternative: two_sided
+  unsupported_segment_policy: retained_fixed_without_shorter_block_fallback
+  cumulative_return_difference: descriptive_only_arithmetic_seed_mean

@@ -1,0 +1,52 @@
+experiment_id: wm_model_comparison_20261109
+parent_config: configs/experiments/wm_technical_ablation_20261109.yaml
+output_dir: codex_outputs/wm_model_comparison_20261109
+input_group: D
+primary_horizon: 16
+seeds: [7, 17, 27]
+device: mps
+parallel_workers: 2
+cpu_threads_per_worker: 4
+classical_threads: 4
+neural:
+  max_steps: 3000
+  validation_every: 100
+  min_steps: 1200
+  patience_steps: 1000
+  relative_improvement: 0.0005
+  train_diagnostic_rows: 384
+  diagnostic_seed: 20261110
+  models: [wm_extended, direct_transformer]
+tabular:
+  feature_batch: 128
+  market_lag_positions: [0, 192, 240, 252]
+  ridge_alphas: [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
+  lightgbm_leaves: [7, 31]
+  lightgbm_rounds: 1500
+  lightgbm_patience: 100
+  lightgbm_learning_rate: 0.03
+  lightgbm_min_data_leaf: 256
+  lightgbm_l2: 10.0
+  lightgbm_seed: 7
+variance:
+  ewma_decays: [0.94, 0.97, 0.99]
+  garch_scale: 100.0
+statistics:
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  bootstrap_replicates: 2000
+  bootstrap_seed: 20261110
+  comparisons:
+    - [zero, wm_extended, return]
+    - [ridge, wm_extended, return]
+    - [lightgbm, wm_extended, return]
+    - [train_mean, wm_extended, variance]
+    - [past_variance, wm_extended, variance]
+    - [ewma, wm_extended, variance]
+    - [garch, wm_extended, variance]
+    - [lightgbm, wm_extended, variance]
+    - [direct_transformer, wm_extended, return]
+    - [direct_transformer, wm_extended, variance]
+    - [wm_700, wm_extended, return]
+    - [wm_700, wm_extended, variance]
+test_selection_allowed: false

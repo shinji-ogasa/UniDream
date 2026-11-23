@@ -1,0 +1,136 @@
+experiment_id: wm_policy_ablation_20261112
+output_dir: codex_outputs/wm_policy_ablation_20261112
+significance_config: configs/experiments/wm_lstm_significance_20261112.yaml
+seven_config: configs/experiments/wm_seven_task_benchmark_20261110.yaml
+full_config: configs/experiments/wm_full_grid_20261111.yaml
+joint_config: configs/experiments/wm_joint_grid_20261111.yaml
+lstm_config: configs/experiments/wm_lstm_grid_20261112.yaml
+arms: [A, B, C, D]
+seeds: [7, 19, 42]
+folds: [0, 1, 2, 3, 4, 5]
+device: mps
+test_selection_allowed: false
+historical_seen_test: true
+independently_unused_holdout: false
+evaluation_scope: conditional_contiguous_forecast_cohort_exploratory
+splits:
+  start: '2023-01-01'
+  end: '2026-10-01'
+policy:
+  context: 256
+  horizon: 16
+  purge_bars: 64
+  train_years: 2
+  val_months: 3
+  test_months: 3
+  feature_selection: all_positive_primary_heads_Holm1320
+  deduplicate_classical_joint_aliases: true
+  forecast_selection_scope: previously_inspected_2023_2026_forecast_Test
+  wm_observation: raw_X_only_shared_C_D
+  wm_update_during_policy_training: false
+  rl_rollout_source: actual_historical_Train_segments
+  raw_observation_dim: 63
+  effective_raw_history_bars: 511
+  normalizer_clip: 10.0
+actor:
+  context: 256
+  lstm_hidden_size: 64
+  lstm_layers: 1
+  projection_dim: 64
+  hidden_size: 128
+  dropout: 0.0
+  inventory_dim: 6
+  min_log_std: -4.0
+  max_log_std: 0.0
+wm_model:
+  context: 256
+  d_model: 192
+  n_heads: 4
+  n_layers: 2
+  d_ff: 768
+  encoder_hidden: 192
+  n_categoricals: 32
+  n_classes: 32
+  dropout: 0.1
+wm_training:
+  max_steps: 2000
+  min_steps: 1000
+  patience_steps: 600
+  validation_every: 100
+  relative_improvement: 0.0005
+  batch_size: 16
+  evaluation_batch_size: 128
+  selection_rows: 512
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+bc_training:
+  max_steps: 1600
+  min_steps: 800
+  patience_steps: 400
+  validation_every: 100
+  relative_improvement: 0.0005
+  batch_size: 64
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+  selection_rows: 1536
+rl_training:
+  max_updates: 400
+  min_updates: 100
+  patience_updates: 150
+  validation_every: 25
+  relative_improvement: 0.0005
+  rollout_batch_size: 16
+  rollout_horizon: 64
+  minibatch_size: 128
+  ppo_epochs: 2
+  learning_rate: 0.0001
+  critic_learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_ratio: 0.2
+  value_coefficient: 0.5
+  entropy_coefficient: 0.001
+  bc_prior_coefficient: 0.01
+  reward_scale: 100.0
+  gradient_clip: 10.0
+  selection_rows: 1536
+accounting:
+  position_min: 0.50
+  position_max: 1.12
+  max_position_step: 0.08
+  initial_position: 1.0
+  cost_rate: 0.00055
+  borrow_apr: 0.10
+  drawdown_penalty: 0.25
+  annual_bars: 35040
+  execution_delay_bars: 1
+  initial_entry_cost: false
+  terminal_liquidation: false
+  reset_positions_at_segment_boundary: true
+teacher:
+  position_grid: [0.50, 0.70, 0.85, 0.94, 1.0, 1.06, 1.12]
+  horizon: 16
+  future_labels_used_as_inputs: false
+  inventory_source: policy_generated_or_independent_Train_states
+  teacher_is_attainable_performance_upper_bound: false
+baselines:
+  constant_position_grid: [0.50, 0.70, 0.85, 0.94, 1.0, 1.06, 1.12]
+  volatility_target_multipliers: [0.50, 0.75, 1.0, 1.25]
+  selection_split: Val_only
+statistics:
+  primary_metric: annualized_net_log_growth
+  primary_contrasts: [BC_B_minus_A, BC_C_minus_A, BC_D_minus_B, BC_D_minus_C, RL_B_minus_A, RL_C_minus_A, RL_D_minus_B, RL_D_minus_C, A_RL_minus_BC, B_RL_minus_BC, C_RL_minus_BC, D_RL_minus_BC]
+  primary_family_size: 12
+  bootstrap_replicates: 10000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  paired_seed_resampling: true
+  all_seeds_share_sampled_market_days: true
+  seed: 20261112
+  multiplicity: Holm12
+runtime:
+  workers: 4
+  cpu_threads: 1
+  status_seconds: 20

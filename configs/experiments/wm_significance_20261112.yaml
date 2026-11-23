@@ -1,0 +1,49 @@
+experiment_id: wm_significance_20261112
+output_dir: codex_outputs/wm_significance_20261112
+joint_config: configs/experiments/wm_joint_grid_20261111.yaml
+full_config: configs/experiments/wm_full_grid_20261111.yaml
+point_table_path: codex_outputs/wm_joint_grid_20261111/final/results_336.csv
+groups: [A, B, C, D]
+models: [linear, lightgbm, direct, wm]
+tasks: [return, variance, downside, crash, dd_excess, advantage, recovery]
+formulations: [regression, classification, joint]
+folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+seeds: [7]
+horizons: [16]
+test_selection_allowed: false
+historical_seen_test: true
+independently_unused_holdout: false
+baseline:
+  family: causal_simple
+  fit_split: Train_only
+  features: [log_past16_integrated_variance, log_ewma_integrated_variance, past16_log_return]
+  logistic_C: 1.0
+  ridge_alpha: 1.0
+  calibration: identity
+  class_decision: argmax_probability_divided_by_Train_prior
+  return_point: zero_return
+  variance_point: frozen_ewma
+  downside_point: Train_median
+  crash_point: three_feature_logistic_probability
+  dd_excess_point: Train_median
+  advantage_point: three_feature_ridge
+  recovery_point: clipped_three_feature_ridge
+statistics:
+  bootstrap_replicates: 100000
+  sensitivity_replicates: 10000
+  ic_replicates: 10000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  seed: 20261112
+  primary_family_size: 448
+  global_family_size: 1056
+  family_counts: {primary: 448, ba_chance: 336, variance_BA: 144, variance_QLIKE: 64, crash_Brier: 64}
+  multiplicity: Holm_primary448_and_all_new1056
+  unavailable_p_for_multiplicity: 1.0
+  class_control_aliases: retain_in_both_fixed_families
+  exact_spearman_reranking: true
+  ic_absolute_CI_only: true
+runtime:
+  workers: 12
+  cpu_threads: 1
+  status_seconds: 20

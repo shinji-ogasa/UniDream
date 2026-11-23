@@ -1,0 +1,332 @@
+{
+  "created_utc": "2026-11-09T13:09:51.726535+00:00",
+  "analysis_start_inclusive": "2020-09-01 00:00:00+00:00",
+  "analysis_end_exclusive": "2026-11-01 00:00:00+00:00",
+  "warmup_start_inclusive": "2020-08-01 00:00:00+00:00",
+  "index_semantics": "15-minute candle OPEN, UTC",
+  "decision_semantics": "bar OPEN + 15 minutes, after source candle close",
+  "asof_semantics": {
+    "metrics": "latest source timestamp <= bar OPEN; max age 30 minutes",
+    "funding": "latest source timestamp <= bar OPEN; max age 24 hours"
+  },
+  "historical_publication_timestamps": "unknown; conservative source-time lags are assumed, not verified live availability",
+  "rows_with_warmup": 219168,
+  "analysis_rows": 216192,
+  "columns": [
+    "spot_open",
+    "spot_high",
+    "spot_low",
+    "spot_close",
+    "spot_volume",
+    "spot_quote_volume",
+    "spot_n_trades",
+    "spot_taker_buy_base",
+    "spot_taker_buy_quote",
+    "perp_open",
+    "perp_high",
+    "perp_low",
+    "perp_close",
+    "perp_volume",
+    "perp_quote_volume",
+    "perp_n_trades",
+    "perp_taker_buy_base",
+    "perp_taker_buy_quote",
+    "mark_close",
+    "index_close",
+    "premium_close",
+    "funding_rate",
+    "metrics_sum_open_interest",
+    "metrics_sum_open_interest_value",
+    "metrics_count_toptrader_long_short_ratio",
+    "metrics_sum_toptrader_long_short_ratio",
+    "metrics_count_long_short_ratio",
+    "metrics_sum_taker_long_short_vol_ratio"
+  ],
+  "analysis_missing_fraction_by_column": {
+    "spot_open": 0.00045792628774422736,
+    "spot_high": 0.00045792628774422736,
+    "spot_low": 0.00045792628774422736,
+    "spot_close": 0.00045792628774422736,
+    "spot_volume": 0.00045792628774422736,
+    "spot_quote_volume": 0.00045792628774422736,
+    "spot_n_trades": 0.00045792628774422736,
+    "spot_taker_buy_base": 0.00045792628774422736,
+    "spot_taker_buy_quote": 0.00045792628774422736,
+    "perp_open": 0.0004440497335701599,
+    "perp_high": 0.0004440497335701599,
+    "perp_low": 0.0004440497335701599,
+    "perp_close": 0.0004440497335701599,
+    "perp_volume": 0.0004440497335701599,
+    "perp_quote_volume": 0.0004440497335701599,
+    "perp_n_trades": 0.0004440497335701599,
+    "perp_taker_buy_base": 0.0004440497335701599,
+    "perp_taker_buy_quote": 0.0004440497335701599,
+    "mark_close": 0.004889172587329781,
+    "index_close": 0.0066653715216104205,
+    "premium_close": 0.004472875962107756,
+    "funding_rate": 0.0,
+    "metrics_sum_open_interest": 0.0005134325044404974,
+    "metrics_sum_open_interest_value": 0.0005134325044404974,
+    "metrics_count_toptrader_long_short_ratio": 0.14270648312611012,
+    "metrics_sum_toptrader_long_short_ratio": 0.14265560242747188,
+    "metrics_count_long_short_ratio": 0.009454558910597988,
+    "metrics_sum_taker_long_short_vol_ratio": 0.05798549437537004
+  },
+  "analysis_availability_fraction": {
+    "spot_available": 0.9995420737122558,
+    "perp_available": 0.9995559502664298,
+    "mark_available": 0.9951108274126702,
+    "index_available": 0.9933346284783896,
+    "premium_available": 0.9955271240378922,
+    "funding_available": 1.0,
+    "metrics_available": 0.8572195085849615,
+    "all_market_available": 0.8514052323860273,
+    "metrics_core_available": 0.990545441089402,
+    "metrics_core_valid_available": 0.9898284857904085,
+    "core_market_valid_available": 0.9804525606867969,
+    "spot_open_available": 0.9995420737122558,
+    "spot_high_available": 0.9995420737122558,
+    "spot_low_available": 0.9995420737122558,
+    "spot_close_available": 0.9995420737122558,
+    "spot_volume_available": 0.9995420737122558,
+    "spot_quote_volume_available": 0.9995420737122558,
+    "spot_n_trades_available": 0.9995420737122558,
+    "spot_taker_buy_base_available": 0.9995420737122558,
+    "spot_taker_buy_quote_available": 0.9995420737122558,
+    "perp_open_available": 0.9995559502664298,
+    "perp_high_available": 0.9995559502664298,
+    "perp_low_available": 0.9995559502664298,
+    "perp_close_available": 0.9995559502664298,
+    "perp_volume_available": 0.9995559502664298,
+    "perp_quote_volume_available": 0.9995559502664298,
+    "perp_n_trades_available": 0.9995559502664298,
+    "perp_taker_buy_base_available": 0.9995559502664298,
+    "perp_taker_buy_quote_available": 0.9995559502664298,
+    "mark_close_available": 0.9951108274126702,
+    "index_close_available": 0.9933346284783896,
+    "premium_close_available": 0.9955271240378922,
+    "funding_rate_available": 1.0,
+    "metrics_sum_open_interest_available": 0.9994865674955595,
+    "metrics_sum_open_interest_value_available": 0.9994865674955595,
+    "metrics_count_toptrader_long_short_ratio_available": 0.8572935168738899,
+    "metrics_sum_toptrader_long_short_ratio_available": 0.8573443975725281,
+    "metrics_count_long_short_ratio_available": 0.990545441089402,
+    "metrics_sum_taker_long_short_vol_ratio_available": 0.94201450562463
+  },
+  "analysis_source_availability_by_year": {
+    "2020": {
+      "spot_available": 0.9979508196721312,
+      "perp_available": 1.0,
+      "mark_available": 1.0,
+      "index_available": 1.0,
+      "premium_available": 0.999573087431694,
+      "funding_available": 1.0,
+      "metrics_available": 0.9996584699453552,
+      "metrics_core_available": 0.9997438524590164,
+      "metrics_core_valid_available": 0.9997438524590164,
+      "core_market_valid_available": 0.9972677595628415
+    },
+    "2021": {
+      "spot_available": 0.9980308219178082,
+      "perp_available": 1.0,
+      "mark_available": 0.9863013698630136,
+      "index_available": 1.0,
+      "premium_available": 0.9863013698630136,
+      "funding_available": 1.0,
+      "metrics_available": 0.9939783105022831,
+      "metrics_core_available": 0.9941495433789954,
+      "metrics_core_valid_available": 0.9941495433789954,
+      "core_market_valid_available": 0.9784817351598174
+    },
+    "2022": {
+      "spot_available": 1.0,
+      "perp_available": 1.0,
+      "mark_available": 0.9945205479452055,
+      "index_available": 0.9780821917808219,
+      "premium_available": 0.9972031963470319,
+      "funding_available": 1.0,
+      "metrics_available": 0.12722602739726027,
+      "metrics_core_available": 0.9490867579908676,
+      "metrics_core_valid_available": 0.9479737442922375,
+      "core_market_valid_available": 0.9259988584474886
+    },
+    "2023": {
+      "spot_available": 0.9998287671232877,
+      "perp_available": 1.0,
+      "mark_available": 0.9972317351598173,
+      "index_available": 0.9890125570776256,
+      "premium_available": 0.9972602739726028,
+      "funding_available": 1.0,
+      "metrics_available": 0.9998002283105023,
+      "metrics_core_available": 0.9998858447488584,
+      "metrics_core_valid_available": 0.9997431506849315,
+      "core_market_valid_available": 0.9885844748858448
+    },
+    "2024": {
+      "spot_available": 1.0,
+      "perp_available": 1.0,
+      "mark_available": 1.0,
+      "index_available": 1.0,
+      "premium_available": 1.0,
+      "funding_available": 1.0,
+      "metrics_available": 0.9986908014571949,
+      "metrics_core_available": 0.9988046448087432,
+      "metrics_core_valid_available": 0.9958447176684881,
+      "core_market_valid_available": 0.9958447176684881
+    },
+    "2025": {
+      "spot_available": 1.0,
+      "perp_available": 1.0,
+      "mark_available": 1.0,
+      "index_available": 1.0,
+      "premium_available": 1.0,
+      "funding_available": 1.0,
+      "metrics_available": 0.999486301369863,
+      "metrics_core_available": 0.9998287671232877,
+      "metrics_core_valid_available": 0.9997716894977169,
+      "core_market_valid_available": 0.9997716894977169
+    },
+    "2026": {
+      "spot_available": 1.0,
+      "perp_available": 0.9967105263157895,
+      "mark_available": 0.9901315789473685,
+      "index_available": 0.9901315789473685,
+      "premium_available": 0.9901315789473685,
+      "funding_available": 1.0,
+      "metrics_available": 1.0,
+      "metrics_core_available": 1.0,
+      "metrics_core_valid_available": 0.9998286732456141,
+      "core_market_valid_available": 0.9899602521929824
+    }
+  },
+  "longest_missing_interval_by_mask": {
+    "spot_available": {
+      "availability_mask": "spot_available",
+      "start_bar_open_utc": "2021-04-25T04:00:00+00:00",
+      "end_exclusive_bar_open_utc": "2021-04-25T08:45:00+00:00",
+      "missing_bars": 19,
+      "duration_hours": 4.75
+    },
+    "perp_available": {
+      "availability_mask": "perp_available",
+      "start_bar_open_utc": "2026-10-28T00:00:00+00:00",
+      "end_exclusive_bar_open_utc": "2026-10-29T00:00:00+00:00",
+      "missing_bars": 96,
+      "duration_hours": 24.0
+    },
+    "mark_available": {
+      "availability_mask": "mark_available",
+      "start_bar_open_utc": "2021-07-24T00:00:00+00:00",
+      "end_exclusive_bar_open_utc": "2021-07-28T00:00:00+00:00",
+      "missing_bars": 384,
+      "duration_hours": 96.0
+    },
+    "index_available": {
+      "availability_mask": "index_available",
+      "start_bar_open_utc": "2022-07-24T00:00:00+00:00",
+      "end_exclusive_bar_open_utc": "2022-07-26T00:00:00+00:00",
+      "missing_bars": 192,
+      "duration_hours": 48.0
+    },
+    "premium_available": {
+      "availability_mask": "premium_available",
+      "start_bar_open_utc": "2021-07-24T00:00:00+00:00",
+      "end_exclusive_bar_open_utc": "2021-07-28T00:00:00+00:00",
+      "missing_bars": 384,
+      "duration_hours": 96.0
+    },
+    "funding_available": null,
+    "metrics_available": {
+      "availability_mask": "metrics_available",
+      "start_bar_open_utc": "2022-01-31T00:00:00+00:00",
+      "end_exclusive_bar_open_utc": "2022-05-27T16:00:00+00:00",
+      "missing_bars": 11200,
+      "duration_hours": 2800.0
+    },
+    "metrics_core_available": {
+      "availability_mask": "metrics_core_available",
+      "start_bar_open_utc": "2021-12-30T14:45:00+00:00",
+      "end_exclusive_bar_open_utc": "2022-01-19T13:30:00+00:00",
+      "missing_bars": 1915,
+      "duration_hours": 478.75
+    },
+    "metrics_core_valid_available": {
+      "availability_mask": "metrics_core_valid_available",
+      "start_bar_open_utc": "2021-12-30T14:45:00+00:00",
+      "end_exclusive_bar_open_utc": "2022-01-19T13:30:00+00:00",
+      "missing_bars": 1915,
+      "duration_hours": 478.75
+    },
+    "core_market_valid_available": {
+      "availability_mask": "core_market_valid_available",
+      "start_bar_open_utc": "2021-12-30T14:45:00+00:00",
+      "end_exclusive_bar_open_utc": "2022-01-19T13:30:00+00:00",
+      "missing_bars": 1915,
+      "duration_hours": 478.75
+    }
+  },
+  "analysis_nonpositive_metric_counts": {
+    "metrics_sum_open_interest": 159,
+    "metrics_sum_open_interest_value": 168,
+    "metrics_count_toptrader_long_short_ratio": 0,
+    "metrics_sum_toptrader_long_short_ratio": 0,
+    "metrics_count_long_short_ratio": 0,
+    "metrics_sum_taker_long_short_vol_ratio": 0
+  },
+  "archive_jobs": 2697,
+  "verified_archives": 2697,
+  "http_status_counts": {
+    "200": 2697
+  },
+  "acquisition_errors": [],
+  "missing_archives": [],
+  "parse_errors": [],
+  "cross_archive_deduplication": {
+    "spot": {
+      "input_rows": 219075,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    },
+    "perp": {
+      "input_rows": 216096,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    },
+    "mark": {
+      "input_rows": 215135,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    },
+    "index": {
+      "input_rows": 214751,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    },
+    "premium": {
+      "input_rows": 215225,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    },
+    "funding": {
+      "input_rows": 6756,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    },
+    "metrics": {
+      "input_rows": 647942,
+      "identical_duplicates_removed": 0,
+      "conflicting_rows_quarantined": 0,
+      "conflicting_timestamps_quarantined": 0
+    }
+  },
+  "invalid_candle_rows": 6,
+  "identical_duplicate_rows_removed": 75255,
+  "conflicting_duplicate_timestamps": 0,
+  "raw_market_sha256": "0408c8b4595efcbcd35117252364449bc87059f25fcf1cf9ef0681db881a90a8"
+}

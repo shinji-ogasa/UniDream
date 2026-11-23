@@ -1,0 +1,55 @@
+{
+  "captured_on": "2026-11-23",
+  "timezone": "Asia/Tokyo",
+  "scope": "Unmodified saved aggregate artifacts; not an independent experiment rerun or complete replay bundle",
+  "files": [
+    {
+      "file": "forecast_results_420.csv",
+      "source": "codex_outputs/wm_lstm_grid_20261112/final/results_420.csv",
+      "sha256": "7b5fc88ca077c6217f82c569ecc8ed11d9290228f3d3335b898909f28fb019ed",
+      "bytes": 215971
+    },
+    {
+      "file": "model_comparison.csv",
+      "source": "codex_outputs/wm_model_comparison_20261109/comparison_table.csv",
+      "sha256": "d4a77d4d9198ad31dedf0000f6ebc9c3a10eb8cdaa46e8c3eb1a3fd37a1a9d57",
+      "bytes": 1520
+    },
+    {
+      "file": "model_comparison_inference.csv",
+      "source": "codex_outputs/wm_model_comparison_20261109/primary_comparisons.csv",
+      "sha256": "6380768a95f6b341173bcb9e4e7252b1e47e00dfcbaead21efdc9c7b9f512022",
+      "bytes": 1949
+    },
+    {
+      "file": "policy_seed_summary.csv",
+      "source": "codex_outputs/wm_seed_robustness_20261112/final/seed_summary.csv",
+      "sha256": "74ce6174bd7c6980c42712e4d87cbc7ea65e6390ed60a13f18858172e55375f0",
+      "bytes": 30235
+    },
+    {
+      "file": "policy_per_seed.csv",
+      "source": "codex_outputs/wm_seed_robustness_20261112/final/pooled_metrics.csv",
+      "sha256": "c4b7263f44d37917f89af544b14ab9f69be0edeb6a3e860f0f5775d2b9de6f69",
+      "bytes": 19526
+    },
+    {
+      "file": "policy_baselines.csv",
+      "source": "codex_outputs/wm_seed_robustness_20261112/final/baseline_metrics.csv",
+      "sha256": "b2ad9e3c369b7ccbb4c27619910dfee9d2d5be0d20bb3832e4704919ee04642c",
+      "bytes": 2641
+    },
+    {
+      "file": "policy_primary_inference.csv",
+      "source": "codex_outputs/wm_seed_robustness_20261112/final/primary_inference.csv",
+      "sha256": "5378f47359619e0589ce7059f2854f1a5153ac545029f03c11b5c551bf075961",
+      "bytes": 6944
+    },
+    {
+      "file": "data_summary.json",
+      "source": "codex_outputs/wm_technical_ablation_20261109/data/data_summary.json",
+      "sha256": "ebdd45f85bc361f21a53fe1b1618c3249738ae0e301144742021de40c89aabce",
+      "bytes": 12478
+    }
+  ]
+}

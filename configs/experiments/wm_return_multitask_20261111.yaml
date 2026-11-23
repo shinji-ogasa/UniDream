@@ -1,0 +1,51 @@
+experiment_id: wm_return_multitask_20261111
+output_dir: codex_outputs/wm_return_multitask_20261111
+parent_config: configs/experiments/wm_seven_task_benchmark_20261110.yaml
+groups: [D]
+folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+seeds: [7]
+models: [direct, wm]
+arms: [reg_only, class_only, joint]
+device: mps
+horizons: [16]
+test_selection_allowed: false
+validation_partition: calendar_months_earlystop_calibration_selection
+threshold_train_rms_multiplier: 0.5
+calibration: identity
+other_supervised_tasks: false
+joint_loss_weights:
+  normalized_return_mse: 0.5
+  return_cross_entropy: 0.5
+model:
+  context: 256
+  d_model: 192
+  n_heads: 4
+  n_layers: 2
+  d_ff: 768
+  encoder_hidden: 192
+  n_categoricals: 32
+  n_classes: 32
+  dropout: 0.1
+training:
+  max_steps: 3000
+  min_steps: 1200
+  patience_steps: 1000
+  relative_improvement: 0.0005
+  validation_every: 200
+  selection_rows: 768
+  batch_size: 16
+  evaluation_batch_size: 128
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+  workers: 2
+  cpu_threads: 1
+statistics:
+  bootstrap_replicates: 10000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  seed: 20261111
+  multiple_comparisons: holm_4
+  primary_comparisons:
+    - joint_minus_reg_only_return_oos_r2
+    - joint_minus_class_only_prior_rule_balanced_accuracy

@@ -1,0 +1,48 @@
+experiment_id: wm_joint_grid_20261111
+output_dir: codex_outputs/wm_joint_grid_20261111
+parent_config: configs/experiments/wm_full_grid_20261111.yaml
+groups: [A, B, C, D]
+folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+seeds: [7]
+models: [direct, wm]
+formulations: [joint]
+complete_formulations: [regression, classification, joint]
+horizons: [16]
+device: mps
+joint_loss_weights: {regression: 0.5, classification: 0.5}
+classical_joint: reused_independent_heads
+test_selection_allowed: false
+validation_partition: calendar_months_earlystop_calibration_selection
+calibration: identity
+parent_poll_seconds: 30
+model:
+  context: 256
+  d_model: 192
+  n_heads: 4
+  n_layers: 2
+  d_ff: 768
+  encoder_hidden: 192
+  n_categoricals: 32
+  n_classes: 32
+  dropout: 0.1
+training:
+  max_steps: 3000
+  min_steps: 1200
+  patience_steps: 1000
+  relative_improvement: 0.0005
+  validation_every: 200
+  selection_rows: 768
+  batch_size: 16
+  evaluation_batch_size: 128
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+  workers: 6
+  cpu_threads: 1
+statistics:
+  bootstrap_replicates: 10000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  seed: 20261111
+  multiplicity: holm_112_neural_joint_native_head_comparisons
+  classical_controls: exact_reused_predictions_no_inferred_gain

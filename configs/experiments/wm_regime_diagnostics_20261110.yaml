@@ -1,0 +1,23 @@
+experiment_id: wm_regime_diagnostics_20261110
+classification_dir: codex_outputs/wm_volatility_classification_20261110
+ensemble_dir: codex_outputs/wm_classification_ensemble_20261110
+aligned_predictions: codex_outputs/wm_classification_complementarity_20261110/aligned_predictions.parquet
+ablation_dir: codex_outputs/wm_technical_ablation_20261109
+output_dir: codex_outputs/wm_regime_diagnostics_20261110
+condition: fixed
+models: [logistic, lightgbm, direct, wm]
+seeds: [7, 17, 27]
+latest_fold: 14
+classical_train_probe_rows: 4096
+rolling_stride_bars: 96
+disjoint_label_gap_bars: 16
+volatility_regime_boundaries: [0.75, 1.25]
+matched_volatility_relative_tolerance: 0.2
+feature_shift_top_gain_features: 64
+feature_histogram_bins: 10
+cpu_threads: 2
+bootstrap_replicates: 2000
+block_days: [1, 7, 28]
+analysis_role: posthoc_descriptive
+test_selection_allowed: false
+model_refitting: false

@@ -1,0 +1,42 @@
+experiment_id: wm_volatility_classification_20261110
+ablation_config: configs/experiments/wm_technical_ablation_20261109.yaml
+comparison_config: configs/experiments/wm_model_comparison_20261109.yaml
+output_dir: codex_outputs/wm_volatility_classification_20261110
+conditions: [lgbm, wm, fixed]
+primary_condition: lgbm
+k: 0.5
+variance_floor: 0.000000000001
+primary_horizon: 16
+seeds: [7, 17, 27]
+device: mps
+parallel_workers: 4
+cpu_threads: 4
+neural_threads: 2
+neural:
+  models: [direct, wm]
+  max_steps: 3000
+  min_steps: 1200
+  validation_every: 200
+  patience_steps: 1000
+  significant_ba_improvement: 0.001
+  selection_rows: 1536
+  diagnostic_rows: 384
+  diagnostic_seed: 20261110
+  classification_loss_weight: 1.0
+tabular:
+  logistic_Cs: [0.001, 0.01, 0.1, 1.0]
+  logistic_max_iter: 1000
+  logistic_tol: 0.0001
+  lightgbm_leaves: [7, 31]
+  lightgbm_rounds: 1500
+  lightgbm_patience: 100
+  lightgbm_learning_rate: 0.03
+  lightgbm_min_data_leaf: 256
+  lightgbm_l2: 10.0
+statistics:
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  bootstrap_replicates: 2000
+  bootstrap_seed: 20261110
+  primary_metric: balanced_accuracy
+test_selection_allowed: false

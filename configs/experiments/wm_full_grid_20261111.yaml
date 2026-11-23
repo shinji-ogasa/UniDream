@@ -1,0 +1,64 @@
+experiment_id: wm_full_grid_20261111
+output_dir: codex_outputs/wm_full_grid_20261111
+parent_config: configs/experiments/wm_seven_task_benchmark_20261110.yaml
+groups: [A, B, C, D]
+folds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+seeds: [7]
+formulations: [regression, classification]
+device: mps
+horizons: [16]
+test_selection_allowed: false
+validation_partition: calendar_months_earlystop_calibration_selection
+labels:
+  signed_tasks: [return, advantage, recovery]
+  signed_train_rms_multiplier: 0.5
+  tertile_tasks: [variance, downside]
+  tertile_quantiles: [0.3333333333333333, 0.6666666666666666]
+  excess: zero_positive_train_median
+  crash: existing_binary_0_1
+  minimum_class_count: 200
+  minimum_class_fraction: 0.005
+calibration: identity
+model:
+  context: 256
+  d_model: 192
+  n_heads: 4
+  n_layers: 2
+  d_ff: 768
+  encoder_hidden: 192
+  n_categoricals: 32
+  n_classes: 32
+  dropout: 0.1
+training:
+  max_steps: 3000
+  min_steps: 1200
+  patience_steps: 1000
+  relative_improvement: 0.0005
+  validation_every: 200
+  selection_rows: 768
+  batch_size: 16
+  evaluation_batch_size: 128
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 10.0
+  workers: 4
+  cpu_threads: 1
+classical:
+  workers: 6
+  cpu_threads: 2
+  linear_max_train_rows: 4096
+  ridge_alphas: [10.0, 1000.0, 100000.0]
+  logistic_Cs: [0.01, 0.1, 1.0]
+  lightgbm_leaves: [7, 31]
+  lightgbm_rounds: 600
+  lightgbm_patience: 60
+  lightgbm_min_data_leaf: 256
+  lightgbm_l2: 10.0
+  lightgbm_learning_rate: 0.03
+  lightgbm_max_bin: 63
+statistics:
+  bootstrap_replicates: 10000
+  block_days: [1, 7, 28]
+  primary_block_days: 7
+  seed: 20261111
+  multiplicity: holm_112_paired_BA_comparisons

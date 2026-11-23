@@ -1,0 +1,11 @@
+experiment_id: wm_classification_complementarity_20261110
+source_dir: codex_outputs/wm_volatility_classification_20261110
+output_dir: codex_outputs/wm_classification_complementarity_20261110
+condition: fixed
+models: [logistic, lightgbm, direct, wm]
+seeds: [7, 17, 27]
+splits: [val, test]
+decision_rules: [balanced_prior, raw]
+analysis_role: posthoc_descriptive
+test_selection_allowed: false
+ensemble_fitting: false

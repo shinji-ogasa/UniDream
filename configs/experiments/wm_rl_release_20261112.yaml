@@ -1,0 +1,70 @@
+experiment_id: wm_rl_release_20261112
+output_dir: codex_outputs/wm_rl_release_20261112
+source_config: configs/experiments/wm_policy_ablation_20261112.yaml
+arms: [A, C]
+seeds: [7, 19, 42]
+folds: [0, 1, 2, 3, 4, 5]
+conditions: [control, floor_abrupt, floor_gradual, prior_abrupt, prior_gradual]
+device: mps
+test_selection_allowed: false
+independently_unused_holdout: false
+historical_seen_test: true
+evaluation_scope: conditional_saved_cohort_exploratory
+continuation:
+  max_updates: 200
+  selection_updates: [125, 150, 175, 200]
+  selection_rows: 1536
+  early_stopping: false
+  initialization: source_Val_selected_RL_weights
+  optimizer: fresh_AdamW_all_conditions_no_stage_reset
+  bc_reference: immutable_source_selected_BC
+  paired_random_streams: same_fold_seed_arm_across_conditions
+  wm_update_during_policy_training: false
+  rl_rollout_source: actual_historical_Train_segments
+schedules:
+  control:
+    - {through_update: 200, position_min: 0.50, bc_prior_coefficient: 0.01}
+  floor_abrupt:
+    - {through_update: 200, position_min: 0.0, bc_prior_coefficient: 0.01}
+  floor_gradual:
+    - {through_update: 50, position_min: 0.50, bc_prior_coefficient: 0.01}
+    - {through_update: 100, position_min: 0.25, bc_prior_coefficient: 0.01}
+    - {through_update: 200, position_min: 0.0, bc_prior_coefficient: 0.01}
+  prior_abrupt:
+    - {through_update: 200, position_min: 0.50, bc_prior_coefficient: 0.0}
+  prior_gradual:
+    - {through_update: 50, position_min: 0.50, bc_prior_coefficient: 0.01}
+    - {through_update: 100, position_min: 0.50, bc_prior_coefficient: 0.003}
+    - {through_update: 200, position_min: 0.50, bc_prior_coefficient: 0.0}
+accounting:
+  inherited_from_source: true
+  annual_bars: 35040
+  position_max: 1.12
+  max_position_step: 0.08
+  initial_position: 1.0
+  cost_rate: 0.00055
+  borrow_apr: 0.10
+  drawdown_penalty: 0.25
+  execution_delay_bars: 1
+  initial_entry_cost: false
+  terminal_liquidation: false
+statistics:
+  primary_metric: annualized_net_log_growth
+  primary_family_size: 12
+  wm_family_size: 5
+  risk_matched_family_size: 10
+  combined_family_size: 27
+  bootstrap_replicates: 10000
+  methods: [circular]
+  block_days: [7, 14, 30]
+  primary_block_days: 7
+  primary_estimand: market_fixed_seeds
+  seed_population_sensitivity: hierarchical_seeds
+  hac_lags: [6, 13, 29]
+  seed: 20261112
+  static_positions: [0.0, 0.5, 1.0]
+  matched_target_selection: full_Val_mean_exposure_per_fold_seed_arm_condition
+runtime:
+  workers: 8
+  cpu_threads: 1
+  status_seconds: 20

@@ -16,7 +16,9 @@
 
 ## 読む順番
 
-1. [SPEC.md](../SPEC.md) — 現行学習・評価・リーク防止の固定契約
+11月の研究コード・実験結果・再現上の制約は [2026年11月の研究スナップショット](experiments/wm_research_status_20261123.md) にまとめている。
+
+1. [SPEC.md](../SPEC.md) — 全体仕様、現行学習・評価・リーク防止の契約、研究用拡張と既知の制約（[調査台帳](specification_inventory.md)）
 2. [predictable_data_conditional_oracle_roadmap_2026.md](predictable_data_conditional_oracle_roadmap_2026.md) — 次期の predictable data → conditional Oracle 実験契約、段階ゲート、Agent 分担
 3. [predictable_oracle_hypothesis_registry.md](experiments/predictable_oracle_hypothesis_registry.md) — 全仮説のpass/fail/blocked-data台帳と並列branch ownership
 4. [plan011_v31_investor_evidence.md](plan011_v31_investor_evidence.md) — 開発 WFO と holdout の historical evidence
