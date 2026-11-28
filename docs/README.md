@@ -16,7 +16,7 @@
 
 ## 読む順番
 
-11月の研究コード・実験結果・再現上の制約は [2026年11月の研究スナップショット](experiments/wm_research_status_20261123.md) にまとめている。
+11月の研究コード・実験結果・再現上の制約は [2026年11月の研究スナップショット](experiments/wm_research_status_20261123.md) にまとめている。11月26日の無料市場データ追加（予測・BC→PPO・v31転用）は [市場データ追加の研究スナップショット](experiments/market_data_research_20261126.md) にある。
 
 1. [SPEC.md](../SPEC.md) — 全体仕様、現行学習・評価・リーク防止の契約、研究用拡張と既知の制約（[調査台帳](specification_inventory.md)）
 2. [predictable_data_conditional_oracle_roadmap_2026.md](predictable_data_conditional_oracle_roadmap_2026.md) — 次期の predictable data → conditional Oracle 実験契約、段階ゲート、Agent 分担

@@ -1,0 +1,166 @@
+{
+  "captured_on": "2026-11-28",
+  "timezone": "Asia/Tokyo",
+  "scope": "Unmodified saved aggregate artifacts from the 2026-11-26 local experiments; not an independent rerun or complete replay bundle",
+  "excluded": [
+    "codex_outputs/v31_market_transfer_20261126/inputs.json (contains absolute local paths; key facts are transcribed in the status document)"
+  ],
+  "files": [
+    {
+      "file": "forecast/design.md",
+      "source": "codex_outputs/free_market_20261126/design.md",
+      "sha256": "07bfa22738f0a0ee3d0aa8e3a72c0dd389ab5734de95abcd351023f6017c106e",
+      "bytes": 1736
+    },
+    {
+      "file": "forecast/metrics.csv",
+      "source": "codex_outputs/free_market_20261126/metrics.csv",
+      "sha256": "94ee7ef3b0e9c5b5974978bd515f72c69d86d227abbaa445ccdd36d00504d1d4",
+      "bytes": 12508
+    },
+    {
+      "file": "forecast/paired_tests.csv",
+      "source": "codex_outputs/free_market_20261126/paired_tests.csv",
+      "sha256": "9231445884343a3edd7059ee4103a36388cd3292758f1b3858b2f02cd5c50301",
+      "bytes": 10025
+    },
+    {
+      "file": "forecast/fold_metrics.csv",
+      "source": "codex_outputs/free_market_20261126/fold_metrics.csv",
+      "sha256": "2cafc000f4501e94e9fe9477e2eb87193ab5b561a4a2793a562ee6253db4ca1a",
+      "bytes": 131194
+    },
+    {
+      "file": "forecast/all_sources.csv",
+      "source": "codex_outputs/free_market_20261126/all_sources.csv",
+      "sha256": "d796f4a5870390ae1cab379658108566bffb65c1522241abcb50c79b85316671",
+      "bytes": 1248
+    },
+    {
+      "file": "forecast/coverage.csv",
+      "source": "codex_outputs/free_market_20261126/coverage.csv",
+      "sha256": "df6dec63ee0dd71eeaebbcc75b813317aa416100b5f1de70779a291d759e0065",
+      "bytes": 337
+    },
+    {
+      "file": "forecast/extra_coverage.csv",
+      "source": "codex_outputs/free_market_20261126/extra_coverage.csv",
+      "sha256": "839b510fa7526d3c33f534c5ebe173dc4eeb4e93620a65a445a706ce400beb50",
+      "bytes": 952
+    },
+    {
+      "file": "forecast/features.json",
+      "source": "codex_outputs/free_market_20261126/features.json",
+      "sha256": "4b3d96021493cfc8fa5f77f8603b0f27db834051c2f23de552521a51fddb70f9",
+      "bytes": 3167
+    },
+    {
+      "file": "forecast/linear_numeric_check.csv",
+      "source": "codex_outputs/free_market_20261126/linear_numeric_check.csv",
+      "sha256": "05591dd9aab9d8816b8e5f1f05e21e48070f730f8f6ce09e788d494d5f3756d1",
+      "bytes": 497
+    },
+    {
+      "file": "forecast/source_hashes.csv",
+      "source": "codex_outputs/free_market_20261126/source_hashes.csv",
+      "sha256": "16e0259d9bdb2444cc42dcc51af94c27b3efa2c1339360a2cfdeee7d29cf3fbb",
+      "bytes": 188873
+    },
+    {
+      "file": "rl/design.md",
+      "source": "codex_outputs/free_market_rl_20261126/design.md",
+      "sha256": "e6b0a4fdb82252900d4b277f86c7e5dd51e8c8c94b52687760c0a3f37c4f14d8",
+      "bytes": 2154
+    },
+    {
+      "file": "rl/summary.csv",
+      "source": "codex_outputs/free_market_rl_20261126/summary.csv",
+      "sha256": "eaeb8c22b7544bb9f44ae779b194433289ca92820ba486817f3a7f59de7cb354",
+      "bytes": 1624
+    },
+    {
+      "file": "rl/seed_results.csv",
+      "source": "codex_outputs/free_market_rl_20261126/seed_results.csv",
+      "sha256": "ae0672cd4d92c51ad88de05aa42929961c7d6bfd39bec71da4f7d1d696b84940",
+      "bytes": 8126
+    },
+    {
+      "file": "rl/paired_tests.csv",
+      "source": "codex_outputs/free_market_rl_20261126/paired_tests.csv",
+      "sha256": "844884a7d9f917cdab6b75a456c3dff4e4d9e10ee2edb606fc849e010f3db443",
+      "bytes": 790
+    },
+    {
+      "file": "rl/cost_diagnostic.csv",
+      "source": "codex_outputs/free_market_rl_20261126/cost_diagnostic.csv",
+      "sha256": "dd0c1452e8e6e8ae9daea8ea8968cb464ff1fb9c199eab984d86cfddf2aa9ab3",
+      "bytes": 3034
+    },
+    {
+      "file": "rl/monthly.csv",
+      "source": "codex_outputs/free_market_rl_20261126/monthly.csv",
+      "sha256": "fbdb0c337ac7ba28a969c789386aeec620d923d9fd092b158f62ca99e19512bc",
+      "bytes": 43750
+    },
+    {
+      "file": "rl/training.csv",
+      "source": "codex_outputs/free_market_rl_20261126/training.csv",
+      "sha256": "fddd80c9e8df95d75d1431ba42481f7a74caa8bd6feb92a8802dc960266aff50",
+      "bytes": 9491
+    },
+    {
+      "file": "rl/account_audit.json",
+      "source": "codex_outputs/free_market_rl_20261126/account_audit.json",
+      "sha256": "90867c21e142759f6fc3e823428803f4506eef9d14a5af659531e84db9789e59",
+      "bytes": 143
+    },
+    {
+      "file": "rl/producer_audit.csv",
+      "source": "codex_outputs/free_market_rl_20261126/producer_audit.csv",
+      "sha256": "ff28ab8fbc50531a8435c5637de3543803c11827464f3bac31384670591d9ebe",
+      "bytes": 850
+    },
+    {
+      "file": "rl/frozen_hashes.json",
+      "source": "codex_outputs/free_market_rl_20261126/frozen_hashes.json",
+      "sha256": "b41d29d4247f2bb57a9e450cf813b2ad5b70306faa9b7cba2ccf55fe4db29a48",
+      "bytes": 26717
+    },
+    {
+      "file": "rl/equity.png",
+      "source": "codex_outputs/free_market_rl_20261126/equity.png",
+      "sha256": "74dea405184bcf761a3bd964e2a8b127cec3121b52277f939ea3296387bf081c",
+      "bytes": 264067
+    },
+    {
+      "file": "v31/seed_results.csv",
+      "source": "codex_outputs/v31_market_transfer_20261126/seed_results.csv",
+      "sha256": "9e65f44b2ce97b9bece36ee91b308510fb24a11f06e09a4503c1bb302a233c1e",
+      "bytes": 2783
+    },
+    {
+      "file": "v31/fold_results.csv",
+      "source": "codex_outputs/v31_market_transfer_20261126/fold_results.csv",
+      "sha256": "d22da99fc321292b16e86e5d1d0bef3f6befcb02f79bca2f9f4648c136939610",
+      "bytes": 13662
+    },
+    {
+      "file": "v31/paired_tests.csv",
+      "source": "codex_outputs/v31_market_transfer_20261126/paired_tests.csv",
+      "sha256": "4fa445c854d965a5e6debe922134430cdeb2356aaad882874de5b5d8f6508791",
+      "bytes": 294
+    },
+    {
+      "file": "v31/jobs.csv",
+      "source": "codex_outputs/v31_market_transfer_20261126/jobs.csv",
+      "sha256": "a635f2d218b43a50d0f6a7f3b1292afacb605e2a195eba65111a2c87fe7c31db",
+      "bytes": 10782
+    },
+    {
+      "file": "v31/completion.json",
+      "source": "codex_outputs/v31_market_transfer_20261126/completion.json",
+      "sha256": "a64c71ffb1177e6094c906c495ce620259c1f97768ff544037a466c4b0b2bd1a",
+      "bytes": 12374
+    }
+  ]
+}

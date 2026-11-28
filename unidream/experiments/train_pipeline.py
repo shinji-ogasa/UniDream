@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pandas as pd
+
 from unidream.data.dataset import WFODataset
 
 from .runtime import set_seed
@@ -36,5 +40,18 @@ def run_wfo_folds(
             checkpoint_dir=checkpoint_dir,
             run_manifest=run_manifest,
         )
+        if cfg.get("logging", {}).get("save_test_path", False):
+            test_index = features_df.index[
+                (features_df.index >= split.test_start) & (features_df.index < split.test_end)
+            ]
+            frame = pd.DataFrame({
+                "position": result["positions"],
+                "market_log_return": result["test_returns"],
+                "net_log_return": result["metrics"].pnl_series,
+            }, index=test_index)
+            dest = Path(checkpoint_dir) / f"fold_{split.fold_idx}" / "test_path.parquet"
+            temp = dest.with_suffix(".tmp")
+            frame.to_parquet(temp)
+            temp.replace(dest)
         fold_results[split.fold_idx] = result
     return fold_results
